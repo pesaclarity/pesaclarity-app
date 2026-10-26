@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/feature_placeholder.dart';
+import 'tag_totals_card.dart';
 
 /// Insights tab: what should I change?
 class InsightsScreen extends StatelessWidget {
@@ -18,6 +19,7 @@ class InsightsScreen extends StatelessWidget {
           'Six-month trend',
           'A one-page PDF report',
         ],
+        actions: [TagTotalsSection()],
       ),
     );
   }

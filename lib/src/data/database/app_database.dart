@@ -97,6 +97,19 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(reviewItems);
         }
       }
+      if (from < 8) {
+        for (final column in [
+          imports.institutionId,
+          imports.openingBalanceMinor,
+          imports.transactionCount,
+          imports.addedCount,
+          imports.duplicateCount,
+          imports.unreadCount,
+          imports.result,
+        ]) {
+          await _addColumnIfMissing(m, imports, column);
+        }
+      }
       if (from < 9) await _addGoalsAndLending(m);
     },
     beforeOpen: (details) async {

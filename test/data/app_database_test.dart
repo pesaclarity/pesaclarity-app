@@ -233,9 +233,27 @@ void main() {
       return old;
     }
 
+    /// Takes the schema back to version 7, before statement import records.
+    Future<AppDatabase> version7() async {
+      final old = await version8();
+      for (final column in [
+        'institution_id',
+        'opening_balance_minor',
+        'transaction_count',
+        'added_count',
+        'duplicate_count',
+        'unread_count',
+        'result',
+      ]) {
+        await old.customStatement('ALTER TABLE imports DROP COLUMN $column');
+      }
+      await old.customStatement('PRAGMA user_version = 7');
+      return old;
+    }
+
     /// Takes the schema back to version 6, before SMS capture.
     Future<AppDatabase> version6() async {
-      final old = await version8();
+      final old = await version7();
       await old.customStatement('DROP TABLE review_items');
       await old.customStatement('DROP INDEX accounts_institution');
       await old.customStatement(
@@ -521,6 +539,42 @@ void main() {
         db.into(db.transactions).insert(sms()),
         throwsA(isA<SqliteException>()),
         reason: 'the dedupe index is unique per account',
+      );
+    });
+
+    test('migrates a version 7 database: statement import records', () async {
+      final old = await version7();
+      await old.customStatement(
+        'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES (1, 'M-Pesa', 'mpesa', 'KES', 0, 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO imports (account_id, file_hash, period_start, period_end, '
+        "imported_at) VALUES (1, 'abc', 0, 0, 0)",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 9);
+      final kept = await db.select(db.imports).getSingle();
+      expect(kept.fileHash, 'abc');
+      expect(kept.transactionCount, 0);
+      expect(kept.institutionId, isNull);
+      expect(kept.result, isNull);
+    });
+
+    test('the statement import step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      await current.customStatement('PRAGMA user_version = 7');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 9);
+      expect(
+        (await columns(db, 'imports')).keys,
+        containsAll(['institution_id', 'transaction_count', 'result']),
       );
     });
 

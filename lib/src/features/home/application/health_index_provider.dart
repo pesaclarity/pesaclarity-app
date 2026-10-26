@@ -23,6 +23,7 @@ class HealthOnHome {
 /// The Financial Health Index for the last full Nairobi month, or null when
 /// that month has no transactions.
 final healthIndexProvider = FutureProvider<HealthOnHome?>((ref) async {
+  ref.watch(ledgerChangesProvider);
   final today = CalendarDate.nairobi(ref.watch(clockProvider)());
   final month = today.yearMonth.previous;
   final before = month.previous;

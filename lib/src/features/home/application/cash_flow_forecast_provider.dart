@@ -11,6 +11,7 @@ import '../../../domain/time/calendar.dart';
 /// This month's cash-flow forecast for day-to-day accounts (everything but
 /// SACCO and money market accounts), or null when there are none.
 final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
+  ref.watch(ledgerChangesProvider);
   final today = CalendarDate.nairobi(ref.watch(clockProvider)());
   final accounts = (await ref.watch(accountsRepositoryProvider).openings())
       .where((a) => !a.isSavings)

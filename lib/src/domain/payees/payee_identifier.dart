@@ -93,6 +93,17 @@ class PayeeIdentifier {
     }
   }
 
+  /// How the app shows this identifier, for example `0712***945`,
+  /// `Till NAIVAS JUJA` or `Paybill KPLC, account 1234`.
+  String get label => switch (kind) {
+    PayeeIdentifierKind.phone || PayeeIdentifierKind.account => value,
+    PayeeIdentifierKind.till => 'Till $value',
+    PayeeIdentifierKind.paybill =>
+      isWholeBusiness
+          ? 'Paybill ${value.substring(0, value.length - 1)}'
+          : 'Paybill ${value.replaceFirst(_paybillSeparator, ', account ')}',
+  };
+
   @override
   bool operator ==(Object other) =>
       other is PayeeIdentifier && other.kind == kind && other.value == value;
