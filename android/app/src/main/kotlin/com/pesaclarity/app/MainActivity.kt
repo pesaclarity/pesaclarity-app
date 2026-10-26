@@ -7,6 +7,7 @@ import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
     private var sms: SmsChannel? = null
+    private var deviceIntegrity: DeviceIntegrityChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Blocks screenshots, screen recording and app-switcher previews of financial data.
@@ -20,11 +21,14 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         sms = SmsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        deviceIntegrity = DeviceIntegrityChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         sms?.dispose()
         sms = null
+        deviceIntegrity?.dispose()
+        deviceIntegrity = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

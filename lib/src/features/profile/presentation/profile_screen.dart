@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../security/presentation/device_warning_card.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -27,6 +28,7 @@ class ProfileScreen extends ConsumerWidget {
           'Sign out and delete account',
         ],
         actions: [
+          const DeviceWarningCard(),
           Card(
             child: Column(
               children: [
