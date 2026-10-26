@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
+import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
 import '../../../domain/ledger/ledger_entry.dart';
@@ -14,6 +15,8 @@ import '../../../shared/format/date_labels.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../categoriser/application/categoriser_providers.dart';
+import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../application/activity_providers.dart';
 import 'name_payee_sheet.dart';
 
@@ -59,6 +62,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final entries = loaded.value ?? const <LedgerEntry>[];
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = ref.watch(activityCategoriesProvider).value ?? const {};
+    final suggester = ref.watch(categorySuggesterProvider);
 
     String? categoryName(LedgerEntry e) =>
         e.categoryId == null ? null : categories[e.categoryId]?.name;
@@ -146,6 +150,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                     line: line,
                     accounts: accounts,
                     categoryName: categoryName,
+                    categories: categories,
+                    suggest: (e) => suggester?.suggest(e),
+                    onAccept: (e, s) =>
+                        confirmCategory(ref, e, s.categoryId, s),
                   ),
               ],
             if (_filter.from == null && entries.isNotEmpty) ...[
@@ -309,11 +317,17 @@ class _ActivityRow extends StatelessWidget {
     required this.line,
     required this.accounts,
     required this.categoryName,
+    required this.categories,
+    required this.suggest,
+    required this.onAccept,
   });
 
   final ActivityLine line;
   final Map<int, Account> accounts;
   final String? Function(LedgerEntry) categoryName;
+  final Map<int, Category> categories;
+  final CategorySuggestion? Function(LedgerEntry) suggest;
+  final void Function(LedgerEntry, CategorySuggestion) onAccept;
 
   String _account(int id) => accounts[id]?.name ?? 'Account';
 
@@ -334,6 +348,10 @@ class _ActivityRow extends StatelessWidget {
         ),
         amount: _amount(context, entry.signedMinor),
         onTap: () => showNamePayeeSheet(context, entry),
+      ),
+      EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
+        context,
+        entry,
       ),
       EntryLine(:final entry) => _row(
         context,
@@ -378,6 +396,45 @@ class _ActivityRow extends StatelessWidget {
     };
   }
 
+  /// A line without a category: shows the suggestion, if any, with a
+  /// one-tap accept, and opens the sheet to accept or change it.
+  Widget _uncategorised(BuildContext context, LedgerEntry entry) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final suggestion = suggest(entry);
+    final name = suggestion == null
+        ? null
+        : categories[suggestion.categoryId]?.name;
+    final title = _title(entry);
+    return _row(
+      context,
+      avatar: _Avatar.text(_initials(title), colors: colors),
+      title: title,
+      subtitle: Text(
+        name == null
+            ? 'Uncategorised · Tap to choose'
+            : '$name? ${suggestion!.percent}%',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodyMedium!.copyWith(color: colors.link),
+      ),
+      amount: _amount(context, entry.signedMinor),
+      trailing: name == null
+          ? null
+          : IconButton(
+              tooltip: 'Accept $name',
+              icon: Icon(Icons.check_circle_outline, color: colors.link),
+              onPressed: () => onAccept(entry, suggestion!),
+            ),
+      onTap: () => showCategorySuggestionSheet(
+        context,
+        entry: entry,
+        title: title,
+        suggestion: name == null ? null : suggestion,
+      ),
+    );
+  }
+
   String _categoryLabel(LedgerEntry entry) {
     if (roleOf(entry) == LedgerRole.awaitingPayee) return 'Not named yet';
     return categoryName(entry) ?? 'Uncategorised';
@@ -389,6 +446,7 @@ class _ActivityRow extends StatelessWidget {
     required String title,
     required Widget subtitle,
     required Widget amount,
+    Widget? trailing,
     VoidCallback? onTap,
   }) => InkWell(
     onTap: onTap,
@@ -415,6 +473,7 @@ class _ActivityRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           amount,
+          ?trailing,
         ],
       ),
     ),
