@@ -161,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.8"
+  cryptography:
+    dependency: transitive
+    description:
+      name: cryptography
+      sha256: "3eda3029d34ec9095a27a198ac9785630fe525c0eb6a49f3d575272f8e792ef0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.0"
   cupertino_ui:
     dependency: transitive
     description:
@@ -770,6 +778,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  ujumbe:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: "9e7b67f2a5f0c4b6021d15932c9f32a7198d05e0"
+      resolved-ref: "9e7b67f2a5f0c4b6021d15932c9f32a7198d05e0"
+      url: "https://github.com/pesaclarity/ujumbe-parsers.git"
+    source: git
+    version: "0.1.0"
   uuid:
     dependency: transitive
     description:
