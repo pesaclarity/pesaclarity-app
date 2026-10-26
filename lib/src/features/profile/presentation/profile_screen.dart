@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../export/application/export_service.dart';
+import '../../export/presentation/export_sheet.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -36,6 +38,23 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: const Text('Choose whose messages are read'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(AppRoutes.myAccounts),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.people_outline),
+                  title: const Text('Payees'),
+                  subtitle: const Text('Names, categories and leak types'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.payees),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.file_download_outlined),
+                  title: const Text('Export data'),
+                  subtitle: const Text('CSV · Excel · PDF'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      showExportSheet(context, const FullWorkbookExport()),
                 ),
                 const Divider(height: 1),
                 ListTile(
