@@ -5,7 +5,7 @@ import '../helpers/fake_sms_source.dart';
 import '../helpers/sms_samples.dart';
 import '../helpers/test_app.dart';
 
-const _home = 'How am I doing today?';
+const _home = 'Safe to spend today';
 
 void main() {
   Future<void> toScan(WidgetTester tester) async {
@@ -49,6 +49,9 @@ void main() {
     expect(review!.single.body, mpesaNotice().body);
 
     await tapText(tester, 'Continue');
+    expect(find.text('Your last 90 days'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Go to Home'), 200);
+    await tapText(tester, 'Go to Home');
     expect(find.text(_home), findsOneWidget);
   });
 

@@ -122,7 +122,7 @@ void main() {
     await tapText(tester, 'Send crash reports');
     await tapText(tester, 'Agree and continue');
     expect(find.text('Our privacy policy changed'), findsNothing);
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(find.text('Safe to spend today'), findsOneWidget);
 
     final saved = await tester.runAsync(
       () =>

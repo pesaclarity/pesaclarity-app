@@ -5,7 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
@@ -14,10 +14,13 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/privacy/privacy_policy.dart';
 import 'package:pesaclarity/src/features/privacy/data/policy_source.dart';
 import 'package:pesaclarity/src/features/reminders/data/reminder_notifications.dart';
+import 'package:pesaclarity/src/features/security/data/biometric_authenticator.dart';
+import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
+import 'fake_app_lock.dart';
 import 'fake_reminders.dart';
 import 'fake_sms_source.dart';
 
@@ -43,8 +46,11 @@ AppDatabase openTestDatabase() {
 }
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
-/// inbox by default) in place of the phone's messages, and fakes for
-/// notifications and email unless given.
+/// inbox by default) in place of the phone's messages, fakes for
+/// notifications and email unless given, and any [overrides].
+///
+/// App lock reads its settings from [secureStore] (empty, so no lock, by
+/// default) and uses [biometrics] in place of the fingerprint prompt.
 Future<void> pumpApp(
   WidgetTester tester, {
   required AppDatabase db,
@@ -52,12 +58,15 @@ Future<void> pumpApp(
   SmsSource? sms,
   ReminderNotifications? notifications,
   PolicyMailer? mailer,
+  SecureStore? secureStore,
+  BiometricAuthenticator? biometrics,
   List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       key: UniqueKey(),
       overrides: [
+        ...appLockOverrides(store: secureStore, biometrics: biometrics),
         appFlavorProvider.overrideWithValue(flavor),
         appDatabaseProvider.overrideWithValue(db),
         smsSourceProvider.overrideWithValue(sms ?? FakeSmsSource()),

@@ -7,10 +7,15 @@ class PlanCategory {
     required this.id,
     required this.type,
     this.isDailySpending = false,
+    this.key,
   });
 
   final int id;
   final CategoryType type;
+
+  /// The seeded category's stable key, such as `school_fees`; null for
+  /// categories the user made.
+  final String? key;
 
   /// Counts towards the day-to-day budget behind safe-to-spend.
   final bool isDailySpending;
