@@ -8,10 +8,7 @@ void main() {
   testAppWidgets('starts in onboarding and reaches Home', (tester) async {
     await pumpApp(tester, db: openTestDatabase());
 
-    expect(
-      find.text('Your money, made clear, without giving your data away.'),
-      findsOneWidget,
-    );
+    expect(find.text('Know what you can spend today.'), findsOneWidget);
     expect(find.text('Continue with Google'), findsNothing);
 
     await finishOnboarding(tester);
@@ -37,8 +34,8 @@ void main() {
     const tabs = {
       'Activity': 'Search payee, amount, note',
       'Plan': 'Planned of expected income',
-      'Goals': 'Am I getting there?',
-      'Insights': 'What should I change?',
+      'Goals': 'Saving for',
+      'Insights': 'Your leakages show here',
       'Home': 'Safe to spend today',
     };
     for (final MapEntry(key: label, value: question) in tabs.entries) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Shown for the moment it takes to read saved onboarding state.
+/// Shown while app lock settings and saved onboarding state load.
 class LaunchScreen extends StatelessWidget {
   const LaunchScreen({super.key});
 
