@@ -1,0 +1,51 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IDEs
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter/Dart/Pub
+**/doc/api/
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbols and obfuscation maps (keep them, but not in git)
+app.*.symbols
+app.*.map.json
+/symbols/
+
+# Android Studio build output
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget previews
+.widget_preview/
+
+# Secrets: never commit signing keys or local config
+.env
+*.keystore
+*.jks
+key.properties
+
+# Generated code (run `dart run build_runner build`)
+*.g.dart
