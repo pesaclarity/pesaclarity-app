@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/database/enums.dart';
+import '../../../domain/enums.dart';
 
 /// A bank or mobile money provider whose SMS the app can read.
 @immutable

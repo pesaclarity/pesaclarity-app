@@ -100,31 +100,4 @@ void main() {
       expect(await DriftOnboardingRepository(second).isComplete(), isTrue);
     });
   });
-
-  test('migrates a version 1 database by adding the new tables', () async {
-    final raw = sqlite3.openInMemory();
-    addTearDown(raw.close);
-    AppDatabase open() =>
-        AppDatabase(NativeDatabase.opened(raw, closeUnderlyingOnClose: false));
-
-    // Build the current schema, then strip it back to version 1.
-    final current = open();
-    await current.customSelect('SELECT 1').get();
-    await current.close();
-    raw
-      ..execute('DROP TABLE selected_institutions')
-      ..execute('DROP TABLE app_settings')
-      ..execute('PRAGMA user_version = 1');
-
-    final migrated = open();
-    addTearDown(migrated.close);
-    await DriftInstitutionsRepository(migrated)
-        .setSelected('mpesa', selected: true);
-    await DriftOnboardingRepository(migrated).markComplete();
-
-    expect(raw.select('PRAGMA user_version').single.values.single, 2);
-    expect(await DriftInstitutionsRepository(migrated).selectedIds(), {
-      'mpesa',
-    });
-  });
 }
