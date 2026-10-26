@@ -31,6 +31,14 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.account_balance_outlined),
+                  title: const Text('My accounts'),
+                  subtitle: const Text('Choose whose messages are read'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.myAccounts),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined),
                   title: const Text('Backup and restore'),
                   trailing: const Icon(Icons.chevron_right),
