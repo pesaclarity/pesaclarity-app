@@ -10,6 +10,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
+import '../../security/application/balance_visibility.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
@@ -139,14 +140,17 @@ class _HealthIndexCard extends StatelessWidget {
   }
 }
 
-class _ForecastCard extends StatelessWidget {
+class _ForecastCard extends ConsumerWidget {
   const _ForecastCard(this.forecast);
 
   final CashFlowForecast forecast;
 
   @override
-  Widget build(BuildContext context) {
-    final messages = forecast.messages;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hidden = ref.watch(balancesHiddenProvider);
+    final messages = [
+      for (final message in forecast.messages) maskAmountsIf(hidden, message),
+    ];
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
