@@ -8,6 +8,7 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
+import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
@@ -124,6 +125,7 @@ void main() {
       ProviderScope(
         overrides: [
           safeToSpendTodayProvider.overrideWith((ref) async => result),
+          healthIndexProvider.overrideWith((ref) async => null),
         ],
         child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
       ),
