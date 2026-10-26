@@ -43,6 +43,7 @@ lib/
   src/
     app.dart                 root widget
     config/                  build flavour
+    core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
