@@ -18,6 +18,9 @@ void main() {
 
     expect(find.text('How am I doing today?'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
+    // With no accounts or transactions yet, Home has no index or forecast.
+    expect(find.text('Financial Health Index'), findsNothing);
+    expect(find.textContaining('At this pace'), findsNothing);
   });
 
   testAppWidgets('offers Google sign-in only in the play flavour', (

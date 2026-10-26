@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../routing/app_routes.dart';
 
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/presentation/institution_list.dart';
-import '../application/onboarding_controller.dart';
 
 /// Onboarding: tick the institutions whose messages the app should read.
 class MyAccountsScreen extends ConsumerWidget {
@@ -51,9 +53,7 @@ class MyAccountsScreen extends ConsumerWidget {
                 identifier: SemanticIds.onboardingScanMessages,
                 child: FilledButton(
                   onPressed: hasSelection
-                      ? () => ref
-                            .read(onboardingControllerProvider.notifier)
-                            .complete()
+                      ? () => context.go(AppRoutes.onboardingScan)
                       : null,
                   child: const Text('Scan my messages'),
                 ),

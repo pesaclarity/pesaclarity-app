@@ -34,6 +34,14 @@ tags:
 - takeScreenshot: 02b-onboarding-my-accounts-ticked-${THEME}
 - tapOn:
     id: onboarding-scan-messages
+- extendedWaitUntil:
+    visible:
+      id: title-sms-scan
+    timeout: 10000
+- waitForAnimationToEnd
+- takeScreenshot: 02c-onboarding-sms-scan-${THEME}
+- tapOn:
+    id: sms-scan-not-now
 - assertVisible:
     id: title-home
 - assertVisible:

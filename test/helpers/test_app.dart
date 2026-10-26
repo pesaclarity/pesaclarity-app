@@ -7,6 +7,11 @@ import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
+import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
+import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
+
+import 'fake_sms_source.dart';
 
 /// Like [testWidgets], but unmounts the app at the end so Drift's stream
 /// queries close inside the fake clock instead of leaving a timer pending.
@@ -29,11 +34,13 @@ AppDatabase openTestDatabase() {
   return db;
 }
 
-/// Pumps the whole app on [db], as if launched fresh.
+/// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
+/// inbox by default) in place of the phone's messages.
 Future<void> pumpApp(
   WidgetTester tester, {
   required AppDatabase db,
   AppFlavor flavor = AppFlavor.foss,
+  SmsSource? sms,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -41,6 +48,10 @@ Future<void> pumpApp(
       overrides: [
         appFlavorProvider.overrideWithValue(flavor),
         appDatabaseProvider.overrideWithValue(db),
+        smsSourceProvider.overrideWithValue(sms ?? FakeSmsSource()),
+        smsParseBatchProvider.overrideWithValue(
+          (packs, messages) async => parseAll(packs, messages),
+        ),
       ],
       child: const PesaClarityApp(),
     ),
@@ -48,7 +59,16 @@ Future<void> pumpApp(
   await tester.pumpAndSettle();
 }
 
-/// Goes from the welcome screen to Home, ticking M-Pesa on the way.
+/// Scrolls [text] into view, then taps it.
+Future<void> tapText(WidgetTester tester, String text) async {
+  await tester.ensureVisible(find.text(text));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(text));
+  await tester.pumpAndSettle();
+}
+
+/// Goes from the welcome screen to Home, ticking M-Pesa and allowing SMS
+/// access on the way.
 Future<void> finishOnboarding(WidgetTester tester) async {
   await tester.tap(find.text('Get started'));
   await tester.pumpAndSettle();
@@ -56,4 +76,6 @@ Future<void> finishOnboarding(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Scan my messages'));
   await tester.pumpAndSettle();
+  await tapText(tester, 'Allow access to messages');
+  await tapText(tester, 'Continue');
 }

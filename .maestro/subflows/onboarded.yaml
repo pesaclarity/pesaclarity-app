@@ -20,5 +20,11 @@ appId: com.pesaclarity.app
     id: onboarding-scan-messages
 - extendedWaitUntil:
     visible:
+      id: title-sms-scan
+    timeout: 10000
+- tapOn:
+    id: sms-scan-not-now
+- extendedWaitUntil:
+    visible:
       id: title-home
     timeout: 10000

@@ -11,6 +11,7 @@ abstract final class SemanticIds {
 
   static const onboardingGetStarted = 'onboarding-get-started';
   static const onboardingScanMessages = 'onboarding-scan-messages';
+  static const smsScanNotNow = 'sms-scan-not-now';
 
   /// A row in the institution list, such as `institution-mpesa`.
   static String institution(String institutionId) =>
@@ -21,6 +22,7 @@ abstract final class SemanticIds {
 
   static const titleWelcome = 'title-welcome';
   static const titleMyAccounts = 'title-my-accounts';
+  static const titleSmsScan = 'title-sms-scan';
   static const titleHome = 'title-home';
   static const titleActivity = 'title-activity';
   static const titlePlan = 'title-plan';

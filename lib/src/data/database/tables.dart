@@ -5,6 +5,11 @@ import '../../domain/enums.dart';
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.
 
+@TableIndex(
+  name: 'accounts_institution',
+  columns: {#institutionId},
+  unique: true,
+)
 class Accounts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 80)();
@@ -14,6 +19,10 @@ class Accounts extends Table {
   IntColumn get openingBalanceMinor =>
       integer().withDefault(const Constant(0))();
   DateTimeColumn get openingDate => dateTime()();
+
+  /// The institution whose messages feed this account, such as `mpesa`.
+  /// Null for accounts added by hand.
+  TextColumn get institutionId => text().nullable()();
 }
 
 @TableIndex(name: 'categories_key', columns: {#key}, unique: true)
@@ -61,6 +70,7 @@ class PayeeIdentifiers extends Table {
   ];
 }
 
+@DataClassName('DebtRecord')
 class Debts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get lender => text().withLength(min: 1, max: 80)();
@@ -77,6 +87,28 @@ class Debts extends Table {
 
   /// False for family and friend loans, which get no interest maths.
   BoolColumn get isFormal => boolean().withDefault(const Constant(true))();
+
+  /// A balance the user confirmed, such as from a lender statement, and
+  /// when. Repayments after [balanceAsOf] come off it; without it they come
+  /// off the starting balance.
+  IntColumn get balanceMinor => integer().nullable()();
+  DateTimeColumn get balanceAsOf => dateTime().nullable()();
+
+  /// The payee repayments go to, for suggesting which debt a payment repays.
+  IntColumn get payeeId => integer().nullable().references(Payees, #id)();
+
+  /// Position in the user's own payoff order; null when not placed.
+  IntColumn get customOrder => integer().nullable()();
+}
+
+/// Instalments agreed on a family or friend loan.
+@DataClassName('DebtInstalmentRecord')
+class DebtInstalments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get debtId =>
+      integer().references(Debts, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get dueDate => dateTime()();
+  IntColumn get amountMinor => integer()();
 }
 
 class Goals extends Table {
@@ -100,6 +132,11 @@ class Goals extends Table {
 @TableIndex(
   name: 'transactions_counterparty',
   columns: {#counterpartyKind, #counterpartyValue},
+)
+@TableIndex(
+  name: 'transactions_dedupe',
+  columns: {#accountId, #dedupeKey},
+  unique: true,
 )
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -126,6 +163,9 @@ class Transactions extends Table {
   TextColumn get counterpartyKind =>
       textEnum<PayeeIdentifierKind>().nullable()();
   TextColumn get counterpartyValue => text().nullable()();
+
+  /// The other party's name as the message printed it.
+  TextColumn get counterpartyName => text().nullable()();
   TextColumn get item => text().nullable()();
   IntColumn get categoryOverrideId =>
       integer().nullable().references(Categories, #id)();
@@ -136,6 +176,13 @@ class Transactions extends Table {
 
   /// Hash of the source SMS for dedupe; the message text itself is never kept.
   TextColumn get messageHash => text().nullable()();
+
+  /// Receipt, amount and minute (ujumbe's `dedupeKey`), shared with statement
+  /// imports so the same transaction is stored once per account.
+  TextColumn get dedupeKey => text().nullable()();
+
+  /// The account balance the message reported after this transaction.
+  IntColumn get balanceAfterMinor => integer().nullable()();
 
   /// The other half of an own-account transfer, which never counts as spending.
   IntColumn get transferPairId =>
@@ -218,6 +265,28 @@ class ParserPacks extends Table {
 
   @override
   Set<Column> get primaryKey => {packId};
+}
+
+/// Messages from a selected sender that no parser rule matched, waiting for
+/// the person to tag their fields once.
+///
+/// This is the only place message text is kept: inside the encrypted
+/// database, and only until the item is resolved, when [body] is cleared.
+/// The hash stays so a later scan does not bring the message back.
+@DataClassName('ReviewItem')
+class ReviewItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The parser pack (and institution) that owns the sender.
+  TextColumn get institutionId => text()();
+  TextColumn get sender => text()();
+  DateTimeColumn get receivedAt => dateTime()();
+  TextColumn get messageHash => text().unique()();
+  TextColumn get body => text().nullable()();
+
+  /// Why the parser produced no transaction, for debugging packs.
+  TextColumn get reason => text()();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
 }
 
 /// Institutions the person ticked in My accounts. A row means it is switched

@@ -55,6 +55,8 @@ void main() {
     await tapId(tester, SemanticIds.institution('mpesa'));
     expectChecked(tester, SemanticIds.institution('mpesa'), checked: true);
     await tapId(tester, SemanticIds.onboardingScanMessages);
+    expectId(SemanticIds.titleSmsScan);
+    await tapId(tester, SemanticIds.smsScanNotNow);
     expectId(SemanticIds.titleHome);
 
     const tabs = {
