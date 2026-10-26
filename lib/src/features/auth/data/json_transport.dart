@@ -30,12 +30,13 @@ abstract interface class JsonTransport {
   });
 }
 
-/// [JsonTransport] over `dart:io`.
+/// [JsonTransport] over `dart:io`, on a [client] from `HttpClientFactory`
+/// so certificate pinning applies.
 class IoJsonTransport implements JsonTransport {
   IoJsonTransport({
-    HttpClient? client,
+    required this._client,
     this.timeout = const Duration(seconds: 20),
-  }) : _client = client ?? (HttpClient()..connectionTimeout = timeout);
+  });
 
   final HttpClient _client;
   final Duration timeout;

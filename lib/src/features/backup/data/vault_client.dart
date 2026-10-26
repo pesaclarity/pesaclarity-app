@@ -40,8 +40,8 @@ class VaultBackupLocation implements BackupLocation {
   VaultBackupLocation({
     required this.baseUrl,
     required this._tokens,
-    http.Client? client,
-  }) : _client = client ?? http.Client();
+    required this._client,
+  });
 
   final Uri baseUrl;
   final VaultTokenSource _tokens;

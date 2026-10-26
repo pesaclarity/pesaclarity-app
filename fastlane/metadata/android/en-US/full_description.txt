@@ -1,0 +1,19 @@
+Pesa Clarity reads your M-Pesa and bank messages and turns them into a clear daily plan: what you can safely spend today, which bills are due, where your money goes, and when you will be debt-free.
+
+All the work happens on your phone. You choose which banks and wallets the app reads, and it reads messages from those senders only.
+
+<b>What it does</b>
+<ul>
+<li>Safe to spend today, worked out from your balance, bills and next payday</li>
+<li>Activity that keeps transfers between your own accounts out of your spending</li>
+<li>A monthly plan, with a payday split for rent, debts, savings and set-asides</li>
+<li>A debt plan with a debt-free date, covering Fuliza, bank loans and family loans</li>
+<li>A cash-flow forecast that shows early when money may run low</li>
+</ul>
+
+<b>Your data stays yours</b>
+<ul>
+<li>Transactions are kept in an encrypted database on the phone</li>
+<li>Backups are encrypted on the phone with your passphrase before they leave it</li>
+<li>Free and open source under the AGPL-3.0, with every feature free for everyone</li>
+</ul>

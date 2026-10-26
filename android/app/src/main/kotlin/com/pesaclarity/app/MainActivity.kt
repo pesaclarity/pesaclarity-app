@@ -11,6 +11,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var sms: SmsChannel? = null
     private var documents: DocumentsChannel? = null
     private var share: ShareChannel? = null
+    private var deviceIntegrity: DeviceIntegrityChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Blocks screenshots, screen recording and app-switcher previews of financial data.
@@ -27,6 +28,7 @@ class MainActivity : FlutterFragmentActivity() {
         documents = DocumentsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         share = ShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger)
+        deviceIntegrity = DeviceIntegrityChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
@@ -36,6 +38,8 @@ class MainActivity : FlutterFragmentActivity() {
         documents = null
         share?.dispose()
         share = null
+        deviceIntegrity?.dispose()
+        deviceIntegrity = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

@@ -1,0 +1,1 @@
+First release: reads M-Pesa and selected bank messages, and shows safe to spend, activity, a monthly plan and a debt plan. Data is kept in an encrypted database on the phone.

@@ -13,6 +13,7 @@ import '../../backup/application/backup_providers.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
+import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
@@ -41,6 +42,7 @@ class ProfileScreen extends ConsumerWidget {
           'Sign out and delete account',
         ],
         actions: [
+          const DeviceWarningCard(),
           Card(
             child: Column(
               children: [

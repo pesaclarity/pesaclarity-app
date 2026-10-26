@@ -56,8 +56,8 @@ class UnavailableDriveAuth implements DriveAuth {
 /// Backups in a "Pesa Clarity backups" folder in the user's own Drive,
 /// through the Drive v3 REST API. Never touches the Pesa Clarity server.
 class DriveBackupLocation implements BackupLocation {
-  DriveBackupLocation(this._auth, {http.Client? client})
-    : _client = client ?? http.Client();
+  /// [client] comes from `HttpClientFactory` so certificate pinning applies.
+  DriveBackupLocation(this._auth, {required this._client});
 
   final DriveAuth _auth;
   final http.Client _client;
