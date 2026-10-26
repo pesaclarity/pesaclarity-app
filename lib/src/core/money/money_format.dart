@@ -39,3 +39,25 @@ String _groupThousands(int value) {
   }
   return buffer.toString();
 }
+
+/// Reads an amount typed by the person, such as `1,200` or `1200.50`, as
+/// minor units. Null when it is not a positive amount with at most the
+/// currency's minor digits.
+int? parseMoneyMinor(String input, {String currency = 'KES'}) {
+  final digits = minorUnitDigits(currency);
+  final clean = input.replaceAll(RegExp(r'[\s,]'), '');
+  final match = RegExp(r'^(\d+)(?:\.(\d*))?$').firstMatch(clean);
+  if (match == null) return null;
+  final fraction = match.group(2) ?? '';
+  if (fraction.length > digits) return null;
+  final major = int.tryParse(match.group(1)!);
+  if (major == null) return null;
+  var minor = major;
+  for (var i = 0; i < digits; i++) {
+    minor *= 10;
+  }
+  final value =
+      minor +
+      (fraction.isEmpty ? 0 : int.parse(fraction.padRight(digits, '0')));
+  return value > 0 ? value : null;
+}
