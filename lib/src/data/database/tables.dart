@@ -16,8 +16,13 @@ class Accounts extends Table {
   DateTimeColumn get openingDate => dateTime()();
 }
 
+@TableIndex(name: 'categories_key', columns: {#key}, unique: true)
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
+
+  /// Stable key of a seeded category, shared with the categoriser's labels.
+  /// Null for categories the user made.
+  TextColumn get key => text().nullable()();
   TextColumn get name => text().withLength(min: 1, max: 60).unique()();
   TextColumn get type => textEnum<CategoryType>()();
 
@@ -36,10 +41,13 @@ class Payees extends Table {
   TextColumn get displayName => text().withLength(min: 1, max: 80)();
   IntColumn get defaultCategoryId =>
       integer().nullable().references(Categories, #id)();
-  TextColumn get leakType => textEnum<LeakType>().nullable()();
+  TextColumn get leakType =>
+      textEnum<LeakType>().withDefault(Constant(LeakType.none.name))();
 }
 
-/// Raw identifiers that resolve to a payee. Phone numbers are stored masked.
+/// Raw identifiers that resolve to a payee, normalised by `PayeeIdentifier`.
+/// Phone numbers are stored masked.
+@DataClassName('PayeeIdentifierRow')
 class PayeeIdentifiers extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get payeeId =>
@@ -89,6 +97,10 @@ class Goals extends Table {
   name: 'transactions_account_time',
   columns: {#accountId, #occurredAt},
 )
+@TableIndex(
+  name: 'transactions_counterparty',
+  columns: {#counterpartyKind, #counterpartyValue},
+)
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get accountId => integer().references(Accounts, #id)();
@@ -108,6 +120,12 @@ class Transactions extends Table {
   /// Exchange rate to the account currency in millionths, for foreign income.
   IntColumn get fxRateMicros => integer().nullable()();
   IntColumn get payeeId => integer().nullable().references(Payees, #id)();
+
+  /// The other party's raw identifier, normalised by `PayeeIdentifier`, so
+  /// naming a payee later reaches this transaction too.
+  TextColumn get counterpartyKind =>
+      textEnum<PayeeIdentifierKind>().nullable()();
+  TextColumn get counterpartyValue => text().nullable()();
   TextColumn get item => text().nullable()();
   IntColumn get categoryOverrideId =>
       integer().nullable().references(Categories, #id)();

@@ -34,10 +34,11 @@ enum TransactionSource { sms, statement, manual }
 /// Category kinds; only [expense] counts as spending.
 enum CategoryType { income, expense, debt, savings, tax, transfer }
 
-/// Leakage groups shown on Insights.
-enum LeakType { lifestyle, friends, family, fees }
+/// Leakage groups shown on Insights; [none] is not a leak.
+enum LeakType { none, lifestyle, friends, family, fees }
 
-/// What a payee raw identifier is.
+/// What a payee raw identifier is: a phone number, a Buy Goods till, a
+/// paybill with its account reference, or a bank account number.
 enum PayeeIdentifierKind { phone, till, paybill, account }
 
 enum RecurrenceFrequency { weekly, monthly, quarterly, yearly }
