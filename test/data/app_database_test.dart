@@ -199,24 +199,54 @@ void main() {
     );
   });
 
-  test('migrates a version 1 database by adding kind and fee', () async {
+  test('migrates a version 1 database to the current schema', () async {
     final dir = await Directory.systemTemp.createTemp('pesaclarity_migration');
     addTearDown(() => dir.delete(recursive: true));
     final file = File('${dir.path}/v1.sqlite');
 
-    final v2 = AppDatabase(NativeDatabase(file));
-    await v2.customSelect('SELECT 1').get();
-    await v2.customStatement('ALTER TABLE transactions DROP COLUMN kind');
-    await v2.customStatement('ALTER TABLE transactions DROP COLUMN fee_minor');
-    await v2.customStatement('PRAGMA user_version = 1');
-    await v2.close();
+    // Build the current schema, then take it back to version 1.
+    final old = AppDatabase(NativeDatabase(file));
+    await old.customSelect('SELECT 1').get();
+    await old.customStatement('ALTER TABLE transactions DROP COLUMN kind');
+    await old.customStatement('ALTER TABLE transactions DROP COLUMN fee_minor');
+    await old.customStatement('DROP TABLE budget_snapshots');
+    await old.customStatement(
+      'CREATE TABLE budget_snapshots ('
+      'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+      'month INTEGER NOT NULL, '
+      'category_id INTEGER NOT NULL REFERENCES categories (id), '
+      'planned_minor INTEGER NOT NULL, actual_minor INTEGER NOT NULL, '
+      'frozen_at INTEGER NOT NULL, UNIQUE (month, category_id))',
+    );
+    await old.customStatement(
+      'INSERT INTO categories (id, name, type, is_daily_spending) '
+      "VALUES (1, 'Rent', 'expense', 0)",
+    );
+    await old.customStatement(
+      'INSERT INTO budget_snapshots '
+      '(month, category_id, planned_minor, actual_minor, frozen_at) '
+      'VALUES (202609, 1, 100, 90, 0)',
+    );
+    await old.customStatement('PRAGMA user_version = 1');
+    await old.close();
 
     final db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
-    final columns = await db
-        .customSelect('PRAGMA table_info(transactions)')
-        .map((row) => row.read<String>('name'))
-        .get();
-    expect(columns, containsAll(['kind', 'fee_minor']));
+    Future<Map<String, bool>> columns(String table) => db
+        .customSelect('PRAGMA table_info($table)')
+        .map(
+          (row) =>
+              MapEntry(row.read<String>('name'), row.read<int>('notnull') == 1),
+        )
+        .get()
+        .then(Map.fromEntries);
+
+    expect(
+      (await columns('transactions')).keys,
+      containsAll(['kind', 'fee_minor']),
+    );
+    expect((await columns('budget_snapshots'))['category_id'], isFalse);
+    final kept = await db.select(db.budgetSnapshots).getSingle();
+    expect(kept.plannedMinor, 100);
   });
 }

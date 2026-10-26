@@ -30,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,6 +38,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.addColumn(transactions, transactions.kind);
         await m.addColumn(transactions, transactions.feeMinor);
+      }
+      if (from < 3) {
+        await m.alterTable(TableMigration(budgetSnapshots));
       }
     },
     beforeOpen: (details) async {

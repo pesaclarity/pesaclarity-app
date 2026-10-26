@@ -158,11 +158,12 @@ class BudgetItems extends Table {
   BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
 }
 
-/// Frozen month-end results per category.
+/// Frozen month-end results per category; a null category is Uncategorised.
 class BudgetSnapshots extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get month => integer()();
-  IntColumn get categoryId => integer().references(Categories, #id)();
+  IntColumn get categoryId =>
+      integer().nullable().references(Categories, #id)();
   IntColumn get plannedMinor => integer()();
   IntColumn get actualMinor => integer()();
   DateTimeColumn get frozenAt => dateTime()();

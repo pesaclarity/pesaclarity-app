@@ -50,6 +50,7 @@ lib/
       time/                  Nairobi calendar dates and months
       ledger/                own transfers, Fuliza fees, noise collapse, honest totals
       budget/                safe to spend today, weekday and weekend limits
+      plan/                  monthly plan, arrears, category status, surplus split, snapshots
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
