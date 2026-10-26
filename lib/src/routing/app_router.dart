@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../domain/ledger/activity_feed.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
+import '../features/auth/presentation/devices_screen.dart';
+import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/backup/presentation/backup_setup_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
@@ -125,6 +127,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'payees',
                         builder: (context, state) => const PayeesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'sign-in',
+                        builder: (context, state) => const SignInScreen(),
+                      ),
+                      GoRoute(
+                        path: 'devices',
+                        builder: (context, state) => const DevicesScreen(),
                       ),
                     ],
                   ),

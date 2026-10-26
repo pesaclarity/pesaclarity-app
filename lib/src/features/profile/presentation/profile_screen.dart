@@ -7,6 +7,7 @@ import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../export/application/export_service.dart';
@@ -29,6 +30,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: FeaturePlaceholder(
+        hero: const AccountCard(),
         question: 'Your account and settings',
         contents: const [
           'Account details',
@@ -107,6 +109,8 @@ class ProfileScreen extends ConsumerWidget {
           const SecuritySettingsCard(),
           const SizedBox(height: 16),
           const RemindersSettingsCard(),
+          const SizedBox(height: 16),
+          const AccountActions(),
         ],
       ),
     );

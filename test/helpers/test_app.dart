@@ -12,6 +12,10 @@ import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/privacy/privacy_policy.dart';
+import 'package:pesaclarity/src/features/auth/application/auth_controller.dart';
+import 'package:pesaclarity/src/features/auth/data/auth_api.dart';
+import 'package:pesaclarity/src/features/auth/data/google_id_token_source.dart';
+import 'package:pesaclarity/src/features/auth/data/session_store.dart';
 import 'package:pesaclarity/src/features/privacy/data/policy_source.dart';
 import 'package:pesaclarity/src/features/reminders/data/reminder_notifications.dart';
 import 'package:pesaclarity/src/features/security/data/biometric_authenticator.dart';
@@ -21,6 +25,7 @@ import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
 import 'fake_app_lock.dart';
+import 'fake_auth.dart';
 import 'fake_reminders.dart';
 import 'fake_sms_source.dart';
 
@@ -47,7 +52,8 @@ AppDatabase openTestDatabase() {
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
 /// inbox by default) in place of the phone's messages, fakes for
-/// notifications and email unless given, and any [overrides].
+/// notifications and email unless given, and any [overrides]. Without [auth]
+/// the build behaves as one with no server configured.
 ///
 /// App lock reads its settings from [secureStore] (empty, so no lock, by
 /// default) and uses [biometrics] in place of the fingerprint prompt.
@@ -56,6 +62,9 @@ Future<void> pumpApp(
   required AppDatabase db,
   AppFlavor flavor = AppFlavor.foss,
   SmsSource? sms,
+  AuthApi? auth,
+  SessionStore? sessions,
+  GoogleIdTokenSource? google,
   ReminderNotifications? notifications,
   PolicyMailer? mailer,
   SecureStore? secureStore,
@@ -70,6 +79,15 @@ Future<void> pumpApp(
         appFlavorProvider.overrideWithValue(flavor),
         appDatabaseProvider.overrideWithValue(db),
         smsSourceProvider.overrideWithValue(sms ?? FakeSmsSource()),
+        authApiProvider.overrideWithValue(auth ?? const UnconfiguredAuthApi()),
+        sessionStoreProvider.overrideWithValue(
+          sessions ?? InMemorySessionStore(),
+        ),
+        deviceNameSourceProvider.overrideWithValue(
+          const FakeDeviceNameSource(),
+        ),
+        if (google != null)
+          googleIdTokenSourceProvider.overrideWithValue(google),
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
         ),

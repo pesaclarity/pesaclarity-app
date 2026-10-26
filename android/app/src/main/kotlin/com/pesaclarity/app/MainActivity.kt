@@ -26,6 +26,7 @@ class MainActivity : FlutterFragmentActivity() {
         sms = SmsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         documents = DocumentsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         share = ShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {

@@ -35,6 +35,16 @@ iOS comes after the Android MVP. Add the platform then with `flutter create --pl
 
 Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.dart`). Builds without a known flavour, including tests, behave as `foss`.
 
+### Server
+
+Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. Set its address at build time:
+
+```sh
+flutter run --flavor foss --dart-define=PESACLARITY_API_URL=https://api.example.org
+```
+
+Only `https` is accepted, apart from `http://10.0.2.2`, `localhost` and `127.0.0.1` for local development. Without it, the app works fully without an account and sign-in explains that accounts come in a later update.
+
 ## Project layout
 
 ```text
