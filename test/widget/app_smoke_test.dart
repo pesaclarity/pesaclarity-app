@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
+import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 
@@ -15,6 +16,7 @@ Future<void> _pumpApp(
       overrides: [
         appFlavorProvider.overrideWithValue(flavor),
         safeToSpendTodayProvider.overrideWith((ref) async => null),
+        cashFlowForecastProvider.overrideWith((ref) async => null),
         healthIndexProvider.overrideWith((ref) async => null),
       ],
       child: const PesaClarityApp(),

@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/budget/safe_to_spend.dart';
+import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
+import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
 
@@ -20,6 +22,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final safeToSpend = ref.watch(safeToSpendTodayProvider).value;
     final health = ref.watch(healthIndexProvider).value;
+    final forecast = ref.watch(cashFlowForecastProvider).value;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,6 +49,10 @@ class HomeScreen extends ConsumerWidget {
               )
             else
               _SafeToSpendCard(safeToSpend),
+            if (forecast != null) ...[
+              const SizedBox(height: 16),
+              _ForecastCard(forecast),
+            ],
             if (health != null) ...[
               const SizedBox(height: 16),
               _HealthIndexCard(health),
@@ -127,6 +134,26 @@ class _HealthIndexCard extends StatelessWidget {
           ),
         ),
         // TODO(health): open the weakest pillar and bestAction on tap.
+      ),
+    );
+  }
+}
+
+class _ForecastCard extends StatelessWidget {
+  const _ForecastCard(this.forecast);
+
+  final CashFlowForecast forecast;
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = forecast.messages;
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        title: Text(messages.first),
+        subtitle: messages.length > 1
+            ? Text(messages.skip(1).join('\n'))
+            : null,
       ),
     );
   }

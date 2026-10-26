@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/health/health_index.dart';
 import 'package:pesaclarity/src/domain/health/health_inputs.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
+import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
@@ -103,6 +104,7 @@ void main() {
       ProviderScope(
         overrides: [
           safeToSpendTodayProvider.overrideWith((ref) async => null),
+          cashFlowForecastProvider.overrideWith((ref) async => null),
           healthIndexProvider.overrideWith(
             (ref) async => HealthOnHome(index, 3),
           ),
