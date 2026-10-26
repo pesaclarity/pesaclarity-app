@@ -7,6 +7,8 @@ import '../helpers/test_app.dart';
 // test fails first if a refactor drops one.
 void main() {
   Future<void> tapId(WidgetTester tester, String id) async {
+    await tester.ensureVisible(find.bySemanticsIdentifier(id));
+    await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsIdentifier(id));
     await tester.pumpAndSettle();
   }
