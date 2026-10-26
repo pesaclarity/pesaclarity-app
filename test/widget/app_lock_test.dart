@@ -20,7 +20,7 @@ import '../helpers/test_app.dart';
 
 const _pin = '246810';
 const _lockTitle = 'Enter your PIN';
-const _homeQuestion = 'How am I doing today?';
+const _homeQuestion = 'Safe to spend today';
 
 void main() {
   late MemorySecureStore store;
