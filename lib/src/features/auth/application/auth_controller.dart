@@ -4,11 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/server_config.dart';
+import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
 import '../data/auth_api.dart';
 import '../data/device_name.dart';
 import '../data/google_id_token_source.dart';
 import '../data/http_auth_api.dart';
+import '../data/json_transport.dart';
 import '../data/session_store.dart';
 import '../domain/auth_models.dart';
 import '../domain/phone_number.dart';
@@ -17,7 +19,12 @@ import '../domain/phone_number.dart';
 final authApiProvider = Provider<AuthApi>((ref) {
   final baseUrl = ref.watch(serverBaseUrlProvider);
   if (baseUrl == null) return const UnconfiguredAuthApi();
-  return HttpAuthApi(baseUrl: baseUrl);
+  return HttpAuthApi(
+    baseUrl: baseUrl,
+    transport: IoJsonTransport(
+      client: ref.watch(httpClientFactoryProvider).create(),
+    ),
+  );
 });
 
 /// Where the refresh token is kept between launches.

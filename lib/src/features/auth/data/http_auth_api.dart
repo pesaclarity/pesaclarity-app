@@ -7,8 +7,7 @@ import 'json_transport.dart';
 
 /// [AuthApi] against the Pesa Clarity server at [baseUrl].
 class HttpAuthApi implements AuthApi {
-  HttpAuthApi({required this.baseUrl, JsonTransport? transport})
-    : _transport = transport ?? IoJsonTransport();
+  HttpAuthApi({required this.baseUrl, required this._transport});
 
   final Uri baseUrl;
   final JsonTransport _transport;

@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/io_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../config/flavor.dart';
 import '../../../core/backup/backup.dart';
+import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
 import '../data/backup_location.dart';
 import '../data/backup_settings_repository.dart';
@@ -160,6 +162,9 @@ class BackupController extends AsyncNotifier<BackupSettings> {
     );
   }
 
+  IOClient _pinnedClient() =>
+      IOClient(ref.read(httpClientFactoryProvider).create());
+
   /// The location object for [id], or null if it cannot be used now.
   BackupLocation? locationFor(BackupLocationId id, BackupSettings settings) {
     switch (id) {
@@ -170,10 +175,13 @@ class BackupController extends AsyncNotifier<BackupSettings> {
             : VaultBackupLocation(
                 baseUrl: url,
                 tokens: ref.read(vaultTokenSourceProvider),
+                client: _pinnedClient(),
               );
       case BackupLocationId.drive:
         final auth = ref.read(driveAuthProvider);
-        return auth.isAvailable ? DriveBackupLocation(auth) : null;
+        return auth.isAvailable
+            ? DriveBackupLocation(auth, client: _pinnedClient())
+            : null;
       case BackupLocationId.deviceFolder:
         final folder = settings.folder;
         return folder == null
