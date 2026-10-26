@@ -31,7 +31,9 @@ The [Maestro](https://maestro.mobile.dev) flows in `.maestro/` drive the app on 
    adb install -r build/app/outputs/flutter-apk/app-foss-debug.apk
    ```
 
-3. Run every flow in light and dark mode: `./tool/run_ui_flows.sh`. Reports and screenshots land in `build/maestro/<theme>/`. To run one flow, use `maestro test -e THEME=light .maestro/tab-plan.yaml`.
+3. Run every flow in light and dark mode: `./tool/run_ui_flows.sh`. Reports and screenshots land in `build/maestro/<theme>/`. To run one flow, use `maestro test -e THEME=light .maestro/tab-plan.yaml`. The onboarding flow runs first; if it fails, the rest of that theme is skipped and `./tool/ui_diagnostics.sh` saves logcat, a screenshot and the view hierarchy to `build/maestro/diagnostics/`.
+
+Keep flow `name:` values free of `< > : " | ? * \`, because Maestro names output folders after them.
 
 Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_ids.dart` and its widget test. Keep screenshot names stable; reviewers compare them across runs.
 
