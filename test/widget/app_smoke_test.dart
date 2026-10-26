@@ -16,7 +16,7 @@ void main() {
 
     await finishOnboarding(tester);
 
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(find.text('Safe to spend today'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
     // With no accounts or transactions yet, Home has no index or forecast.
     expect(find.text('Financial Health Index'), findsNothing);
@@ -35,11 +35,11 @@ void main() {
     await finishOnboarding(tester);
 
     const tabs = {
-      'Activity': 'Where did my money go?',
-      'Plan': "What's coming, and is it covered?",
+      'Activity': 'Search payee, amount, note',
+      'Plan': 'Planned of expected income',
       'Goals': 'Am I getting there?',
       'Insights': 'What should I change?',
-      'Home': 'How am I doing today?',
+      'Home': 'Safe to spend today',
     };
     for (final MapEntry(key: label, value: question) in tabs.entries) {
       await tester.tap(

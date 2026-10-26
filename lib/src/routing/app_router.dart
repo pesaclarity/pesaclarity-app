@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/ledger/activity_feed.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
@@ -12,6 +13,7 @@ import '../features/insights/presentation/insights_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
+import '../features/plan/presentation/payday_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
@@ -94,7 +96,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.activity,
-                builder: (context, state) => const ActivityScreen(),
+                builder: (context, state) => ActivityScreen(
+                  // A new filter from another tab starts a fresh screen.
+                  key: ValueKey(state.uri.query),
+                  initialFilter: ActivityFilter.fromQuery(
+                    state.uri.queryParameters,
+                  ),
+                ),
               ),
             ],
           ),
@@ -103,6 +111,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.plan,
                 builder: (context, state) => const PlanScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'payday',
+                    builder: (context, state) => const PaydayScreen(),
+                  ),
+                ],
               ),
             ],
           ),

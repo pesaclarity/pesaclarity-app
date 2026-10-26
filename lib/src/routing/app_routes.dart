@@ -1,3 +1,5 @@
+import '../domain/ledger/activity_feed.dart';
+
 /// Route paths. Deeper screens nest under the tab they open from.
 abstract final class AppRoutes {
   static const launch = '/';
@@ -16,7 +18,16 @@ abstract final class AppRoutes {
   static const privacy = '/home/profile/privacy';
 
   static const activity = '/activity';
+
+  /// Activity opened with [filter] applied.
+  static String activityWith(ActivityFilter filter) {
+    final query = filter.toQuery();
+    if (query.isEmpty) return activity;
+    return Uri(path: activity, queryParameters: query).toString();
+  }
+
   static const plan = '/plan';
+  static const payday = '/plan/payday';
   static const goals = '/goals';
   static const debts = '/goals/debts';
   static const insights = '/insights';
