@@ -70,6 +70,7 @@ class PayeeIdentifiers extends Table {
   ];
 }
 
+@DataClassName('DebtRecord')
 class Debts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get lender => text().withLength(min: 1, max: 80)();
@@ -86,6 +87,28 @@ class Debts extends Table {
 
   /// False for family and friend loans, which get no interest maths.
   BoolColumn get isFormal => boolean().withDefault(const Constant(true))();
+
+  /// A balance the user confirmed, such as from a lender statement, and
+  /// when. Repayments after [balanceAsOf] come off it; without it they come
+  /// off the starting balance.
+  IntColumn get balanceMinor => integer().nullable()();
+  DateTimeColumn get balanceAsOf => dateTime().nullable()();
+
+  /// The payee repayments go to, for suggesting which debt a payment repays.
+  IntColumn get payeeId => integer().nullable().references(Payees, #id)();
+
+  /// Position in the user's own payoff order; null when not placed.
+  IntColumn get customOrder => integer().nullable()();
+}
+
+/// Instalments agreed on a family or friend loan.
+@DataClassName('DebtInstalmentRecord')
+class DebtInstalments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get debtId =>
+      integer().references(Debts, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get dueDate => dateTime()();
+  IntColumn get amountMinor => integer()();
 }
 
 class Goals extends Table {

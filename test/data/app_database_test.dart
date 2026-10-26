@@ -222,9 +222,9 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 5, before
-    /// SMS capture (version 7; version 6 is another change).
-    Future<AppDatabase> version5() async {
+    /// Builds the current schema, then takes it back to version 6, before
+    /// SMS capture.
+    Future<AppDatabase> version6() async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE review_items');
       await old.customStatement('DROP INDEX accounts_institution');
@@ -241,6 +241,26 @@ void main() {
           'ALTER TABLE transactions DROP COLUMN $column',
         );
       }
+      await old.customStatement('PRAGMA user_version = 6');
+      return old;
+    }
+
+    /// Takes the schema back to version 5, before the debt planner.
+    Future<AppDatabase> version5() async {
+      final old = await version6();
+      await old.customStatement('DROP TABLE debt_instalments');
+      await old.customStatement('DROP TABLE debts');
+      await old.customStatement(
+        'CREATE TABLE debts ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'lender TEXT NOT NULL, type TEXT NOT NULL, '
+        "currency TEXT NOT NULL DEFAULT 'KES', "
+        'starting_balance_minor INTEGER NOT NULL, '
+        'annual_rate_basis_points INTEGER NULL, '
+        'minimum_payment_minor INTEGER NOT NULL DEFAULT 0, '
+        'planned_payment_minor INTEGER NULL, '
+        'is_formal INTEGER NOT NULL DEFAULT 1)',
+      );
       await old.customStatement('PRAGMA user_version = 5');
       return old;
     }
@@ -335,8 +355,14 @@ void main() {
       expect(await userVersion(db), 7);
       expect(
         await tableNames(db),
-        containsAll(['selected_institutions', 'app_settings']),
+        containsAll([
+          'selected_institutions',
+          'app_settings',
+          'debt_instalments',
+          'review_items',
+        ]),
       );
+      expect((await columns(db, 'debts')).keys, contains('balance_minor'));
     });
 
     test('migrates a version 3 database: payees, keys and seeds', () async {
@@ -404,8 +430,38 @@ void main() {
       expect(await db.select(db.categories).get(), hasLength(categoryCount));
     });
 
-    test('migrates a version 5 database: SMS capture (version 7)', () async {
+    test('migrates a version 5 database: the debt planner', () async {
       final old = await version5();
+      await old.customStatement(
+        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 7);
+      expect(
+        (await columns(db, 'debts')).keys,
+        containsAll([
+          'balance_minor',
+          'balance_as_of',
+          'payee_id',
+          'custom_order',
+        ]),
+      );
+      expect(
+        (await columns(db, 'debt_instalments')).keys,
+        contains('due_date'),
+      );
+      expect(await tableNames(db), contains('review_items'));
+      final kept = await db.select(db.debts).getSingle();
+      expect(kept.startingBalanceMinor, 50000);
+      expect(kept.balanceMinor, isNull);
+    });
+
+    test('migrates a version 6 database: SMS capture', () async {
+      final old = await version6();
       await old.customStatement(
         'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
         "opening_date) VALUES (1, 'Cash', 'cash', 'KES', 0, 0)",
@@ -459,16 +515,30 @@ void main() {
     });
 
     test(
-      'the SMS capture step is safe to run on a schema that has it',
+      'the debt planner and SMS capture steps are safe to run twice',
       () async {
-        final old = AppDatabase(NativeDatabase(file));
-        await old.customStatement('PRAGMA user_version = 6');
-        await old.close();
+        final current = AppDatabase(NativeDatabase(file));
+        await current.customStatement(
+          'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+          "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+        );
+        await current.customStatement(
+          'INSERT INTO debt_instalments (debt_id, due_date, amount_minor) '
+          'VALUES (1, 0, 100)',
+        );
+        await current.customStatement(
+          'INSERT INTO review_items (institution_id, sender, received_at, '
+          "message_hash, body, reason) VALUES ('mpesa', 'MPESA', 0, 'h', 'b', 'r')",
+        );
+        await current.customStatement('PRAGMA user_version = 5');
+        await current.close();
 
         final db = AppDatabase(NativeDatabase(file));
         addTearDown(db.close);
         expect(await userVersion(db), 7);
-        expect(await tableNames(db), contains('review_items'));
+        expect(await db.select(db.debts).get(), hasLength(1));
+        expect(await db.select(db.debtInstalments).get(), hasLength(1));
+        expect(await db.select(db.reviewItems).get(), hasLength(1));
       },
     );
   });

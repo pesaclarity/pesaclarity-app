@@ -17,6 +17,7 @@ part 'app_database.g.dart';
     Payees,
     PayeeIdentifiers,
     Debts,
+    DebtInstalments,
     Goals,
     Transactions,
     TransactionTags,
@@ -72,8 +73,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(selectedInstitutions);
         await m.createTable(appSettings);
       }
-      // Version 6 belongs to another change; this step checks before each
-      // change so it is safe whichever order the two land in.
+      if (from < 6) await _addDebtPlanner(m);
+      // Checks before each change, like the debt planner step, so it is
+      // safe to run more than once.
       if (from < 7) {
         await _addColumnIfMissing(m, accounts, accounts.institutionId);
         await _createIndexIfMissing(m, accountsInstitution);
@@ -98,6 +100,25 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// Debt balances, payees, custom order and family instalments.
+  ///
+  /// Safe to run more than once, so it holds whichever version number it
+  /// ends up under when other migrations land beside it.
+  Future<void> _addDebtPlanner(Migrator m) async {
+    final existing = await customSelect('PRAGMA table_info(debts)')
+        .map((row) => row.read<String>('name'))
+        .get();
+    for (final column in [
+      debts.balanceMinor,
+      debts.balanceAsOf,
+      debts.payeeId,
+      debts.customOrder,
+    ]) {
+      if (!existing.contains(column.name)) await m.addColumn(debts, column);
+    }
+    await m.createTable(debtInstalments);
+  }
 
   Future<bool> _exists(String type, String name) async => (await customSelect(
     'SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?',
