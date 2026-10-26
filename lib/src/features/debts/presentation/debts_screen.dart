@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/debts/payoff_plan.dart';
-import '../../../domain/time/calendar.dart';
+import '../../../domain/time/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../application/debt_plan_provider.dart';
+
+export '../../../domain/time/date_labels.dart' show monthLabel;
 
 /// Debts, one level under Goals: when will I be debt-free?
 class DebtsScreen extends ConsumerWidget {
@@ -73,22 +75,3 @@ class _DebtFreeCard extends StatelessWidget {
     );
   }
 }
-
-/// A month as the app shows it, for example `Mar 2028`.
-String monthLabel(YearMonth month) =>
-    '${_months[month.month - 1]} ${month.year}';
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];

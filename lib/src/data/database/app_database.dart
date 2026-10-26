@@ -19,6 +19,8 @@ part 'app_database.g.dart';
     Debts,
     DebtInstalments,
     Goals,
+    LentLoans,
+    LoanPayments,
     Transactions,
     TransactionTags,
     Recurring,
@@ -29,13 +31,15 @@ part 'app_database.g.dart';
     SelectedInstitutions,
     AppSettings,
     ReviewItems,
+    CategoryCorrections,
+    CategoryConfirmations,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -108,6 +112,17 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnIfMissing(m, imports, column);
         }
       }
+      if (from < 9) await _addGoalsAndLending(m);
+      if (from < 10) {
+        for (final TableInfo<Table, Object?> table in [
+          categoryCorrections,
+          categoryConfirmations,
+        ]) {
+          if (!await _exists('table', table.actualTableName)) {
+            await m.createTable(table);
+          }
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -131,6 +146,17 @@ class AppDatabase extends _$AppDatabase {
       if (!existing.contains(column.name)) await m.addColumn(debts, column);
     }
     await m.createTable(debtInstalments);
+  }
+
+  /// Saved amounts on goals, money lent, and part payments on family loans.
+  /// Safe to run more than once.
+  Future<void> _addGoalsAndLending(Migrator m) async {
+    await _addColumnIfMissing(m, goals, goals.savedMinor);
+    for (final TableInfo<Table, Object?> table in [lentLoans, loanPayments]) {
+      if (!await _exists('table', table.actualTableName)) {
+        await m.createTable(table);
+      }
+    }
   }
 
   Future<bool> _exists(String type, String name) async => (await customSelect(

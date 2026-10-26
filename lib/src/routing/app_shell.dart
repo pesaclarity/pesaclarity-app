@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/privacy/application/consent_controller.dart';
+import '../features/privacy/presentation/policy_review_screen.dart';
+import '../features/reminders/application/reminders_controller.dart';
 import '../features/sms/application/sms_capture_providers.dart';
 import '../shared/semantic_ids.dart';
 import '../theme/brand_tokens.dart';
 import '../theme/pesa_colors.dart';
 
 /// Five-tab shell with the floating pill navigation bar. While it is shown,
-/// new account messages flow into the ledger.
+/// new account messages flow into the ledger, reminders stay scheduled, and
+/// a newer privacy policy is put up for review.
 class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
@@ -60,6 +64,13 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(liveSmsCaptureProvider, (_, _) {});
+    ref.listen(reminderSyncProvider, (_, _) {});
+    ref.listen(policyReviewProvider, (_, next) {
+      // While reloading, value still holds the previous changes.
+      if (next case AsyncData(value: final changes?)) {
+        showPolicyReview(context, changes);
+      }
+    });
     final scheme = Theme.of(context).colorScheme;
     final colors = PesaColors.of(context);
     final pill = BorderRadius.circular(BrandTokens.pillRadius);

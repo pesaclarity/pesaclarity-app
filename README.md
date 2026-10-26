@@ -35,6 +35,16 @@ iOS comes after the Android MVP. Add the platform then with `flutter create --pl
 
 Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.dart`). Builds without a known flavour, including tests, behave as `foss`.
 
+### Server
+
+Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. Set its address at build time:
+
+```sh
+flutter run --flavor foss --dart-define=PESACLARITY_API_URL=https://api.example.org
+```
+
+Only `https` is accepted, apart from `http://10.0.2.2`, `localhost` and `127.0.0.1` for local development. Without it, the app works fully without an account and sign-in explains that accounts come in a later update.
+
 ## Project layout
 
 ```text
@@ -44,6 +54,8 @@ lib/
     app.dart                 root widget
     config/                  build flavour
     core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
+    core/network/            pinned HttpClient factory (SPKI SHA-256 pins from build config)
+    core/integrity/          IntegrityAttestor: Play stub, foss no-op, request header hook
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
@@ -83,10 +95,14 @@ From the spec's "Mobile security" section:
 - `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS` and `POST_NOTIFICATIONS` only. `INTERNET` is present only in debug and profile builds for Flutter tooling; release builds get it when sign-in and the backup vault land.
-- Cleartext traffic is refused and only system certificate authorities are trusted. Certificate pinning comes with the server endpoints.
+- Cleartext traffic is refused and only system certificate authorities are trusted. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`), which pins server keys by SPKI SHA-256 from `--dart-define=PESACLARITY_CERT_PINS` (two or more pins per host) and refuses to connect when the pins do not match or are misconfigured. A test fails if code creates an `HttpClient` any other way. The real pins are set once the server is deployed.
+- Device integrity: `IntegrityAttestor` (`lib/src/core/integrity`) supplies a token header for backup and federated-learning requests; the `play` stub returns "unavailable" until the Play project exists, and `foss` never attests. A light root and tamper check (`DeviceIntegrityChannel.kt`) shows a one-time notice in Profile and never blocks use.
+- Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
-Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, certificate pinning and Play Integrity. These are marked `TODO(security)` and similar in the code.
+Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, real certificate pins and Play Integrity tokens. These are marked `TODO(security)` and similar in the code.
+
+Releases: see [RELEASING.md](RELEASING.md), [docs/reproducible-builds.md](docs/reproducible-builds.md) and [docs/performance-budget.md](docs/performance-budget.md). F-Droid store text lives in `fastlane/metadata/android/en-US`.
 
 ## SQLCipher
 
@@ -107,6 +123,15 @@ SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers]
 - **Scans.** "Scan my messages" reads the last 90 days. Afterwards, each time the app opens it reads what arrived since the last scan (90 days for a newly ticked institution), then adds new messages as they land while it runs. Messages that arrive while the app is closed wait in the inbox for the next scan, so there is no background service.
 - **Parsing** runs on a background isolate. A parsed message keeps its fields (amount, time, fee, receipt, balance, counterparty) and a SHA-256 hash; the text is discarded. Each institution gets its own account, created on its first transaction. Transactions are deduplicated per account by ujumbe's dedupe key (receipt, amount and minute), which statement imports will share. Counterparties are normalised with `PayeeIdentifier`, so named payees apply.
 - **Review inbox.** A message from a selected sender that no rule matches is kept for review, text included, because tagging its fields to make a local rule needs the text. It lives only in the SQLCipher database and its text is deleted when the item is resolved; the hash stays so a later scan does not bring it back.
+
+## On-device categoriser
+
+- **Features.** `lib/src/domain/categoriser/features.dart` is a Dart port of `akili.features` in [pesaclarity/pesaclarity-ml](https://github.com/pesaclarity/pesaclarity-ml) (feature schema version 1). `test/fixtures/categoriser/feature_vectors.v1.json` is a copy of that repo's conformance vectors, and the tests check every case. When the ML repo bumps the schema, copy the new vectors and port the change.
+- **Model.** No model ships with the app; one arrives only after passing the ML repo's privacy release gate. An installed model sits in the app's support directory under `categoriser/`, with `model-manifest.json` and `labels.json`. The app refuses it, and uses the rules below instead, when the feature schema, config or input differ from what it produces, or when the file's size or SHA-256 differ from the manifest.
+- **Runtime.** `tflite_flutter` (Apache-2.0, published by tensorflow.org) runs the model, and only `tflite_flutter_runtime.dart` imports it. On Android it links Google's prebuilt LiteRT AAR from Maven, so F-Droid may require LiteRT built from source or another runtime behind the `TfliteRuntime` interface.
+- **Without a model** suggestions come from the message type (airtime, Fuliza, charges) and well-known payee names.
+- **Your choices win.** Accepting or changing a suggestion sets that transaction's category and remembers it for the payee; the next transaction from that payee suggests the same category first. Each choice is also logged on the phone as encoded features and a label, never the payee text, for later fine-tuning.
+- **Learning** (on-device fine-tuning and federated updates) runs only when "Help improve the app" is on. The gate and interfaces are in `learning.dart`; the trainers are not built yet.
 
 ## Testing
 

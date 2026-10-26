@@ -121,6 +121,49 @@ class Goals extends Table {
   IntColumn get priority => integer().withDefault(const Constant(0))();
   TextColumn get status =>
       textEnum<GoalStatus>().withDefault(Constant(GoalStatus.active.name))();
+
+  /// What has been put aside so far, as the user last recorded it.
+  IntColumn get savedMinor => integer().withDefault(const Constant(0))();
+}
+
+/// Money the user lent to a friend or relative. Money borrowed from them is
+/// a family debt in [Debts].
+@DataClassName('LentLoanRecord')
+class LentLoans extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get person => text().withLength(min: 1, max: 80)();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+  DateTimeColumn get lentOn => dateTime()();
+
+  /// When they agreed to pay it back; null when no date was agreed.
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  TextColumn get note => text().nullable()();
+}
+
+/// Part payments recorded by hand on a family or friend loan: either money
+/// lent ([lentLoanId]) or a family debt ([debtId]), never both.
+@DataClassName('LoanPaymentRecord')
+class LoanPayments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get lentLoanId => integer().nullable().references(
+    LentLoans,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get debtId => integer().nullable().references(
+    Debts,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  DateTimeColumn get paidOn => dateTime()();
+  IntColumn get amountMinor => integer()();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK ((lent_loan_id IS NULL) != (debt_id IS NULL))',
+  ];
 }
 
 @DataClassName('TransactionRecord')
@@ -324,4 +367,49 @@ class AppSettings extends Table {
 
   @override
   Set<Column> get primaryKey => {key};
+}
+
+/// The category the person chose for a payee. The suggester reads this
+/// before the categoriser, so their choice always wins for that payee.
+@DataClassName('CategoryCorrection')
+class CategoryCorrections extends Table {
+  /// From `payeeKeys`: the named payee, raw identifier or tokenised name.
+  TextColumn get payeeKey => text()();
+  IntColumn get categoryId =>
+      integer().references(Categories, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {payeeKey};
+}
+
+/// Each time the person accepts or changes a suggested category. Kept on the
+/// phone as training examples: the encoded features, never the payee text.
+@DataClassName('CategoryConfirmation')
+class CategoryConfirmations extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get categoryId =>
+      integer().references(Categories, #id, onDelete: KeyAction.cascade)();
+
+  /// What was suggested, if anything, and how sure and from where.
+  IntColumn get suggestedCategoryId => integer().nullable().references(
+    Categories,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  RealColumn get suggestedConfidence => real().nullable()();
+  TextColumn get suggestionSource => textEnum<SuggestionSource>().nullable()();
+
+  /// True when the person took the suggestion as it was.
+  BoolColumn get accepted => boolean()();
+
+  /// The model input as comma-separated integers.
+  TextColumn get features => text()();
+  IntColumn get featureSchemaVersion => integer()();
+  DateTimeColumn get confirmedAt => dateTime()();
 }

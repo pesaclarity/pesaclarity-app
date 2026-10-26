@@ -61,6 +61,18 @@ enum GoalStatus { active, paused, achieved }
 
 enum ParserPackTestStatus { unknown, passed, failed }
 
+/// Where a category suggestion came from.
+enum SuggestionSource {
+  /// The person's own earlier choice for this payee.
+  correction,
+
+  /// The on-device categoriser model.
+  model,
+
+  /// Built-in payee defaults and rules, used when no model is installed.
+  rules,
+}
+
 /// How an imported statement compared with the ledger.
 enum StatementImportResult {
   /// The ledger balance matches the statement's closing balance.

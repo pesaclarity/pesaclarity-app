@@ -1,0 +1,63 @@
+name: Dependency scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so new advisories against unchanged dependencies are caught.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  osv-scanner:
+    name: OSV-Scanner (pub and Gradle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The repo has no Gradle lockfiles, so resolve the Android dependencies
+      # (app and Flutter plugins) into gradle.lockfile files for the scanner.
+      - name: Resolve Gradle dependencies
+        run: |
+          flutter build apk --config-only
+          cd android
+          ./gradlew --init-script ../.github/gradle/lock-all.init.gradle.kts \
+            dependencies --write-locks --quiet > /dev/null
+          find . -name gradle.lockfile -print
+
+      # No floating v2 tag is published, so this pins the latest v2 release;
+      # Dependabot (github-actions) proposes updates.
+      - name: Scan
+        uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=pubspec.lock
+            --recursive
+            ./android

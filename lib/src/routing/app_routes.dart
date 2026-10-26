@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const onboarding = '/onboarding';
   static const onboardingAccounts = '/onboarding/accounts';
   static const onboardingScan = '/onboarding/accounts/scan';
+  static const onboardingFirstInsight = '/onboarding/accounts/scan/insight';
 
   static const home = '/home';
 
@@ -15,7 +16,12 @@ abstract final class AppRoutes {
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
   static const backup = '/home/profile/backup';
+  static const backupSetup = '/home/profile/backup/setup';
   static const privacy = '/home/profile/privacy';
+  static const signIn = '/home/profile/sign-in';
+  static const devices = '/home/profile/devices';
+  static const privacyPolicy = '/home/profile/privacy/policy';
+  static const payees = '/home/profile/payees';
 
   static const activity = '/activity';
 
@@ -30,5 +36,6 @@ abstract final class AppRoutes {
   static const payday = '/plan/payday';
   static const goals = '/goals';
   static const debts = '/goals/debts';
+  static const lending = '/goals/lending';
   static const insights = '/insights';
 }

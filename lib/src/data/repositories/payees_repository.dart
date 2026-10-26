@@ -37,6 +37,52 @@ abstract interface class PayeesRepository {
 
   /// All payees with their identifiers, for resolving.
   Future<PayeeDirectory> directory();
+
+  /// Named payees with their identifiers, category and transaction count,
+  /// by name.
+  Stream<List<PayeeSummary>> watchSummaries();
+
+  /// Other parties that are not named yet, most money out first. Own
+  /// transfers are left out.
+  Stream<List<UnnamedParty>> watchUnnamed();
+}
+
+/// A named payee as the Payees list shows it.
+class PayeeSummary {
+  const PayeeSummary({
+    required this.payee,
+    required this.identifiers,
+    required this.transactionCount,
+    this.categoryName,
+  });
+
+  final Payee payee;
+  final List<PayeeIdentifier> identifiers;
+  final int transactionCount;
+
+  /// The default category's name; null is Uncategorised.
+  final String? categoryName;
+}
+
+/// A number, till or paybill that transactions reach but no payee names.
+class UnnamedParty {
+  const UnnamedParty({
+    required this.identifier,
+    required this.transactionCount,
+    required this.outMinor,
+    required this.inMinor,
+    required this.lastAt,
+    this.printedName,
+  });
+
+  final PayeeIdentifier identifier;
+
+  /// The name the latest message printed, if any.
+  final String? printedName;
+  final int transactionCount;
+  final int outMinor;
+  final int inMinor;
+  final DateTime lastAt;
 }
 
 class DriftPayeesRepository implements PayeesRepository {
@@ -106,6 +152,95 @@ class DriftPayeesRepository implements PayeesRepository {
 
   @override
   Future<PayeeDirectory> directory() => payeeDirectory(_db);
+
+  @override
+  Stream<List<PayeeSummary>> watchSummaries() {
+    final p = _db.payees;
+    final c = _db.categories;
+    final t = _db.transactions;
+    final count = t.id.count();
+    final query =
+        _db.select(p).join([
+            leftOuterJoin(c, c.id.equalsExp(p.defaultCategoryId)),
+            leftOuterJoin(t, t.payeeId.equalsExp(p.id)),
+          ])
+          ..addColumns([count])
+          ..groupBy([p.id])
+          ..orderBy([OrderingTerm.asc(p.displayName.collate(Collate.noCase))]);
+    return query.watch().asyncMap((rows) async {
+      final byPayee = <int, List<PayeeIdentifier>>{};
+      for (final row in await _db.select(_db.payeeIdentifiers).get()) {
+        (byPayee[row.payeeId] ??= []).add(
+          PayeeIdentifier.stored(row.kind, row.value),
+        );
+      }
+      return [
+        for (final row in rows)
+          PayeeSummary(
+            payee: row.readTable(p),
+            identifiers: byPayee[row.readTable(p).id] ?? const [],
+            transactionCount: row.read(count)!,
+            categoryName: row.readTableOrNull(c)?.name,
+          ),
+      ];
+    });
+  }
+
+  @override
+  Stream<List<UnnamedParty>> watchUnnamed() {
+    final t = _db.transactions;
+    final count = t.id.count();
+    final out = t.amountMinor.sum(
+      filter: t.direction.equalsValue(TransactionDirection.outflow),
+    );
+    final into = t.amountMinor.sum(
+      filter: t.direction.equalsValue(TransactionDirection.inflow),
+    );
+    final last = t.occurredAt.max();
+    final query = _db.selectOnly(t)
+      ..addColumns([t.counterpartyKind, t.counterpartyValue, count, out, into])
+      ..addColumns([last])
+      ..where(
+        t.payeeId.isNull() &
+            t.transferPairId.isNull() &
+            t.counterpartyKind.isNotNull() &
+            t.counterpartyValue.isNotNull(),
+      )
+      ..groupBy([t.counterpartyKind, t.counterpartyValue]);
+    return query.watch().asyncMap((rows) async {
+      final parties = <UnnamedParty>[];
+      for (final row in rows) {
+        final kind = row.readWithConverter(t.counterpartyKind)!;
+        final value = row.read(t.counterpartyValue)!;
+        final latest =
+            await (_db.select(t)
+                  ..where(
+                    (r) =>
+                        r.counterpartyKind.equalsValue(kind) &
+                        r.counterpartyValue.equals(value) &
+                        r.counterpartyName.isNotNull(),
+                  )
+                  ..orderBy([(r) => OrderingTerm.desc(r.occurredAt)])
+                  ..limit(1))
+                .getSingleOrNull();
+        parties.add(
+          UnnamedParty(
+            identifier: PayeeIdentifier.stored(kind, value),
+            printedName: latest?.counterpartyName,
+            transactionCount: row.read(count)!,
+            outMinor: row.read(out) ?? 0,
+            inMinor: row.read(into) ?? 0,
+            lastAt: row.read(last)!,
+          ),
+        );
+      }
+      parties.sort((a, b) {
+        final byOut = b.outMinor.compareTo(a.outMinor);
+        return byOut != 0 ? byOut : b.lastAt.compareTo(a.lastAt);
+      });
+      return parties;
+    });
+  }
 }
 
 /// Loads every payee with its identifiers.
