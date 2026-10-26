@@ -16,5 +16,6 @@ abstract final class AppRoutes {
   static const plan = '/plan';
   static const goals = '/goals';
   static const debts = '/goals/debts';
+  static const lending = '/goals/lending';
   static const insights = '/insights';
 }

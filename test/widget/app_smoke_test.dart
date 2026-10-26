@@ -37,7 +37,7 @@ void main() {
     const tabs = {
       'Activity': 'Where did my money go?',
       'Plan': "What's coming, and is it covered?",
-      'Goals': 'Am I getting there?',
+      'Goals': 'Saving for',
       'Insights': 'What should I change?',
       'Home': 'How am I doing today?',
     };

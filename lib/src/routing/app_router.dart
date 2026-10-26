@@ -9,6 +9,7 @@ import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/insights/presentation/insights_screen.dart';
+import '../features/lending/presentation/lending_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
@@ -110,6 +111,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'debts',
                     builder: (context, state) => const DebtsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'lending',
+                    builder: (context, state) => const LendingScreen(),
                   ),
                 ],
               ),
