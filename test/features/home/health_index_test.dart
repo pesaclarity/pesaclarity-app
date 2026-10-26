@@ -12,6 +12,7 @@ import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
+import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -108,14 +109,15 @@ void main() {
           healthIndexProvider.overrideWith(
             (ref) async => HealthOnHome(index, 3),
           ),
+          upcomingBillsProvider.overrideWith((ref) async => []),
         ],
         child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Financial Health Index'), findsOneWidget);
+    expect(find.text('Financial health · Coping'), findsOneWidget);
     expect(find.text('63'), findsOneWidget);
-    expect(find.text('Coping. Up 3 on the month before.'), findsOneWidget);
+    expect(find.text('Up 3 points on the month before'), findsOneWidget);
   });
 }

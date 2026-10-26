@@ -6,7 +6,7 @@ import '../helpers/fake_sms_source.dart';
 import '../helpers/sms_samples.dart';
 import '../helpers/test_app.dart';
 
-const _home = 'How am I doing today?';
+const _home = 'Safe to spend today';
 
 void main() {
   Future<void> scan(WidgetTester tester, FakeSmsSource sms) async {

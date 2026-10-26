@@ -38,6 +38,46 @@ abstract interface class TransactionsRepository {
 
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
+
+  /// Emits whenever something behind the ledger changes: transactions, their
+  /// tags, payees, categories, accounts or the plan.
+  Stream<void> watchChanges();
+
+  /// One transaction with its account, payee and category, updating as any
+  /// of them change. Emits null once the transaction is gone.
+  Stream<TransactionDetail?> watchDetail(int id);
+}
+
+/// A transaction as its detail sheet shows it.
+class TransactionDetail {
+  const TransactionDetail({
+    required this.record,
+    required this.account,
+    this.payee,
+    this.category,
+    this.payeeCategory,
+  });
+
+  final TransactionRecord record;
+  final Account account;
+  final Payee? payee;
+
+  /// The override, or else the payee's default; null is Uncategorised.
+  final Category? category;
+
+  /// The payee's default category, which applies without an override.
+  final Category? payeeCategory;
+
+  bool get isCategoryOverridden => record.categoryOverrideId != null;
+
+  /// The other party's raw identifier, for naming the payee.
+  PayeeIdentifier? get counterparty {
+    final kind = record.counterpartyKind;
+    final value = record.counterpartyValue;
+    return kind == null || value == null
+        ? null
+        : PayeeIdentifier.stored(kind, value);
+  }
 }
 
 class DriftTransactionsRepository implements TransactionsRepository {
@@ -171,6 +211,49 @@ class DriftTransactionsRepository implements TransactionsRepository {
         }
       });
 
+  @override
+  Stream<TransactionDetail?> watchDetail(int id) {
+    final t = _db.transactions;
+    final query = _db.select(t).join([
+      innerJoin(_db.accounts, _db.accounts.id.equalsExp(t.accountId)),
+      leftOuterJoin(_db.payees, _db.payees.id.equalsExp(t.payeeId)),
+    ])..where(t.id.equals(id));
+    return query.watchSingleOrNull().asyncMap((row) async {
+      if (row == null) return null;
+      final record = row.readTable(t);
+      final payee = row.readTableOrNull(_db.payees);
+      Future<Category?> category(int? id) => id == null
+          ? Future.value()
+          : (_db.select(
+              _db.categories,
+            )..where((c) => c.id.equals(id))).getSingleOrNull();
+      final payeeCategory = await category(payee?.defaultCategoryId);
+      return TransactionDetail(
+        record: record,
+        account: row.readTable(_db.accounts),
+        payee: payee,
+        payeeCategory: payeeCategory,
+        category: record.categoryOverrideId == null
+            ? payeeCategory
+            : await category(record.categoryOverrideId),
+      );
+    });
+  }
+
+  @override
+  Stream<void> watchChanges() => _db.tableUpdates(
+    TableUpdateQuery.onAllTables([
+      _db.transactions,
+      _db.transactionTags,
+      _db.payees,
+      _db.payeeIdentifiers,
+      _db.categories,
+      _db.accounts,
+      _db.recurring,
+      _db.budgetItems,
+    ]),
+  );
+
   Future<void> _setPair(int id, int partnerId) =>
       (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
         TransactionsCompanion(transferPairId: Value(partnerId)),
@@ -213,9 +296,23 @@ LedgerEntry _toLedgerEntry(
     payeeName: applied.displayName,
     leakType: applied.leakType,
     tagIds: tags[record.id] ?? const {},
+    counterpartyName: record.counterpartyName,
+    counterpartyKind: record.counterpartyKind,
+    counterpartyValue: record.counterpartyValue,
+    note: record.item,
   );
 }
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>(
   (ref) => DriftTransactionsRepository(ref.watch(appDatabaseProvider)),
 );
+
+/// Counts changes to the ledger, so providers that read it with one-off
+/// queries can watch this and recompute.
+final ledgerChangesProvider = StreamProvider<int>((ref) async* {
+  var count = 0;
+  await for (final _
+      in ref.watch(transactionsRepositoryProvider).watchChanges()) {
+    yield ++count;
+  }
+});

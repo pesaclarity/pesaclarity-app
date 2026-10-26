@@ -15,6 +15,7 @@ import '../application/insights_report.dart';
 import '../application/month_labels.dart';
 import '../application/report_sharer.dart';
 import '../application/tag_totals_provider.dart';
+import 'tag_totals_card.dart';
 
 String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
 
@@ -107,7 +108,6 @@ class _InsightsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final month = summary.current.month;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
@@ -122,8 +122,8 @@ class _InsightsBody extends StatelessWidget {
         ],
         const _SectionTitle('Financial Health Index'),
         const _HealthCard(),
-        _SectionTitle('Tags in ${monthName(month)}'),
-        const _TagsCard(),
+        const SizedBox(height: 24),
+        const TagTotalsSection(),
       ],
     );
   }
@@ -528,44 +528,6 @@ class _HealthCard extends ConsumerWidget {
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TagsCard extends ConsumerWidget {
-  const _TagsCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final totals = ref.watch(tagTotalsThisMonthProvider).value ?? const {};
-    final names = ref.watch(tagNamesProvider).value ?? const {};
-    final rows = tagSpends(totals, names);
-    final largest = rows.isEmpty ? 0 : rows.first.spendingMinor;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: rows.isEmpty
-            ? Text(
-                'Tag a transaction, like #roadtrip or #wedding, to see what '
-                'it adds up to here.',
-                style: theme.textTheme.bodyMedium,
-              )
-            : Column(
-                children: [
-                  for (final (i, t) in rows.indexed) ...[
-                    if (i > 0) const SizedBox(height: 14),
-                    _BarRow(
-                      label: '#${t.name}',
-                      value: _amount(t.spendingMinor),
-                      fraction: _fraction(t.spendingMinor, largest),
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
-                ],
-              ),
       ),
     );
   }
