@@ -38,6 +38,10 @@ abstract interface class TransactionsRepository {
 
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
+
+  /// Emits whenever something behind the ledger changes: transactions, their
+  /// tags, payees, categories, accounts or the plan.
+  Stream<void> watchChanges();
 }
 
 class DriftTransactionsRepository implements TransactionsRepository {
@@ -171,6 +175,20 @@ class DriftTransactionsRepository implements TransactionsRepository {
         }
       });
 
+  @override
+  Stream<void> watchChanges() => _db.tableUpdates(
+    TableUpdateQuery.onAllTables([
+      _db.transactions,
+      _db.transactionTags,
+      _db.payees,
+      _db.payeeIdentifiers,
+      _db.categories,
+      _db.accounts,
+      _db.recurring,
+      _db.budgetItems,
+    ]),
+  );
+
   Future<void> _setPair(int id, int partnerId) =>
       (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
         TransactionsCompanion(transferPairId: Value(partnerId)),
@@ -213,9 +231,23 @@ LedgerEntry _toLedgerEntry(
     payeeName: applied.displayName,
     leakType: applied.leakType,
     tagIds: tags[record.id] ?? const {},
+    counterpartyName: record.counterpartyName,
+    counterpartyKind: record.counterpartyKind,
+    counterpartyValue: record.counterpartyValue,
+    note: record.item,
   );
 }
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>(
   (ref) => DriftTransactionsRepository(ref.watch(appDatabaseProvider)),
 );
+
+/// Counts changes to the ledger, so providers that read it with one-off
+/// queries can watch this and recompute.
+final ledgerChangesProvider = StreamProvider<int>((ref) async* {
+  var count = 0;
+  await for (final _
+      in ref.watch(transactionsRepositoryProvider).watchChanges()) {
+    yield ++count;
+  }
+});
