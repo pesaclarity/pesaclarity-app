@@ -8,6 +8,6 @@ tags:
     id: nav-home
 - assertVisible:
     id: title-home
-- assertVisible: "Safe to spend today"
+- assertVisible: "(?s)Safe to spend today.*"
 - waitForAnimationToEnd
 - takeScreenshot: 03-home-${THEME}
