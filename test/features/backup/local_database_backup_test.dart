@@ -11,6 +11,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   late Directory dir;
+  late int schema;
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('local_db_backup_test');
@@ -20,6 +21,7 @@ void main() {
   Future<(File, String)> exportSample() async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
+    schema = db.schemaVersion;
     await db.customStatement(
       'INSERT INTO accounts (name, type, currency, opening_date) '
       "VALUES ('John M-Pesa', 'mpesa', 'KES', 0)",
@@ -46,7 +48,7 @@ void main() {
       path: file.path,
       stagedKeyHex: key,
       deviceKeyHex: deviceKey,
-      maxSchemaVersion: 7,
+      maxSchemaVersion: schema,
     );
 
     final reopened = sqlite3.open(file.path);
@@ -56,7 +58,7 @@ void main() {
       reopened.select('SELECT name FROM accounts').map((r) => r['name']),
       contains('John M-Pesa'),
     );
-    expect(reopened.select('PRAGMA user_version').first.values.first, 7);
+    expect(reopened.select('PRAGMA user_version').first.values.first, schema);
   });
 
   test('refuses a backup from a newer schema', () async {
@@ -66,7 +68,7 @@ void main() {
         path: file.path,
         stagedKeyHex: key,
         deviceKeyHex: generateDatabaseKey(),
-        maxSchemaVersion: 6,
+        maxSchemaVersion: schema - 1,
       ),
       throwsA(isA<RestoredDataException>()),
     );
@@ -79,7 +81,7 @@ void main() {
         path: file.path,
         stagedKeyHex: generateDatabaseKey(),
         deviceKeyHex: generateDatabaseKey(),
-        maxSchemaVersion: 7,
+        maxSchemaVersion: schema,
       ),
       throwsA(isA<RestoredDataException>()),
     );

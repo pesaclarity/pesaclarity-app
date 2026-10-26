@@ -308,6 +308,24 @@ void main() {
       ]);
     });
 
+    test('runway counts the days until the money runs out', () {
+      final result = forecast(balance: 12000);
+      expect(result.runwayDays, 8);
+      expect(result.nextIncome?.name, 'Salary');
+      expect(result.nextIncome?.date, CalendarDate(2026, 10, 25));
+    });
+
+    test('runway past month end spreads what is left at the pace', () {
+      // KES 121,900 left at 9,000 a week, after the 20 days to month end.
+      expect(forecast(balance: 50000).runwayDays, 20 + 94);
+    });
+
+    test('runway is unknown when nothing is being spent', () {
+      final result = forecast(balance: 1000000, entries: const []);
+      expect(result.zeroDate, isNull);
+      expect(result.runwayDays, isNull);
+    });
+
     test('says what is left at month end when the money lasts', () {
       final result = forecast(balance: 50000);
       expect(result.zeroDate, isNull);

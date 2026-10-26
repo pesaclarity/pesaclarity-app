@@ -33,6 +33,22 @@ class EntryLine extends ActivityLine {
   DateTime get occurredAt => entry.occurredAt;
 }
 
+/// A move between two of the user's own accounts, shown once. Either half
+/// may be missing when it falls outside what was loaded or filtered.
+class OwnTransferLine extends ActivityLine {
+  OwnTransferLine({this.outflow, this.inflow})
+    : assert(outflow != null || inflow != null, 'needs one half');
+
+  final LedgerEntry? outflow;
+  final LedgerEntry? inflow;
+
+  /// The half in the feed: the outflow when it is there.
+  LedgerEntry get shown => outflow ?? inflow!;
+
+  @override
+  DateTime get occurredAt => shown.occurredAt;
+}
+
 /// All of one day's entries of a [NoiseGroup] on one account, in one currency
 /// and direction.
 class DailyNoiseLine extends ActivityLine {

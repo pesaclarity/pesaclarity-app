@@ -21,6 +21,10 @@ class LedgerEntry {
     this.payeeName,
     this.leakType = LeakType.none,
     this.tagIds = const {},
+    this.counterpartyName,
+    this.counterpartyKind,
+    this.counterpartyValue,
+    this.note,
   }) : assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
 
@@ -57,6 +61,18 @@ class LedgerEntry {
   /// Tags the user put on this transaction.
   final Set<int> tagIds;
 
+  /// The other party's name as the message printed it, or as typed for a
+  /// manual entry.
+  final String? counterpartyName;
+
+  /// The other party's normalised identifier (see `PayeeIdentifier`), which
+  /// naming a payee links to.
+  final PayeeIdentifierKind? counterpartyKind;
+  final String? counterpartyValue;
+
+  /// What was bought or a note, when known.
+  final String? note;
+
   bool get isInflow => direction == TransactionDirection.inflow;
 
   bool get isOutflow => direction == TransactionDirection.outflow;
@@ -84,6 +100,10 @@ class LedgerEntry {
     payeeName: payeeName,
     leakType: leakType,
     tagIds: tagIds,
+    counterpartyName: counterpartyName,
+    counterpartyKind: counterpartyKind,
+    counterpartyValue: counterpartyValue,
+    note: note,
   );
 
   @override

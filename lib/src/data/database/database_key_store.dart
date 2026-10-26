@@ -1,32 +1,27 @@
 import 'dart:math';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 /// Supplies the 256-bit SQLCipher key for the on-phone database.
 abstract interface class DatabaseKeyStore {
-  /// Returns the key as 64 hex characters, creating and storing it on first use.
+  /// Returns the key as 64 hex characters.
   Future<String> readOrCreateKey();
 }
 
-/// Keeps the database key in Android Keystore-backed secure storage.
+/// Hands over the key that app lock released, and refuses while locked.
 ///
-/// TODO(security): release the key only after BiometricPrompt or PIN unlock,
-/// and prefer StrongBox where available (spec: Mobile security).
-class SecureStorageDatabaseKeyStore implements DatabaseKeyStore {
-  SecureStorageDatabaseKeyStore([FlutterSecureStorage? storage])
-    : _storage = storage ?? const FlutterSecureStorage();
+/// The key itself lives in the Android Keystore-backed vault
+/// (features/security/data/key_vault.dart); it reaches this store only after
+/// the person unlocks, or straight away when no app lock is set.
+class UnlockedDatabaseKeyStore implements DatabaseKeyStore {
+  UnlockedDatabaseKeyStore(this._releasedKey);
 
-  static const _keyName = 'pesaclarity.db.key.v1';
-
-  final FlutterSecureStorage _storage;
+  final String? Function() _releasedKey;
 
   @override
   Future<String> readOrCreateKey() async {
-    final existing = await _storage.read(key: _keyName);
-    if (existing != null) return existing;
-
-    final key = generateDatabaseKey();
-    await _storage.write(key: _keyName, value: key);
+    final key = _releasedKey();
+    if (key == null) {
+      throw StateError('The database is locked; unlock the app first');
+    }
     return key;
   }
 }
