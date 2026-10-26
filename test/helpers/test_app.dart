@@ -7,10 +7,15 @@ import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/features/auth/application/auth_controller.dart';
+import 'package:pesaclarity/src/features/auth/data/auth_api.dart';
+import 'package:pesaclarity/src/features/auth/data/google_id_token_source.dart';
+import 'package:pesaclarity/src/features/auth/data/session_store.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
+import 'fake_auth.dart';
 import 'fake_sms_source.dart';
 
 /// Like [testWidgets], but unmounts the app at the end so Drift's stream
@@ -35,12 +40,16 @@ AppDatabase openTestDatabase() {
 }
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
-/// inbox by default) in place of the phone's messages.
+/// inbox by default) in place of the phone's messages. Without [auth] the
+/// build behaves as one with no server configured.
 Future<void> pumpApp(
   WidgetTester tester, {
   required AppDatabase db,
   AppFlavor flavor = AppFlavor.foss,
   SmsSource? sms,
+  AuthApi? auth,
+  SessionStore? sessions,
+  GoogleIdTokenSource? google,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -49,6 +58,15 @@ Future<void> pumpApp(
         appFlavorProvider.overrideWithValue(flavor),
         appDatabaseProvider.overrideWithValue(db),
         smsSourceProvider.overrideWithValue(sms ?? FakeSmsSource()),
+        authApiProvider.overrideWithValue(auth ?? const UnconfiguredAuthApi()),
+        sessionStoreProvider.overrideWithValue(
+          sessions ?? InMemorySessionStore(),
+        ),
+        deviceNameSourceProvider.overrideWithValue(
+          const FakeDeviceNameSource(),
+        ),
+        if (google != null)
+          googleIdTokenSourceProvider.overrideWithValue(google),
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
         ),
