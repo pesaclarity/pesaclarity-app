@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +93,19 @@ class AppDatabase extends _$AppDatabase {
         await _createIndexIfMissing(m, transactionsDedupe);
         if (!await _exists('table', reviewItems.actualTableName)) {
           await m.createTable(reviewItems);
+        }
+      }
+      if (from < 10) {
+        for (final column in [
+          imports.institutionId,
+          imports.openingBalanceMinor,
+          imports.transactionCount,
+          imports.addedCount,
+          imports.duplicateCount,
+          imports.unreadCount,
+          imports.result,
+        ]) {
+          await _addColumnIfMissing(m, imports, column);
         }
       }
     },
