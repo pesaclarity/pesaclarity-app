@@ -19,6 +19,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
+import '../../security/application/balance_visibility.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
@@ -27,9 +28,28 @@ import '../application/upcoming_bills_provider.dart';
 /// Bills shown under Coming up before "See all".
 const _billsShown = 3;
 
-String _kes(int minor) => formatMoney(Money(minor));
+String _kes(BuildContext context, int minor) => _AmountsHidden.of(context)
+    ? 'KES $maskedDigits'
+    : formatMoney(Money(minor));
 
-String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _plain(BuildContext context, int minor) => _AmountsHidden.of(context)
+    ? maskedDigits
+    : formatMoney(Money(minor), withCurrency: false);
+
+/// Masks every amount below it while balances are hidden.
+class _AmountsHidden extends InheritedWidget {
+  const _AmountsHidden({required this.hidden, required super.child});
+
+  final bool hidden;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_AmountsHidden>()?.hidden ??
+      false;
+
+  @override
+  bool updateShouldNotify(_AmountsHidden oldWidget) =>
+      hidden != oldWidget.hidden;
+}
 
 /// Home tab: how am I doing today?
 class HomeScreen extends ConsumerWidget {
@@ -56,77 +76,80 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-          children: [
-            _Header(today: today),
-            const SizedBox(height: 20),
-            if (safeToSpend == null)
-              const HeroFigureCard(
-                label: 'Safe to spend today',
-                figure: 'KES —',
-                caption:
-                    'Shows once your messages have been read and Plan has '
-                    'a day-to-day budget.',
-              )
-            else
-              _SafeToSpendCard(
-                safeToSpend,
-                nextIncome: forecast?.nextIncome,
-                onTap: () => openActivity(
-                  thisMonth.copyWith(type: ActivityType.dayToDay),
+        child: _AmountsHidden(
+          hidden: ref.watch(balancesHiddenProvider),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+            children: [
+              _Header(today: today),
+              const SizedBox(height: 20),
+              if (safeToSpend == null)
+                const HeroFigureCard(
+                  label: 'Safe to spend today',
+                  figure: 'KES —',
+                  caption:
+                      'Shows once your messages have been read and Plan has '
+                      'a day-to-day budget.',
+                )
+              else
+                _SafeToSpendCard(
+                  safeToSpend,
+                  nextIncome: forecast?.nextIncome,
+                  onTap: () => openActivity(
+                    thisMonth.copyWith(type: ActivityType.dayToDay),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Left this month',
+                        value: safeToSpend == null
+                            ? '—'
+                            : _plain(context, safeToSpend.leftThisMonthMinor),
+                        onTap: safeToSpend == null
+                            ? null
+                            : () => openActivity(
+                                thisMonth.copyWith(type: ActivityType.dayToDay),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Runway at this pace',
+                        value: _runwayLabel(forecast),
+                        onTap: forecast == null
+                            ? null
+                            : () => openActivity(paceWindow),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 12),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      label: 'Left this month',
-                      value: safeToSpend == null
-                          ? '—'
-                          : _plain(safeToSpend.leftThisMonthMinor),
-                      onTap: safeToSpend == null
-                          ? null
-                          : () => openActivity(
-                              thisMonth.copyWith(type: ActivityType.dayToDay),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatTile(
-                      label: 'Runway at this pace',
-                      value: _runwayLabel(forecast),
-                      onTap: forecast == null
-                          ? null
-                          : () => openActivity(paceWindow),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (forecast != null) ...[
-              const SizedBox(height: 12),
-              _ForecastCard(forecast, onTap: () => openActivity(paceWindow)),
+              if (forecast != null) ...[
+                const SizedBox(height: 12),
+                _ForecastCard(forecast, onTap: () => openActivity(paceWindow)),
+              ],
+              if (health != null) ...[
+                const SizedBox(height: 12),
+                _HealthIndexCard(
+                  health,
+                  onTap: () {
+                    final month = health.index.month;
+                    openActivity(
+                      ActivityFilter(from: month.firstDay, to: month.lastDay),
+                    );
+                  },
+                ),
+              ],
+              const SizedBox(height: 24),
+              _ComingUp(bills: bills, today: today),
             ],
-            if (health != null) ...[
-              const SizedBox(height: 12),
-              _HealthIndexCard(
-                health,
-                onTap: () {
-                  final month = health.index.month;
-                  openActivity(
-                    ActivityFilter(from: month.firstDay, to: month.lastDay),
-                  );
-                },
-              ),
-            ],
-            const SizedBox(height: 24),
-            _ComingUp(bills: bills, today: today),
-          ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -239,11 +262,11 @@ class _SafeToSpendCard extends StatelessWidget {
     if (result.isBudgetUsedUp) {
       detail = 'This month\'s day-to-day budget is used up';
     } else if (result.overTodayMinor > 0) {
-      detail = '${_kes(result.overTodayMinor)} over today\'s limit';
+      detail = '${_kes(context, result.overTodayMinor)} over today\'s limit';
     } else if (today.isWeekend) {
-      detail = 'Weekdays get ${_plain(result.weekdayLimitMinor)}';
+      detail = 'Weekdays get ${_plain(context, result.weekdayLimitMinor)}';
     } else {
-      detail = 'Weekend days get ${_plain(result.weekendLimitMinor)}';
+      detail = 'Weekend days get ${_plain(context, result.weekendLimitMinor)}';
     }
     final income = nextIncome;
     final payday = income == null
@@ -268,14 +291,37 @@ class _SafeToSpendCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Safe to spend today · '
-                '${today.isWeekend ? 'Weekend' : 'Weekday'}',
-                style: textTheme.labelLarge!.copyWith(color: scheme.onPrimary),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Safe to spend today · '
+                      '${today.isWeekend ? 'Weekend' : 'Weekday'}',
+                      style: textTheme.labelLarge!.copyWith(
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final hidden = ref.watch(balancesHiddenProvider);
+                      return IconButton(
+                        tooltip: hidden ? 'Show balances' : 'Hide balances',
+                        color: scheme.onPrimary,
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          hidden ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () =>
+                            ref.read(balancesHiddenProvider.notifier).toggle(),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Text(
-                _kes(result.leftTodayMinor),
+                _kes(context, result.leftTodayMinor),
                 style: AppTypography.amount(size: 44, color: scheme.onPrimary),
               ),
               const SizedBox(height: 10),
@@ -367,7 +413,10 @@ class _ForecastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final messages = forecast.messages;
+    final hidden = _AmountsHidden.of(context);
+    final messages = [
+      for (final m in forecast.messages) maskAmountsIf(hidden, m),
+    ];
     final runsOut = forecast.zeroDate != null;
 
     return Card(
@@ -612,7 +661,7 @@ class _BillRow extends StatelessWidget {
         ),
       ),
       trailing: Text(
-        _plain(bill.amountMinor),
+        _plain(context, bill.amountMinor),
         style: AppTypography.amount(
           size: 18,
           color: theme.colorScheme.onSurface,
