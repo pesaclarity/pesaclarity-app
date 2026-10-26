@@ -9,8 +9,8 @@ tags:
 - assertVisible:
     id: title-profile
 - scrollUntilVisible:
-    element: "Backup and restore"
-- tapOn: "Backup and restore"
+    element: "(?s)Backup and restore.*"
+- tapOn: "(?s)Backup and restore.*"
 - assertVisible:
     id: title-backup
 - waitForAnimationToEnd

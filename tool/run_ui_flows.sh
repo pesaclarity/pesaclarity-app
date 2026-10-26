@@ -8,7 +8,8 @@
 set -uo pipefail
 
 # A crashed emulator makes adb wait forever; give up after a minute.
-adb() { timeout 60 command adb "$@"; }
+adb_bin="$(command -v adb)"
+adb() { timeout 60 "$adb_bin" "$@"; }
 
 out_dir="${1:-build/maestro}"
 here="$(cd "$(dirname "$0")" && pwd)"
