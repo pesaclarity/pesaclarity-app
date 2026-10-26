@@ -31,6 +31,11 @@ run_flows() {
     --test-output-dir "$out_dir/$theme"
 }
 
+# A cold-booted emulator often shows "System UI isn't responding" over the app.
+# Hide system error dialogs and close any already showing.
+adb shell settings put global hide_error_dialogs 1
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null
+
 for theme in light dark; do
   if [ "$theme" = dark ]; then night=yes; else night=no; fi
   adb shell cmd uimode night "$night"

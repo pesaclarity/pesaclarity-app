@@ -8,6 +8,8 @@ out_dir="${1:-build/maestro/diagnostics}"
 app_id="${APP_ID:-com.pesaclarity.app}"
 mkdir -p "$out_dir"
 
+adb shell settings put global hide_error_dialogs 1
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null
 adb shell am force-stop "$app_id"
 adb logcat -c
 adb shell monkey -p "$app_id" -c android.intent.category.LAUNCHER 1 \

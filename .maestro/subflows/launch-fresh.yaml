@@ -5,6 +5,10 @@ appId: com.pesaclarity.app
 - launchApp:
     clearState: true
     stopApp: true
+# Dismiss a system "isn't responding" dialog if the emulator shows one.
+- tapOn:
+    text: "Wait"
+    optional: true
 # Wait on visible text first, then the id, so a failure tells "app not on
 # screen" apart from "Semantics identifiers not exposed as resource-ids".
 # Debug builds start slowly on CI emulators.
