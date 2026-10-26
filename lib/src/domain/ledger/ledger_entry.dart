@@ -18,6 +18,9 @@ class LedgerEntry {
     this.categoryType,
     this.isDailySpending = false,
     this.transferPairId,
+    this.payeeName,
+    this.leakType = LeakType.none,
+    this.tagIds = const {},
   }) : assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
 
@@ -45,6 +48,15 @@ class LedgerEntry {
   /// The other half of an own-account transfer.
   final int? transferPairId;
 
+  /// The payee's display name, when the payee is named.
+  final String? payeeName;
+
+  /// The payee's leak type; a category override does not change it.
+  final LeakType leakType;
+
+  /// Tags the user put on this transaction.
+  final Set<int> tagIds;
+
   bool get isInflow => direction == TransactionDirection.inflow;
 
   bool get isOutflow => direction == TransactionDirection.outflow;
@@ -69,6 +81,9 @@ class LedgerEntry {
     categoryType: categoryType,
     isDailySpending: isDailySpending,
     transferPairId: transferPairId ?? this.transferPairId,
+    payeeName: payeeName,
+    leakType: leakType,
+    tagIds: tagIds,
   );
 
   @override
