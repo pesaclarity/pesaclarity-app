@@ -31,4 +31,16 @@ adb exec-out screencap -p >"$out_dir/screen.png"
 adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 &&
   adb pull /sdcard/window_dump.xml "$out_dir/uiautomator.xml" >/dev/null 2>&1
 timeout 180 maestro hierarchy >"$out_dir/maestro-hierarchy.json" 2>&1 || true
+# Echo the key evidence to the job log as well, since artifacts are not
+# always easy to fetch.
+{
+  echo "--- $(cat "$out_dir/pid.txt")"
+  echo "--- window focus"
+  cat "$out_dir/window-focus.txt"
+  echo "--- on-screen text"
+  grep -o 'text="[^"]*"\|content-desc="[^"]*"\|resource-id="[^"]*"' \
+    "$out_dir/uiautomator.xml" 2>/dev/null | grep -v '=""' | head -40
+  echo "--- crash and Flutter log lines (last 80)"
+  tail -80 "$out_dir/logcat-crash.txt"
+} || true
 echo "Diagnostics saved to $out_dir"
