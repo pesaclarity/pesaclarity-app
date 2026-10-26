@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../auth/presentation/account_section.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -17,6 +18,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: FeaturePlaceholder(
+        hero: const AccountCard(),
         question: 'Your account and settings',
         contents: const [
           'Account details',
@@ -60,6 +62,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const AccountActions(),
         ],
       ),
     );

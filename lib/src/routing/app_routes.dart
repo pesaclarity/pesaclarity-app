@@ -11,6 +11,8 @@ abstract final class AppRoutes {
   static const myAccounts = '/home/profile/accounts';
   static const backup = '/home/profile/backup';
   static const privacy = '/home/profile/privacy';
+  static const signIn = '/home/profile/sign-in';
+  static const devices = '/home/profile/devices';
 
   static const activity = '/activity';
   static const plan = '/plan';

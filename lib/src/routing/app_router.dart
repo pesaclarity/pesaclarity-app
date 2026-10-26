@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
+import '../features/auth/presentation/devices_screen.dart';
+import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
@@ -79,6 +81,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'privacy',
                         builder: (context, state) => const PrivacyScreen(),
+                      ),
+                      GoRoute(
+                        path: 'sign-in',
+                        builder: (context, state) => const SignInScreen(),
+                      ),
+                      GoRoute(
+                        path: 'devices',
+                        builder: (context, state) => const DevicesScreen(),
                       ),
                     ],
                   ),
