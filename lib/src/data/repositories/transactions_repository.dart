@@ -42,6 +42,42 @@ abstract interface class TransactionsRepository {
   /// Emits whenever something behind the ledger changes: transactions, their
   /// tags, payees, categories, accounts or the plan.
   Stream<void> watchChanges();
+
+  /// One transaction with its account, payee and category, updating as any
+  /// of them change. Emits null once the transaction is gone.
+  Stream<TransactionDetail?> watchDetail(int id);
+}
+
+/// A transaction as its detail sheet shows it.
+class TransactionDetail {
+  const TransactionDetail({
+    required this.record,
+    required this.account,
+    this.payee,
+    this.category,
+    this.payeeCategory,
+  });
+
+  final TransactionRecord record;
+  final Account account;
+  final Payee? payee;
+
+  /// The override, or else the payee's default; null is Uncategorised.
+  final Category? category;
+
+  /// The payee's default category, which applies without an override.
+  final Category? payeeCategory;
+
+  bool get isCategoryOverridden => record.categoryOverrideId != null;
+
+  /// The other party's raw identifier, for naming the payee.
+  PayeeIdentifier? get counterparty {
+    final kind = record.counterpartyKind;
+    final value = record.counterpartyValue;
+    return kind == null || value == null
+        ? null
+        : PayeeIdentifier.stored(kind, value);
+  }
 }
 
 class DriftTransactionsRepository implements TransactionsRepository {
@@ -174,6 +210,35 @@ class DriftTransactionsRepository implements TransactionsRepository {
           await _setPair(pair.inflowId, pair.outflowId);
         }
       });
+
+  @override
+  Stream<TransactionDetail?> watchDetail(int id) {
+    final t = _db.transactions;
+    final query = _db.select(t).join([
+      innerJoin(_db.accounts, _db.accounts.id.equalsExp(t.accountId)),
+      leftOuterJoin(_db.payees, _db.payees.id.equalsExp(t.payeeId)),
+    ])..where(t.id.equals(id));
+    return query.watchSingleOrNull().asyncMap((row) async {
+      if (row == null) return null;
+      final record = row.readTable(t);
+      final payee = row.readTableOrNull(_db.payees);
+      Future<Category?> category(int? id) => id == null
+          ? Future.value()
+          : (_db.select(
+              _db.categories,
+            )..where((c) => c.id.equals(id))).getSingleOrNull();
+      final payeeCategory = await category(payee?.defaultCategoryId);
+      return TransactionDetail(
+        record: record,
+        account: row.readTable(_db.accounts),
+        payee: payee,
+        payeeCategory: payeeCategory,
+        category: record.categoryOverrideId == null
+            ? payeeCategory
+            : await category(record.categoryOverrideId),
+      );
+    });
+  }
 
   @override
   Stream<void> watchChanges() => _db.tableUpdates(
