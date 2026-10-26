@@ -10,9 +10,14 @@ abstract final class SemanticIds {
   static const navInsights = 'nav-insights';
 
   static const onboardingGetStarted = 'onboarding-get-started';
-  static const onboardingStartScan = 'onboarding-start-scan';
+  static const onboardingScanMessages = 'onboarding-scan-messages';
+
+  /// A row in the institution list, such as `institution-mpesa`.
+  static String institution(String institutionId) =>
+      'institution-${institutionId.replaceAll('_', '-')}';
 
   static const homeProfile = 'home-profile';
+  static const profileMyAccounts = 'profile-my-accounts';
 
   static const titleWelcome = 'title-welcome';
   static const titleMyAccounts = 'title-my-accounts';
@@ -22,6 +27,7 @@ abstract final class SemanticIds {
   static const titleGoals = 'title-goals';
   static const titleInsights = 'title-insights';
   static const titleProfile = 'title-profile';
+  static const titleProfileMyAccounts = 'title-profile-my-accounts';
   static const titleDebts = 'title-debts';
   static const titleBackup = 'title-backup';
   static const titlePrivacy = 'title-privacy';

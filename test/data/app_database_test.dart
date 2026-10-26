@@ -7,7 +7,10 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/connection.dart';
 import 'package:pesaclarity/src/data/database/database_key_store.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
+import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
+import 'package:pesaclarity/src/data/repositories/onboarding_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
+import 'package:pesaclarity/src/domain/categories/default_categories.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
 import 'package:pesaclarity/src/domain/ledger/own_transfers.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -199,24 +202,184 @@ void main() {
     );
   });
 
-  test('migrates a version 1 database by adding kind and fee', () async {
-    final dir = await Directory.systemTemp.createTemp('pesaclarity_migration');
-    addTearDown(() => dir.delete(recursive: true));
-    final file = File('${dir.path}/v1.sqlite');
+  group('migrations', () {
+    late File file;
 
-    final v2 = AppDatabase(NativeDatabase(file));
-    await v2.customSelect('SELECT 1').get();
-    await v2.customStatement('ALTER TABLE transactions DROP COLUMN kind');
-    await v2.customStatement('ALTER TABLE transactions DROP COLUMN fee_minor');
-    await v2.customStatement('PRAGMA user_version = 1');
-    await v2.close();
+    setUp(() async {
+      final dir = await Directory.systemTemp.createTemp(
+        'pesaclarity_migration',
+      );
+      addTearDown(() => dir.delete(recursive: true));
+      file = File('${dir.path}/old.sqlite');
+    });
 
-    final db = AppDatabase(NativeDatabase(file));
-    addTearDown(db.close);
-    final columns = await db
-        .customSelect('PRAGMA table_info(transactions)')
+    Future<Map<String, bool>> columns(AppDatabase db, String table) => db
+        .customSelect('PRAGMA table_info($table)')
+        .map(
+          (row) =>
+              MapEntry(row.read<String>('name'), row.read<int>('notnull') == 1),
+        )
+        .get()
+        .then(Map.fromEntries);
+
+    /// Builds the current schema, then takes it back to version 4, before
+    /// the My accounts tables.
+    Future<AppDatabase> version4() async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE selected_institutions');
+      await old.customStatement('DROP TABLE app_settings');
+      await old.customStatement('PRAGMA user_version = 4');
+      return old;
+    }
+
+    /// Takes the schema back to version 3, before categories were seeded.
+    Future<AppDatabase> version3() async {
+      final old = await version4();
+      await old.customStatement('DELETE FROM categories');
+      await old.customStatement('DROP INDEX categories_key');
+      await old.customStatement('ALTER TABLE categories DROP COLUMN key');
+      await old.customStatement('DROP INDEX transactions_counterparty');
+      await old.customStatement(
+        'ALTER TABLE transactions DROP COLUMN counterparty_kind',
+      );
+      await old.customStatement(
+        'ALTER TABLE transactions DROP COLUMN counterparty_value',
+      );
+      await old.customStatement('DROP TABLE payee_identifiers');
+      await old.customStatement('DROP TABLE payees');
+      await old.customStatement(
+        'CREATE TABLE payees ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'display_name TEXT NOT NULL, '
+        'default_category_id INTEGER NULL REFERENCES categories (id), '
+        'leak_type TEXT NULL)',
+      );
+      await old.customStatement(
+        'CREATE TABLE payee_identifiers ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'payee_id INTEGER NOT NULL REFERENCES payees (id) ON DELETE CASCADE, '
+        'kind TEXT NOT NULL, value TEXT NOT NULL, UNIQUE (kind, value))',
+      );
+      await old.customStatement('PRAGMA user_version = 3');
+      return old;
+    }
+
+    Future<int> userVersion(AppDatabase db) => db
+        .customSelect('PRAGMA user_version')
+        .map((row) => row.read<int>('user_version'))
+        .getSingle();
+
+    Future<List<String>> tableNames(AppDatabase db) => db
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
         .map((row) => row.read<String>('name'))
         .get();
-    expect(columns, containsAll(['kind', 'fee_minor']));
+
+    test('migrates a version 1 database to the current schema', () async {
+      final old = await version3();
+      await old.customStatement('ALTER TABLE transactions DROP COLUMN kind');
+      await old.customStatement(
+        'ALTER TABLE transactions DROP COLUMN fee_minor',
+      );
+      await old.customStatement('DROP TABLE budget_snapshots');
+      await old.customStatement(
+        'CREATE TABLE budget_snapshots ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'month INTEGER NOT NULL, '
+        'category_id INTEGER NOT NULL REFERENCES categories (id), '
+        'planned_minor INTEGER NOT NULL, actual_minor INTEGER NOT NULL, '
+        'frozen_at INTEGER NOT NULL, UNIQUE (month, category_id))',
+      );
+      await old.customStatement(
+        'INSERT INTO categories (id, name, type, is_daily_spending) '
+        "VALUES (1, 'Rent', 'expense', 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO budget_snapshots '
+        '(month, category_id, planned_minor, actual_minor, frozen_at) '
+        'VALUES (202609, 1, 100, 90, 0)',
+      );
+      await old.customStatement('PRAGMA user_version = 1');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(
+        (await columns(db, 'transactions')).keys,
+        containsAll(['kind', 'fee_minor']),
+      );
+      expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
+      final kept = await db.select(db.budgetSnapshots).getSingle();
+      expect(kept.plannedMinor, 100);
+      expect(await userVersion(db), 5);
+      expect(
+        await tableNames(db),
+        containsAll(['selected_institutions', 'app_settings']),
+      );
+    });
+
+    test('migrates a version 3 database: payees, keys and seeds', () async {
+      final old = await version3();
+      await old.customStatement(
+        'INSERT INTO categories (id, name, type, is_daily_spending) '
+        "VALUES (1, 'groceries  and Household', 'expense', 1)",
+      );
+      await old.customStatement(
+        'INSERT INTO payees (id, display_name, default_category_id, leak_type) '
+        "VALUES (1, 'Test Grocer', 1, NULL), (2, 'Test Friend', NULL, 'friends')",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(
+        (await columns(db, 'transactions')).keys,
+        containsAll(['counterparty_kind', 'counterparty_value']),
+      );
+      expect((await columns(db, 'payees'))['leak_type'], isTrue);
+
+      final payees = await (db.select(
+        db.payees,
+      )..orderBy([(p) => OrderingTerm(expression: p.id)])).get();
+      expect(payees.map((p) => p.leakType), [LeakType.none, LeakType.friends]);
+      expect(payees.first.defaultCategoryId, 1);
+
+      final categories = await db.select(db.categories).get();
+      expect(categories, hasLength(defaultCategories.length));
+      final mine = categories.singleWhere((c) => c.id == 1);
+      expect(mine.key, isNull);
+      expect(categories.where((c) => c.key == 'groceries'), isEmpty);
+      expect(
+        categories.where((c) => c.key == 'salary').single.type,
+        CategoryType.income,
+      );
+    });
+
+    test('migrates a version 4 database: My accounts tables', () async {
+      final old = await version4();
+      final groceries = await (old.select(
+        old.categories,
+      )..where((c) => c.key.equals('groceries'))).getSingle();
+      await old.customStatement(
+        'INSERT INTO payees (id, display_name, default_category_id, leak_type) '
+        "VALUES (1, 'Test Grocer', ${groceries.id}, 'none')",
+      );
+      final categoryCount = (await old.select(old.categories).get()).length;
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 5);
+
+      final institutions = DriftInstitutionsRepository(db);
+      await institutions.setSelected('mpesa', selected: true);
+      await DriftOnboardingRepository(db).markComplete();
+      expect(await institutions.selectedIds(), {'mpesa'});
+      expect(await DriftOnboardingRepository(db).isComplete(), isTrue);
+
+      final payee = await db.select(db.payees).getSingle();
+      expect(payee.displayName, 'Test Grocer');
+      expect(payee.defaultCategoryId, groceries.id);
+      expect(await db.select(db.categories).get(), hasLength(categoryCount));
+    });
   });
 }

@@ -2,7 +2,7 @@
 
 Pesa Clarity is a free, ad-free, open-source Android app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
-**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show.
+**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
 
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
@@ -48,12 +48,17 @@ lib/
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
       ledger/                own transfers, Fuliza fees, noise collapse, honest totals
+      budget/                safe to spend today, weekday and weekend limits
+      plan/                  monthly plan, arrears, category status, surplus split, snapshots
+      payees/                identifier normalising and matching, payee and override precedence
+      categories/            default Kenyan category set (keys shared with the categoriser)
+      tags/                  tag names, filtering and totals by tag
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
     features/                one folder per screen in the spec
       onboarding/ home/ activity/ plan/ goals/ debts/
-      insights/ profile/ backup/ privacy/
+      insights/ profile/ backup/ privacy/ accounts/
     routing/                 go_router: five-tab shell; Profile under Home, Debts under Goals
     shared/widgets/
     theme/                   brand tokens, light and dark themes, typography
@@ -99,7 +104,7 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
-Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
+Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
 

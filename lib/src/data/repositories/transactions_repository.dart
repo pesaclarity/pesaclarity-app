@@ -3,14 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_transfers.dart';
+import '../../domain/payees/payee_directory.dart';
+import '../../domain/payees/payee_identifier.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
+import 'payees_repository.dart';
 
 /// The ledger of transactions from SMS, statements and manual entry.
 abstract interface class TransactionsRepository {
-  /// Most recent first.
-  Stream<List<TransactionRecord>> watchRecent({int limit = 50});
+  /// Most recent first; only those tagged [tagId] when given.
+  Stream<List<TransactionRecord>> watchRecent({int limit = 50, int? tagId});
 
+  /// Stores [transaction]. Without a payee id, a counterparty (normalised
+  /// with `PayeeIdentifier`) is resolved to its named payee, if any.
   Future<int> add(TransactionsCompanion transaction);
 
   /// Finds an existing transaction with the same receipt, for dedupe between
@@ -18,10 +23,12 @@ abstract interface class TransactionsRepository {
   Future<TransactionRecord?> findByReceipt(int accountId, String receiptNo);
 
   /// Transactions with time in `[from, to)` as ledger entries, oldest first,
-  /// each with its category resolved from the override or else the payee.
+  /// with their payee applied (see `applyPayee`) and their tags. Only those
+  /// tagged [tagId] when given.
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
+    int? tagId,
   });
 
   /// Stores own-transfer pairs so both halves point at each other.
@@ -34,8 +41,9 @@ class DriftTransactionsRepository implements TransactionsRepository {
   final AppDatabase _db;
 
   @override
-  Stream<List<TransactionRecord>> watchRecent({int limit = 50}) {
+  Stream<List<TransactionRecord>> watchRecent({int limit = 50, int? tagId}) {
     final query = _db.select(_db.transactions)
+      ..where((t) => tagId == null ? const Constant(true) : _hasTag(t, tagId))
       ..orderBy([
         (t) => OrderingTerm(expression: t.occurredAt, mode: OrderingMode.desc),
       ])
@@ -44,8 +52,21 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<int> add(TransactionsCompanion transaction) =>
-      _db.into(_db.transactions).insert(transaction);
+  Future<int> add(TransactionsCompanion transaction) async {
+    final kind = transaction.counterpartyKind.value;
+    final value = transaction.counterpartyValue.value;
+    if (!transaction.payeeId.present && kind != null && value != null) {
+      final payee = (await payeeDirectory(_db))
+          .resolve(PayeeIdentifier.stored(kind, value));
+      transaction = transaction.copyWith(payeeId: Value(payee?.id));
+    }
+    return _db.into(_db.transactions).insert(transaction);
+  }
+
+  Expression<bool> _hasTag($TransactionsTable t, int tagId) => existsQuery(
+    _db.select(_db.transactionTags)
+      ..where((l) => l.transactionId.equalsExp(t.id) & l.tagId.equals(tagId)),
+  );
 
   @override
   Future<TransactionRecord?> findByReceipt(int accountId, String receiptNo) {
@@ -61,20 +82,30 @@ class DriftTransactionsRepository implements TransactionsRepository {
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
+    int? tagId,
   }) async {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
     final t = _db.transactions;
+    final inRange =
+        t.occurredAt.isBiggerOrEqualValue(from) &
+        t.occurredAt.isSmallerThanValue(to);
     final query =
         _db.select(t).join([
             leftOuterJoin(_db.payees, _db.payees.id.equalsExp(t.payeeId)),
           ])
-          ..where(
-            t.occurredAt.isBiggerOrEqualValue(from) &
-                t.occurredAt.isSmallerThanValue(to),
-          )
+          ..where(tagId == null ? inRange : inRange & _hasTag(t, tagId))
           ..orderBy([OrderingTerm.asc(t.occurredAt), OrderingTerm.asc(t.id)]);
+
+    final links = _db.transactionTags;
+    final tagRows = await (_db.select(links).join([
+      innerJoin(t, t.id.equalsExp(links.transactionId)),
+    ])..where(inRange)).map((row) => row.readTable(links)).get();
+    final tags = <int, Set<int>>{};
+    for (final link in tagRows) {
+      (tags[link.transactionId] ??= {}).add(link.tagId);
+    }
 
     return [
       for (final row in await query.get())
@@ -82,6 +113,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           row.readTable(t),
           row.readTableOrNull(_db.payees),
           categories,
+          tags,
         ),
     ];
   }
@@ -105,8 +137,20 @@ LedgerEntry _toLedgerEntry(
   TransactionRecord record,
   Payee? payee,
   Map<int, Category> categories,
+  Map<int, Set<int>> tags,
 ) {
-  final categoryId = record.categoryOverrideId ?? payee?.defaultCategoryId;
+  final applied = applyPayee(
+    payee == null
+        ? null
+        : PayeeRule(
+            id: payee.id,
+            displayName: payee.displayName,
+            defaultCategoryId: payee.defaultCategoryId,
+            leakType: payee.leakType,
+          ),
+    categoryOverrideId: record.categoryOverrideId,
+  );
+  final categoryId = applied.categoryId;
   final category = categoryId == null ? null : categories[categoryId];
   return LedgerEntry(
     id: record.id,
@@ -122,6 +166,9 @@ LedgerEntry _toLedgerEntry(
     categoryType: category?.type,
     isDailySpending: category?.isDailySpending ?? false,
     transferPairId: record.transferPairId,
+    payeeName: applied.displayName,
+    leakType: applied.leakType,
+    tagIds: tags[record.id] ?? const {},
   );
 }
 
