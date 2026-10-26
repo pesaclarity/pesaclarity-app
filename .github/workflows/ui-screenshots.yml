@@ -25,7 +25,7 @@ env:
   AVD_ARCH: x86_64
   AVD_TARGET: google_apis
   AVD_PROFILE: pixel_6
-  AVD_CORES: "4"
+  AVD_CORES: "2"
   AVD_RAM: 4096M
   MAESTRO_CLI_NO_ANALYTICS: "1"
   MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
@@ -72,6 +72,9 @@ jobs:
           flutter build apk --debug --flavor foss --target-platform android-x64
           cp build/app/outputs/flutter-apk/app-foss-debug.apk "$RUNNER_TEMP/app.apk"
           rm -rf build/app/intermediates build/app/tmp
+          # Free the runner's memory for the emulator.
+          if [ -x android/gradlew ]; then (cd android && ./gradlew --stop); fi
+          pkill -f KotlinCompileDaemon || true
           df -h /
 
       - name: Install Maestro

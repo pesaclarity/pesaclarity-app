@@ -4,6 +4,9 @@
 # the view hierarchy. Used by run_ui_flows.sh when a flow cannot find the app.
 set -uo pipefail
 
+# A crashed emulator makes adb wait forever; give up after a minute.
+adb() { timeout 60 command adb "$@"; }
+
 out_dir="${1:-build/maestro/diagnostics}"
 app_id="${APP_ID:-com.pesaclarity.app}"
 mkdir -p "$out_dir"

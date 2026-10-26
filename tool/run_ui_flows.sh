@@ -7,6 +7,9 @@
 # in that theme are skipped and device diagnostics are saved instead.
 set -uo pipefail
 
+# A crashed emulator makes adb wait forever; give up after a minute.
+adb() { timeout 60 command adb "$@"; }
+
 out_dir="${1:-build/maestro}"
 here="$(cd "$(dirname "$0")" && pwd)"
 status=0
