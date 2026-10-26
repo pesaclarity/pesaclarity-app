@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/time/date_labels.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../application/debt_plan_provider.dart';
@@ -20,7 +21,12 @@ class DebtsScreen extends ConsumerWidget {
     final plan = ref.watch(debtPlanProvider).value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Debts')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleDebts,
+          child: const Text('Debts'),
+        ),
+      ),
       body: FeaturePlaceholder(
         hero: plan == null
             ? const HeroFigureCard(

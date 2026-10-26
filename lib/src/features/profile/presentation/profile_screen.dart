@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/flavor.dart';
 import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
@@ -29,7 +30,12 @@ class ProfileScreen extends ConsumerWidget {
         : lastBackupSummary(backupSettings, ref.watch(clockProvider)());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleProfile,
+          child: const Text('Profile'),
+        ),
+      ),
       body: FeaturePlaceholder(
         hero: const AccountCard(),
         question: 'Your account and settings',
@@ -46,12 +52,15 @@ class ProfileScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.account_balance_outlined),
-                  title: const Text('My accounts'),
-                  subtitle: const Text('Choose whose messages are read'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go(AppRoutes.myAccounts),
+                Semantics(
+                  identifier: SemanticIds.profileMyAccounts,
+                  child: ListTile(
+                    leading: const Icon(Icons.account_balance_outlined),
+                    title: const Text('My accounts'),
+                    subtitle: const Text('Choose whose messages are read'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.go(AppRoutes.myAccounts),
+                  ),
                 ),
                 const Divider(height: 1),
                 ListTile(

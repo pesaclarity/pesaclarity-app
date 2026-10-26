@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/my_accounts_providers.dart';
 import 'institution_list.dart';
@@ -16,7 +17,12 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
     final noneOn = ref.watch(selectedInstitutionIdsProvider).value?.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My accounts')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleProfileMyAccounts,
+          child: const Text('My accounts'),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [

@@ -1,0 +1,13 @@
+appId: com.pesaclarity.app
+name: Home tab
+tags:
+  - tabs
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-home
+- assertVisible:
+    id: title-home
+- assertVisible: "(?s)Safe to spend today.*"
+- waitForAnimationToEnd
+- takeScreenshot: 03-home-${THEME}

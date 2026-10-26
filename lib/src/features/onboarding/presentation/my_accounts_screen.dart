@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/presentation/institution_list.dart';
@@ -20,7 +21,12 @@ class MyAccountsScreen extends ConsumerWidget {
         ref.watch(selectedInstitutionIdsProvider).value?.isNotEmpty ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My accounts')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleMyAccounts,
+          child: const Text('My accounts'),
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -41,11 +47,17 @@ class MyAccountsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             const InstitutionList(control: InstitutionControl.checkbox),
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: hasSelection
-                  ? () => context.go(AppRoutes.onboardingScan)
-                  : null,
-              child: const Text('Scan my messages'),
+            // Merged so the id lands on the node with the enabled state.
+            MergeSemantics(
+              child: Semantics(
+                identifier: SemanticIds.onboardingScanMessages,
+                child: FilledButton(
+                  onPressed: hasSelection
+                      ? () => context.go(AppRoutes.onboardingScan)
+                      : null,
+                  child: const Text('Scan my messages'),
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             Text(

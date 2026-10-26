@@ -79,6 +79,8 @@ lib/
     shared/widgets/
     theme/                   brand tokens, light and dark themes, typography
 test/                        unit, widget and database tests
+.maestro/                    Maestro UI flows (YAML), one per journey
+tool/run_ui_flows.sh         runs the flows in light and dark mode
 android/                     Android project (applicationId com.pesaclarity.app)
 assets/fonts/                Space Grotesk and Inter, with their OFL licences
 ```
@@ -90,7 +92,7 @@ State is managed with Riverpod and navigation with go_router.
 From the spec's "Mobile security" section:
 
 - Database encrypted with SQLCipher. The 256-bit key is generated on the phone and kept in Android Keystore-backed secure storage. The app refuses to open the database if SQLCipher is not loaded.
-- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews.
+- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS` and `POST_NOTIFICATIONS` only. `INTERNET` is present only in debug and profile builds for Flutter tooling; release builds get it when sign-in and the backup vault land.
 - Cleartext traffic is refused and only system certificate authorities are trusted. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`), which pins server keys by SPKI SHA-256 from `--dart-define=PESACLARITY_CERT_PINS` (two or more pins per host) and refuses to connect when the pins do not match or are misconfigured. A test fails if code creates an `HttpClient` any other way. The real pins are set once the server is deployed.
@@ -142,6 +144,14 @@ flutter test
 Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, SMS capture against a fake inbox (mapping, dedupe, sender filtering, review inbox, scans), the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
+
+## UI screenshots
+
+The `UI screenshots` workflow (`.github/workflows/ui-screenshots.yml`) builds a `foss` debug APK, starts an Android 14 emulator (Pixel 6 profile) and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports are uploaded as the `ui-screenshots` artifact, and the job summary lists the captured names.
+
+It runs on pushes to `main`, on demand, and on pull requests that change the flows or the workflow. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
+
+The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Contributing
 

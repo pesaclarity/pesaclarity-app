@@ -1,0 +1,12 @@
+appId: com.pesaclarity.app
+name: Goals tab
+tags:
+  - tabs
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-goals
+- assertVisible:
+    id: title-goals
+- waitForAnimationToEnd
+- takeScreenshot: 06-goals-${THEME}

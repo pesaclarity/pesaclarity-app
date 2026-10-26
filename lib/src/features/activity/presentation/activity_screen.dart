@@ -12,6 +12,7 @@ import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
@@ -97,7 +98,13 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Activity', style: theme.textTheme.headlineLarge),
+                  child: Semantics(
+                    identifier: SemanticIds.titleActivity,
+                    child: Text(
+                      'Activity',
+                      style: theme.textTheme.headlineLarge,
+                    ),
+                  ),
                 ),
                 const ActivityExportButton(),
               ],

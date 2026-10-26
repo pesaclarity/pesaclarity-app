@@ -14,6 +14,7 @@ import '../../../domain/plan/upcoming_bills.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -228,16 +229,22 @@ class _Header extends StatelessWidget {
                   color: colors.textMuted,
                 ),
               ),
-              Text('Home', style: theme.textTheme.headlineMedium),
+              Semantics(
+                identifier: SemanticIds.titleHome,
+                child: Text('Home', style: theme.textTheme.headlineMedium),
+              ),
             ],
           ),
         ),
-        IconButton.filled(
-          tooltip: 'Profile',
-          iconSize: 26,
-          constraints: const BoxConstraints.tightFor(width: 52, height: 52),
-          icon: const Icon(Icons.person_outline),
-          onPressed: () => context.go(AppRoutes.profile),
+        Semantics(
+          identifier: SemanticIds.homeProfile,
+          child: IconButton.filled(
+            tooltip: 'Profile',
+            iconSize: 26,
+            constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => context.go(AppRoutes.profile),
+          ),
         ),
       ],
     );

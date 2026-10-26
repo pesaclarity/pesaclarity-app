@@ -11,6 +11,7 @@ import '../../../domain/goals/savings_goal.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/progress_ring.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -28,7 +29,12 @@ class GoalsScreen extends ConsumerWidget {
     final overview = ref.watch(goalsOverviewProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Goals')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleGoals,
+          child: const Text('Goals'),
+        ),
+      ),
       body: switch (overview) {
         AsyncData(:final value) => _GoalsBody(value),
         AsyncError() => Center(

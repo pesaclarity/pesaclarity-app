@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/institutions_repository.dart';
+import '../../../shared/semantic_ids.dart';
 import '../application/my_accounts_providers.dart';
 import '../domain/institution.dart';
 
@@ -61,7 +62,7 @@ class _InstitutionTile extends StatelessWidget {
     final subtitle = Text('Messages from ${institution.senderIds.join(', ')}');
     final onChanged = enabled ? (bool? v) => this.onChanged(v ?? false) : null;
 
-    return switch (control) {
+    final tile = switch (control) {
       InstitutionControl.checkbox => CheckboxListTile(
         value: selected,
         onChanged: onChanged,
@@ -76,5 +77,12 @@ class _InstitutionTile extends StatelessWidget {
         subtitle: subtitle,
       ),
     };
+    // Merged so the id lands on the node that carries the checked state.
+    return MergeSemantics(
+      child: Semantics(
+        identifier: SemanticIds.institution(institution.id),
+        child: tile,
+      ),
+    );
   }
 }

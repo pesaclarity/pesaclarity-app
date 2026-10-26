@@ -19,6 +19,24 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
+## UI flows
+
+The [Maestro](https://maestro.mobile.dev) flows in `.maestro/` drive the app on a device and save screenshots. CI runs them in the `UI screenshots` workflow. To run them locally:
+
+1. Install the Maestro CLI (CI pins the version in `.github/workflows/ui-screenshots.yml`) and start an Android emulator or connect a test phone with USB debugging on.
+2. Build and install the app:
+
+   ```sh
+   flutter build apk --debug --flavor foss
+   adb install -r build/app/outputs/flutter-apk/app-foss-debug.apk
+   ```
+
+3. Run every flow in light and dark mode: `./tool/run_ui_flows.sh`. Reports and screenshots land in `build/maestro/<theme>/`. To run one flow, use `maestro test -e THEME=light .maestro/tab-plan.yaml`. The onboarding flow runs first; if it fails, the rest of that theme is skipped and `./tool/ui_diagnostics.sh` saves logcat, a screenshot and the view hierarchy to `build/maestro/diagnostics/`.
+
+Keep flow `name:` values free of `< > : " | ? * \`, because Maestro names output folders after them.
+
+Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_ids.dart` and its widget test. Keep screenshot names stable; reviewers compare them across runs.
+
 ## Ground rules
 
 - **Synthetic data only.** Never commit real SMS, statements, names or phone numbers. Use obviously fake values such as `0700 000 000`.
@@ -32,5 +50,5 @@ flutter test
 
 - Small, focused pull requests against `main`, with a short description of what changed and why.
 - Clear, one-line commit messages in the imperative ("Add payee table").
-- Link the issue the change addresses. UI changes should include screenshots in light and dark mode.
+- Link the issue the change addresses. UI changes should include screenshots in light and dark mode; the `ui-screenshots` workflow artifact has both.
 - CI must pass before review.

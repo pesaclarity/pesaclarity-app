@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_labels.dart';
 import '../application/backup_providers.dart';
@@ -108,7 +109,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(backupControllerProvider).value;
     return Scaffold(
-      appBar: AppBar(title: const Text('Backup and restore')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleBackup,
+          child: const Text('Backup and restore'),
+        ),
+      ),
       body: settings == null
           ? const Center(child: CircularProgressIndicator())
           : _body(context, settings),

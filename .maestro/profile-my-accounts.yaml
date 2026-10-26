@@ -1,0 +1,22 @@
+appId: com.pesaclarity.app
+name: Profile - My accounts
+tags:
+  - screens
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: home-profile
+- assertVisible:
+    id: title-profile
+- scrollUntilVisible:
+    element:
+      id: profile-my-accounts
+- tapOn:
+    id: profile-my-accounts
+- assertVisible:
+    id: title-profile-my-accounts
+- assertVisible:
+    id: institution-mpesa
+    checked: true
+- waitForAnimationToEnd
+- takeScreenshot: 08b-profile-my-accounts-${THEME}

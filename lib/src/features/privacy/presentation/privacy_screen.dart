@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/privacy/consent.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/consent_controller.dart';
 import '../data/policy_source.dart';
@@ -20,7 +21,12 @@ class PrivacyScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titlePrivacy,
+          child: const Text('Privacy'),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [

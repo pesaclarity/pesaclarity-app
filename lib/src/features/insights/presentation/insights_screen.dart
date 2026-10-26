@@ -7,6 +7,7 @@ import '../../../core/time/clock.dart';
 import '../../../domain/health/health_index.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/leakage.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../home/application/health_index_provider.dart';
@@ -70,7 +71,10 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Insights'),
+        title: Semantics(
+          identifier: SemanticIds.titleInsights,
+          child: const Text('Insights'),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),

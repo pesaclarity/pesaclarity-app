@@ -1,0 +1,12 @@
+appId: com.pesaclarity.app
+name: Insights tab
+tags:
+  - tabs
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-insights
+- assertVisible:
+    id: title-insights
+- waitForAnimationToEnd
+- takeScreenshot: 07-insights-${THEME}

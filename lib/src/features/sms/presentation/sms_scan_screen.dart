@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../application/sms_capture_providers.dart';
@@ -23,7 +24,10 @@ class SmsScanScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your messages'),
+        title: Semantics(
+          identifier: SemanticIds.titleSmsScan,
+          child: const Text('Your messages'),
+        ),
         automaticallyImplyLeading: !busy,
       ),
       body: SafeArea(
@@ -38,9 +42,12 @@ class SmsScanScreen extends ConsumerWidget {
                 child: const Text('Allow access to messages'),
               ),
               const SizedBox(height: 8),
-              TextButton(
-                onPressed: busy ? null : finish,
-                child: const Text('Not now'),
+              Semantics(
+                identifier: SemanticIds.smsScanNotNow,
+                child: TextButton(
+                  onPressed: busy ? null : finish,
+                  child: const Text('Not now'),
+                ),
               ),
             ],
             SmsScanStage.scanning => [

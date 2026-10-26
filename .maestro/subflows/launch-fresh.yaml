@@ -1,0 +1,19 @@
+# Starts the app from a clean install state. The launch screen at / shows a
+# spinner while saved state loads, then redirects to the welcome screen.
+appId: com.pesaclarity.app
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+# Dismiss a system "isn't responding" dialog if the emulator shows one.
+- tapOn:
+    text: "Wait"
+    optional: true
+# Wait on visible text first, then the id, so a failure tells "app not on
+# screen" apart from "Semantics identifiers not exposed as resource-ids".
+# Debug builds start slowly on CI emulators.
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 45000
+- assertVisible:
+    id: title-welcome

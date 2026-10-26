@@ -9,6 +9,7 @@ import '../../../domain/categories/default_categories.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/plan_groups.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
@@ -127,7 +128,12 @@ class _Header extends ConsumerWidget {
     final notifier = ref.read(planMonthProvider.notifier);
     return Row(
       children: [
-        Expanded(child: Text('Plan', style: theme.textTheme.headlineLarge)),
+        Expanded(
+          child: Semantics(
+            identifier: SemanticIds.titlePlan,
+            child: Text('Plan', style: theme.textTheme.headlineLarge),
+          ),
+        ),
         _RoundButton(
           tooltip: 'Previous month',
           icon: Icons.chevron_left,
