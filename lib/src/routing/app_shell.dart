@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/sms/application/sms_capture_providers.dart';
 import '../theme/brand_tokens.dart';
 import '../theme/pesa_colors.dart';
 
-/// Five-tab shell with the floating pill navigation bar.
-class AppShell extends StatelessWidget {
+/// Five-tab shell with the floating pill navigation bar. While it is shown,
+/// new account messages flow into the ledger.
+class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -39,7 +42,8 @@ class AppShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(liveSmsCaptureProvider, (_, _) {});
     final scheme = Theme.of(context).colorScheme;
     final colors = PesaColors.of(context);
     final pill = BorderRadius.circular(BrandTokens.pillRadius);

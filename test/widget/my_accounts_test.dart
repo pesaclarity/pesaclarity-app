@@ -47,7 +47,10 @@ void main() {
     );
     await tester.tap(_button('Scan my messages'));
     await tester.pumpAndSettle();
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(
+      find.text('Let Pesa Clarity read your account messages'),
+      findsOneWidget,
+    );
   });
 
   testAppWidgets('institution rows meet the 44px target and are labelled', (
