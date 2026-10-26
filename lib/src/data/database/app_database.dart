@@ -29,13 +29,15 @@ part 'app_database.g.dart';
     SelectedInstitutions,
     AppSettings,
     ReviewItems,
+    CategoryCorrections,
+    CategoryConfirmations,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +95,16 @@ class AppDatabase extends _$AppDatabase {
         await _createIndexIfMissing(m, transactionsDedupe);
         if (!await _exists('table', reviewItems.actualTableName)) {
           await m.createTable(reviewItems);
+        }
+      }
+      if (from < 8) {
+        for (final TableInfo<Table, Object?> table in [
+          categoryCorrections,
+          categoryConfirmations,
+        ]) {
+          if (!await _exists('table', table.actualTableName)) {
+            await m.createTable(table);
+          }
         }
       }
     },

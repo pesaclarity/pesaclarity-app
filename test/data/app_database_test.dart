@@ -222,10 +222,19 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 6, before
-    /// SMS capture.
-    Future<AppDatabase> version6() async {
+    /// Builds the current schema, then takes it back to version 7, before
+    /// the categoriser's corrections and confirmations.
+    Future<AppDatabase> version7() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE category_confirmations');
+      await old.customStatement('DROP TABLE category_corrections');
+      await old.customStatement('PRAGMA user_version = 7');
+      return old;
+    }
+
+    /// Takes the schema back to version 6, before SMS capture.
+    Future<AppDatabase> version6() async {
+      final old = await version7();
       await old.customStatement('DROP TABLE review_items');
       await old.customStatement('DROP INDEX accounts_institution');
       await old.customStatement(
@@ -352,7 +361,7 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(
         await tableNames(db),
         containsAll([
@@ -416,7 +425,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
 
       final institutions = DriftInstitutionsRepository(db);
       await institutions.setSelected('mpesa', selected: true);
@@ -440,7 +449,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(
         (await columns(db, 'debts')).keys,
         containsAll([
@@ -475,7 +484,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(await tableNames(db), contains('review_items'));
       expect(
         (await columns(db, 'transactions')).keys,
@@ -514,6 +523,51 @@ void main() {
       );
     });
 
+    test('migrates a version 7 database: categoriser corrections', () async {
+      final old = await version7();
+      await old.customStatement(
+        'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES (1, 'Cash', 'cash', 'KES', 0, 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO transactions (account_id, occurred_at, amount_minor, '
+        "direction, fee_minor, currency, source) VALUES (1, 0, 5000, 'outflow', "
+        "0, 'KES', 'manual')",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 8);
+      expect(
+        await tableNames(db),
+        containsAll(['category_corrections', 'category_confirmations']),
+      );
+      expect(await db.select(db.transactions).get(), hasLength(1));
+      expect(await db.select(db.categoryCorrections).get(), isEmpty);
+    });
+
+    test('the categoriser step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      final category = await current.select(current.categories).get();
+      await current
+          .into(current.categoryCorrections)
+          .insert(
+            CategoryCorrectionsCompanion.insert(
+              payeeKey: 'name:john',
+              categoryId: category.first.id,
+              updatedAt: DateTime.utc(2026, 10),
+            ),
+          );
+      await current.customStatement('PRAGMA user_version = 7');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 8);
+      expect(await db.select(db.categoryCorrections).get(), hasLength(1));
+    });
+
     test(
       'the debt planner and SMS capture steps are safe to run twice',
       () async {
@@ -535,7 +589,7 @@ void main() {
 
         final db = AppDatabase(NativeDatabase(file));
         addTearDown(db.close);
-        expect(await userVersion(db), 7);
+        expect(await userVersion(db), 8);
         expect(await db.select(db.debts).get(), hasLength(1));
         expect(await db.select(db.debtInstalments).get(), hasLength(1));
         expect(await db.select(db.reviewItems).get(), hasLength(1));
