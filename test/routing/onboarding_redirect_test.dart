@@ -5,7 +5,7 @@ import 'package:pesaclarity/src/routing/app_routes.dart';
 
 import '../helpers/test_app.dart';
 
-const _welcome = 'Your money, made clear, without giving your data away.';
+const _welcome = 'Know what you can spend today.';
 
 void main() {
   group('onboardingRedirect', () {
