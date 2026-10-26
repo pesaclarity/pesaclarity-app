@@ -8,6 +8,7 @@ import '../../../domain/time/calendar.dart';
 
 /// Today's safe-to-spend, or null until there is a day-to-day budget.
 final safeToSpendTodayProvider = FutureProvider<SafeToSpend?>((ref) async {
+  ref.watch(ledgerChangesProvider);
   final today = CalendarDate.nairobi(ref.watch(clockProvider)());
   final month = today.yearMonth;
   final budget = await ref

@@ -3,10 +3,11 @@ package com.pesaclarity.app
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 
-class MainActivity : FlutterActivity() {
+// A FragmentActivity so local_auth can show BiometricPrompt.
+class MainActivity : FlutterFragmentActivity() {
     private var sms: SmsChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {

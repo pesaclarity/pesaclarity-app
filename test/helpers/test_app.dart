@@ -2,15 +2,19 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/features/security/data/biometric_authenticator.dart';
+import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
+import 'fake_app_lock.dart';
 import 'fake_sms_source.dart';
 
 /// Like [testWidgets], but unmounts the app at the end so Drift's stream
@@ -35,23 +39,31 @@ AppDatabase openTestDatabase() {
 }
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
-/// inbox by default) in place of the phone's messages.
+/// inbox by default) in place of the phone's messages, and any [overrides].
+///
+/// App lock reads its settings from [secureStore] (empty, so no lock, by
+/// default) and uses [biometrics] in place of the fingerprint prompt.
 Future<void> pumpApp(
   WidgetTester tester, {
   required AppDatabase db,
   AppFlavor flavor = AppFlavor.foss,
   SmsSource? sms,
+  SecureStore? secureStore,
+  BiometricAuthenticator? biometrics,
+  List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       key: UniqueKey(),
       overrides: [
+        ...appLockOverrides(store: secureStore, biometrics: biometrics),
         appFlavorProvider.overrideWithValue(flavor),
         appDatabaseProvider.overrideWithValue(db),
         smsSourceProvider.overrideWithValue(sms ?? FakeSmsSource()),
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
         ),
+        ...overrides,
       ],
       child: const PesaClarityApp(),
     ),

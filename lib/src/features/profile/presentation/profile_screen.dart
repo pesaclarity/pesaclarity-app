@@ -6,6 +6,7 @@ import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../security/presentation/security_settings_card.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -48,6 +49,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('Import a statement'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(AppRoutes.importStatement),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined),
                   title: const Text('Backup and restore'),
                   trailing: const Icon(Icons.chevron_right),
@@ -69,6 +77,8 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 4),
+          const SecuritySettingsCard(),
         ],
       ),
     );
