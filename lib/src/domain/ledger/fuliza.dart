@@ -26,7 +26,7 @@ class FulizaLedger {
                   e.kind == TransactionKind.fulizaRepayment,
             )
             .toList()
-          ..sort(_chronological);
+          ..sort(compareFulizaEntries);
 
     final fees = <int, int>{};
     var outstanding = 0;
@@ -96,7 +96,7 @@ class FulizaMonth {
 }
 
 /// Oldest first; at the same instant draws come before repayments, then by id.
-int _chronological(LedgerEntry a, LedgerEntry b) {
+int compareFulizaEntries(LedgerEntry a, LedgerEntry b) {
   final byTime = a.occurredAt.compareTo(b.occurredAt);
   if (byTime != 0) return byTime;
   final byKind = (a.kind == TransactionKind.fulizaDraw ? 0 : 1).compareTo(
