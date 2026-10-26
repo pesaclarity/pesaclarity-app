@@ -24,16 +24,24 @@ part 'app_database.g.dart';
     BudgetSnapshots,
     Imports,
     ParserPacks,
+    SelectedInstitutions,
+    AppSettings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(selectedInstitutions);
+        await m.createTable(appSettings);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

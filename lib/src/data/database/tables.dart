@@ -195,3 +195,23 @@ class ParserPacks extends Table {
   @override
   Set<Column> get primaryKey => {packId};
 }
+
+/// Institutions the person ticked in My accounts. A row means it is switched
+/// on; its sender IDs join the SMS watch list.
+class SelectedInstitutions extends Table {
+  /// Matches the ujumbe parser pack id, such as `mpesa`.
+  TextColumn get institutionId => text().withLength(min: 1, max: 40)();
+  DateTimeColumn get selectedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {institutionId};
+}
+
+/// Small app-level settings, such as onboarding completion.
+class AppSettings extends Table {
+  TextColumn get key => text().withLength(min: 1, max: 80)();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
