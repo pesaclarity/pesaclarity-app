@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../routing/app_routes.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../application/sms_capture_providers.dart';
@@ -67,7 +69,13 @@ class SmsScanScreen extends ConsumerWidget {
                           'until you check them.',
               ),
               const SizedBox(height: 24),
-              FilledButton(onPressed: finish, child: const Text('Continue')),
+              FilledButton(
+                // The first insight needs transactions to add up.
+                onPressed: state.summary.added > 0
+                    ? () => context.go(AppRoutes.onboardingFirstInsight)
+                    : finish,
+                child: const Text('Continue'),
+              ),
             ],
             SmsScanStage.denied => [
               const _Heading('Messages not shared'),
