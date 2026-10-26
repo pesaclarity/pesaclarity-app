@@ -53,6 +53,8 @@ lib/
       payees/                identifier normalising and matching, payee and override precedence
       categories/            default Kenyan category set (keys shared with the categoriser)
       tags/                  tag names, filtering and totals by tag
+      health/                Financial Health Index: eight indicators, bands, best action
+      forecast/              cash-flow forecast to month end: zero date, charges that may fail
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
