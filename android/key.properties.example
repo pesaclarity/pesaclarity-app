@@ -1,0 +1,6 @@
+# Copy to android/key.properties (gitignored) for signed release builds.
+# Keep the keystore itself outside the repo.
+storeFile=/path/to/upload-keystore.jks
+storePassword=change-me
+keyAlias=upload
+keyPassword=change-me
