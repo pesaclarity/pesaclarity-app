@@ -7,6 +7,9 @@ abstract final class AppRoutes {
   static const onboardingScan = '/onboarding/accounts/scan';
 
   static const home = '/home';
+
+  /// Statement import, opened from the Home + button and from Profile.
+  static const importStatement = '/home/import';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
   static const backup = '/home/profile/backup';

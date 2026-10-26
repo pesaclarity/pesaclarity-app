@@ -39,6 +39,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('Import a statement'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(AppRoutes.importStatement),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined),
                   title: const Text('Backup and restore'),
                   trailing: const Icon(Icons.chevron_right),
