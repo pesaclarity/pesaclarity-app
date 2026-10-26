@@ -52,6 +52,7 @@ lib/
       payees/                identifier normalising and matching, payee and override precedence
       categories/            default Kenyan category set (keys shared with the categoriser)
       tags/                  tag names, filtering and totals by tag
+      debts/                 payoff strategies, payday split, family loans, Fuliza tracker, repayment matching
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
