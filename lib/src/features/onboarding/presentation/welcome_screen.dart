@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 
 /// Onboarding: the promise up front, then sign-up or no account at all.
@@ -21,7 +22,10 @@ class WelcomeScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
           children: [
-            Text('Pesa Clarity', style: theme.textTheme.titleLarge),
+            Semantics(
+              identifier: SemanticIds.titleWelcome,
+              child: Text('Pesa Clarity', style: theme.textTheme.titleLarge),
+            ),
             const SizedBox(height: 32),
             Text(
               'Your money, made clear, without giving your data away.',
@@ -38,9 +42,12 @@ class WelcomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 40),
             // TODO(auth): phone number with SMS code.
-            FilledButton(
-              onPressed: () => context.go(AppRoutes.onboardingAccounts),
-              child: const Text('Get started'),
+            Semantics(
+              identifier: SemanticIds.onboardingGetStarted,
+              child: FilledButton(
+                onPressed: () => context.go(AppRoutes.onboardingAccounts),
+                child: const Text('Get started'),
+              ),
             ),
             if (flavor.allowsGoogleServices) ...[
               const SizedBox(height: 12),

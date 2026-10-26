@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Backup and restore, under Profile.
@@ -9,7 +10,12 @@ class BackupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Backup and restore')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleBackup,
+          child: const Text('Backup and restore'),
+        ),
+      ),
       body: const FeaturePlaceholder(
         question: 'Is my data safe if I lose this phone?',
         contents: [

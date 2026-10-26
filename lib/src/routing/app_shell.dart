@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../shared/semantic_ids.dart';
 import '../theme/brand_tokens.dart';
 import '../theme/pesa_colors.dart';
 
@@ -10,31 +11,46 @@ class AppShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  static const _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home),
-      label: 'Home',
+  static final _destinations = <Widget>[
+    Semantics(
+      identifier: SemanticIds.navHome,
+      child: const NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'Home',
+      ),
     ),
-    NavigationDestination(
-      icon: Icon(Icons.receipt_long_outlined),
-      selectedIcon: Icon(Icons.receipt_long),
-      label: 'Activity',
+    Semantics(
+      identifier: SemanticIds.navActivity,
+      child: const NavigationDestination(
+        icon: Icon(Icons.receipt_long_outlined),
+        selectedIcon: Icon(Icons.receipt_long),
+        label: 'Activity',
+      ),
     ),
-    NavigationDestination(
-      icon: Icon(Icons.calendar_month_outlined),
-      selectedIcon: Icon(Icons.calendar_month),
-      label: 'Plan',
+    Semantics(
+      identifier: SemanticIds.navPlan,
+      child: const NavigationDestination(
+        icon: Icon(Icons.calendar_month_outlined),
+        selectedIcon: Icon(Icons.calendar_month),
+        label: 'Plan',
+      ),
     ),
-    NavigationDestination(
-      icon: Icon(Icons.flag_outlined),
-      selectedIcon: Icon(Icons.flag),
-      label: 'Goals',
+    Semantics(
+      identifier: SemanticIds.navGoals,
+      child: const NavigationDestination(
+        icon: Icon(Icons.flag_outlined),
+        selectedIcon: Icon(Icons.flag),
+        label: 'Goals',
+      ),
     ),
-    NavigationDestination(
-      icon: Icon(Icons.insights_outlined),
-      selectedIcon: Icon(Icons.insights),
-      label: 'Insights',
+    Semantics(
+      identifier: SemanticIds.navInsights,
+      child: const NavigationDestination(
+        icon: Icon(Icons.insights_outlined),
+        selectedIcon: Icon(Icons.insights),
+        label: 'Insights',
+      ),
     ),
   ];
 

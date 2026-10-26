@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
@@ -15,7 +16,12 @@ class ProfileScreen extends ConsumerWidget {
     final flavor = ref.watch(appFlavorProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleProfile,
+          child: const Text('Profile'),
+        ),
+      ),
       body: FeaturePlaceholder(
         question: 'Your account and settings',
         contents: const [

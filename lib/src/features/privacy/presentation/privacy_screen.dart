@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Privacy, under Profile: promises, consent switches and the full policy.
@@ -9,7 +10,12 @@ class PrivacyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titlePrivacy,
+          child: const Text('Privacy'),
+        ),
+      ),
       body: const FeaturePlaceholder(
         question: 'What leaves my phone?',
         contents: [

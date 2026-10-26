@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../application/onboarding_controller.dart';
 
@@ -11,7 +12,12 @@ class MyAccountsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My accounts')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleMyAccounts,
+          child: const Text('My accounts'),
+        ),
+      ),
       body: FeaturePlaceholder(
         question: 'Which accounts do you use?',
         contents: const [
@@ -23,11 +29,14 @@ class MyAccountsScreen extends ConsumerWidget {
               'about a minute',
         ],
         actions: [
-          FilledButton(
-            // TODO(onboarding): request SMS permission and start the scan.
-            onPressed: () =>
-                ref.read(onboardingControllerProvider.notifier).complete(),
-            child: const Text('Start the 90-day scan'),
+          Semantics(
+            identifier: SemanticIds.onboardingStartScan,
+            child: FilledButton(
+              // TODO(onboarding): request SMS permission and start the scan.
+              onPressed: () =>
+                  ref.read(onboardingControllerProvider.notifier).complete(),
+              child: const Text('Start the 90-day scan'),
+            ),
           ),
         ],
       ),

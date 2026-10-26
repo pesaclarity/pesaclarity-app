@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Goals tab: am I getting there?
@@ -11,7 +12,12 @@ class GoalsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Goals')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleGoals,
+          child: const Text('Goals'),
+        ),
+      ),
       body: FeaturePlaceholder(
         question: 'Am I getting there?',
         contents: const [

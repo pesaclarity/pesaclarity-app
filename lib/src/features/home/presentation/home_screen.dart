@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 
@@ -13,12 +14,18 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: Semantics(
+          identifier: SemanticIds.titleHome,
+          child: const Text('Home'),
+        ),
         actions: [
-          IconButton(
-            tooltip: 'Profile',
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => context.go(AppRoutes.profile),
+          Semantics(
+            identifier: SemanticIds.homeProfile,
+            child: IconButton(
+              tooltip: 'Profile',
+              icon: const Icon(Icons.person_outline),
+              onPressed: () => context.go(AppRoutes.profile),
+            ),
           ),
         ],
       ),

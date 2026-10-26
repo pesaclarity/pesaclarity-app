@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Activity tab: where did my money go?
@@ -9,7 +10,12 @@ class ActivityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titleActivity,
+          child: const Text('Activity'),
+        ),
+      ),
       body: const FeaturePlaceholder(
         question: 'Where did my money go?',
         contents: [

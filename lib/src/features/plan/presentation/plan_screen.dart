@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 
 /// Plan tab: what's coming, and is it covered?
@@ -9,7 +10,12 @@ class PlanScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Plan')),
+      appBar: AppBar(
+        title: Semantics(
+          identifier: SemanticIds.titlePlan,
+          child: const Text('Plan'),
+        ),
+      ),
       body: const FeaturePlaceholder(
         question: "What's coming, and is it covered?",
         contents: [
