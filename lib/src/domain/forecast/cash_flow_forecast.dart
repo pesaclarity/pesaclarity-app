@@ -260,6 +260,24 @@ class CashFlowForecast {
 
   int get monthEndBalanceMinor => days.last.closingMinor;
 
+  /// Days from today until the money runs out at this pace.
+  ///
+  /// Within the month this is the day before [zeroDate], so 0 means it runs
+  /// out today. Past month end, the month-end balance is spread at the
+  /// average daily pace with no further income or bills. Null when the pace
+  /// is zero and the balance never runs out.
+  int? get runwayDays {
+    final zero = zeroDate;
+    if (zero != null) return today.daysUntil(zero);
+    final perWeek = pace.weekdayMinor * 5 + pace.weekendMinor * 2;
+    if (perWeek <= 0) return null;
+    return days.length + monthEndBalanceMinor * 7 ~/ perWeek;
+  }
+
+  /// The next expected income this month, if any.
+  ScheduledFlow? get nextIncome =>
+      scheduled.where((f) => f.isIncome).firstOrNull;
+
   /// The forecast in plain words: when the money runs out (or what is left
   /// at month end), then each charge that may not go through.
   List<String> get messages {

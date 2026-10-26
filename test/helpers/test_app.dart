@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
@@ -38,7 +39,7 @@ AppDatabase openTestDatabase() {
 }
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
-/// inbox by default) in place of the phone's messages.
+/// inbox by default) in place of the phone's messages, and any [overrides].
 ///
 /// App lock reads its settings from [secureStore] (empty, so no lock, by
 /// default) and uses [biometrics] in place of the fingerprint prompt.
@@ -49,6 +50,7 @@ Future<void> pumpApp(
   SmsSource? sms,
   SecureStore? secureStore,
   BiometricAuthenticator? biometrics,
+  List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -61,6 +63,7 @@ Future<void> pumpApp(
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
         ),
+        ...overrides,
       ],
       child: const PesaClarityApp(),
     ),
