@@ -352,7 +352,7 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(
         await tableNames(db),
         containsAll([
@@ -416,7 +416,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
 
       final institutions = DriftInstitutionsRepository(db);
       await institutions.setSelected('mpesa', selected: true);
@@ -440,7 +440,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(
         (await columns(db, 'debts')).keys,
         containsAll([
@@ -475,7 +475,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 7);
+      expect(await userVersion(db), 8);
       expect(await tableNames(db), contains('review_items'));
       expect(
         (await columns(db, 'transactions')).keys,
@@ -514,6 +514,54 @@ void main() {
       );
     });
 
+    test('migrates a version 7 database: statement import records', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      for (final column in [
+        'institution_id',
+        'opening_balance_minor',
+        'transaction_count',
+        'added_count',
+        'duplicate_count',
+        'unread_count',
+        'result',
+      ]) {
+        await old.customStatement('ALTER TABLE imports DROP COLUMN $column');
+      }
+      await old.customStatement(
+        'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES (1, 'M-Pesa', 'mpesa', 'KES', 0, 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO imports (account_id, file_hash, period_start, period_end, '
+        "imported_at) VALUES (1, 'abc', 0, 0, 0)",
+      );
+      await old.customStatement('PRAGMA user_version = 7');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 8);
+      final kept = await db.select(db.imports).getSingle();
+      expect(kept.fileHash, 'abc');
+      expect(kept.transactionCount, 0);
+      expect(kept.institutionId, isNull);
+      expect(kept.result, isNull);
+    });
+
+    test('the statement import step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      await current.customStatement('PRAGMA user_version = 7');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 8);
+      expect(
+        (await columns(db, 'imports')).keys,
+        containsAll(['institution_id', 'transaction_count', 'result']),
+      );
+    });
+
     test(
       'the debt planner and SMS capture steps are safe to run twice',
       () async {
@@ -535,7 +583,7 @@ void main() {
 
         final db = AppDatabase(NativeDatabase(file));
         addTearDown(db.close);
-        expect(await userVersion(db), 7);
+        expect(await userVersion(db), 8);
         expect(await db.select(db.debts).get(), hasLength(1));
         expect(await db.select(db.debtInstalments).get(), hasLength(1));
         expect(await db.select(db.reviewItems).get(), hasLength(1));

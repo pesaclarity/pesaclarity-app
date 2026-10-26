@@ -60,3 +60,12 @@ enum DebtType {
 enum GoalStatus { active, paused, achieved }
 
 enum ParserPackTestStatus { unknown, passed, failed }
+
+/// How an imported statement compared with the ledger.
+enum StatementImportResult {
+  /// The ledger balance matches the statement's closing balance.
+  reconciled,
+
+  /// The ledger is off from the statement's closing balance by some amount.
+  gap,
+}

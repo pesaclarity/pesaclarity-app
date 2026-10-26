@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'features/security/presentation/lock_screen.dart';
 import 'routing/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -16,6 +17,7 @@ class PesaClarityApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: ref.watch(appRouterProvider),
+      builder: (context, child) => AppLockGate(child: child!),
     );
   }
 }
