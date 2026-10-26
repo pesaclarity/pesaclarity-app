@@ -7,6 +7,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
+import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/security_settings_card.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
@@ -89,6 +90,8 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           const SecuritySettingsCard(),
+          const SizedBox(height: 16),
+          const RemindersSettingsCard(),
         ],
       ),
     );

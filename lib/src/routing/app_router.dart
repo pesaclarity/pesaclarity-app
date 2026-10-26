@@ -18,6 +18,7 @@ import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/payees/presentation/payees_screen.dart';
 import '../features/plan/presentation/payday_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
+import '../features/privacy/presentation/policy_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
@@ -106,6 +107,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'privacy',
                         builder: (context, state) => const PrivacyScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'policy',
+                            builder: (context, state) => const PolicyScreen(),
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'payees',
