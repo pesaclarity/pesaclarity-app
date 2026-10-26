@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/flavor.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../security/presentation/security_settings_card.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -67,6 +68,8 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 4),
+          const SecuritySettingsCard(),
         ],
       ),
     );

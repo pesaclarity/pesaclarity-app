@@ -87,3 +87,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // AppCompat themes keep the biometric dialog from crashing on Android 8 and older.
+    implementation("androidx.appcompat:appcompat:1.7.1")
+}
