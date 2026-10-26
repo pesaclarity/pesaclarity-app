@@ -43,6 +43,7 @@ lib/
   src/
     app.dart                 root widget
     config/                  build flavour
+    core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
@@ -57,7 +58,7 @@ lib/
       repositories/          thin repository interfaces and Drift implementations
     features/                one folder per screen in the spec
       onboarding/ home/ activity/ plan/ goals/ debts/
-      insights/ profile/ backup/ privacy/
+      insights/ profile/ backup/ privacy/ accounts/
     routing/                 go_router: five-tab shell; Profile under Home, Debts under Goals
     shared/widgets/
     theme/                   brand tokens, light and dark themes, typography
@@ -101,7 +102,7 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
-Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
+Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
 
