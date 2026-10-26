@@ -1,4 +1,4 @@
-# Fresh launch, then straight through onboarding to Home.
+# Fresh launch, then straight through onboarding to Home with M-Pesa ticked.
 appId: com.pesaclarity.app
 ---
 - runFlow: launch-fresh.yaml
@@ -9,7 +9,15 @@ appId: com.pesaclarity.app
       id: title-my-accounts
     timeout: 10000
 - tapOn:
-    id: onboarding-start-scan
+    id: institution-mpesa
+- assertVisible:
+    id: institution-mpesa
+    checked: true
+- scrollUntilVisible:
+    element:
+      id: onboarding-scan-messages
+- tapOn:
+    id: onboarding-scan-messages
 - extendedWaitUntil:
     visible:
       id: title-home

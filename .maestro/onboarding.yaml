@@ -13,10 +13,27 @@ tags:
     id: onboarding-get-started
 - assertVisible:
     id: title-my-accounts
+- assertVisible:
+    id: institution-mpesa
+    checked: false
+- assertVisible: "Tick at least one account to continue."
 - waitForAnimationToEnd
 - takeScreenshot: 02-onboarding-my-accounts-${THEME}
 - tapOn:
-    id: onboarding-start-scan
+    id: institution-mpesa
+- assertVisible:
+    id: institution-mpesa
+    checked: true
+- scrollUntilVisible:
+    element:
+      id: onboarding-scan-messages
+- assertVisible:
+    id: onboarding-scan-messages
+    enabled: true
+- waitForAnimationToEnd
+- takeScreenshot: 02b-onboarding-my-accounts-ticked-${THEME}
+- tapOn:
+    id: onboarding-scan-messages
 - assertVisible:
     id: title-home
 - assertVisible:

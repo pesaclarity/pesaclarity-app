@@ -8,6 +8,8 @@ tags:
     id: home-profile
 - assertVisible:
     id: title-profile
+- scrollUntilVisible:
+    element: "Privacy"
 - tapOn: "Privacy"
 - assertVisible:
     id: title-privacy

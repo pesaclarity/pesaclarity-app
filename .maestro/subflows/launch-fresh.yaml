@@ -1,4 +1,5 @@
-# Starts the app from a clean install state and waits for the welcome screen.
+# Starts the app from a clean install state. The launch screen at / shows a
+# spinner while saved state loads, then redirects to the welcome screen.
 appId: com.pesaclarity.app
 ---
 - launchApp:
