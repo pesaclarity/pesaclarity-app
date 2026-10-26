@@ -13,6 +13,7 @@ import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
+import '../features/privacy/presentation/policy_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
@@ -78,6 +79,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'privacy',
                         builder: (context, state) => const PrivacyScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'policy',
+                            builder: (context, state) => const PolicyScreen(),
+                          ),
+                        ],
                       ),
                     ],
                   ),

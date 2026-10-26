@@ -1,16 +1,24 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/domain/privacy/privacy_policy.dart';
+import 'package:pesaclarity/src/features/privacy/data/policy_source.dart';
+import 'package:pesaclarity/src/features/reminders/data/reminder_notifications.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
+import 'fake_reminders.dart';
 import 'fake_sms_source.dart';
 
 /// Like [testWidgets], but unmounts the app at the end so Drift's stream
@@ -35,12 +43,16 @@ AppDatabase openTestDatabase() {
 }
 
 /// Pumps the whole app on [db], as if launched fresh, with [sms] (an empty
-/// inbox by default) in place of the phone's messages.
+/// inbox by default) in place of the phone's messages, and fakes for
+/// notifications and email unless given.
 Future<void> pumpApp(
   WidgetTester tester, {
   required AppDatabase db,
   AppFlavor flavor = AppFlavor.foss,
   SmsSource? sms,
+  ReminderNotifications? notifications,
+  PolicyMailer? mailer,
+  List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -52,6 +64,12 @@ Future<void> pumpApp(
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
         ),
+        reminderNotificationsProvider.overrideWithValue(
+          notifications ?? FakeReminderNotifications(),
+        ),
+        policyMailerProvider.overrideWithValue(mailer ?? FakePolicyMailer()),
+        privacyPolicyProvider.overrideWithValue(AsyncData(bundledPolicy())),
+        ...overrides,
       ],
       child: const PesaClarityApp(),
     ),
@@ -61,7 +79,7 @@ Future<void> pumpApp(
 
 /// Scrolls [text] into view, then taps it.
 Future<void> tapText(WidgetTester tester, String text) async {
-  await tester.ensureVisible(find.text(text));
+  await scrollTo(tester, find.text(text));
   await tester.pumpAndSettle();
   await tester.tap(find.text(text));
   await tester.pumpAndSettle();
@@ -79,3 +97,26 @@ Future<void> finishOnboarding(WidgetTester tester) async {
   await tapText(tester, 'Allow access to messages');
   await tapText(tester, 'Continue');
 }
+
+/// Scrolls the screen's list until [finder] is built and on screen, even
+/// when the list has not built it yet.
+Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      finder,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+  }
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+}
+
+/// The bundled privacy policy, read straight from disk, since asset loading
+/// does not finish inside a widget test's fake clock.
+PrivacyPolicy bundledPolicy() => PrivacyPolicy.fromAssets(
+  metadata: jsonDecode(
+    File('assets/policy/privacy_policy.json').readAsStringSync(),
+  ) as Map<String, Object?>,
+  markdown: File('assets/policy/privacy_policy.md').readAsStringSync(),
+);
