@@ -5,8 +5,11 @@ appId: com.pesaclarity.app
 - launchApp:
     clearState: true
     stopApp: true
+# Wait on visible text first, then the id, so a failure tells "app not on
+# screen" apart from "Semantics identifiers not exposed as resource-ids".
 # Debug builds start slowly on CI emulators.
 - extendedWaitUntil:
-    visible:
-      id: title-welcome
-    timeout: 60000
+    visible: "Get started"
+    timeout: 45000
+- assertVisible:
+    id: title-welcome
