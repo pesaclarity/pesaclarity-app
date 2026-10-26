@@ -15,6 +15,7 @@ import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
+import '../features/sms/presentation/sms_scan_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
@@ -43,6 +44,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'accounts',
             builder: (context, state) => const MyAccountsScreen(),
+            routes: [
+              GoRoute(
+                path: 'scan',
+                builder: (context, state) => const SmsScanScreen(),
+              ),
+            ],
           ),
         ],
       ),

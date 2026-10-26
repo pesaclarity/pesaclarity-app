@@ -62,6 +62,7 @@ lib/
     features/                one folder per screen in the spec
       onboarding/ home/ activity/ plan/ goals/ debts/
       insights/ profile/ backup/ privacy/ accounts/
+      sms/                   SMS permission, inbox scan, live capture, parsing
     routing/                 go_router: five-tab shell; Profile under Home, Debts under Goals
     shared/widgets/
     theme/                   brand tokens, light and dark themes, typography
@@ -95,7 +96,15 @@ Space Grotesk (numbers and titles, tabular figures) and Inter (body text) are bu
 
 ## Parser package
 
-SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers](https://github.com/pesaclarity/ujumbe-parsers). It is being built alongside this app and has no `pubspec.yaml` on `main` yet, so the git dependency is commented out in `pubspec.yaml` with a `TODO(ujumbe)`. Uncomment it once the package is published there.
+SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers](https://github.com/pesaclarity/ujumbe-parsers), a git dependency pinned to a commit on `main` until `v0.1.0` is tagged. The institutions in My accounts are its bundled parser packs: each pack gives the id, name and sender IDs.
+
+## SMS capture
+
+- **Only selected senders.** The Android side (`SmsChannel.kt`) queries the inbox and listens for `SMS_RECEIVED` with the sender IDs of the ticked institutions; every other message is filtered out before it reaches Dart. The Dart parser filters by sender again.
+- **Permission.** `READ_SMS` and `RECEIVE_SMS` are asked for only after a screen that says in plain words what is read, kept and discarded. Refusing is fine: onboarding goes on without messages.
+- **Scans.** "Scan my messages" reads the last 90 days. Afterwards, each time the app opens it reads what arrived since the last scan (90 days for a newly ticked institution), then adds new messages as they land while it runs. Messages that arrive while the app is closed wait in the inbox for the next scan, so there is no background service.
+- **Parsing** runs on a background isolate. A parsed message keeps its fields (amount, time, fee, receipt, balance, counterparty) and a SHA-256 hash; the text is discarded. Each institution gets its own account, created on its first transaction. Transactions are deduplicated per account by ujumbe's dedupe key (receipt, amount and minute), which statement imports will share. Counterparties are normalised with `PayeeIdentifier`, so named payees apply.
+- **Review inbox.** A message from a selected sender that no rule matches is kept for review, text included, because tagging its fields to make a local rule needs the text. It lives only in the SQLCipher database and its text is deleted when the item is resolved; the hash stays so a later scan does not bring it back.
 
 ## Testing
 
@@ -105,7 +114,7 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
-Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
+Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, SMS capture against a fake inbox (mapping, dedupe, sender filtering, review inbox, scans), the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
 
