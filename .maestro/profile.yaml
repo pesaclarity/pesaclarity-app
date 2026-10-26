@@ -1,0 +1,12 @@
+appId: com.pesaclarity.app
+name: Profile
+tags:
+  - screens
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: home-profile
+- assertVisible:
+    id: title-profile
+- waitForAnimationToEnd
+- takeScreenshot: 08-profile-${THEME}

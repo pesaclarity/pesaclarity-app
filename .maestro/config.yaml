@@ -1,0 +1,4 @@
+# Workspace config for `maestro test .maestro/`. Flows in subflows/ are only
+# run through runFlow, never on their own.
+flows:
+  - "*"

@@ -1,0 +1,16 @@
+# Fresh launch, then straight through onboarding to Home.
+appId: com.pesaclarity.app
+---
+- runFlow: launch-fresh.yaml
+- tapOn:
+    id: onboarding-get-started
+- extendedWaitUntil:
+    visible:
+      id: title-my-accounts
+    timeout: 10000
+- tapOn:
+    id: onboarding-start-scan
+- extendedWaitUntil:
+    visible:
+      id: title-home
+    timeout: 10000

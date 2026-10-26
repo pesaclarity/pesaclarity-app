@@ -1,0 +1,23 @@
+appId: com.pesaclarity.app
+name: Onboarding
+tags:
+  - onboarding
+---
+- runFlow: subflows/launch-fresh.yaml
+- assertVisible:
+    id: title-welcome
+- assertVisible: "Get started"
+- waitForAnimationToEnd
+- takeScreenshot: 01-onboarding-welcome-${THEME}
+- tapOn:
+    id: onboarding-get-started
+- assertVisible:
+    id: title-my-accounts
+- waitForAnimationToEnd
+- takeScreenshot: 02-onboarding-my-accounts-${THEME}
+- tapOn:
+    id: onboarding-start-scan
+- assertVisible:
+    id: title-home
+- assertVisible:
+    id: nav-home

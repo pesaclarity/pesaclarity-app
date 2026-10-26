@@ -1,0 +1,15 @@
+appId: com.pesaclarity.app
+name: Privacy
+tags:
+  - screens
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: home-profile
+- assertVisible:
+    id: title-profile
+- tapOn: "Privacy"
+- assertVisible:
+    id: title-privacy
+- waitForAnimationToEnd
+- takeScreenshot: 11-privacy-${THEME}

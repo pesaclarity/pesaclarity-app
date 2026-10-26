@@ -1,0 +1,11 @@
+# Starts the app from a clean install state and waits for the welcome screen.
+appId: com.pesaclarity.app
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+# Debug builds start slowly on CI emulators.
+- extendedWaitUntil:
+    visible:
+      id: title-welcome
+    timeout: 60000

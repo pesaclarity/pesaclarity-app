@@ -1,0 +1,12 @@
+appId: com.pesaclarity.app
+name: Activity tab
+tags:
+  - tabs
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-activity
+- assertVisible:
+    id: title-activity
+- waitForAnimationToEnd
+- takeScreenshot: 04-activity-${THEME}

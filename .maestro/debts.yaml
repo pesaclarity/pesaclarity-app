@@ -1,0 +1,17 @@
+appId: com.pesaclarity.app
+name: Debts
+tags:
+  - screens
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-goals
+- assertVisible:
+    id: title-goals
+- scrollUntilVisible:
+    element: "See debts"
+- tapOn: "See debts"
+- assertVisible:
+    id: title-debts
+- waitForAnimationToEnd
+- takeScreenshot: 09-debts-${THEME}

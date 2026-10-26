@@ -1,0 +1,15 @@
+appId: com.pesaclarity.app
+name: Backup and restore
+tags:
+  - screens
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: home-profile
+- assertVisible:
+    id: title-profile
+- tapOn: "Backup and restore"
+- assertVisible:
+    id: title-backup
+- waitForAnimationToEnd
+- takeScreenshot: 10-backup-${THEME}

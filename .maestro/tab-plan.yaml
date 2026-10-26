@@ -1,0 +1,12 @@
+appId: com.pesaclarity.app
+name: Plan tab
+tags:
+  - tabs
+---
+- runFlow: subflows/onboarded.yaml
+- tapOn:
+    id: nav-plan
+- assertVisible:
+    id: title-plan
+- waitForAnimationToEnd
+- takeScreenshot: 05-plan-${THEME}
