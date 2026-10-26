@@ -24,6 +24,12 @@ dependencies:
     git:
       url: https://github.com/pesaclarity/ujumbe-parsers.git
       ref: 01440803df03352ede7523644f3d1edb21a75277
+  # Statement PDFs are read on the phone with PDFium. pdfium_flutter is not
+  # imported; its build hooks bundle the PDFium library into the app.
+  pdfrx_engine: ^0.8.0
+  pdfium_flutter: ^0.4.0
+  file_selector: ^1.1.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   build_runner: ^2.17.1
