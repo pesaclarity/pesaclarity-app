@@ -1,10 +1,8 @@
-# Pesa Clarity app (mfuko)
+# Pesa Clarity app
 
 Pesa Clarity is a free, ad-free, open-source Android app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
-**Codename:** *mfuko*, Swahili for "pocket".
-
-**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show.
+**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
 
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
@@ -46,6 +44,11 @@ lib/
     app.dart                 root widget
     config/                  build flavour
     core/money/              Money (integer minor units) and KES formatting
+    domain/                  pure-Dart money rules, no Flutter or database imports
+      time/                  Nairobi calendar dates and months
+      ledger/                own transfers, Fuliza fees, noise collapse, honest totals
+      budget/                safe to spend today, weekday and weekend limits
+      plan/                  monthly plan, arrears, category status, surplus split, snapshots
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
@@ -95,7 +98,7 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
-Tests cover money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
+Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
 

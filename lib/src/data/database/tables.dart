@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import 'enums.dart';
+import '../../domain/enums.dart';
 
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.
@@ -97,6 +97,11 @@ class Transactions extends Table {
   /// Always positive; [direction] says which way it moved.
   IntColumn get amountMinor => integer()();
   TextColumn get direction => textEnum<TransactionDirection>()();
+
+  /// The parser's message type. Null for older rows and manual entries, which
+  /// the ledger treats as [TransactionKind.bank].
+  TextColumn get kind => textEnum<TransactionKind>().nullable()();
+  IntColumn get feeMinor => integer().withDefault(const Constant(0))();
   TextColumn get currency =>
       text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
 
@@ -153,11 +158,12 @@ class BudgetItems extends Table {
   BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
 }
 
-/// Frozen month-end results per category.
+/// Frozen month-end results per category; a null category is Uncategorised.
 class BudgetSnapshots extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get month => integer()();
-  IntColumn get categoryId => integer().references(Categories, #id)();
+  IntColumn get categoryId =>
+      integer().nullable().references(Categories, #id)();
   IntColumn get plannedMinor => integer()();
   IntColumn get actualMinor => integer()();
   DateTimeColumn get frozenAt => dateTime()();
