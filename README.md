@@ -51,6 +51,9 @@ lib/
       ledger/                own transfers, Fuliza fees, noise collapse, honest totals
       budget/                safe to spend today, weekday and weekend limits
       plan/                  monthly plan, arrears, category status, surplus split, snapshots
+      payees/                identifier normalising and matching, payee and override precedence
+      categories/            default Kenyan category set (keys shared with the categoriser)
+      tags/                  tag names, filtering and totals by tag
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
