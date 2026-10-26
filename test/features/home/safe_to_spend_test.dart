@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
+import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -128,6 +129,7 @@ void main() {
           safeToSpendTodayProvider.overrideWith((ref) async => result),
           cashFlowForecastProvider.overrideWith((ref) async => null),
           healthIndexProvider.overrideWith((ref) async => null),
+          upcomingBillsProvider.overrideWith((ref) async => []),
         ],
         child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
       ),
@@ -135,9 +137,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('KES 600'), findsOneWidget);
-    expect(
-      find.text('Weekdays KES 1,000, weekends KES 1,000.'),
-      findsOneWidget,
-    );
+    expect(find.text('Safe to spend today · Weekday'), findsOneWidget);
+    expect(find.text('Weekend days get 1,000'), findsOneWidget);
+    expect(find.text("81% of this month's spending plan used"), findsOneWidget);
+    expect(find.text('5,600'), findsOneWidget);
   });
 }

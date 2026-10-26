@@ -194,7 +194,7 @@ void main() {
       findsOneWidget,
     );
     await finishOnboarding(tester);
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(find.text('Safe to spend today'), findsOneWidget);
   });
 
   testAppWidgets('Profile offers sign-in when using without an account', (

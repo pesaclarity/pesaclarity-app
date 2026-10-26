@@ -45,11 +45,11 @@ void main() {
     await pumpApp(tester, db: db);
     expect(find.text(_welcome), findsOneWidget);
     await finishOnboarding(tester);
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(find.text('Safe to spend today'), findsOneWidget);
 
     await pumpApp(tester, db: db);
     expect(find.text(_welcome), findsNothing);
-    expect(find.text('How am I doing today?'), findsOneWidget);
+    expect(find.text('Safe to spend today'), findsOneWidget);
   });
 
   testAppWidgets('shows onboarding again if it was left unfinished', (
