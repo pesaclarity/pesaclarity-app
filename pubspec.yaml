@@ -10,12 +10,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  archive: ^4.5.2
   drift: ^2.35.3
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
   go_router: ^18.1.1
   path: ^1.9.1
   path_provider: ^2.1.6
+  pdf: ^3.13.1
+  share_plus: ^13.3.1
   sqlite3: ^3.8.0
   cryptography: ^2.9.0
   # Pinned to a commit on main for reproducible builds.

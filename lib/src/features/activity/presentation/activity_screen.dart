@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../export/presentation/export_sheet.dart';
 
 /// Activity tab: where did my money go?
 class ActivityScreen extends StatelessWidget {
@@ -9,7 +10,10 @@ class ActivityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
+      appBar: AppBar(
+        title: const Text('Activity'),
+        actions: const [ActivityExportButton()],
+      ),
       body: const FeaturePlaceholder(
         question: 'Where did my money go?',
         contents: [
