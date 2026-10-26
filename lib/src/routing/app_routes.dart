@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const onboarding = '/onboarding';
   static const onboardingAccounts = '/onboarding/accounts';
   static const onboardingScan = '/onboarding/accounts/scan';
+  static const onboardingFirstInsight = '/onboarding/accounts/scan/insight';
 
   static const home = '/home';
   static const profile = '/home/profile';

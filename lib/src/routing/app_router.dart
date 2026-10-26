@@ -10,6 +10,7 @@ import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/insights/presentation/insights_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
+import '../features/onboarding/presentation/first_insight_screen.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
@@ -48,6 +49,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'scan',
                 builder: (context, state) => const SmsScanScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'insight',
+                    builder: (context, state) => const FirstInsightScreen(),
+                  ),
+                ],
               ),
             ],
           ),
