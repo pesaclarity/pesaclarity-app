@@ -47,6 +47,7 @@ void main() {
     final db = openTestDatabase();
     await pumpProfile(tester, db, DeviceIntegrityReport.clean);
     expect(find.text(DeviceWarningCard.title), findsNothing);
+    await scrollTo(tester, find.text('My accounts'));
     expect(find.text('My accounts'), findsOneWidget);
   });
 
@@ -55,10 +56,15 @@ void main() {
     await pumpProfile(tester, db, rooted);
     expect(find.text(DeviceWarningCard.title), findsOneWidget);
     // The rest of Profile stays usable.
+    await scrollTo(tester, find.text('My accounts'));
     expect(find.text('My accounts'), findsOneWidget);
 
-    await tester.tap(find.text('Got it'));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Got it'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tapText(tester, 'Got it');
     expect(find.text(DeviceWarningCard.title), findsNothing);
     expect(await DriftDeviceWarningRepository(db).isDismissed(), isTrue);
 
