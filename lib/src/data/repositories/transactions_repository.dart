@@ -18,6 +18,11 @@ abstract interface class TransactionsRepository {
   /// with `PayeeIdentifier`) is resolved to its named payee, if any.
   Future<int> add(TransactionsCompanion transaction);
 
+  /// Stores each of [transactions] whose account has no transaction with the
+  /// same dedupe key yet, resolving payees like [add]. Returns how many were
+  /// stored.
+  Future<int> addNew(Iterable<TransactionsCompanion> transactions);
+
   /// Finds an existing transaction with the same receipt, for dedupe between
   /// SMS and later statement imports.
   Future<TransactionRecord?> findByReceipt(int accountId, String receiptNo);
@@ -52,15 +57,54 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<int> add(TransactionsCompanion transaction) async {
-    final kind = transaction.counterpartyKind.value;
-    final value = transaction.counterpartyValue.value;
-    if (!transaction.payeeId.present && kind != null && value != null) {
-      final payee = (await payeeDirectory(_db))
-          .resolve(PayeeIdentifier.stored(kind, value));
-      transaction = transaction.copyWith(payeeId: Value(payee?.id));
+  Future<int> add(TransactionsCompanion transaction) async => _db
+      .into(_db.transactions)
+      .insert(_withPayee(transaction, await payeeDirectory(_db)));
+
+  @override
+  Future<int> addNew(Iterable<TransactionsCompanion> transactions) =>
+      _db.transaction(() async {
+        final directory = await payeeDirectory(_db);
+        var added = 0;
+        for (final transaction in transactions) {
+          final key = transaction.dedupeKey.present
+              ? transaction.dedupeKey.value
+              : null;
+          if (key != null && await _hasDedupeKey(transaction, key)) continue;
+          await _db
+              .into(_db.transactions)
+              .insert(_withPayee(transaction, directory));
+          added++;
+        }
+        return added;
+      });
+
+  Future<bool> _hasDedupeKey(TransactionsCompanion transaction, String key) =>
+      (_db.selectOnly(_db.transactions)
+            ..addColumns([_db.transactions.id])
+            ..where(
+              _db.transactions.accountId.equals(transaction.accountId.value) &
+                  _db.transactions.dedupeKey.equals(key),
+            )
+            ..limit(1))
+          .getSingleOrNull()
+          .then((row) => row != null);
+
+  TransactionsCompanion _withPayee(
+    TransactionsCompanion transaction,
+    PayeeDirectory directory,
+  ) {
+    final kind = transaction.counterpartyKind.present
+        ? transaction.counterpartyKind.value
+        : null;
+    final value = transaction.counterpartyValue.present
+        ? transaction.counterpartyValue.value
+        : null;
+    if (transaction.payeeId.present || kind == null || value == null) {
+      return transaction;
     }
-    return _db.into(_db.transactions).insert(transaction);
+    final payee = directory.resolve(PayeeIdentifier.stored(kind, value));
+    return transaction.copyWith(payeeId: Value(payee?.id));
   }
 
   Expression<bool> _hasTag($TransactionsTable t, int tagId) => existsQuery(

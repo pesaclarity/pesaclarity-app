@@ -27,13 +27,14 @@ part 'app_database.g.dart';
     ParserPacks,
     SelectedInstitutions,
     AppSettings,
+    ReviewItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,11 +72,52 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(selectedInstitutions);
         await m.createTable(appSettings);
       }
+      // Version 6 belongs to another change; this step checks before each
+      // change so it is safe whichever order the two land in.
+      if (from < 7) {
+        await _addColumnIfMissing(m, accounts, accounts.institutionId);
+        await _createIndexIfMissing(m, accountsInstitution);
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.counterpartyName,
+        );
+        await _addColumnIfMissing(m, transactions, transactions.dedupeKey);
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.balanceAfterMinor,
+        );
+        await _createIndexIfMissing(m, transactionsDedupe);
+        if (!await _exists('table', reviewItems.actualTableName)) {
+          await m.createTable(reviewItems);
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  Future<bool> _exists(String type, String name) async => (await customSelect(
+    'SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?',
+    variables: [Variable(type), Variable(name)],
+  ).get()).isNotEmpty;
+
+  Future<void> _addColumnIfMissing(
+    Migrator m,
+    TableInfo<Table, Object?> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final columns = await customSelect(
+      'PRAGMA table_info(${table.actualTableName})',
+    ).map((row) => row.read<String>('name')).get();
+    if (!columns.contains(column.name)) await m.addColumn(table, column);
+  }
+
+  Future<void> _createIndexIfMissing(Migrator m, Index index) async {
+    if (!await _exists('index', index.entityName)) await m.create(index);
+  }
 
   /// Adds the default categories that are missing by key or name. Runs once,
   /// when the database is created or upgraded, so a seeded category the user

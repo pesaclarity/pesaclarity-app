@@ -222,10 +222,32 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 4, before
-    /// the My accounts tables.
-    Future<AppDatabase> version4() async {
+    /// Builds the current schema, then takes it back to version 5, before
+    /// SMS capture (version 7; version 6 is another change).
+    Future<AppDatabase> version5() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE review_items');
+      await old.customStatement('DROP INDEX accounts_institution');
+      await old.customStatement(
+        'ALTER TABLE accounts DROP COLUMN institution_id',
+      );
+      await old.customStatement('DROP INDEX transactions_dedupe');
+      for (final column in [
+        'counterparty_name',
+        'dedupe_key',
+        'balance_after_minor',
+      ]) {
+        await old.customStatement(
+          'ALTER TABLE transactions DROP COLUMN $column',
+        );
+      }
+      await old.customStatement('PRAGMA user_version = 5');
+      return old;
+    }
+
+    /// Takes the schema back to version 4, before the My accounts tables.
+    Future<AppDatabase> version4() async {
+      final old = await version5();
       await old.customStatement('DROP TABLE selected_institutions');
       await old.customStatement('DROP TABLE app_settings');
       await old.customStatement('PRAGMA user_version = 4');
@@ -310,7 +332,7 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
-      expect(await userVersion(db), 5);
+      expect(await userVersion(db), 7);
       expect(
         await tableNames(db),
         containsAll(['selected_institutions', 'app_settings']),
@@ -368,7 +390,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 5);
+      expect(await userVersion(db), 7);
 
       final institutions = DriftInstitutionsRepository(db);
       await institutions.setSelected('mpesa', selected: true);
@@ -381,5 +403,73 @@ void main() {
       expect(payee.defaultCategoryId, groceries.id);
       expect(await db.select(db.categories).get(), hasLength(categoryCount));
     });
+
+    test('migrates a version 5 database: SMS capture (version 7)', () async {
+      final old = await version5();
+      await old.customStatement(
+        'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES (1, 'Cash', 'cash', 'KES', 0, 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO transactions (account_id, occurred_at, amount_minor, '
+        "direction, fee_minor, currency, source) VALUES (1, 0, 5000, 'outflow', "
+        "0, 'KES', 'manual')",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 7);
+      expect(await tableNames(db), contains('review_items'));
+      expect(
+        (await columns(db, 'transactions')).keys,
+        containsAll(['counterparty_name', 'dedupe_key', 'balance_after_minor']),
+      );
+
+      final kept = await db.select(db.transactions).getSingle();
+      expect(kept.amountMinor, 5000);
+      expect(kept.dedupeKey, isNull);
+
+      final accounts = DriftAccountsRepository(db);
+      Future<int> mpesa() => accounts.accountForInstitution(
+        'mpesa',
+        name: 'M-Pesa',
+        type: AccountType.mpesa,
+        openingDate: DateTime.utc(2026, 10),
+      );
+      final mpesaId = await mpesa();
+      expect(mpesaId, isNot(1));
+      expect(await mpesa(), mpesaId);
+
+      final transactions = DriftTransactionsRepository(db);
+      TransactionsCompanion sms() => TransactionsCompanion.insert(
+        accountId: mpesaId,
+        occurredAt: DateTime.utc(2026, 10, 3),
+        amountMinor: 100,
+        direction: TransactionDirection.outflow,
+        source: TransactionSource.sms,
+        dedupeKey: const Value('TEST000001|100|2026-10-03T00:00Z'),
+      );
+      expect(await transactions.addNew([sms(), sms()]), 1);
+      await expectLater(
+        db.into(db.transactions).insert(sms()),
+        throwsA(isA<SqliteException>()),
+        reason: 'the dedupe index is unique per account',
+      );
+    });
+
+    test(
+      'the SMS capture step is safe to run on a schema that has it',
+      () async {
+        final old = AppDatabase(NativeDatabase(file));
+        await old.customStatement('PRAGMA user_version = 6');
+        await old.close();
+
+        final db = AppDatabase(NativeDatabase(file));
+        addTearDown(db.close);
+        expect(await userVersion(db), 7);
+        expect(await tableNames(db), contains('review_items'));
+      },
+    );
   });
 }
