@@ -15,17 +15,29 @@ import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
+import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
 
-/// The app's router. Sends people to onboarding until it is complete.
+/// Whether onboarding is complete, read only once app lock has released the
+/// database key; loading until then.
+final launchGateProvider = Provider<AsyncValue<bool>>((ref) {
+  final released = ref.watch(
+    appLockControllerProvider.select((state) => state.keyReleased),
+  );
+  if (!released) return const AsyncLoading();
+  return ref.watch(onboardingControllerProvider);
+});
+
+/// The app's router. Waits for unlock, then sends people to onboarding until
+/// it is complete.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final onboarded = ValueNotifier<AsyncValue<bool>>(
-    ref.read(onboardingControllerProvider),
+    ref.read(launchGateProvider),
   );
-  ref.listen(onboardingControllerProvider, (_, next) => onboarded.value = next);
+  ref.listen(launchGateProvider, (_, next) => onboarded.value = next);
 
   final router = GoRouter(
     initialLocation: AppRoutes.launch,
