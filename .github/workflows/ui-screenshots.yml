@@ -25,6 +25,8 @@ env:
   AVD_ARCH: x86_64
   AVD_TARGET: google_apis
   AVD_PROFILE: pixel_6
+  AVD_CORES: "4"
+  AVD_RAM: 4096M
   MAESTRO_CLI_NO_ANALYTICS: "1"
   MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
   MAESTRO_DRIVER_STARTUP_TIMEOUT: "120000"
@@ -93,7 +95,7 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-${{ env.API_LEVEL }}-${{ env.AVD_ARCH }}-${{ env.AVD_TARGET }}-${{ env.AVD_PROFILE }}
+          key: avd-${{ env.API_LEVEL }}-${{ env.AVD_ARCH }}-${{ env.AVD_TARGET }}-${{ env.AVD_PROFILE }}-${{ env.AVD_CORES }}-${{ env.AVD_RAM }}
 
       - name: Create AVD snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
@@ -103,6 +105,8 @@ jobs:
           arch: ${{ env.AVD_ARCH }}
           target: ${{ env.AVD_TARGET }}
           profile: ${{ env.AVD_PROFILE }}
+          cores: ${{ env.AVD_CORES }}
+          ram-size: ${{ env.AVD_RAM }}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -116,6 +120,8 @@ jobs:
           arch: ${{ env.AVD_ARCH }}
           target: ${{ env.AVD_TARGET }}
           profile: ${{ env.AVD_PROFILE }}
+          cores: ${{ env.AVD_CORES }}
+          ram-size: ${{ env.AVD_RAM }}
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
