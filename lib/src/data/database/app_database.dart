@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -95,7 +95,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(reviewItems);
         }
       }
-      if (from < 10) {
+      if (from < 8) {
         for (final column in [
           imports.institutionId,
           imports.openingBalanceMinor,
