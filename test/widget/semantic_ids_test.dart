@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/shared/semantic_ids.dart';
 
@@ -10,6 +11,15 @@ void main() {
     await tester.ensureVisible(find.bySemanticsIdentifier(id));
     await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsIdentifier(id));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+    await tester.scrollUntilVisible(
+      finder,
+      300,
+      scrollable: find.byType(Scrollable).hitTestable().first,
+    );
     await tester.pumpAndSettle();
   }
 
@@ -76,7 +86,8 @@ void main() {
     await tapId(tester, SemanticIds.homeProfile);
     expectId(SemanticIds.titleProfile);
 
-    await tester.ensureVisible(
+    await scrollTo(
+      tester,
       find.bySemanticsIdentifier(SemanticIds.profileMyAccounts),
     );
     await tapId(tester, SemanticIds.profileMyAccounts);
@@ -90,20 +101,22 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Backup and restore'));
+    await scrollTo(tester, find.text('Backup and restore'));
     await tester.tap(find.text('Backup and restore'));
-    await tester.pumpAndSettle();
+    // The backup screen shows a spinner until settings load; don't settle.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expectId(SemanticIds.titleBackup);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Privacy'));
+    await scrollTo(tester, find.text('Privacy'));
     await tester.tap(find.text('Privacy'));
     await tester.pumpAndSettle();
     expectId(SemanticIds.titlePrivacy);
 
     await tapId(tester, SemanticIds.navGoals);
-    await tester.ensureVisible(find.text('See debts'));
+    await scrollTo(tester, find.text('See debts'));
     await tester.tap(find.text('See debts'));
     await tester.pumpAndSettle();
     expectId(SemanticIds.titleDebts);
