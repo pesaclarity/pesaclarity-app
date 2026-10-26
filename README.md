@@ -71,7 +71,7 @@ State is managed with Riverpod and navigation with go_router.
 From the spec's "Mobile security" section:
 
 - Database encrypted with SQLCipher. The 256-bit key is generated on the phone and kept in Android Keystore-backed secure storage. The app refuses to open the database if SQLCipher is not loaded.
-- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews.
+- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS` and `POST_NOTIFICATIONS` only. `INTERNET` is present only in debug and profile builds for Flutter tooling; release builds get it when sign-in and the backup vault land.
 - Cleartext traffic is refused and only system certificate authorities are trusted. Certificate pinning comes with the server endpoints.
@@ -109,7 +109,7 @@ The `UI screenshots` workflow (`.github/workflows/ui-screenshots.yml`) builds a 
 
 It runs on pushes to `main`, on demand, and on pull requests that change the flows or the workflow. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
 
-The main activity sets `FLAG_SECURE`, which makes Android capture secure windows as black images. Until debug builds are exempted from it, the flows and their assertions run but the screenshots come out black.
+The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Contributing
 
