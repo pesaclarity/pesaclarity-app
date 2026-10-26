@@ -15,21 +15,11 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-// Some plugins (tflite_flutter) set Java 11 but leave Kotlin at its default
-// target, which fails Kotlin's JVM target check. Compile their Kotlin for the
-// same target as their Java. Registered before any project is evaluated.
-subprojects {
-    afterEvaluate {
-        val android =
-            extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
-                ?: return@afterEvaluate
-        val target =
-            org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(
-                android.compileOptions.targetCompatibility.toString(),
-            )
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
-            compilerOptions.jvmTarget.set(target)
-        }
+// tflite_flutter compiles its Java for 11 but leaves Kotlin at the default
+// target, which fails Kotlin's JVM target check. Match its Kotlin to its Java.
+project(":tflite_flutter") {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 subprojects {
