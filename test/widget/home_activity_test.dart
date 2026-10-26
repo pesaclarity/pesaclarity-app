@@ -225,7 +225,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import a statement'));
     await tester.pumpAndSettle();
-    expect(find.text('Bring in your history'), findsOneWidget);
+    expect(find.text('Choose a PDF'), findsOneWidget);
   });
 
   testAppWidgets('Home numbers open Activity filtered', (tester) async {

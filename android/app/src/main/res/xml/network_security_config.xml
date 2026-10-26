@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- TODO(ngome): pin certificates for the auth, vault and federated-learning endpoints. -->
+    <!-- Dart's HttpClient uses its own TLS stack and ignores this file, so certificate pins
+         live in Dart (lib/src/core/network, set with PESACLARITY_CERT_PINS). -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />

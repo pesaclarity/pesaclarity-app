@@ -72,3 +72,12 @@ enum SuggestionSource {
   /// Built-in payee defaults and rules, used when no model is installed.
   rules,
 }
+
+/// How an imported statement compared with the ledger.
+enum StatementImportResult {
+  /// The ledger balance matches the statement's closing balance.
+  reconciled,
+
+  /// The ledger is off from the statement's closing balance by some amount.
+  gap,
+}

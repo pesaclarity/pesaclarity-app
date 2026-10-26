@@ -112,10 +112,7 @@ void main() {
     await launch(tester);
 
     expect(find.text(_lockTitle), findsNothing);
-    expect(
-      find.text('Your money, made clear, without giving your data away.'),
-      findsOneWidget,
-    );
+    expect(find.text('Know what you can spend today.'), findsOneWidget);
     expect(store.values[KeyVault.plainKeyName], isNotNull);
   });
 

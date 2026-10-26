@@ -7,6 +7,9 @@ import '../database/database_providers.dart';
 
 /// Tags say what a transaction is part of (#roadtrip, #reimbursable). They
 /// are separate from categories and a transaction can have any number.
+/// A tag and how many transactions carry it.
+typedef TagUse = ({Tag tag, int count});
+
 abstract interface class TagsRepository {
   Stream<List<Tag>> watchAll();
 
@@ -19,6 +22,12 @@ abstract interface class TagsRepository {
   Future<void> untag(int transactionId, int tagId);
 
   Future<List<Tag>> tagsOf(int transactionId);
+
+  /// [tagsOf], updating as tags are added and removed.
+  Stream<List<Tag>> watchTagsOf(int transactionId);
+
+  /// Every tag with how many transactions carry it, by name.
+  Stream<List<TagUse>> watchUsage();
 }
 
 class DriftTagsRepository implements TagsRepository {
@@ -64,7 +73,30 @@ class DriftTagsRepository implements TagsRepository {
           .go();
 
   @override
-  Future<List<Tag>> tagsOf(int transactionId) {
+  Future<List<Tag>> tagsOf(int transactionId) =>
+      _tagsOfQuery(transactionId).map((row) => row.readTable(_db.tags)).get();
+
+  @override
+  Stream<List<Tag>> watchTagsOf(int transactionId) =>
+      _tagsOfQuery(transactionId).map((row) => row.readTable(_db.tags)).watch();
+
+  @override
+  Stream<List<TagUse>> watchUsage() {
+    final links = _db.transactionTags;
+    final count = links.transactionId.count();
+    final query =
+        _db.select(_db.tags).join([
+            leftOuterJoin(links, links.tagId.equalsExp(_db.tags.id)),
+          ])
+          ..addColumns([count])
+          ..groupBy([_db.tags.id])
+          ..orderBy([OrderingTerm.asc(_db.tags.name)]);
+    return query
+        .map((row) => (tag: row.readTable(_db.tags), count: row.read(count)!))
+        .watch();
+  }
+
+  JoinedSelectStatement<HasResultSet, dynamic> _tagsOfQuery(int transactionId) {
     final query =
         _db.select(_db.tags).join([
             innerJoin(
@@ -74,7 +106,7 @@ class DriftTagsRepository implements TagsRepository {
           ])
           ..where(_db.transactionTags.transactionId.equals(transactionId))
           ..orderBy([OrderingTerm.asc(_db.tags.name)]);
-    return query.map((row) => row.readTable(_db.tags)).get();
+    return query;
   }
 }
 

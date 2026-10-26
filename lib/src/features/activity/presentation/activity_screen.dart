@@ -17,6 +17,9 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
+import '../../export/presentation/export_sheet.dart';
+import '../../payees/application/tag_filter.dart';
+import '../../payees/presentation/transaction_sheet.dart';
 import '../application/activity_providers.dart';
 import 'name_payee_sheet.dart';
 
@@ -68,11 +71,14 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         e.categoryId == null ? null : categories[e.categoryId]?.name;
 
     final inWindow = _filter.copyWith(from: () => _filter.from ?? from);
+    final tagId = ref.watch(activityTagFilterProvider);
     final shown = entries.where(
-      (e) => inWindow.matches(
-        e,
-        labels: [categoryName(e), accounts[e.accountId]?.name],
-      ),
+      (e) =>
+          matchesTagFilter(e, tagId) &&
+          inWindow.matches(
+            e,
+            labels: [categoryName(e), accounts[e.accountId]?.name],
+          ),
     );
     final days = buildActivityFeed(shown, all: entries);
     final week = weekInOut(
@@ -88,7 +94,14 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Text('Activity', style: theme.textTheme.headlineLarge),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Activity', style: theme.textTheme.headlineLarge),
+                ),
+                const ActivityExportButton(),
+              ],
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _search,
@@ -362,6 +375,7 @@ class _ActivityRow extends StatelessWidget {
           style: muted,
         ),
         amount: _amount(context, entry.signedMinor),
+        onTap: () => showTransactionSheet(context, entry.id),
       ),
       OwnTransferLine(:final outflow, :final inflow, :final shown) => _row(
         context,
