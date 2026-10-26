@@ -25,6 +25,7 @@ abstract final class AppRoutes {
   }
 
   static const plan = '/plan';
+  static const payday = '/plan/payday';
   static const goals = '/goals';
   static const debts = '/goals/debts';
   static const insights = '/insights';
