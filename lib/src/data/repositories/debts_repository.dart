@@ -31,6 +31,16 @@ abstract interface class DebtsRepository {
   /// Links a transaction to the debt it repays, once the user confirms.
   Future<void> linkRepayment(int transactionId, int debtId);
 
+  /// Records a payment made by hand, such as cash handed to a relative, that
+  /// no message shows.
+  Future<void> recordPayment(int debtId, DateTime paidAt, int amountMinor);
+
+  /// What was first owed on each debt, by id.
+  Future<Map<int, int>> startingBalances();
+
+  /// Everything repaid on debts in `[from, to)`, linked or recorded by hand.
+  Future<int> repaidBetween(DateTime from, DateTime to);
+
   /// Every debt with what is owed now: the confirmed balance, or else the
   /// starting balance, less the repayments linked since. Family loans carry
   /// the instalments still to pay as of [today].
@@ -117,6 +127,35 @@ class DriftDebtsRepository implements DebtsRepository {
           .write(TransactionsCompanion(debtId: Value(debtId)));
 
   @override
+  Future<void> recordPayment(int debtId, DateTime paidAt, int amountMinor) =>
+      _db
+          .into(_db.loanPayments)
+          .insert(
+            LoanPaymentsCompanion.insert(
+              debtId: Value(debtId),
+              paidOn: paidAt,
+              amountMinor: amountMinor,
+            ),
+          );
+
+  @override
+  Future<Map<int, int>> startingBalances() async => {
+    for (final row in await _db.select(_db.debts).get())
+      row.id: row.startingBalanceMinor,
+  };
+
+  @override
+  Future<int> repaidBetween(DateTime from, DateTime to) async {
+    var total = 0;
+    for (final repayments in (await _repaymentsByDebt()).values) {
+      for (final r in repayments) {
+        if (!r.at.isBefore(from) && r.at.isBefore(to)) total += r.amountMinor;
+      }
+    }
+    return total;
+  }
+
+  @override
   Future<List<Debt>> debts({required CalendarDate today}) async {
     final rows = await (_db.select(
       _db.debts,
@@ -201,8 +240,9 @@ class DriftDebtsRepository implements DebtsRepository {
     return byDebt;
   }
 
-  /// Outflows linked to each debt, oldest first.
-  Future<Map<int, List<TransactionRecord>>> _repaymentsByDebt() async {
+  /// Outflows linked to each debt and payments recorded by hand, oldest
+  /// first.
+  Future<Map<int, List<_Repayment>>> _repaymentsByDebt() async {
     final rows =
         await (_db.select(_db.transactions)
               ..where(
@@ -212,9 +252,24 @@ class DriftDebtsRepository implements DebtsRepository {
               )
               ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]))
             .get();
-    final byDebt = <int, List<TransactionRecord>>{};
+    final byDebt = <int, List<_Repayment>>{};
     for (final row in rows) {
-      (byDebt[row.debtId!] ??= []).add(row);
+      (byDebt[row.debtId!] ??= []).add((
+        at: row.occurredAt,
+        amountMinor: row.amountMinor,
+      ));
+    }
+    final manual = await (_db.select(
+      _db.loanPayments,
+    )..where((p) => p.debtId.isNotNull())).get();
+    for (final row in manual) {
+      (byDebt[row.debtId!] ??= []).add((
+        at: row.paidOn,
+        amountMinor: row.amountMinor,
+      ));
+    }
+    for (final list in byDebt.values) {
+      list.sort((a, b) => a.at.compareTo(b.at));
     }
     return byDebt;
   }
@@ -233,14 +288,14 @@ class DriftDebtsRepository implements DebtsRepository {
 Debt _toDebt(
   DebtRecord row, {
   required List<DebtInstalment> agreed,
-  required List<TransactionRecord> repayments,
+  required List<_Repayment> repayments,
   required List<PayeeIdentifier> identifiers,
   required CalendarDate today,
 }) {
   final asOf = row.balanceAsOf;
   final base = row.balanceMinor ?? row.startingBalanceMinor;
   final repaid = repayments
-      .where((r) => asOf == null || !r.occurredAt.isBefore(asOf))
+      .where((r) => asOf == null || !r.at.isBefore(asOf))
       .fold(0, (sum, r) => sum + r.amountMinor);
   final owed = base > repaid ? base - repaid : 0;
 
@@ -268,12 +323,11 @@ Debt _toDebt(
   );
 }
 
-List<LoanPayment> _loanPayments(List<TransactionRecord> repayments) => [
+typedef _Repayment = ({DateTime at, int amountMinor});
+
+List<LoanPayment> _loanPayments(List<_Repayment> repayments) => [
   for (final r in repayments)
-    LoanPayment(
-      date: CalendarDate.nairobi(r.occurredAt),
-      amountMinor: r.amountMinor,
-    ),
+    LoanPayment(date: CalendarDate.nairobi(r.at), amountMinor: r.amountMinor),
 ];
 
 PayeeIdentifier? _counterparty(TransactionRecord? record) {

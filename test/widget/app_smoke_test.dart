@@ -37,7 +37,7 @@ void main() {
     const tabs = {
       'Activity': 'Search payee, amount, note',
       'Plan': 'Planned of expected income',
-      'Goals': 'Am I getting there?',
+      'Goals': 'Saving for',
       'Insights': 'What should I change?',
       'Home': 'Safe to spend today',
     };

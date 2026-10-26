@@ -222,10 +222,38 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 6, before
-    /// SMS capture.
-    Future<AppDatabase> version6() async {
+    /// Builds the current schema, then takes it back to version 8, before
+    /// goals and lending.
+    Future<AppDatabase> version8() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE loan_payments');
+      await old.customStatement('DROP TABLE lent_loans');
+      await old.customStatement('ALTER TABLE goals DROP COLUMN saved_minor');
+      await old.customStatement('PRAGMA user_version = 8');
+      return old;
+    }
+
+    /// Takes the schema back to version 7, before statement import records.
+    Future<AppDatabase> version7() async {
+      final old = await version8();
+      for (final column in [
+        'institution_id',
+        'opening_balance_minor',
+        'transaction_count',
+        'added_count',
+        'duplicate_count',
+        'unread_count',
+        'result',
+      ]) {
+        await old.customStatement('ALTER TABLE imports DROP COLUMN $column');
+      }
+      await old.customStatement('PRAGMA user_version = 7');
+      return old;
+    }
+
+    /// Takes the schema back to version 6, before SMS capture.
+    Future<AppDatabase> version6() async {
+      final old = await version7();
       await old.customStatement('DROP TABLE review_items');
       await old.customStatement('DROP INDEX accounts_institution');
       await old.customStatement(
@@ -352,7 +380,7 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
       expect(
         await tableNames(db),
         containsAll([
@@ -416,7 +444,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
 
       final institutions = DriftInstitutionsRepository(db);
       await institutions.setSelected('mpesa', selected: true);
@@ -440,7 +468,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
       expect(
         (await columns(db, 'debts')).keys,
         containsAll([
@@ -475,7 +503,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
       expect(await tableNames(db), contains('review_items'));
       expect(
         (await columns(db, 'transactions')).keys,
@@ -515,18 +543,7 @@ void main() {
     });
 
     test('migrates a version 7 database: statement import records', () async {
-      final old = AppDatabase(NativeDatabase(file));
-      for (final column in [
-        'institution_id',
-        'opening_balance_minor',
-        'transaction_count',
-        'added_count',
-        'duplicate_count',
-        'unread_count',
-        'result',
-      ]) {
-        await old.customStatement('ALTER TABLE imports DROP COLUMN $column');
-      }
+      final old = await version7();
       await old.customStatement(
         'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
         "opening_date) VALUES (1, 'M-Pesa', 'mpesa', 'KES', 0, 0)",
@@ -535,12 +552,11 @@ void main() {
         'INSERT INTO imports (account_id, file_hash, period_start, period_end, '
         "imported_at) VALUES (1, 'abc', 0, 0, 0)",
       );
-      await old.customStatement('PRAGMA user_version = 7');
       await old.close();
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
       final kept = await db.select(db.imports).getSingle();
       expect(kept.fileHash, 'abc');
       expect(kept.transactionCount, 0);
@@ -555,10 +571,60 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 8);
+      expect(await userVersion(db), 9);
       expect(
         (await columns(db, 'imports')).keys,
         containsAll(['institution_id', 'transaction_count', 'result']),
+      );
+    });
+
+    test('migrates a version 8 database: goals and lending', () async {
+      final old = await version8();
+      await old.customStatement(
+        "INSERT INTO goals (id, name, target_minor) VALUES (1, 'Laptop', 100)",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 9);
+      expect(
+        await tableNames(db),
+        containsAll(['lent_loans', 'loan_payments']),
+      );
+      final kept = await db.select(db.goals).getSingle();
+      expect(kept.targetMinor, 100);
+      expect(kept.savedMinor, 0);
+    });
+
+    test('the goals and lending step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      await current.customStatement(
+        'INSERT INTO lent_loans (id, person, amount_minor, lent_on) '
+        "VALUES (1, 'John', 500000, 0)",
+      );
+      await current.customStatement(
+        'INSERT INTO loan_payments (lent_loan_id, paid_on, amount_minor) '
+        'VALUES (1, 0, 100000)',
+      );
+      await current.customStatement('PRAGMA user_version = 8');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 9);
+      expect(await db.select(db.lentLoans).get(), hasLength(1));
+      expect(await db.select(db.loanPayments).get(), hasLength(1));
+    });
+
+    test('a loan payment belongs to exactly one loan', () async {
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      await expectLater(
+        db.customStatement(
+          'INSERT INTO loan_payments (paid_on, amount_minor) VALUES (0, 100)',
+        ),
+        throwsA(isA<SqliteException>()),
       );
     });
 
@@ -583,7 +649,7 @@ void main() {
 
         final db = AppDatabase(NativeDatabase(file));
         addTearDown(db.close);
-        expect(await userVersion(db), 8);
+        expect(await userVersion(db), 9);
         expect(await db.select(db.debts).get(), hasLength(1));
         expect(await db.select(db.debtInstalments).get(), hasLength(1));
         expect(await db.select(db.reviewItems).get(), hasLength(1));
