@@ -97,6 +97,11 @@ class Transactions extends Table {
   /// Always positive; [direction] says which way it moved.
   IntColumn get amountMinor => integer()();
   TextColumn get direction => textEnum<TransactionDirection>()();
+
+  /// The parser's message type. Null for older rows and manual entries, which
+  /// the ledger treats as [TransactionKind.bank].
+  TextColumn get kind => textEnum<TransactionKind>().nullable()();
+  IntColumn get feeMinor => integer().withDefault(const Constant(0))();
   TextColumn get currency =>
       text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
 
