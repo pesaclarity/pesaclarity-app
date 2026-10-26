@@ -44,6 +44,8 @@ lib/
     app.dart                 root widget
     config/                  build flavour
     core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
+    core/network/            pinned HttpClient factory (SPKI SHA-256 pins from build config)
+    core/integrity/          IntegrityAttestor: Play stub, foss no-op, request header hook
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
@@ -81,10 +83,14 @@ From the spec's "Mobile security" section:
 - `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS` and `POST_NOTIFICATIONS` only. `INTERNET` is present only in debug and profile builds for Flutter tooling; release builds get it when sign-in and the backup vault land.
-- Cleartext traffic is refused and only system certificate authorities are trusted. Certificate pinning comes with the server endpoints.
+- Cleartext traffic is refused and only system certificate authorities are trusted. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`), which pins server keys by SPKI SHA-256 from `--dart-define=PESACLARITY_CERT_PINS` (two or more pins per host) and refuses to connect when the pins do not match or are misconfigured. A test fails if code creates an `HttpClient` any other way. The real pins are set once the server is deployed.
+- Device integrity: `IntegrityAttestor` (`lib/src/core/integrity`) supplies a token header for backup and federated-learning requests; the `play` stub returns "unavailable" until the Play project exists, and `foss` never attests. A light root and tamper check (`DeviceIntegrityChannel.kt`) shows a one-time notice in Profile and never blocks use.
+- Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
-Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, certificate pinning and Play Integrity. These are marked `TODO(security)` and similar in the code.
+Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, real certificate pins and Play Integrity tokens. These are marked `TODO(security)` and similar in the code.
+
+Releases: see [RELEASING.md](RELEASING.md), [docs/reproducible-builds.md](docs/reproducible-builds.md) and [docs/performance-budget.md](docs/performance-budget.md). F-Droid store text lives in `fastlane/metadata/android/en-US`.
 
 ## SQLCipher
 
