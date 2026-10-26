@@ -1,8 +1,6 @@
-# Pesa Clarity app (mfuko)
+# Pesa Clarity app
 
 Pesa Clarity is a free, ad-free, open-source Android app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
-
-**Codename:** *mfuko*, Swahili for "pocket".
 
 **Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
 
