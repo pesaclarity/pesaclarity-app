@@ -10,6 +10,9 @@ import '../../../data/repositories/category_suggestions_repository.dart';
 import '../../../domain/categoriser/learning.dart';
 import '../../../domain/categoriser/rule_categoriser.dart';
 import '../../../domain/categoriser/suggester.dart';
+import '../../../domain/privacy/consent.dart';
+import '../../privacy/application/consent_controller.dart';
+import '../../privacy/data/policy_source.dart';
 import '../data/model_store.dart';
 import '../data/tflite_flutter_runtime.dart';
 
@@ -73,11 +76,15 @@ final categorySuggesterProvider = Provider<CategorySuggester?>((ref) {
   );
 });
 
-/// Whether the person opted in to "Help improve the app".
-///
-/// Main has no privacy consent store yet, so this stays off. When the
-/// privacy consents land, read `ConsentKind.improveApp` here.
-final improveAppOptInProvider = Provider<bool>((ref) => false);
+/// Whether the person allows "Help improve the app" under the current
+/// policy. Off until the consent record and policy have loaded, and while a
+/// newer policy waits for review.
+final improveAppOptInProvider = Provider<bool>((ref) {
+  final record = ref.watch(consentControllerProvider).value;
+  final policy = ref.watch(privacyPolicyProvider).value;
+  if (record == null || policy == null) return false;
+  return record.allows(ConsentKind.improveApp, policy);
+});
 
 /// Next step: fine-tune the TFLite model on the phone. Null until built.
 final onDeviceTrainerProvider = Provider<OnDeviceTrainer?>((ref) => null);
