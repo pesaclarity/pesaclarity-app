@@ -4,6 +4,30 @@ enum AccountType { bank, mpesa, sacco, moneyMarket, cash }
 /// Whether money came in or went out of an account.
 enum TransactionDirection { inflow, outflow }
 
+/// What kind of message or statement line a transaction came from.
+///
+/// Mirrors the ujumbe parser's transaction types, plus the noise kinds that
+/// Activity collapses to one line per day.
+enum TransactionKind {
+  sent,
+  received,
+  paybill,
+  till,
+  withdrawal,
+  deposit,
+  airtime,
+  fulizaDraw,
+  fulizaRepayment,
+
+  /// Small automatic moves into a money market fund, such as spare change.
+  roundUp,
+
+  /// A bank or wallet charge sent as its own message or statement line.
+  charge,
+  reversal,
+  bank,
+}
+
 /// Where a transaction came from.
 enum TransactionSource { sms, statement, manual }
 

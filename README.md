@@ -45,6 +45,9 @@ lib/
     config/                  build flavour
     core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
     core/money/              Money (integer minor units) and KES formatting
+    domain/                  pure-Dart money rules, no Flutter or database imports
+      time/                  Nairobi calendar dates and months
+      ledger/                own transfers, Fuliza fees, noise collapse, honest totals
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
@@ -94,7 +97,7 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
-Tests cover money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
+Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
 
