@@ -47,6 +47,7 @@ class Payees extends Table {
 
 /// Raw identifiers that resolve to a payee, normalised by `PayeeIdentifier`.
 /// Phone numbers are stored masked.
+@DataClassName('PayeeIdentifierRow')
 class PayeeIdentifiers extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get payeeId =>
