@@ -253,6 +253,73 @@ void main() {
       return old;
     }
 
+    /// Builds the current schema, then takes the debts table back to
+    /// version 4, before the debt planner.
+    Future<AppDatabase> version4() async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE debt_instalments');
+      await old.customStatement('DROP TABLE debts');
+      await old.customStatement(
+        'CREATE TABLE debts ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'lender TEXT NOT NULL, type TEXT NOT NULL, '
+        "currency TEXT NOT NULL DEFAULT 'KES', "
+        'starting_balance_minor INTEGER NOT NULL, '
+        'annual_rate_basis_points INTEGER NULL, '
+        'minimum_payment_minor INTEGER NOT NULL DEFAULT 0, '
+        'planned_payment_minor INTEGER NULL, '
+        'is_formal INTEGER NOT NULL DEFAULT 1)',
+      );
+      await old.customStatement(
+        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+      );
+      await old.customStatement('PRAGMA user_version = 4');
+      return old;
+    }
+
+    test('migrates a version 4 database: the debt planner', () async {
+      await (await version4()).close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(
+        (await columns(db, 'debts')).keys,
+        containsAll([
+          'balance_minor',
+          'balance_as_of',
+          'payee_id',
+          'custom_order',
+        ]),
+      );
+      expect(
+        (await columns(db, 'debt_instalments')).keys,
+        contains('due_date'),
+      );
+      final kept = await db.select(db.debts).getSingle();
+      expect(kept.startingBalanceMinor, 50000);
+      expect(kept.balanceMinor, isNull);
+    });
+
+    test('the debt planner step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      await current.customStatement(
+        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+      );
+      await current.customStatement(
+        'INSERT INTO debt_instalments (debt_id, due_date, amount_minor) '
+        'VALUES (1, 0, 100)',
+      );
+      await current.customStatement('PRAGMA user_version = 4');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await db.select(db.debts).get(), hasLength(1));
+      expect(await db.select(db.debtInstalments).get(), hasLength(1));
+    });
+
     test('migrates a version 1 database to the current schema', () async {
       final old = await version3();
       await old.customStatement('ALTER TABLE transactions DROP COLUMN kind');

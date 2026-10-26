@@ -17,6 +17,7 @@ part 'app_database.g.dart';
     Payees,
     PayeeIdentifiers,
     Debts,
+    DebtInstalments,
     Goals,
     Transactions,
     TransactionTags,
@@ -31,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -65,11 +66,31 @@ class AppDatabase extends _$AppDatabase {
         await m.create(transactionsCounterparty);
         await seedDefaultCategories();
       }
+      if (from < 5) await _addDebtPlanner(m);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// Debt balances, payees, custom order and family instalments.
+  ///
+  /// Safe to run more than once, so it holds whichever version number it
+  /// ends up under when other migrations land beside it.
+  Future<void> _addDebtPlanner(Migrator m) async {
+    final existing = await customSelect('PRAGMA table_info(debts)')
+        .map((row) => row.read<String>('name'))
+        .get();
+    for (final column in [
+      debts.balanceMinor,
+      debts.balanceAsOf,
+      debts.payeeId,
+      debts.customOrder,
+    ]) {
+      if (!existing.contains(column.name)) await m.addColumn(debts, column);
+    }
+    await m.createTable(debtInstalments);
+  }
 
   /// Adds the default categories that are missing by key or name. Runs once,
   /// when the database is created or upgraded, so a seeded category the user
