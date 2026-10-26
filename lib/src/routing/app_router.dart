@@ -9,7 +9,6 @@ import '../features/backup/presentation/backup_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
-import '../features/home/presentation/import_statement_screen.dart';
 import '../features/insights/presentation/insights_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
@@ -20,6 +19,7 @@ import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
+import '../features/statements/presentation/statement_import_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
@@ -79,7 +79,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'import',
-                    builder: (context, state) => const ImportStatementScreen(),
+                    builder: (context, state) => const StatementImportScreen(),
                   ),
                   GoRoute(
                     path: 'profile',

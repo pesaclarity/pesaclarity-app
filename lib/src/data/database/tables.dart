@@ -251,6 +251,23 @@ class Imports extends Table {
   /// Statement closing balance minus the ledger balance; zero when it reconciles.
   IntColumn get reconciliationGapMinor => integer().nullable()();
   DateTimeColumn get importedAt => dateTime()();
+
+  /// The institution whose statement this was, such as `mpesa`.
+  TextColumn get institutionId => text().nullable()();
+  IntColumn get openingBalanceMinor => integer().nullable()();
+
+  /// Transactions read from the statement.
+  IntColumn get transactionCount => integer().withDefault(const Constant(0))();
+
+  /// Of [transactionCount], those new to the ledger.
+  IntColumn get addedCount => integer().withDefault(const Constant(0))();
+
+  /// Of [transactionCount], those already captured from SMS.
+  IntColumn get duplicateCount => integer().withDefault(const Constant(0))();
+
+  /// Table lines that could not be read, plus balances that did not follow.
+  IntColumn get unreadCount => integer().withDefault(const Constant(0))();
+  TextColumn get result => textEnum<StatementImportResult>().nullable()();
 }
 
 /// Installed SMS parser packs from the ujumbe package.
