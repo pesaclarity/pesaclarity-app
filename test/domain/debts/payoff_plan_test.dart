@@ -30,7 +30,7 @@ Debt mobile({int id = 2, int balance = 1000000, int min = 50000}) => Debt(
 void main() {
   group('monthly interest', () {
     test('is a twelfth of the annual rate, rounded half up', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test Bank',
         type: DebtType.bankLoan,
@@ -44,7 +44,7 @@ void main() {
     });
 
     test('family loans get none, whatever rate is set', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test Aunt',
         type: DebtType.family,
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('a loan marked informal is treated like family', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test Friend',
         type: DebtType.salaryAdvance,
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('family loans without interest come last under avalanche', () {
-      final family = Debt(
+      const family = Debt(
         id: 9,
         lender: 'Test Uncle',
         type: DebtType.family,
@@ -143,7 +143,7 @@ void main() {
 
   group('simulation', () {
     test('matches a hand-worked schedule', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test Bank',
         type: DebtType.bankLoan,
@@ -164,7 +164,7 @@ void main() {
     });
 
     test('zero interest pays down in whole minimums', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test SACCO',
         type: DebtType.saccoLoan,
@@ -179,14 +179,14 @@ void main() {
 
     test('a cleared minimum rolls on to the next debt', () {
       final debts = [
-        Debt(
+        const Debt(
           id: 1,
           lender: 'Test A',
           type: DebtType.mobileLoan,
           balanceMinor: 3000,
           minimumPaymentMinor: 1000,
         ),
-        Debt(
+        const Debt(
           id: 2,
           lender: 'Test B',
           type: DebtType.mobileLoan,
@@ -284,7 +284,7 @@ void main() {
     });
 
     test('the debt-free date falls on payday, clamped to short months', () {
-      final debt = Debt(
+      const debt = Debt(
         id: 1,
         lender: 'Test SACCO',
         type: DebtType.saccoLoan,
