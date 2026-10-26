@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
@@ -16,24 +17,25 @@ import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
+import 'launch_screen.dart';
 
 /// The app's router. Sends people to onboarding until it is complete.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final onboarded = ValueNotifier<bool>(ref.read(onboardingControllerProvider));
+  final onboarded = ValueNotifier<AsyncValue<bool>>(
+    ref.read(onboardingControllerProvider),
+  );
   ref.listen(onboardingControllerProvider, (_, next) => onboarded.value = next);
 
   final router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.launch,
     refreshListenable: onboarded,
-    redirect: (context, state) {
-      final inOnboarding = state.matchedLocation.startsWith(
-        AppRoutes.onboarding,
-      );
-      if (!onboarded.value && !inOnboarding) return AppRoutes.onboarding;
-      if (onboarded.value && inOnboarding) return AppRoutes.home;
-      return null;
-    },
+    redirect: (context, state) =>
+        onboardingRedirect(onboarded.value, state.matchedLocation),
     routes: [
+      GoRoute(
+        path: AppRoutes.launch,
+        builder: (context, state) => const LaunchScreen(),
+      ),
       GoRoute(
         path: AppRoutes.onboarding,
         builder: (context, state) => const WelcomeScreen(),
@@ -57,6 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'profile',
                     builder: (context, state) => const ProfileScreen(),
                     routes: [
+                      GoRoute(
+                        path: 'accounts',
+                        builder: (context, state) =>
+                            const MyAccountsSettingsScreen(),
+                      ),
                       GoRoute(
                         path: 'backup',
                         builder: (context, state) => const BackupScreen(),
@@ -120,3 +127,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+/// Where to send someone at [location] given the saved onboarding state.
+///
+/// Waits on the launch screen while the state loads; a failed read shows
+/// onboarding rather than skipping it.
+String? onboardingRedirect(AsyncValue<bool> onboarded, String location) {
+  if (!onboarded.hasValue && !onboarded.hasError) {
+    return location == AppRoutes.launch ? null : AppRoutes.launch;
+  }
+  final complete = onboarded.value ?? false;
+  final inOnboarding = location.startsWith(AppRoutes.onboarding);
+  if (!complete) return inOnboarding ? null : AppRoutes.onboarding;
+  if (inOnboarding || location == AppRoutes.launch) return AppRoutes.home;
+  return null;
+}

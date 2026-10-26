@@ -26,13 +26,15 @@ part 'app_database.g.dart';
     BudgetSnapshots,
     Imports,
     ParserPacks,
+    SelectedInstitutions,
+    AppSettings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,7 +68,11 @@ class AppDatabase extends _$AppDatabase {
         await m.create(transactionsCounterparty);
         await seedDefaultCategories();
       }
-      if (from < 5) await _addDebtPlanner(m);
+      if (from < 5) {
+        await m.createTable(selectedInstitutions);
+        await m.createTable(appSettings);
+      }
+      if (from < 6) await _addDebtPlanner(m);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

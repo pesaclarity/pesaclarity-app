@@ -17,6 +17,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   sqlite3: ^3.8.0
+  cryptography: ^2.9.0
   # TODO(ujumbe): enable once pesaclarity/ujumbe-parsers publishes its pubspec on main.
   # Until then `flutter pub get` cannot resolve it. See README, "Parser package".
   # ujumbe:

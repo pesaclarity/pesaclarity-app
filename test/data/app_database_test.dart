@@ -7,6 +7,8 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/connection.dart';
 import 'package:pesaclarity/src/data/database/database_key_store.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
+import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
+import 'package:pesaclarity/src/data/repositories/onboarding_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/categories/default_categories.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
@@ -220,10 +222,39 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 3, before
-    /// categories were seeded.
-    Future<AppDatabase> version3() async {
+    /// Builds the current schema, then takes the debts table back to
+    /// version 5, before the debt planner.
+    Future<AppDatabase> version5() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE debt_instalments');
+      await old.customStatement('DROP TABLE debts');
+      await old.customStatement(
+        'CREATE TABLE debts ('
+        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'lender TEXT NOT NULL, type TEXT NOT NULL, '
+        "currency TEXT NOT NULL DEFAULT 'KES', "
+        'starting_balance_minor INTEGER NOT NULL, '
+        'annual_rate_basis_points INTEGER NULL, '
+        'minimum_payment_minor INTEGER NOT NULL DEFAULT 0, '
+        'planned_payment_minor INTEGER NULL, '
+        'is_formal INTEGER NOT NULL DEFAULT 1)',
+      );
+      await old.customStatement('PRAGMA user_version = 5');
+      return old;
+    }
+
+    /// Takes the schema back to version 4, before the My accounts tables.
+    Future<AppDatabase> version4() async {
+      final old = await version5();
+      await old.customStatement('DROP TABLE selected_institutions');
+      await old.customStatement('DROP TABLE app_settings');
+      await old.customStatement('PRAGMA user_version = 4');
+      return old;
+    }
+
+    /// Takes the schema back to version 3, before categories were seeded.
+    Future<AppDatabase> version3() async {
+      final old = await version4();
       await old.customStatement('DELETE FROM categories');
       await old.customStatement('DROP INDEX categories_key');
       await old.customStatement('ALTER TABLE categories DROP COLUMN key');
@@ -253,72 +284,15 @@ void main() {
       return old;
     }
 
-    /// Builds the current schema, then takes the debts table back to
-    /// version 4, before the debt planner.
-    Future<AppDatabase> version4() async {
-      final old = AppDatabase(NativeDatabase(file));
-      await old.customStatement('DROP TABLE debt_instalments');
-      await old.customStatement('DROP TABLE debts');
-      await old.customStatement(
-        'CREATE TABLE debts ('
-        'id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
-        'lender TEXT NOT NULL, type TEXT NOT NULL, '
-        "currency TEXT NOT NULL DEFAULT 'KES', "
-        'starting_balance_minor INTEGER NOT NULL, '
-        'annual_rate_basis_points INTEGER NULL, '
-        'minimum_payment_minor INTEGER NOT NULL DEFAULT 0, '
-        'planned_payment_minor INTEGER NULL, '
-        'is_formal INTEGER NOT NULL DEFAULT 1)',
-      );
-      await old.customStatement(
-        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
-        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
-      );
-      await old.customStatement('PRAGMA user_version = 4');
-      return old;
-    }
+    Future<int> userVersion(AppDatabase db) => db
+        .customSelect('PRAGMA user_version')
+        .map((row) => row.read<int>('user_version'))
+        .getSingle();
 
-    test('migrates a version 4 database: the debt planner', () async {
-      await (await version4()).close();
-
-      final db = AppDatabase(NativeDatabase(file));
-      addTearDown(db.close);
-      expect(
-        (await columns(db, 'debts')).keys,
-        containsAll([
-          'balance_minor',
-          'balance_as_of',
-          'payee_id',
-          'custom_order',
-        ]),
-      );
-      expect(
-        (await columns(db, 'debt_instalments')).keys,
-        contains('due_date'),
-      );
-      final kept = await db.select(db.debts).getSingle();
-      expect(kept.startingBalanceMinor, 50000);
-      expect(kept.balanceMinor, isNull);
-    });
-
-    test('the debt planner step is safe to run twice', () async {
-      final current = AppDatabase(NativeDatabase(file));
-      await current.customStatement(
-        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
-        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
-      );
-      await current.customStatement(
-        'INSERT INTO debt_instalments (debt_id, due_date, amount_minor) '
-        'VALUES (1, 0, 100)',
-      );
-      await current.customStatement('PRAGMA user_version = 4');
-      await current.close();
-
-      final db = AppDatabase(NativeDatabase(file));
-      addTearDown(db.close);
-      expect(await db.select(db.debts).get(), hasLength(1));
-      expect(await db.select(db.debtInstalments).get(), hasLength(1));
-    });
+    Future<List<String>> tableNames(AppDatabase db) => db
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .map((row) => row.read<String>('name'))
+        .get();
 
     test('migrates a version 1 database to the current schema', () async {
       final old = await version3();
@@ -356,6 +330,16 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
+      expect(await userVersion(db), 6);
+      expect(
+        await tableNames(db),
+        containsAll([
+          'selected_institutions',
+          'app_settings',
+          'debt_instalments',
+        ]),
+      );
+      expect((await columns(db, 'debts')).keys, contains('balance_minor'));
     });
 
     test('migrates a version 3 database: payees, keys and seeds', () async {
@@ -393,6 +377,83 @@ void main() {
         categories.where((c) => c.key == 'salary').single.type,
         CategoryType.income,
       );
+    });
+
+    test('migrates a version 4 database: My accounts tables', () async {
+      final old = await version4();
+      final groceries = await (old.select(
+        old.categories,
+      )..where((c) => c.key.equals('groceries'))).getSingle();
+      await old.customStatement(
+        'INSERT INTO payees (id, display_name, default_category_id, leak_type) '
+        "VALUES (1, 'Test Grocer', ${groceries.id}, 'none')",
+      );
+      final categoryCount = (await old.select(old.categories).get()).length;
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 6);
+
+      final institutions = DriftInstitutionsRepository(db);
+      await institutions.setSelected('mpesa', selected: true);
+      await DriftOnboardingRepository(db).markComplete();
+      expect(await institutions.selectedIds(), {'mpesa'});
+      expect(await DriftOnboardingRepository(db).isComplete(), isTrue);
+
+      final payee = await db.select(db.payees).getSingle();
+      expect(payee.displayName, 'Test Grocer');
+      expect(payee.defaultCategoryId, groceries.id);
+      expect(await db.select(db.categories).get(), hasLength(categoryCount));
+    });
+
+    test('migrates a version 5 database: the debt planner', () async {
+      final old = await version5();
+      await old.customStatement(
+        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+      );
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 6);
+      expect(
+        (await columns(db, 'debts')).keys,
+        containsAll([
+          'balance_minor',
+          'balance_as_of',
+          'payee_id',
+          'custom_order',
+        ]),
+      );
+      expect(
+        (await columns(db, 'debt_instalments')).keys,
+        contains('due_date'),
+      );
+      final kept = await db.select(db.debts).getSingle();
+      expect(kept.startingBalanceMinor, 50000);
+      expect(kept.balanceMinor, isNull);
+    });
+
+    test('the debt planner step is safe to run twice', () async {
+      final current = AppDatabase(NativeDatabase(file));
+      await current.customStatement(
+        'INSERT INTO debts (id, lender, type, starting_balance_minor) '
+        "VALUES (1, 'Test Bank', 'bankLoan', 50000)",
+      );
+      await current.customStatement(
+        'INSERT INTO debt_instalments (debt_id, due_date, amount_minor) '
+        'VALUES (1, 0, 100)',
+      );
+      await current.customStatement('PRAGMA user_version = 5');
+      await current.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 6);
+      expect(await db.select(db.debts).get(), hasLength(1));
+      expect(await db.select(db.debtInstalments).get(), hasLength(1));
     });
   });
 }
