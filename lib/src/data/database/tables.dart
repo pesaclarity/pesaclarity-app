@@ -368,3 +368,48 @@ class AppSettings extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
+
+/// The category the person chose for a payee. The suggester reads this
+/// before the categoriser, so their choice always wins for that payee.
+@DataClassName('CategoryCorrection')
+class CategoryCorrections extends Table {
+  /// From `payeeKeys`: the named payee, raw identifier or tokenised name.
+  TextColumn get payeeKey => text()();
+  IntColumn get categoryId =>
+      integer().references(Categories, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {payeeKey};
+}
+
+/// Each time the person accepts or changes a suggested category. Kept on the
+/// phone as training examples: the encoded features, never the payee text.
+@DataClassName('CategoryConfirmation')
+class CategoryConfirmations extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get categoryId =>
+      integer().references(Categories, #id, onDelete: KeyAction.cascade)();
+
+  /// What was suggested, if anything, and how sure and from where.
+  IntColumn get suggestedCategoryId => integer().nullable().references(
+    Categories,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  RealColumn get suggestedConfidence => real().nullable()();
+  TextColumn get suggestionSource => textEnum<SuggestionSource>().nullable()();
+
+  /// True when the person took the suggestion as it was.
+  BoolColumn get accepted => boolean()();
+
+  /// The model input as comma-separated integers.
+  TextColumn get features => text()();
+  IntColumn get featureSchemaVersion => integer()();
+  DateTimeColumn get confirmedAt => dateTime()();
+}
