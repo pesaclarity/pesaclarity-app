@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/flavor.dart';
+import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/feature_placeholder.dart';
+import '../../../theme/pesa_colors.dart';
+import '../../backup/application/backup_labels.dart';
+import '../../backup/application/backup_providers.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
@@ -17,6 +21,10 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final flavor = ref.watch(appFlavorProvider);
+    final backupSettings = ref.watch(backupControllerProvider).value;
+    final lastBackup = backupSettings == null
+        ? null
+        : lastBackupSummary(backupSettings, ref.watch(clockProvider)());
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -69,6 +77,13 @@ class ProfileScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined),
                   title: const Text('Backup and restore'),
+                  subtitle: Text(
+                    lastBackup ?? 'Set up an encrypted backup',
+                    key: const Key('profile-last-backup'),
+                    style: lastBackup == null
+                        ? null
+                        : TextStyle(color: PesaColors.of(context).successText),
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(AppRoutes.backup),
                 ),

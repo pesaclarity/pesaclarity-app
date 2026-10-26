@@ -11,12 +11,24 @@ import 'database_key_store.dart';
 
 const _fileName = 'pesaclarity.sqlite';
 
+/// The database file on this phone.
+Future<File> databaseFile() async {
+  final dir = await getApplicationSupportDirectory();
+  return File(p.join(dir.path, _fileName));
+}
+
 /// Opens the SQLCipher-encrypted database in a background isolate.
-AppDatabase openEncryptedDatabase(DatabaseKeyStore keyStore) {
+///
+/// [beforeOpen] runs before the file is first touched; a restore uses it to
+/// hold new connections while it swaps the file.
+AppDatabase openEncryptedDatabase(
+  DatabaseKeyStore keyStore, {
+  Future<void> Function()? beforeOpen,
+}) {
   return AppDatabase(
     LazyDatabase(() async {
-      final dir = await getApplicationSupportDirectory();
-      final file = File(p.join(dir.path, _fileName));
+      await beforeOpen?.call();
+      final file = await databaseFile();
       final key = await keyStore.readOrCreateKey();
       return NativeDatabase.createInBackground(
         file,

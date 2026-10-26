@@ -6,6 +6,7 @@ import '../domain/ledger/activity_feed.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
+import '../features/backup/presentation/backup_setup_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
@@ -103,6 +104,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'backup',
                         builder: (context, state) => const BackupScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'setup',
+                            builder: (context, state) =>
+                                const BackupSetupScreen(),
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'privacy',
