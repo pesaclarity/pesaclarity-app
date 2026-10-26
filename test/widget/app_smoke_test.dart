@@ -38,7 +38,7 @@ void main() {
       'Activity': 'Where did my money go?',
       'Plan': "What's coming, and is it covered?",
       'Goals': 'Am I getting there?',
-      'Insights': 'What should I change?',
+      'Insights': 'Your leakages show here',
       'Home': 'How am I doing today?',
     };
     for (final MapEntry(key: label, value: question) in tabs.entries) {
