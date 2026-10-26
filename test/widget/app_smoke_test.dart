@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/app.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
+import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 
 Future<void> _pumpApp(
   WidgetTester tester, {
@@ -10,7 +11,10 @@ Future<void> _pumpApp(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [appFlavorProvider.overrideWithValue(flavor)],
+      overrides: [
+        appFlavorProvider.overrideWithValue(flavor),
+        safeToSpendTodayProvider.overrideWith((ref) async => null),
+      ],
       child: const PesaClarityApp(),
     ),
   );

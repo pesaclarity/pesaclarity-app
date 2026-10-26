@@ -4,7 +4,7 @@ Pesa Clarity is a free, ad-free, open-source Android app that turns M-Pesa and b
 
 **Codename:** *mfuko*, Swahili for "pocket".
 
-**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show.
+**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
 
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
@@ -49,6 +49,7 @@ lib/
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
       ledger/                own transfers, Fuliza fees, noise collapse, honest totals
+      budget/                safe to spend today, weekday and weekend limits
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
