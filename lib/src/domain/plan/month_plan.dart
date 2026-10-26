@@ -93,6 +93,22 @@ class MonthPlan {
   bool isIncome(PlanLine line) =>
       categories[line.categoryId]?.type == CategoryType.income;
 
+  /// Whether lines in [categoryId] are bills that are owed: expense, debt and
+  /// tax categories that are not day-to-day budgets. An unspent food budget
+  /// is surplus, not a debt, and missed savings are not owed to anyone.
+  /// Uncategorised lines count, since they are usually bills.
+  bool isBillCategory(int? categoryId) {
+    if (categoryId == null) return true;
+    final category = categories[categoryId];
+    if (category == null || category.isDailySpending) return false;
+    return switch (category.type) {
+      CategoryType.expense || CategoryType.debt || CategoryType.tax => true,
+      CategoryType.income ||
+      CategoryType.savings ||
+      CategoryType.transfer => false,
+    };
+  }
+
   bool isDailySpending(PlanLine line) =>
       categories[line.categoryId]?.isDailySpending ?? false;
 
@@ -221,16 +237,14 @@ class MonthReview {
 
   /// Unpaid bills to carry into next month as arrears.
   ///
-  /// Only lines in expense, debt and tax categories that are not day-to-day
-  /// budgets carry forward: an unspent food budget is surplus, not a debt,
-  /// and missed savings are not owed to anyone. Uncategorised lines carry
-  /// forward too, since they are usually bills. Each arrear keeps the line's
-  /// name and category and is the unpaid part only.
+  /// Only lines in bill categories (see [MonthPlan.isBillCategory]) carry
+  /// forward. Each arrear keeps the line's name and category and is the
+  /// unpaid part only.
   List<BudgetItem> get arrearsToCarry {
     final next = month.next;
     return [
       for (final category in categories)
-        if (_carriesArrears(category.categoryId))
+        if (plan.isBillCategory(category.categoryId))
           for (final line in category.lines)
             if (line.unpaidMinor > 0)
               BudgetItem(
@@ -241,18 +255,6 @@ class MonthReview {
                 kind: BudgetItemKind.carriedArrears,
               ),
     ];
-  }
-
-  bool _carriesArrears(int? categoryId) {
-    if (categoryId == null) return true;
-    final category = plan.categories[categoryId];
-    if (category == null || category.isDailySpending) return false;
-    return switch (category.type) {
-      CategoryType.expense || CategoryType.debt || CategoryType.tax => true,
-      CategoryType.income ||
-      CategoryType.savings ||
-      CategoryType.transfer => false,
-    };
   }
 }
 

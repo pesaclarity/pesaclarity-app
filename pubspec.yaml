@@ -17,6 +17,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   sqlite3: ^3.8.0
+  cryptography: ^2.9.0
   # Pinned to a commit on main for reproducible builds.
   # TODO(ujumbe): switch the ref to tag v0.1.0 once it is tagged.
   ujumbe:

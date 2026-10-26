@@ -43,6 +43,7 @@ lib/
   src/
     app.dart                 root widget
     config/                  build flavour
+    core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
       time/                  Nairobi calendar dates and months
@@ -52,6 +53,8 @@ lib/
       payees/                identifier normalising and matching, payee and override precedence
       categories/            default Kenyan category set (keys shared with the categoriser)
       tags/                  tag names, filtering and totals by tag
+      health/                Financial Health Index: eight indicators, bands, best action
+      forecast/              cash-flow forecast to month end: zero date, charges that may fail
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
