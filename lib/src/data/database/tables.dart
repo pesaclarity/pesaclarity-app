@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import 'enums.dart';
+import '../../domain/enums.dart';
 
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.

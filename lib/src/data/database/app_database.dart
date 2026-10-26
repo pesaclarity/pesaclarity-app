@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
 
-import 'enums.dart';
+import '../../domain/enums.dart';
 import 'tables.dart';
 
-export 'enums.dart';
+export '../../domain/enums.dart';
 
 part 'app_database.g.dart';
 
