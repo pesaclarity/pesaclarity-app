@@ -58,6 +58,8 @@ lib/
     shared/widgets/
     theme/                   brand tokens, light and dark themes, typography
 test/                        unit, widget and database tests
+.maestro/                    Maestro UI flows (YAML), one per journey
+tool/run_ui_flows.sh         runs the flows in light and dark mode
 android/                     Android project (applicationId com.pesaclarity.app)
 assets/fonts/                Space Grotesk and Inter, with their OFL licences
 ```
@@ -100,6 +102,14 @@ flutter test
 Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), and a widget smoke test through onboarding and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
 CI runs the same checks on every pull request and builds a `foss` APK.
+
+## UI screenshots
+
+The `UI screenshots` workflow (`.github/workflows/ui-screenshots.yml`) builds a `foss` debug APK, starts an Android 14 emulator (Pixel 6 profile) and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding, the five tabs, Profile, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports are uploaded as the `ui-screenshots` artifact, and the job summary lists the captured names.
+
+It runs on pushes to `main`, on demand, and on pull requests that change the flows or the workflow. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
+
+The main activity sets `FLAG_SECURE`, which makes Android capture secure windows as black images. Until debug builds are exempted from it, the flows and their assertions run but the screenshots come out black.
 
 ## Contributing
 
