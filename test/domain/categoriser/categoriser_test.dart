@@ -232,7 +232,7 @@ void main() {
     test('message type settles airtime, Fuliza and charges', () {
       expect(keys('', kind: TransactionKind.airtime), ['airtime_data']);
       expect(keys('', kind: TransactionKind.fulizaRepayment), [
-        'loan_repayment',
+        'fuliza_repayment',
       ]);
       expect(keys('', kind: TransactionKind.charge), ['fees_charges']);
     });
@@ -242,6 +242,11 @@ void main() {
       expect(keys('KPLC PREPAID'), ['utilities']);
       expect(keys('DEMO MATATU SACCO'), ['transport']);
       expect(keys('SAMPLE SACCO DEPOSIT'), ['savings']);
+      expect(keys('DEMO SNACK KIOSK'), ['snacks']);
+      expect(keys('SAMPLE BAKERY'), ['snacks']);
+      expect(keys('DEMO KIBANDA CAFE'), ['eating_out']);
+      expect(keys('FULIZA M-PESA'), ['fuliza_repayment']);
+      expect(keys('SAMPLE MOBILE LOAN'), ['loan_repayment']);
       expect(keys('DEMO EMPLOYER LTD SALARY', inflow: true), ['salary']);
       expect(keys('John', inflow: true, kind: TransactionKind.received), [
         'money_received',

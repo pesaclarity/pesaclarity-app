@@ -40,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -130,6 +130,7 @@ class AppDatabase extends _$AppDatabase {
         }
         await _createIndexIfMissing(m, subscriptionsPayee);
       }
+      if (from < 12) await _splitLoansAndSnacks();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -189,6 +190,26 @@ class AppDatabase extends _$AppDatabase {
   /// Adds the default categories that are missing by key or name. Runs once,
   /// when the database is created or upgraded, so a seeded category the user
   /// deletes stays deleted.
+  /// Categories version 2: Fuliza apart from other loans, and snacks apart
+  /// from eating out. The seeded loan category gets its new name unless the
+  /// person renamed it, the new ones are added, and Fuliza repayments filed
+  /// under loans move to Fuliza.
+  Future<void> _splitLoansAndSnacks() async {
+    await customStatement(
+      "UPDATE categories SET name = 'Loan repayment' "
+      "WHERE key = 'loan_repayment' AND name = 'Loan and Fuliza repayment' "
+      "AND NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Loan repayment')",
+    );
+    await seedDefaultCategories();
+    await customStatement(
+      'UPDATE transactions SET category_override_id = '
+      "(SELECT id FROM categories WHERE key = 'fuliza_repayment') "
+      "WHERE kind = 'fulizaRepayment' AND category_override_id = "
+      "(SELECT id FROM categories WHERE key = 'loan_repayment') "
+      "AND EXISTS (SELECT 1 FROM categories WHERE key = 'fuliza_repayment')",
+    );
+  }
+
   Future<void> seedDefaultCategories() async {
     final existing = await select(categories).get();
     for (final seed in missingSeeds([
