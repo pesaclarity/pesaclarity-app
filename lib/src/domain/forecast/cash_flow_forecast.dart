@@ -27,8 +27,9 @@ class SpendingPace {
     required CalendarDate today,
     Set<int> scheduledCategoryIds = const {},
     CalendarDate? historyFrom,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     var start = today.addDays(-paceWindowDays);
     if (historyFrom != null && historyFrom.isAfter(start)) start = historyFrom;
 
@@ -168,8 +169,9 @@ class CashFlowForecast {
     required MonthPlan plan,
     required Iterable<LedgerEntry> entries,
     CalendarDate? historyFrom,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     if (!plan.month.contains(today)) {
       throw ArgumentError.value(plan.month, 'plan', 'must be today\'s month');
     }
@@ -320,8 +322,9 @@ List<ScheduledFlow> scheduledFlows(
   MonthPlan plan,
   Iterable<LedgerEntry> entries, {
   required CalendarDate today,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final month = plan.month;
   final inMonth = entries
       .where((e) => e.currency == currency && month.contains(e.date))

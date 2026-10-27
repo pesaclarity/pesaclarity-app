@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../ledger/ledger_totals.dart';
@@ -26,8 +27,9 @@ Map<int?, int> spendingByCategory(
   Iterable<LedgerEntry> entries, {
   required DateTime from,
   required DateTime to,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final totals = <int?, int>{};
   for (final entry in entries) {
     if (entry.currency != currency ||
@@ -70,8 +72,9 @@ Map<int, TagSummary> tagTotals(
   Iterable<LedgerEntry> entries, {
   required DateTime from,
   required DateTime to,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final byTag = <int, List<LedgerEntry>>{};
   for (final entry in entries) {
     if (entry.currency != currency ||

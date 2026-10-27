@@ -9,7 +9,7 @@ import '../../privacy/presentation/policy_screen.dart';
 
 /// Onboarding: the promise up front, then sign-up or no account at all.
 ///
-/// Both paths continue to My accounts; signing in can also happen later
+/// Both paths continue to the currency step, then My accounts; signing in can also happen later
 /// from Profile.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -18,7 +18,7 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    void continueOnboarding() => context.go(AppRoutes.onboardingAccounts);
+    void continueOnboarding() => context.go(AppRoutes.onboardingCurrency);
 
     return Scaffold(
       body: SafeArea(

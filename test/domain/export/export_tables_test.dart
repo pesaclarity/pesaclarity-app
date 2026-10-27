@@ -47,15 +47,15 @@ void main() {
       expect(cell(0, 'Payee'), 'John');
       expect(cell(0, 'Category'), 'Friends and social');
       expect(cell(0, 'Tags'), '#reimbursable #roadtrip');
-      expect(cell(0, 'Money out'), const Money(30000));
+      expect(cell(0, 'Money out'), Money(30000));
       expect(cell(0, 'Money in'), isNull);
-      expect(cell(0, 'Fee'), const Money(700));
+      expect(cell(0, 'Fee'), Money(700));
       expect(cell(0, 'Leak type'), 'Friends');
       expect(cell(0, 'Type'), 'Sent');
 
       expect(cell(1, 'Payee'), '0700***000');
       expect(cell(1, 'Category'), 'Uncategorised');
-      expect(cell(1, 'Money in'), const Money(30000));
+      expect(cell(1, 'Money in'), Money(30000));
       expect(cell(1, 'Tags'), '');
     });
   });
@@ -71,7 +71,7 @@ void main() {
       'Uncategorised',
       'Total',
     ]);
-    expect(table.rows.last[1], const Money(140000));
+    expect(table.rows.last[1], Money(140000));
   });
 
   test('tag sheets show totals and category split per tag', () {
@@ -85,14 +85,14 @@ void main() {
     expect(totals.rows.single, [
       '#roadtrip',
       3,
-      const Money(90000),
-      const Money(0),
-      const Money(1500),
+      Money(90000),
+      Money(0),
+      Money(1500),
     ]);
     final split = tagCategoryTable({7: summary}, {7: 'roadtrip'}, {5: 'Fuel'});
     expect(split.rows, [
-      ['#roadtrip', 'Fuel', const Money(60000)],
-      ['#roadtrip', 'Uncategorised', const Money(30000)],
+      ['#roadtrip', 'Fuel', Money(60000)],
+      ['#roadtrip', 'Uncategorised', Money(30000)],
     ]);
   });
 }

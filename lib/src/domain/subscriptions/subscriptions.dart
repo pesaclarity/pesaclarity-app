@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/ledger_entry.dart';
 import '../reminders/recurring_charges.dart';
@@ -95,8 +96,9 @@ class SubscriptionsOverview {
     required List<Subscription> saved,
     required Iterable<LedgerEntry> entries,
     required CalendarDate today,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final chargesByPayee = <int, List<LedgerEntry>>{};
     for (final e in entries) {
       if (e.isOutflow && e.payeeId != null) {

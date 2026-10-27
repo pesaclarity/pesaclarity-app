@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
@@ -49,8 +50,9 @@ class HealthInputs {
     required Iterable<LedgerEntry> history,
     int savingsBalanceMinor = 0,
     CalendarDate? asOf,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final month = plan.month;
     final entries = history.where((e) => e.currency == currency).toList();
     final totals = LedgerTotals.of(

@@ -160,9 +160,9 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _amount,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Amount',
-                    prefixText: 'KES ',
+                    prefixText: '${BaseCurrency.code} ',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,

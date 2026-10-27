@@ -219,7 +219,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
           pw.SizedBox(height: 4),
           pw.Text(
             '${monthName(month)} ${month.year}, up to ${longDate(today)}. '
-            'Amounts in KES.',
+            'Amounts in ${BaseCurrency.code}.',
             style: pw.TextStyle(color: muted),
           ),
           pw.SizedBox(height: 14),

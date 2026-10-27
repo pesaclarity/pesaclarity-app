@@ -43,8 +43,8 @@ String _groupThousands(int value) {
 /// Reads an amount typed by the person, such as `1,200` or `1200.50`, as
 /// minor units. Null when it is not a positive amount with at most the
 /// currency's minor digits.
-int? parseMoneyMinor(String input, {String currency = 'KES'}) {
-  final digits = minorUnitDigits(currency);
+int? parseMoneyMinor(String input, {String? currency}) {
+  final digits = minorUnitDigits(currency ?? BaseCurrency.code);
   final clean = input.replaceAll(RegExp(r'[\s,]'), '');
   final match = RegExp(r'^(\d+)(?:\.(\d*))?$').firstMatch(clean);
   if (match == null) return null;

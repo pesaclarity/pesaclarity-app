@@ -13,8 +13,7 @@ void main() {
     final db = openTestDatabase();
     final repo = DriftInstitutionsRepository(db);
     await pumpApp(tester, db: db);
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
+    await getStarted(tester);
 
     expect(find.text('Which accounts do you use?'), findsOneWidget);
     expect(find.text('Messages from MPESA'), findsOneWidget);
@@ -57,8 +56,7 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester, db: openTestDatabase());
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
+    await getStarted(tester);
 
     const senders = {'M-Pesa': 'MPESA', 'I&M Bank': 'I&M', 'KCB': 'KCB'};
     for (final MapEntry(key: name, value: sender) in senders.entries) {

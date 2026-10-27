@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/money.dart';
 import '../../domain/debts/family_loan.dart';
 import '../../domain/lending/lent_loan.dart';
 import '../../domain/time/calendar.dart';
@@ -88,6 +89,7 @@ class DriftLendingRepository implements LendingRepository {
         LentLoansCompanion.insert(
           person: person,
           amountMinor: amountMinor,
+          currency: Value(BaseCurrency.code),
           lentOn: lentOn.startInstant,
           dueDate: Value(dueDate?.startInstant),
           note: Value(note),

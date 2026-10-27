@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../time/calendar.dart';
 import 'activity_lines.dart';
 import 'ledger_entry.dart';
@@ -216,8 +217,9 @@ class WeekInOut {
 WeekInOut weekInOut(
   Iterable<LedgerEntry> history, {
   required CalendarDate today,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final start = startOfWeek(today);
   final totals = LedgerTotals.of(
     history,

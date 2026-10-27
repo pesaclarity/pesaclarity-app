@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../debts/debt.dart';
 import '../debts/payday_split.dart';
 import '../debts/payoff_order.dart';
@@ -43,8 +44,9 @@ Payday? detectPayday({
   required MonthPlan plan,
   required Iterable<LedgerEntry> entries,
   required CalendarDate today,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final month = plan.month;
   if (!month.contains(today)) return null;
   final windowStart = today.addDays(-paydayWindowDays);

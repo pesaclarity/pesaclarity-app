@@ -340,7 +340,8 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
                   controller: _amount,
                   decoration: InputDecoration(
                     labelText: 'Amount',
-                    prefixText: '${widget.subscription?.currency ?? 'KES'} ',
+                    prefixText:
+                        '${widget.subscription?.currency ?? BaseCurrency.code} ',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,

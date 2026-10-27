@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
@@ -96,9 +97,10 @@ class SpendingChart {
     Iterable<LedgerEntry> history, {
     required ChartPeriod period,
     required CalendarDate today,
-    String currency = 'KES',
+    String? currency,
     int maxSlices = 6,
   }) {
+    currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency).toList();
     final fuliza = FulizaLedger.of(all);
     final window = ChartWindow.of(period, today);

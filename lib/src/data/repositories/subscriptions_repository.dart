@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/money.dart';
 import '../../domain/reminders/recurring_charges.dart';
 import '../../domain/subscriptions/subscriptions.dart';
 import '../../domain/time/calendar.dart';
@@ -89,6 +90,7 @@ class DriftSubscriptionsRepository implements SubscriptionsRepository {
         SubscriptionsCompanion.insert(
           name: name.trim(),
           amountMinor: amountMinor,
+          currency: Value(BaseCurrency.code),
           frequency: frequency,
           nextDate: nextDate.startInstant,
           status: SubscriptionStatus.tracking,

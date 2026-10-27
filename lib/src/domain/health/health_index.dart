@@ -188,7 +188,8 @@ class HealthIndex {
     this.currency = 'KES',
   });
 
-  factory HealthIndex.compute(HealthInputs inputs, {String currency = 'KES'}) {
+  factory HealthIndex.compute(HealthInputs inputs, {String? currency}) {
+    currency ??= BaseCurrency.code;
     final i = inputs;
     final scores = [
       for (final indicator in HealthIndicator.values)

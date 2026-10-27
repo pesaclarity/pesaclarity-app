@@ -5,7 +5,7 @@ import '../../core/money/money_format.dart';
 import '../../domain/time/calendar.dart';
 import '../../domain/time/date_labels.dart';
 
-/// A text field for an amount in KES, read with [parseMoneyMinor].
+/// A text field for an amount in the base currency, read with [parseMoneyMinor].
 class AmountField extends StatelessWidget {
   const AmountField({
     required this.controller,
@@ -28,7 +28,10 @@ class AmountField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(labelText: label, prefixText: 'KES '),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixText: '${BaseCurrency.code} ',
+      ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (text) {
         final value = amountFrom(text ?? '');
