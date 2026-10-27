@@ -17,7 +17,7 @@ ExportTable _table({String title = 'Transactions', int rows = 2}) =>
           [
             DateTime.utc(2026, 10, 3, 6, 15),
             i.isEven ? 'John, "JK" Kamau' : '=HYPERLINK("x")',
-            const Money(-144050),
+            Money(-144050),
             i,
           ],
       ],

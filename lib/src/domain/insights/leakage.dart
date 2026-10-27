@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
@@ -25,9 +26,10 @@ class LeakageBreakdown {
     Iterable<LedgerEntry> history, {
     required DateTime from,
     required DateTime to,
-    String currency = 'KES',
+    String? currency,
     FulizaLedger? fuliza,
   }) {
+    currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency);
     final ledger = fuliza ?? FulizaLedger.of(all);
     var lifestyle = 0;

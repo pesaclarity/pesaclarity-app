@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
@@ -199,8 +200,9 @@ class MonthReview {
   factory MonthReview.of(
     MonthPlan plan,
     Iterable<LedgerEntry> entries, {
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final actuals = <int?, int>{};
     for (final entry in entries) {
       if (entry.currency != currency || !plan.month.contains(entry.date)) {

@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import 'fuliza.dart';
 import 'ledger_entry.dart';
 import 'ledger_role.dart';
@@ -28,8 +29,9 @@ class LedgerTotals {
     Iterable<LedgerEntry> history, {
     required DateTime from,
     required DateTime to,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency).toList();
     final fuliza = FulizaLedger.of(all);
 

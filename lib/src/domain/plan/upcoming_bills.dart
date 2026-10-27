@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/ledger_entry.dart';
 import '../time/calendar.dart';
 import 'month_plan.dart';
@@ -42,8 +43,9 @@ List<UpcomingBill> upcomingBills({
   required CalendarDate today,
   MonthPlan? nextMonth,
   int horizonDays = upcomingBillsHorizonDays,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final until = today.addDays(horizonDays);
   final bills = <UpcomingBill>[];
 

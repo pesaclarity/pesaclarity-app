@@ -100,11 +100,12 @@ List<Reminder> planReminders({
   List<DuePayment> paydays = const [],
   List<RecurringCharge> charges = const [],
   int? safeToSpendTodayMinor,
-  String currency = 'KES',
+  String? currency,
   bool showAmounts = true,
   int dailyDays = 7,
   int limit = 60,
 }) {
+  currency ??= BaseCurrency.code;
   if (!settings.enabled) return const [];
   final today = CalendarDate.nairobi(now);
   final drafts = <_Draft>[];

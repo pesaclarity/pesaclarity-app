@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/balances.dart';
 import '../ledger/ledger_entry.dart';
 import '../time/calendar.dart';
@@ -24,8 +25,9 @@ class NetWorth {
     required int debtsRepaidThisMonthMinor,
     required int lentOutstandingMinor,
     required int lentOutstandingAtMonthStartMinor,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final monthStart = YearMonth.nairobi(now).startInstant;
     bool inCurrency(AccountOpening a) => a.currency == currency;
     final list = entries.toList();

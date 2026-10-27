@@ -112,8 +112,9 @@ ExportTable transactionsTable(
 ExportTable categorySpendingTable(
   Map<int?, int> spending,
   Map<int, String> categoryNames, {
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final sorted = spending.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   final total = spending.values.fold(0, (sum, v) => sum + v);
@@ -137,8 +138,9 @@ ExportTable categorySpendingTable(
 ExportTable tagTotalsTable(
   Map<int, TagSummary> totals,
   Map<int, String> tagNames, {
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final sorted = totals.values.toList()
     ..sort(
       (a, b) => (tagNames[a.tagId] ?? '').compareTo(tagNames[b.tagId] ?? ''),
@@ -164,8 +166,9 @@ ExportTable tagCategoryTable(
   Map<int, TagSummary> totals,
   Map<int, String> tagNames,
   Map<int, String> categoryNames, {
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   final rows = <List<Object?>>[];
   final tags = totals.values.toList()
     ..sort(
