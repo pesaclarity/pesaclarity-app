@@ -147,6 +147,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final settings = widget.settings;
+    final source = ref.watch(ratesSourceProvider);
     final rates = settings.rates;
     final fetched = rates == null
         ? null
@@ -178,6 +179,37 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
                 color: colors.textMuted,
               ),
             ),
+            if (widget.configured && source != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: source.link == null
+                    ? Text(
+                        'Rates by ${source.name}',
+                        key: const Key('rates-credit'),
+                        style: theme.textTheme.bodySmall!.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      )
+                    : Semantics(
+                        link: true,
+                        child: InkWell(
+                          key: const Key('rates-credit'),
+                          onTap: () =>
+                              ref.read(linkOpenerProvider)(source.link!),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'Rates by ${source.name}',
+                              style: theme.textTheme.bodySmall!.copyWith(
+                                color: colors.link,
+                                decoration: TextDecoration.underline,
+                                decorationColor: colors.link,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
             Wrap(
               spacing: 8,
               children: [
