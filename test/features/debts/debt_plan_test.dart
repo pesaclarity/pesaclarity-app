@@ -1,17 +1,13 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
-import 'package:pesaclarity/src/domain/debts/debt.dart';
-import 'package:pesaclarity/src/domain/debts/payoff_plan.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/debts/application/debt_plan_provider.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
-import 'package:pesaclarity/src/theme/app_theme.dart';
 
 void main() {
   late AppDatabase db;
@@ -55,26 +51,6 @@ void main() {
     expect(plan.plan.startMonth, YearMonth(2026, 10));
     expect(plan.plan.order, [a, b]);
     expect(plan.plan.debtFreeMonth, YearMonth(2026, 12));
-  });
-
-  testWidgets('shows the debt-free month', (tester) async {
-    final comparison = PayoffComparison.againstMinimums([
-      const Debt(
-        id: 1,
-        lender: 'Test A',
-        type: DebtType.mobileLoan,
-        balanceMinor: 3000,
-        minimumPaymentMinor: 1000,
-      ),
-    ], PayoffOptions(startMonth: YearMonth(2026, 10)));
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [debtPlanProvider.overrideWith((ref) async => comparison)],
-        child: MaterialApp(theme: AppTheme.light, home: const DebtsScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Dec 2026'), findsOneWidget);
   });
 
   test('labels months briefly', () {

@@ -7,13 +7,13 @@ import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/payday_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
-import '../../../domain/debts/payoff_order.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/month_snapshot.dart';
 import '../../../domain/plan/payday.dart';
 import '../../../domain/plan/plan_groups.dart';
 import '../../../domain/plan/surplus_split.dart';
 import '../../../domain/time/calendar.dart';
+import '../../debts/application/debts_overview_provider.dart';
 import '../../home/application/cash_flow_forecast_provider.dart';
 import '../../home/application/safe_to_spend_provider.dart';
 import 'month_close.dart';
@@ -198,13 +198,13 @@ final paydayProvider = FutureProvider<PaydayProposal?>((ref) async {
   if (payday == null) return null;
 
   final debtsRepository = ref.watch(debtsRepositoryProvider);
-  final order = await debtsRepository.customOrder();
+  final preference = await ref.watch(debtPreferenceProvider.future);
   final checklist = PaydayChecklist.propose(
     review: MonthReview.of(plan, entries),
     incomeMinor: payday.amountMinor,
     debts: await debtsRepository.debts(today: today),
-    strategy: order.isEmpty ? PayoffStrategy.avalanche : PayoffStrategy.custom,
-    customOrder: order,
+    strategy: preference.strategy,
+    customOrder: preference.customOrder,
     debtShareBasisPoints: await repository.surplusDebtShareBasisPoints(),
   );
   final store = ref.watch(paydayRepositoryProvider);
