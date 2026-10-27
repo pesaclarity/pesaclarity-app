@@ -36,10 +36,10 @@ void main() {
 
   AuthController auth() => container.read(authControllerProvider.notifier);
 
-  Future<void> signInByPhone() async {
+  Future<void> signInByEmail() async {
     await container.read(authControllerProvider.future);
-    final challenge = await auth().startPhoneSignIn('0700 000 000');
-    await auth().verifyPhoneCode(challenge, '123456');
+    final challenge = await auth().startEmailSignIn(' Wanjiru@Example.com ');
+    await auth().verifyEmailCode(challenge, '123456');
     // Let the follow-up display name lookup finish.
     await Future<void>.delayed(Duration.zero);
   }
@@ -56,30 +56,30 @@ void main() {
     expect(container.read(displayNameProvider), isNull);
   });
 
-  test('phone sign-in keeps only the refresh token on disk', () async {
-    await signInByPhone();
+  test('email sign-in keeps only the refresh token on disk', () async {
+    await signInByEmail();
 
-    expect(api.calls, containsAllInOrder(['phone/start', 'phone/verify']));
+    expect(api.calls, containsAllInOrder(['email/start', 'email/verify']));
     final stored = store.session!;
     expect(stored.refreshToken, startsWith('refresh-'));
     expect(stored.toJson().values, isNot(contains(startsWith('access-'))));
-    expect(stored.contact, '+254700000000');
-    expect(stored.method, SignInMethod.phone);
+    expect(stored.contact, 'wanjiru@example.com');
+    expect(stored.method, SignInMethod.email);
     expect(api.devices.values.single.name, 'Tecno Spark 20');
 
     final session = container.read(authControllerProvider).value!;
     expect(session.deviceId, stored.deviceId);
   });
 
-  test('a bad number fails before reaching the server', () async {
+  test('a bad email fails before reaching the server', () async {
     await container.read(authControllerProvider.future);
     expect(
-      () => auth().startPhoneSignIn('12'),
+      () => auth().startEmailSignIn('wanjiru@example'),
       throwsA(
         isA<AuthFailure>().having(
           (f) => f.kind,
           'kind',
-          AuthFailureKind.invalidPhone,
+          AuthFailureKind.invalidEmail,
         ),
       ),
     );
@@ -88,9 +88,9 @@ void main() {
 
   test('a wrong code leaves the person signed out', () async {
     await container.read(authControllerProvider.future);
-    final challenge = await auth().startPhoneSignIn('0700000000');
+    final challenge = await auth().startEmailSignIn('wanjiru@example.com');
     await expectLater(
-      auth().verifyPhoneCode(challenge, '999999'),
+      auth().verifyEmailCode(challenge, '999999'),
       throwsA(isA<AuthFailure>()),
     );
     expect(container.read(authControllerProvider).value, isNull);
@@ -100,13 +100,13 @@ void main() {
   test(
     'restores the session on the next launch without a network call',
     () async {
-      await signInByPhone();
+      await signInByEmail();
       api.calls.clear();
 
       container = create();
       final session = await container.read(authControllerProvider.future);
 
-      expect(session?.contact, '+254700000000');
+      expect(session?.contact, 'wanjiru@example.com');
       expect(api.calls, isEmpty);
     },
   );
@@ -114,7 +114,7 @@ void main() {
   test(
     'uses the in-memory access token until it expires, then rotates',
     () async {
-      await signInByPhone();
+      await signInByEmail();
       final firstRefresh = store.session!.refreshToken;
       // The display name lookup after sign-in also uses the access token.
       await Future<void>.delayed(Duration.zero);
@@ -131,7 +131,7 @@ void main() {
   );
 
   test('a fresh launch refreshes once even when calls overlap', () async {
-    await signInByPhone();
+    await signInByEmail();
     container = create();
     await container.read(authControllerProvider.future);
     api.calls.clear();
@@ -143,7 +143,7 @@ void main() {
   });
 
   test('retries once with a new token after an early 401', () async {
-    await signInByPhone();
+    await signInByEmail();
     api.expireAccessTokens();
     api.calls.clear();
 
@@ -154,7 +154,7 @@ void main() {
   });
 
   test('a remote sign-out of this phone signs it out here', () async {
-    await signInByPhone();
+    await signInByEmail();
     api.revoked.add(store.session!.deviceId);
     api.expireAccessTokens();
 
@@ -173,7 +173,7 @@ void main() {
   });
 
   test('signs another phone out', () async {
-    await signInByPhone();
+    await signInByEmail();
     api.addOtherDevice('old', 'Infinix Hot 30', DateTime.utc(2026, 9, 3));
 
     await auth().signOutDevice('old');
@@ -183,7 +183,7 @@ void main() {
   });
 
   test('sign out tells the server and forgets the tokens', () async {
-    await signInByPhone();
+    await signInByEmail();
     final deviceId = store.session!.deviceId;
 
     expect(await auth().signOut(), isTrue);
@@ -194,7 +194,7 @@ void main() {
   });
 
   test('sign out offline still forgets the tokens here', () async {
-    await signInByPhone();
+    await signInByEmail();
     api.offline = true;
 
     expect(await auth().signOut(), isFalse);
@@ -202,7 +202,7 @@ void main() {
   });
 
   test('delete account erases on the server, then signs out', () async {
-    await signInByPhone();
+    await signInByEmail();
 
     await auth().deleteAccount();
 
@@ -211,7 +211,7 @@ void main() {
   });
 
   test('a failed delete keeps the person signed in', () async {
-    await signInByPhone();
+    await signInByEmail();
     api.offline = true;
 
     await expectLater(auth().deleteAccount(), throwsA(isA<AuthFailure>()));
@@ -220,14 +220,14 @@ void main() {
 
   test('keeps the display name the server provides', () async {
     api.displayName = 'John';
-    await signInByPhone();
+    await signInByEmail();
 
     expect(container.read(displayNameProvider), 'John');
     expect(store.session!.displayName, 'John');
   });
 
   test('picks up a display name from a token refresh', () async {
-    await signInByPhone();
+    await signInByEmail();
     expect(container.read(displayNameProvider), isNull);
 
     api.displayName = 'John';
@@ -241,7 +241,7 @@ void main() {
   test('looks the name up from the account when tokens lack it', () async {
     api = _NamedAccountApi();
     container = create();
-    await signInByPhone();
+    await signInByEmail();
 
     expect(api.calls, contains('account'));
     expect(container.read(displayNameProvider), 'John');
@@ -278,7 +278,7 @@ void main() {
     container = create(authApi: const UnconfiguredAuthApi());
     await container.read(authControllerProvider.future);
     await expectLater(
-      auth().startPhoneSignIn('0700000000'),
+      auth().startEmailSignIn('wanjiru@example.com'),
       throwsA(
         isA<AuthFailure>().having(
           (f) => f.kind,

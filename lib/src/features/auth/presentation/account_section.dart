@@ -6,7 +6,6 @@ import '../../../routing/app_routes.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
-import '../domain/phone_number.dart';
 
 /// Profile's top card: who is signed in, or an offer to sign in.
 class AccountCard extends ConsumerWidget {
@@ -24,12 +23,9 @@ class AccountCard extends ConsumerWidget {
       title = 'Using without an account';
       subtitle = 'Sign in to back up to the vault and restore on a new phone.';
     } else {
-      final contact = session.contact == null
-          ? null
-          : formatKenyanMobile(session.contact!);
       final how = switch (session.method) {
         SignInMethod.google => 'Signed in with Google',
-        SignInMethod.phone => contact ?? 'Signed in with your phone number',
+        SignInMethod.email => session.contact ?? 'Signed in with your email',
         null => 'Signed in',
       };
       title = session.displayName ?? how;

@@ -66,7 +66,7 @@ void main() {
     );
   });
 
-  test('starts phone sign-in with the server shape', () async {
+  test('starts email sign-in with the server shape', () async {
     transport.responses.add(
       const JsonResponse(202, {
         'challenge_id': 'c0ffee00-0000-4000-8000-000000000001',
@@ -74,32 +74,32 @@ void main() {
       }),
     );
 
-    final challenge = await api.startPhoneSignIn('+254700000000');
+    final challenge = await api.startEmailSignIn('wanjiru@example.com');
 
     final request = transport.requests.single;
     expect(request.method, 'POST');
     expect(
       request.url.toString(),
-      'https://api.example.org/base/v1/auth/phone/start',
+      'https://api.example.org/base/v1/auth/email/start',
     );
-    expect(request.body, {'phone': '+254700000000'});
+    expect(request.body, {'email': 'wanjiru@example.com'});
     expect(request.bearer, isNull);
     expect(challenge.challengeId, 'c0ffee00-0000-4000-8000-000000000001');
     expect(challenge.expiresIn, const Duration(minutes: 5));
-    expect(challenge.phone, '+254700000000');
+    expect(challenge.email, 'wanjiru@example.com');
   });
 
-  test('maps phone start errors', () async {
+  test('maps email start errors', () async {
     transport.responses.addAll([
-      const JsonResponse(422, {'detail': 'That phone number is not valid'}),
+      const JsonResponse(422, {'detail': 'That email address is not valid'}),
       const JsonResponse(429, {'detail': 'Too many codes requested.'}),
     ]);
     expect(
-      await _failureKind(api.startPhoneSignIn('0')),
-      AuthFailureKind.invalidPhone,
+      await _failureKind(api.startEmailSignIn('x')),
+      AuthFailureKind.invalidEmail,
     );
     expect(
-      await _failureKind(api.startPhoneSignIn('0')),
+      await _failureKind(api.startEmailSignIn('x')),
       AuthFailureKind.rateLimited,
     );
   });
@@ -107,13 +107,13 @@ void main() {
   test('verifies a code and parses the token pair', () async {
     transport.responses.add(JsonResponse(200, _tokenJson()));
 
-    final tokens = await api.verifyPhoneSignIn(
+    final tokens = await api.verifyEmailSignIn(
       challengeId: 'challenge',
       code: '123456',
       deviceName: 'Tecno Spark 20',
     );
 
-    expect(transport.requests.single.url.path, '/base/v1/auth/phone/verify');
+    expect(transport.requests.single.url.path, '/base/v1/auth/email/verify');
     expect(transport.requests.single.body, {
       'challenge_id': 'challenge',
       'code': '123456',
@@ -147,7 +147,7 @@ void main() {
       ]);
       expect(
         await _failureKind(
-          api.verifyPhoneSignIn(
+          api.verifyEmailSignIn(
             challengeId: 'c',
             code: '000000',
             deviceName: 'x',
@@ -226,12 +226,12 @@ void main() {
     transport.responses.add(
       const JsonResponse(200, {
         'id': _accountId,
-        'contact_kind': 'phone',
+        'contact_kind': 'email',
         'created_at': '2026-10-02T08:00:00Z',
       }),
     );
     final account = await api.getAccount('access-a');
-    expect(account.method, SignInMethod.phone);
+    expect(account.method, SignInMethod.email);
     expect(account.displayName, isNull);
   });
 
@@ -256,7 +256,7 @@ void main() {
   test('connection problems are network failures', () async {
     transport.error = const SocketException('offline');
     expect(
-      await _failureKind(api.startPhoneSignIn('+254700000000')),
+      await _failureKind(api.startEmailSignIn('wanjiru@example.com')),
       AuthFailureKind.network,
     );
   });

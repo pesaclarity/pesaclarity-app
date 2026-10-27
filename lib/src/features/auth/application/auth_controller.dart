@@ -13,7 +13,7 @@ import '../data/http_auth_api.dart';
 import '../data/json_transport.dart';
 import '../data/session_store.dart';
 import '../domain/auth_models.dart';
-import '../domain/phone_number.dart';
+import '../domain/email_address.dart';
 
 /// The server's auth API, or a stand-in when the build has no server URL.
 final authApiProvider = Provider<AuthApi>((ref) {
@@ -65,7 +65,7 @@ class AccountSession {
   final String deviceId;
   final SignInMethod? method;
 
-  /// The phone number used to sign in, in E.164 form, if any.
+  /// The email address used to sign in, if any.
   final String? contact;
 
   final String? displayName;
@@ -98,27 +98,27 @@ class AuthController extends AsyncNotifier<AccountSession?> {
 
   AccountSession? get _session => state.value;
 
-  /// Texts a sign-in code to [input], a Kenyan mobile number as typed.
-  Future<PhoneChallenge> startPhoneSignIn(String input) {
-    final phone = normaliseKenyanMobile(input);
-    if (phone == null) {
-      throw const AuthFailure(AuthFailureKind.invalidPhone);
+  /// Emails a sign-in code to [input], an email address as typed.
+  Future<EmailChallenge> startEmailSignIn(String input) {
+    final email = normaliseEmail(input);
+    if (email == null) {
+      throw const AuthFailure(AuthFailureKind.invalidEmail);
     }
-    return _api.startPhoneSignIn(phone);
+    return _api.startEmailSignIn(email);
   }
 
   /// Checks [code] against [challenge] and signs in.
-  Future<void> verifyPhoneCode(PhoneChallenge challenge, String code) async {
+  Future<void> verifyEmailCode(EmailChallenge challenge, String code) async {
     final digits = code.replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^\d{6,8}$').hasMatch(digits)) {
       throw const AuthFailure(AuthFailureKind.invalidCode);
     }
-    final tokens = await _api.verifyPhoneSignIn(
+    final tokens = await _api.verifyEmailSignIn(
       challengeId: challenge.challengeId,
       code: digits,
       deviceName: await ref.read(deviceNameSourceProvider).deviceName(),
     );
-    await _establish(tokens, SignInMethod.phone, contact: challenge.phone);
+    await _establish(tokens, SignInMethod.email, contact: challenge.email);
   }
 
   /// Signs in with Google. Returns false when the person cancels.
