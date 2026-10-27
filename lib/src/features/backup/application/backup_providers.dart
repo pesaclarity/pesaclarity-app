@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../config/flavor.dart';
 import '../../../core/backup/backup.dart';
+import '../../../core/integrity/integrity_attestor.dart';
 import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
 import '../data/backup_location.dart';
@@ -176,11 +177,18 @@ class BackupController extends AsyncNotifier<BackupSettings> {
                 baseUrl: url,
                 tokens: ref.read(vaultTokenSourceProvider),
                 client: _pinnedClient(),
+                integrity: ref.read(integrityHeaderHookProvider),
               );
       case BackupLocationId.drive:
         final auth = ref.read(driveAuthProvider);
         return auth.isAvailable
-            ? DriveBackupLocation(auth, client: _pinnedClient())
+            // Google's keys are not ours to pin; Drive uses system trust.
+            ? DriveBackupLocation(
+                auth,
+                client: IOClient(
+                  ref.read(httpClientFactoryProvider).createUnpinned(),
+                ),
+              )
             : null;
       case BackupLocationId.deviceFolder:
         final folder = settings.folder;
