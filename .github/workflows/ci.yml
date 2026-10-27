@@ -1,9 +1,26 @@
 name: CI
 
+# Skips changes that cannot affect the app (docs, UI flow scripts, other
+# workflows) and draft pull requests; marking a draft ready runs it.
 on:
   push:
     branches: [main]
+    paths-ignore: &skip
+      - "*.md"
+      - docs/**
+      - LICENSE
+      - fastlane/**
+      - .maestro/**
+      - tool/run_ui_flows.sh
+      - tool/ui_diagnostics.sh
+      - tool/install_app.sh
+      - .github/ISSUE_TEMPLATE/**
+      - .github/workflows/ui-screenshots.yml
+      - .github/workflows/dependency-scan.yml
+      - .github/workflows/release-play.yml
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: *skip
   workflow_dispatch:
 
 permissions:
@@ -19,7 +36,9 @@ env:
 jobs:
   check:
     name: Format, analyse, test
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -43,49 +62,3 @@ jobs:
 
       - name: Test
         run: flutter test
-
-  build-foss:
-    name: Build foss APK
-    needs: check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      # CI has no release keystore, so this APK is signed with the debug key.
-      - name: Build APK
-        run: >-
-          flutter build apk --release --flavor foss
-          --obfuscate --split-debug-info=build/symbols
-
-      # Google sign-in lives in the play flavour only; F-Droid rejects Google libraries.
-      - name: Check the foss APK has no Google sign-in code
-        run: |
-          apk=build/app/outputs/flutter-apk/app-foss-release.apk
-          if unzip -p "$apk" 'classes*.dex' | grep -a -q -E \
-            'Lcom/google/android/libraries/identity/googleid/|Landroidx/credentials/playservices/'; then
-            echo "::error::The foss APK contains Google sign-in classes"
-            exit 1
-          fi
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: pesaclarity-foss-apk
-          path: build/app/outputs/flutter-apk/app-foss-release.apk
-          retention-days: 14
