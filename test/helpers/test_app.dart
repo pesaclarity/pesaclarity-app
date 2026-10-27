@@ -23,6 +23,7 @@ import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
+import 'package:pesaclarity/src/features/statements/application/statement_importer.dart';
 
 import 'fake_app_lock.dart';
 import 'fake_auth.dart';
@@ -90,6 +91,9 @@ Future<void> pumpApp(
           googleIdTokenSourceProvider.overrideWithValue(google),
         smsParseBatchProvider.overrideWithValue(
           (packs, messages) async => parseAll(packs, messages),
+        ),
+        statementReadBatchProvider.overrideWithValue(
+          (pages) async => readStatement(pages),
         ),
         reminderNotificationsProvider.overrideWithValue(
           notifications ?? FakeReminderNotifications(),

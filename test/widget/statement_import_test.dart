@@ -13,7 +13,7 @@ void main() {
   _withoutEngineTests();
 
   final extractor = FakePdfTextExtractor(
-    {'locked': mpesaStatementText(), 'kcb': kcbStatementText},
+    {'locked': mpesaStatementPages(), 'kcb': kcbStatementPages()},
     passwords: {'locked': '0000'},
   );
 
