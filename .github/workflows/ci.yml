@@ -4,7 +4,7 @@ name: CI
 # workflows) and draft pull requests; marking a draft ready runs it.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore: &skip
       - "*.md"
       - docs/**

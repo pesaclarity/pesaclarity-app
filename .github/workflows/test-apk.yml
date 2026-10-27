@@ -1,0 +1,99 @@
+name: Test APK
+
+# Every push to dev builds the APKs QA tries before dev is merged to main:
+# the play flavour and the foss (F-Droid) flavour, release builds signed with
+# a throwaway key, named after the version and commit. Download them from the
+# run's artifacts.
+on:
+  push:
+    branches: [dev]
+    paths-ignore:
+      - "*.md"
+      - docs/**
+      - .github/ISSUE_TEMPLATE/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-apk
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  build:
+    name: Build ${{ matrix.flavor }} test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [play, foss]
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same changes F-Droid makes: no prebuilt native libraries.
+      - name: Prepare the F-Droid build
+        if: matrix.flavor == 'foss'
+        run: ./tool/prepare_foss.sh
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter test
+
+      - name: Set up a throwaway signing key
+        run: |
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/test.jks" \
+            -storepass throwaway -keypass throwaway -alias test \
+            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Test build"
+          printf 'storeFile=%s\nstorePassword=throwaway\nkeyAlias=test\nkeyPassword=throwaway\n' \
+            "$RUNNER_TEMP/test.jks" > android/key.properties
+
+      # Server settings for test builds come from the dev environment's
+      # variables; empty ones leave that feature off.
+      - name: Build the APK
+        id: build
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          FLAVOR: ${{ matrix.flavor }}
+          API_URL: ${{ vars.DEV_PESACLARITY_API_URL }}
+          VAULT_URL: ${{ vars.DEV_PESACLARITY_VAULT_URL }}
+          PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
+          TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+        run: |
+          flutter build apk --release --flavor "$FLAVOR" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=PESACLARITY_API_URL="$API_URL" \
+            --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
+            --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
+            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS"
+          version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
+          name="pesaclarity-$version-dev.$BUILD_NUMBER-${GITHUB_SHA::7}-$FLAVOR.apk"
+          cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$name"
+          echo "path=$RUNNER_TEMP/$name" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.build.outputs.name }}
+          path: ${{ steps.build.outputs.path }}
+          retention-days: 30
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/test.jks"
