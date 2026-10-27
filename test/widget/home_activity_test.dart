@@ -6,8 +6,10 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/features/activity/presentation/activity_screen.dart';
+import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
+import '../helpers/statement_samples.dart';
 import '../helpers/test_app.dart';
 
 /// Wednesday 28 October 2026, 08:00 EAT.
@@ -98,6 +100,13 @@ Future<void> _seed(AppDatabase db) async {
     ),
   );
 }
+
+/// Builds with a PDF engine (Play) or without one (F-Droid), whichever the
+/// checkout has, so pin it per test.
+final _withPdfEngine = pdfTextExtractorProvider.overrideWithValue(
+  FakePdfTextExtractor(const {}),
+);
+final _withoutPdfEngine = pdfTextExtractorProvider.overrideWithValue(null);
 
 Future<void> _pumpActivity(WidgetTester tester, AppDatabase db) async {
   // Tall enough that the whole feed is built.
@@ -190,7 +199,7 @@ void main() {
     await pumpApp(
       tester,
       db: openTestDatabase(),
-      overrides: [clockProvider.overrideWithValue(_now)],
+      overrides: [clockProvider.overrideWithValue(_now), _withPdfEngine],
     );
     await finishOnboarding(tester);
 
@@ -218,7 +227,7 @@ void main() {
   });
 
   testAppWidgets('+ routes statement import to its screen', (tester) async {
-    await pumpApp(tester, db: openTestDatabase());
+    await pumpApp(tester, db: openTestDatabase(), overrides: [_withPdfEngine]);
     await finishOnboarding(tester);
 
     await tester.tap(find.byTooltip('Add or import'));
@@ -226,6 +235,23 @@ void main() {
     await tester.tap(find.text('Import a statement'));
     await tester.pumpAndSettle();
     expect(find.text('Choose a PDF'), findsOneWidget);
+  });
+
+  testAppWidgets('without a PDF engine, + adds a transaction straight away', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      db: openTestDatabase(),
+      overrides: [_withoutPdfEngine],
+    );
+    await finishOnboarding(tester);
+
+    expect(find.byTooltip('Add or import'), findsNothing);
+    await tester.tap(find.byTooltip('Add a transaction'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import a statement'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Amount (KES)'), findsOneWidget);
   });
 
   testAppWidgets('Home numbers open Activity filtered', (tester) async {

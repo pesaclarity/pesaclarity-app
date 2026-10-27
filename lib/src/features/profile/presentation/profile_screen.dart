@@ -15,6 +15,7 @@ import '../../export/presentation/export_sheet.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
+import '../../statements/data/pdf_text_extractor.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -23,6 +24,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final flavor = ref.watch(appFlavorProvider);
+    final canImport = ref.watch(statementImportAvailableProvider);
     final backupSettings = ref.watch(backupControllerProvider).value;
     final lastBackup = backupSettings == null
         ? null
@@ -72,13 +74,15 @@ class ProfileScreen extends ConsumerWidget {
                       showExportSheet(context, const FullWorkbookExport()),
                 ),
                 const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.description_outlined),
-                  title: const Text('Import a statement'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push(AppRoutes.importStatement),
-                ),
-                const Divider(height: 1),
+                if (canImport) ...[
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Import a statement'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push(AppRoutes.importStatement),
+                  ),
+                  const Divider(height: 1),
+                ],
                 ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined),
                   title: const Text('Backup and restore'),

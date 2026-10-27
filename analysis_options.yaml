@@ -5,6 +5,8 @@ analyzer:
     - build/**
     - "**/*.g.dart"
     - android/**
+    # Swapped into lib/ by tool/prepare_foss.sh; checked there by its test.
+    - tool/foss/**
   language:
     strict-casts: true
     strict-inference: true

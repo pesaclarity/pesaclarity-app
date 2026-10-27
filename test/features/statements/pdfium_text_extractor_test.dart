@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
+import 'package:pesaclarity/src/features/statements/data/pdfium_text_extractor.dart';
 import 'package:ujumbe/ujumbe.dart';
 
 /// The PDFium library the build hook fetched for this host, which

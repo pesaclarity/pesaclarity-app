@@ -12,6 +12,8 @@ on:
       - android/**
       - pubspec.yaml
       - pubspec.lock
+      - tool/prepare_foss.sh
+      - tool/foss/**
       - .github/workflows/foss-build.yml
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,6 +21,8 @@ on:
       - android/**
       - pubspec.yaml
       - pubspec.lock
+      - tool/prepare_foss.sh
+      - tool/foss/**
       - .github/workflows/foss-build.yml
   workflow_dispatch:
 
@@ -53,6 +57,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # The same changes F-Droid makes: no prebuilt native libraries.
+      - name: Prepare the F-Droid build
+        run: ./tool/prepare_foss.sh
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -64,6 +72,13 @@ jobs:
         run: >-
           flutter build apk --release --flavor foss
           --obfuscate --split-debug-info=build/symbols
+
+      - name: Check the foss APK has no PDFium
+        run: |
+          if unzip -l build/app/outputs/flutter-apk/app-foss-release.apk | grep -q libpdfium; then
+            echo "::error::The foss APK contains PDFium"
+            exit 1
+          fi
 
       # Google sign-in lives in the play flavour only; F-Droid rejects Google libraries.
       - name: Check the foss APK has no Google sign-in code
