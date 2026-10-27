@@ -29,9 +29,9 @@ ROWS = [
     ("TJA0000001", "2026-10-26 09:15:42",
      "Customer Transfer of Funds Charge", "", "-15.00", "5,485.00"),
     ("TJA0000001", "2026-10-26 09:15:42",
-     "Customer Transfer to 0700***001 - JANE DOE", "", "-1,500.00", "5,500.00"),
+     "Customer Transfer to - 0700***001 JANE DOE", "", "-1,500.00", "5,500.00"),
     ("TJA0000003", "2026-10-26 08:02:10",
-     "Funds received from 0700***002 - JOHN KAMAU", "2,000.00", "", "7,000.00"),
+     "Funds received from - 0700***002 JOHN KAMAU", "2,000.00", "", "7,000.00"),
 ]
 
 # Left edges of text columns, right edges of amount columns.

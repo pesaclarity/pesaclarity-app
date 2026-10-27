@@ -23,13 +23,13 @@ const List<StatementRowSample> octoberRows = [
   (
     receipt: 'TJA0000003',
     time: '2026-10-26 08:02:10',
-    details: 'Funds received from 0700***002 - JOHN KAMAU',
+    details: 'Funds received from - 0700***002 JOHN KAMAU',
     amount: 200000,
   ),
   (
     receipt: 'TJA0000001',
     time: '2026-10-26 09:15:42',
-    details: 'Customer Transfer to 0700***001 - JANE DOE',
+    details: 'Customer Transfer to - 0700***001 JANE DOE',
     amount: -150000,
   ),
   (
