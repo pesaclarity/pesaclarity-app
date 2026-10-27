@@ -1,54 +1,62 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-/// A self-signed P-256 certificate for `localhost` and 127.0.0.1, made for
-/// these tests only. The key protects nothing.
-const testCertificatePem = '''
+// Throwaway certificates made for these tests only; their keys protect
+// nothing. A test root signs a server certificate for localhost and
+// 127.0.0.1, standing in for a hosting provider's authority.
+
+/// The test root, as base64 DER.
+const testRootDer =
+    'MIIBqTCCAU+gAwIBAgIUSgzCvYVXcMp1GlxRyyqsEq5eseMwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWUGVzYSBDbGFyaXR5IHRlc3Qgcm9vdDAgFw0yNjEwMjcwNzI1MzFaGA8yMTI2MTAwMzA3MjUzMVowITEfMB0GA1UEAwwWUGVzYSBDbGFyaXR5IHRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABEDzxI1wdZvkzoxop2fT8wcNMsaRv6GzELhOyAeGKpxSzunlDQMrOkfbeLFKTgDb1iWrbFvh/wy+pgJSLGiqFVOjYzBhMB0GA1UdDgQWBBS696hE5Rt1wcEUqKgPFPMuUChiJzAfBgNVHSMEGDAWgBS696hE5Rt1wcEUqKgPFPMuUChiJzAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjOPQQDAgNIADBFAiEAy0d1/B5VAfYQHQa9CDl2cuOp6HzyVYOInn26GLkcIPgCID4bCGXKYA69QVvpCj87oCuLsaEhrc7DxOQLysR0itCx';
+
+/// Two other roots that signed nothing here.
+const otherRootsDer = [
+  'MIIBjjCCATWgAwIBAgIUOl+Jg79hJgD6vAPm8Nk4Rr7yf80wCgYIKoZIzj0EAwIwHDEaMBgGA1UEAwwRT3RoZXIgdGVzdCByb290IDEwIBcNMjYxMDI3MDcyNTIwWhgPMjEyNjEwMDMwNzI1MjBaMBwxGjAYBgNVBAMMEU90aGVyIHRlc3Qgcm9vdCAxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4WrWm5S158t7EUkbRNAiydK4ikMNyVivw8CbboCf5AUsf5hfwtC6IcMWHS7u5GwqMJ97KfktLy3HoSIX9FrzS6NTMFEwHQYDVR0OBBYEFIHjbKXl0sti+lLPdt9X0si0c6U2MB8GA1UdIwQYMBaAFIHjbKXl0sti+lLPdt9X0si0c6U2MA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgJGh/jP/ywx6W6igShtwvRl8yigX8okB97GY/lob+Qd4CIFVpiw0km1FnxEOfL2MKkyVhiB5WhtB62bPb4lTPgPBX',
+  'MIIBjjCCATWgAwIBAgIUEsxhbOQEar9ZytcMHH7Z9dpTGEYwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAwwRT3RoZXIgdGVzdCByb290IDIwIBcNMjYxMDI3MDcyNTIwWhgPMjEyNjEwMDMwNzI1MjBaMBwxGjAYBgNVBAMMEU90aGVyIHRlc3Qgcm9vdCAyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEY/9e4b1xAhNQmL6Dq+7zgOf1qzLaJQjXHIz9UgW6hKJ9FBgX3Gyyy9y7DaSKspBUsg21ROYmgIycz3Fwgp2ZSaNTMFEwHQYDVR0OBBYEFFmUGuexsTrVqEiCuRvove9oqZvOMB8GA1UdIwQYMBaAFFmUGuexsTrVqEiCuRvove9oqZvOMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgTP3yLHVMQGxB5GaKoJvUQjGNejrfOGfusBipscWV39sCIDh0oNPehOv0VJQO191LCgRrlRhcnAvluC8aI6rJ35Ah',
+];
+
+const _rootPem = '''
 -----BEGIN CERTIFICATE-----
-MIIBnDCCAUGgAwIBAgIUNWONXHwrpEV13SQQxjCe6qchH8wwCgYIKoZIzj0EAwIw
-FDESMBAGA1UEAwwJbG9jYWxob3N0MCAXDTI2MTAyNjE0NTgzMVoYDzIxMjYxMDAy
-MTQ1ODMxWjAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwWTATBgcqhkjOPQIBBggqhkjO
-PQMBBwNCAAQjoYzRJLD6LMoUoRqPCSrEZaITjBzrTiM1I4qs8W5/Nm7pY7bVmL72
-EwXiHSJff3XNGBFAsCmP9IYLw96FLYIvo28wbTAdBgNVHQ4EFgQU3kx+r2Fltq3b
-ZXyax7mX3WIko1swHwYDVR0jBBgwFoAU3kx+r2Fltq3bZXyax7mX3WIko1swDwYD
-VR0TAQH/BAUwAwEB/zAaBgNVHREEEzARgglsb2NhbGhvc3SHBH8AAAEwCgYIKoZI
-zj0EAwIDSQAwRgIhAO00e6bHLT6zqOOYWiaH7upIkmTcbmiIM8RlS+WfgHGEAiEA
-/MXzMVAh1Nl4aLeqYSrrPPOLpmuSI4+fRv3k2ixVgj8=
+MIIBqTCCAU+gAwIBAgIUSgzCvYVXcMp1GlxRyyqsEq5eseMwCgYIKoZIzj0EAwIw
+ITEfMB0GA1UEAwwWUGVzYSBDbGFyaXR5IHRlc3Qgcm9vdDAgFw0yNjEwMjcwNzI1
+MzFaGA8yMTI2MTAwMzA3MjUzMVowITEfMB0GA1UEAwwWUGVzYSBDbGFyaXR5IHRl
+c3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABEDzxI1wdZvkzoxop2fT
+8wcNMsaRv6GzELhOyAeGKpxSzunlDQMrOkfbeLFKTgDb1iWrbFvh/wy+pgJSLGiq
+FVOjYzBhMB0GA1UdDgQWBBS696hE5Rt1wcEUqKgPFPMuUChiJzAfBgNVHSMEGDAW
+gBS696hE5Rt1wcEUqKgPFPMuUChiJzAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB
+/wQEAwIBBjAKBggqhkjOPQQDAgNIADBFAiEAy0d1/B5VAfYQHQa9CDl2cuOp6Hzy
+VYOInn26GLkcIPgCID4bCGXKYA69QVvpCj87oCuLsaEhrc7DxOQLysR0itCx
 -----END CERTIFICATE-----
 ''';
 
-const _testKeyPem = '''
+const _serverPem = '''
+-----BEGIN CERTIFICATE-----
+MIIBuDCCAV2gAwIBAgIUKoz3GoyTghn8YOotKhzWzSKJvwMwCgYIKoZIzj0EAwIw
+ITEfMB0GA1UEAwwWUGVzYSBDbGFyaXR5IHRlc3Qgcm9vdDAgFw0yNjEwMjcwNzI1
+MzFaGA8yMTI2MTAwMzA3MjUzMVowFDESMBAGA1UEAwwJbG9jYWxob3N0MFkwEwYH
+KoZIzj0CAQYIKoZIzj0DAQcDQgAEQVZIPn5bNvMz4dkIUBevO3VjKXHuw7UFdwWe
+we5kLc9o4hkVvd+B7e2aiO4aMUN4Nn4DZ/lmKp76ViEsKXVSDaN+MHwwGgYDVR0R
+BBMwEYIJbG9jYWxob3N0hwR/AAABMAkGA1UdEwQCMAAwEwYDVR0lBAwwCgYIKwYB
+BQUHAwEwHQYDVR0OBBYEFG0pA0I99jram/z2JUxTEsv3h11rMB8GA1UdIwQYMBaA
+FLr3qETlG3XBwRSoqA8U8y5QKGInMAoGCCqGSM49BAMCA0kAMEYCIQDUdYsYzwxt
+HIW1mMPieEkrVtuV/Y3O0C3ah/YEzJvtpwIhAI1vTF3WxZNncKeQEPYuQnH+s9DF
+tKjtJ9VyactUMHAA
+-----END CERTIFICATE-----
+''';
+
+const _serverKeyPem = '''
 -----BEGIN PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgb7ZrFQc0s+sTTj5w
-mzO4CUhKoUtDEd/eFTHhUFZns/+hRANCAAQjoYzRJLD6LMoUoRqPCSrEZaITjBzr
-TiM1I4qs8W5/Nm7pY7bVmL72EwXiHSJff3XNGBFAsCmP9IYLw96FLYIv
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgDX08xVW7H/3uCjGj
+J7LAtPE6ugRWsYRGNpPJ6ghy7v2hRANCAARBVkg+fls28zPh2QhQF687dWMpce7D
+tQV3BZ7B7mQtz2jiGRW934Ht7ZqI7hoxQ3g2fgNn+WYqnvpWISwpdVIN
 -----END PRIVATE KEY-----
 ''';
 
-/// The certificate's SPKI SHA-256 pin, computed with
-/// `openssl x509 -pubkey | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`.
-const testCertificatePin = '2uXRtU7UT6D8cPd3YTmySh9fKmyPUOoJHRmiv0CCXJE=';
-
-/// Two well-formed pins that match nothing.
-final otherPins = [
-  base64.encode(List.filled(32, 1)),
-  base64.encode(List.filled(32, 2)),
-];
-
-Uint8List get testCertificateDer {
-  final body = testCertificatePem
-      .split('\n')
-      .where((line) => line.isNotEmpty && !line.startsWith('-----'))
-      .join();
-  return base64.decode(body);
-}
-
+/// The server sends its certificate and the root above it.
 SecurityContext serverContext() => SecurityContext()
-  ..useCertificateChainBytes(utf8.encode(testCertificatePem))
-  ..usePrivateKeyBytes(utf8.encode(_testKeyPem));
+  ..useCertificateChainBytes(utf8.encode(_serverPem + _rootPem))
+  ..usePrivateKeyBytes(utf8.encode(_serverKeyPem));
 
-/// Trusts only the test certificate, standing in for the platform's roots.
+/// Trusts only the test root, standing in for the platform's roots.
 SecurityContext clientContext() =>
-    SecurityContext()
-      ..setTrustedCertificatesBytes(utf8.encode(testCertificatePem));
+    SecurityContext()..setTrustedCertificatesBytes(utf8.encode(_rootPem));

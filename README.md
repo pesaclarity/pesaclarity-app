@@ -54,7 +54,7 @@ lib/
     app.dart                 root widget
     config/                  build flavour
     core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
-    core/network/            pinned HttpClient factory (SPKI SHA-256 pins from build config)
+    core/network/            pinned HttpClient factory (trusted roots per host, from build config)
     core/integrity/          IntegrityAttestor: Play stub, foss no-op, request header hook
     core/money/              Money (integer minor units) and KES formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
@@ -95,12 +95,12 @@ From the spec's "Mobile security" section:
 - `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` (to restore reminders after a restart) and `INTERNET` (sign-in, backups and the privacy policy) only. `test/android/manifest_permissions_test.dart` fails if the list changes. Cleartext traffic is off.
-- Cleartext traffic is refused and only system certificate authorities are trusted. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`), which pins server keys by SPKI SHA-256 from `--dart-define=PESACLARITY_CERT_PINS` (two or more pins per host) and refuses to connect when the pins do not match or are misconfigured. A test fails if code creates an `HttpClient` any other way. The real pins are set once the server is deployed.
+- Cleartext traffic is refused. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`). Our servers are pinned to their certificate authorities, not their keys, because the hosting providers renew certificates with new keys every few months: connections to the hosts in `PESACLARITY_PINNED_HOSTS` trust only the roots in `PESACLARITY_TRUSTED_ROOTS` (two or more), and a misconfiguration refuses every connection. Third-party services (Google Drive) use the platform's authorities. A test fails if code creates an `HttpClient` any other way. The real values are set once the server is deployed.
 - Device integrity: `IntegrityAttestor` (`lib/src/core/integrity`) supplies a token header for backup and federated-learning requests; the `play` stub returns "unavailable" until the Play project exists, and `foss` never attests. A light root and tamper check (`DeviceIntegrityChannel.kt`) shows a one-time notice in Profile and never blocks use.
 - Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
-Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, real certificate pins and Play Integrity tokens. These are marked `TODO(security)` and similar in the code.
+Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, the pinned hosts and roots for the deployed server, and Play Integrity tokens. These are marked `TODO(security)` and similar in the code.
 
 Releases: see [RELEASING.md](RELEASING.md), [docs/reproducible-builds.md](docs/reproducible-builds.md) and [docs/performance-budget.md](docs/performance-budget.md). F-Droid store text lives in `fastlane/metadata/android/en-US`.
 
@@ -169,7 +169,7 @@ One-time setup:
 3. In Google Cloud, create a service account, download a JSON key, and invite its email in Play Console under Users and permissions with release rights for this app.
 4. Add these as repository secrets: `PLAY_UPLOAD_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `PLAY_UPLOAD_KEYSTORE_PASSWORD`, `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` (the whole JSON file).
 5. Add repository variables: `PLAY_PACKAGE_NAME` (the application id, `com.pesaclarity.app` today), `PLAY_VERSION_CODE_OFFSET` (higher than any version code uploaded by hand), and for tag releases `PLAY_TAG_TRACK` (`internal`, `alpha`, `beta` or `production`) and `PLAY_TAG_STATUS` (`draft` or `completed`). The workflow stops with a list of any that are missing.
-6. Optionally add repository variables for the build: `PESACLARITY_API_URL` and `PESACLARITY_VAULT_URL` (the server's https address), `PESACLARITY_GOOGLE_SERVER_CLIENT_ID`, `PESACLARITY_PLAY_CLOUD_PROJECT` and `PESACLARITY_CERT_PINS`.
+6. Optionally add repository variables for the build: `PESACLARITY_API_URL` and `PESACLARITY_VAULT_URL` (the server's https address), `PESACLARITY_GOOGLE_SERVER_CLIENT_ID`, `PESACLARITY_PLAY_CLOUD_PROJECT`, `PESACLARITY_PINNED_HOSTS` and `PESACLARITY_TRUSTED_ROOTS`.
 
 For an app that has never been released, Google only accepts draft uploads: run the workflow once with status `draft`, then roll the release out from Play Console. New personal developer accounts must also run a closed test with at least 12 testers for 14 days before they can publish to production.
 
