@@ -25,7 +25,6 @@ import '../features/privacy/presentation/policy_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
-import '../features/sms/presentation/notification_capture_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
 import 'app_routes.dart';
@@ -128,11 +127,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'payees',
                         builder: (context, state) => const PayeesScreen(),
-                      ),
-                      GoRoute(
-                        path: 'notifications',
-                        builder: (context, state) =>
-                            const NotificationCaptureScreen(),
                       ),
                       GoRoute(
                         path: 'sign-in',

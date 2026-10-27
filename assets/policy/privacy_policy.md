@@ -8,7 +8,7 @@ jobs and never sees a transaction.
 
 ## What stays on your phone
 
-- Messages from the banks and wallets you choose, read from SMS or, if you turn it on, from your notifications. Messages and notifications from every other sender are ignored and never stored.
+- Messages from the banks and wallets you choose. Messages from every other sender are ignored and never stored.
 - The fields read from those messages: amount, date, payee, balance and fee. The raw message text is discarded after reading.
 - Statement PDFs. Their passwords are used once, in memory, then discarded. PDFs are never uploaded.
 - Budgets, debts, goals, payees, categories and every insight.

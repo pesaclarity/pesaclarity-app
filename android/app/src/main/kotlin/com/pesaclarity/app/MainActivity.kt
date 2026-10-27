@@ -10,7 +10,6 @@ import io.flutter.embedding.engine.FlutterEngine
 // A FragmentActivity so local_auth can show BiometricPrompt.
 class MainActivity : FlutterFragmentActivity() {
     private var sms: SmsChannel? = null
-    private var notifications: NotificationsChannel? = null
     private var documents: DocumentsChannel? = null
     private var share: ShareChannel? = null
     private var deviceIntegrity: DeviceIntegrityChannel? = null
@@ -32,7 +31,6 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         sms = SmsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
-        notifications = NotificationsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         documents = DocumentsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         share = ShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger)
@@ -44,8 +42,6 @@ class MainActivity : FlutterFragmentActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         sms?.dispose()
         sms = null
-        notifications?.dispose()
-        notifications = null
         documents?.dispose()
         documents = null
         share?.dispose()

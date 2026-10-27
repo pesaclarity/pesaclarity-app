@@ -22,10 +22,6 @@ Package: `com.pesaclarity.app` (the `play` flavour).
 2. Ticking M-Pesa and a bank, then the Android permission prompt.
 3. The scan, then Home and Activity showing the transactions found.
 
-## Notification access
-
-The app also has a `NotificationListenerService` (Profile › Read from notifications), off until the person turns it on and allows it in the phone's settings. It is not a runtime permission and has no declaration form, but the store listing and the privacy policy must say what it reads. Check Play's current policy on reading SMS through notifications before release: the service must not be presented as a way around the SMS declaration.
-
 ## Data safety
 
 **App content → Data safety.**

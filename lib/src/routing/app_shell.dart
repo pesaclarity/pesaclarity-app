@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
-import '../features/sms/application/notification_capture.dart';
 import '../features/sms/application/sms_capture_providers.dart';
 import '../shared/semantic_ids.dart';
 import '../theme/brand_tokens.dart';
@@ -65,7 +64,6 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(liveSmsCaptureProvider, (_, _) {});
-    ref.listen(liveNotificationCaptureProvider, (_, _) {});
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(policyReviewProvider, (_, next) {
       // While reloading, value still holds the previous changes.
