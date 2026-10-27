@@ -15,8 +15,6 @@ import '../../export/presentation/export_sheet.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
-import '../../sms/application/notification_capture.dart';
-import '../../sms/data/notification_source.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
@@ -27,10 +25,6 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final flavor = ref.watch(appFlavorProvider);
     final canImport = ref.watch(statementImportAvailableProvider);
-    final notificationsOn =
-        (ref.watch(notificationCaptureEnabledProvider).value ?? false) &&
-        ref.watch(notificationAccessProvider).value ==
-            NotificationAccess.granted;
     final backupSettings = ref.watch(backupControllerProvider).value;
     final lastBackup = backupSettings == null
         ? null
@@ -61,15 +55,6 @@ class ProfileScreen extends ConsumerWidget {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.go(AppRoutes.myAccounts),
                   ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  key: const Key('profile-notification-capture'),
-                  leading: const Icon(Icons.notifications_outlined),
-                  title: const Text('Read from notifications'),
-                  subtitle: Text(notificationsOn ? 'On' : 'Off'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go(AppRoutes.notificationCapture),
                 ),
                 const Divider(height: 1),
                 ListTile(

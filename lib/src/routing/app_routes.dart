@@ -22,7 +22,6 @@ abstract final class AppRoutes {
   static const devices = '/home/profile/devices';
   static const privacyPolicy = '/home/profile/privacy/policy';
   static const payees = '/home/profile/payees';
-  static const notificationCapture = '/home/profile/notifications';
 
   static const activity = '/activity';
 

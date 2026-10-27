@@ -191,12 +191,12 @@ class SmsChannel(
     private fun message(sender: String, body: String, receivedAtMillis: Long) =
         mapOf("sender" to sender, "body" to body, "receivedAtMillis" to receivedAtMillis)
 
-    companion object {
-        private const val REQUEST_CODE = 4701
-        private const val GRANTED = "granted"
-        private const val DENIED = "denied"
-        private const val BLOCKED = "blocked"
-        private val PERMISSIONS = arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)
+    private companion object {
+        const val REQUEST_CODE = 4701
+        const val GRANTED = "granted"
+        const val DENIED = "denied"
+        const val BLOCKED = "blocked"
+        val PERMISSIONS = arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)
 
         // Matches ujumbe's SenderFilter: case-insensitive, ignoring surrounding spaces.
         fun normalise(sender: String) = sender.trim().uppercase()
