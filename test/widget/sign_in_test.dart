@@ -106,10 +106,23 @@ void main() {
   });
 
   testAppWidgets('play builds also offer Google', (tester) async {
-    await pumpApp(tester, db: openTestDatabase(), flavor: AppFlavor.play);
+    await pumpApp(
+      tester,
+      db: openTestDatabase(),
+      flavor: AppFlavor.play,
+      google: FakeGoogleIdTokenSource(),
+    );
     expect(find.text('Send code'), findsOneWidget);
     expect(find.text('or'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
+  testAppWidgets('play builds without a Google client id offer email only', (
+    tester,
+  ) async {
+    await pumpApp(tester, db: openTestDatabase(), flavor: AppFlavor.play);
+    expect(find.text('Send code'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsNothing);
   });
 
   testAppWidgets('Google sign-in continues onboarding', (tester) async {

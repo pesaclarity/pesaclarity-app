@@ -13,6 +13,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var documents: DocumentsChannel? = null
     private var share: ShareChannel? = null
     private var deviceIntegrity: DeviceIntegrityChannel? = null
+    private var googleSignIn: GoogleSignInChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Blocks screenshots, screen recording and app-switcher previews of financial data.
@@ -34,6 +35,8 @@ class MainActivity : FlutterFragmentActivity() {
         share = ShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger)
         deviceIntegrity = DeviceIntegrityChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        // Per flavour: Credential Manager on play, a stand-in on foss.
+        googleSignIn = GoogleSignInChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
@@ -45,6 +48,8 @@ class MainActivity : FlutterFragmentActivity() {
         share = null
         deviceIntegrity?.dispose()
         deviceIntegrity = null
+        googleSignIn?.dispose()
+        googleSignIn = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

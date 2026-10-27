@@ -30,14 +30,14 @@ iOS comes after the Android MVP. Add the platform then with `flutter create --pl
 
 | Flavour | For | Rule |
 | --- | --- | --- |
-| `play` | Google Play | May use Google services (Sign-In, Play Integrity) once they are added |
+| `play` | Google Play | May use Google services (Sign-In, Play Integrity) |
 | `foss` | F-Droid | No Google services or other proprietary dependencies |
 
 Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.dart`). Builds without a known flavour, including tests, behave as `foss`.
 
 ### Server
 
-Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. People sign in with a 6-digit code sent to their email, or with Google on `play` builds once it is added. Set the server address at build time:
+Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. People sign in with a 6-digit code sent to their email. `play` builds also offer Google sign-in through Android's Credential Manager when built with `--dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID=<web client id>` (the same id the server lists in `NGOME_GOOGLE_CLIENT_IDS`). Its Kotlin lives in `android/app/src/play/` and its libraries are `playImplementation` dependencies, so `foss` builds carry no Google code and sign in by email only. Set the server address at build time:
 
 ```sh
 flutter run --flavor foss --dart-define=PESACLARITY_API_URL=https://api.example.org
@@ -168,7 +168,7 @@ One-time setup:
 
 3. In Google Cloud, create a service account, download a JSON key, and invite its email in Play Console under Users and permissions with release rights for this app.
 4. Add these as repository secrets: `PLAY_UPLOAD_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `PLAY_UPLOAD_KEYSTORE_PASSWORD`, `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` (the whole JSON file).
-5. Optionally add repository variables for the build: `PESACLARITY_API_URL` and `PESACLARITY_VAULT_URL` (the server's https address), `PESACLARITY_PLAY_CLOUD_PROJECT` and `PESACLARITY_CERT_PINS`.
+5. Optionally add repository variables for the build: `PESACLARITY_API_URL` and `PESACLARITY_VAULT_URL` (the server's https address), `PESACLARITY_GOOGLE_SERVER_CLIENT_ID`, `PESACLARITY_PLAY_CLOUD_PROJECT` and `PESACLARITY_CERT_PINS`.
 
 For an app that has never been released, Google only accepts draft uploads: run the workflow once with status `draft`, then roll the release out from Play Console. New personal developer accounts must also run a closed test with at least 12 testers for 14 days before they can publish to production.
 

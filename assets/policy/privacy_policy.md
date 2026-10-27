@@ -21,7 +21,7 @@ your PIN or fingerprint.
 
 **Sign-in**
 
-Your account id, the phone number or email you sign in with, and when
+Your account id, the email or Google account you sign in with, and when
 you signed up, in and out. You can also use the app without an account.
 
 **Encrypted backups**
