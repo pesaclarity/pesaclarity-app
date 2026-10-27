@@ -137,6 +137,9 @@ enum AuthFailureKind {
   /// The device or account no longer exists.
   notFound,
 
+  /// Google sign-in found no Google account on this phone.
+  noGoogleAccount,
+
   /// Anything else the server returned.
   server,
 }
@@ -166,6 +169,8 @@ class AuthFailure implements Exception {
       'This way of signing in arrives in a later update. Use your email '
           'for now.',
     AuthFailureKind.notFound => 'That phone is already signed out.',
+    AuthFailureKind.noGoogleAccount =>
+      'Add a Google account to this phone first, or use your email.',
     AuthFailureKind.server => 'Something went wrong. Try again in a moment.',
   };
 

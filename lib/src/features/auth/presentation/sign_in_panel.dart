@@ -117,7 +117,8 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
           busy: _busy,
           onPressed: _sendCode,
         ),
-        if (flavor.allowsGoogleServices) ...[
+        if (flavor.allowsGoogleServices &&
+            ref.watch(googleIdTokenSourceProvider).isAvailable) ...[
           const SizedBox(height: 12),
           _OrDivider(),
           const SizedBox(height: 12),

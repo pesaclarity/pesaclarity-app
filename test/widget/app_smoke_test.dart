@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 
+import '../helpers/fake_auth.dart';
 import '../helpers/test_app.dart';
 
 void main() {
@@ -23,7 +24,12 @@ void main() {
   testAppWidgets('offers Google sign-in only in the play flavour', (
     tester,
   ) async {
-    await pumpApp(tester, db: openTestDatabase(), flavor: AppFlavor.play);
+    await pumpApp(
+      tester,
+      db: openTestDatabase(),
+      flavor: AppFlavor.play,
+      google: FakeGoogleIdTokenSource(),
+    );
     expect(find.text('Continue with Google'), findsOneWidget);
   });
 

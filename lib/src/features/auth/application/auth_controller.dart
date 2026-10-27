@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/server_config.dart';
 import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
@@ -36,10 +37,12 @@ final deviceNameSourceProvider = Provider<DeviceNameSource>(
   (ref) => const PlatformDeviceNameSource(),
 );
 
-/// Google sign-in. Unavailable in foss builds, and in play builds until the
-/// Credential Manager integration lands.
+/// Google sign-in: play builds with a server client id only. Foss builds
+/// sign in by email.
 final googleIdTokenSourceProvider = Provider<GoogleIdTokenSource>(
-  (ref) => const UnavailableGoogleIdTokenSource(),
+  (ref) => ref.watch(appFlavorProvider).allowsGoogleServices
+      ? const PlatformGoogleIdTokenSource(serverClientId: googleServerClientId)
+      : const UnavailableGoogleIdTokenSource(),
 );
 
 /// The signed-in account, as shown in Profile.
