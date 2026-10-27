@@ -153,6 +153,27 @@ It runs on pushes to `main`, on demand, and on pull requests that change the flo
 
 The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
+## Releasing to Google Play
+
+The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) runs the tests, builds a signed `play` App Bundle and uploads it to Google Play. Run it from the Actions tab and pick a track (internal by default), or push a tag such as `v0.1.0` to release to internal testing. Each upload gets version code `run number + 100`; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
+
+One-time setup:
+
+1. Create the app in Play Console with package name `com.pesaclarity.app`, fill in the store listing, content rating and data safety form, and turn on Play App Signing.
+2. Make an upload key and keep it, and its passwords, somewhere safe. Losing it means asking Google to reset it.
+
+   ```sh
+   keytool -genkeypair -keystore upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+3. In Google Cloud, create a service account, download a JSON key, and invite its email in Play Console under Users and permissions with release rights for this app.
+4. Add these as repository secrets: `PLAY_UPLOAD_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `PLAY_UPLOAD_KEYSTORE_PASSWORD`, `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` (the whole JSON file).
+5. Optionally add repository variables for the build: `PESACLARITY_API_URL` and `PESACLARITY_VAULT_URL` (the server's https address), `PESACLARITY_PLAY_CLOUD_PROJECT` and `PESACLARITY_CERT_PINS`.
+
+For an app that has never been released, Google only accepts draft uploads: run the workflow once with status `draft`, then roll the release out from Play Console. New personal developer accounts must also run a closed test with at least 12 testers for 14 days before they can publish to production.
+
+Pull requests that change the workflow or `android/` build the bundle with a throwaway key and skip the upload.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
