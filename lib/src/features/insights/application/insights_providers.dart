@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/insights_summary.dart';
+import '../../../domain/insights/spending_charts.dart';
 import '../../../domain/time/calendar.dart';
 
 /// How far back the first scan reads, and so the first insight covers.
@@ -44,3 +46,39 @@ final firstInsightProvider = FutureProvider<FirstInsight>((ref) async {
       .ledgerEntries(from: from, to: to);
   return FirstInsight.of(entries, from: from, to: to);
 });
+
+/// The period the spending charts show.
+class ChartPeriodController extends Notifier<ChartPeriod> {
+  @override
+  ChartPeriod build() => ChartPeriod.month;
+
+  void select(ChartPeriod period) => state = period;
+}
+
+final chartPeriodProvider =
+    NotifierProvider<ChartPeriodController, ChartPeriod>(
+      ChartPeriodController.new,
+    );
+
+/// Spending by category in the chosen period, and day by day against the
+/// period before. Updates as the ledger changes.
+final spendingChartProvider = FutureProvider<SpendingChart>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final period = ref.watch(chartPeriodProvider);
+  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final window = ChartWindow.of(period, today);
+  // A month before the previous window lets Fuliza repayments find draws.
+  final from = window.previous(period).start.yearMonth.previous.startInstant;
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(from: from, to: window.end.startInstant);
+  return SpendingChart.of(entries, period: period, today: today);
+});
+
+/// Category names by id.
+final categoryNamesProvider = StreamProvider<Map<int, String>>(
+  (ref) => ref
+      .watch(categoriesRepositoryProvider)
+      .watchAll()
+      .map((all) => {for (final c in all) c.id: c.name}),
+);
