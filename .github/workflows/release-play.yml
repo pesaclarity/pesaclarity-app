@@ -2,11 +2,13 @@ name: Release to Google Play
 
 # Builds a signed play-flavour App Bundle and uploads it to Google Play.
 # Runs by hand from the Actions tab, or on a version tag such as v0.1.0
-# (tags go to the internal testing track). Pull requests that change this
-# workflow build with a throwaway key and skip the upload.
+# (tags use the PLAY_TAG_TRACK and PLAY_TAG_STATUS variables). Pull requests
+# that change this workflow build with a throwaway key and skip the upload.
 #
 # Secrets: PLAY_UPLOAD_KEYSTORE_BASE64, PLAY_UPLOAD_KEYSTORE_PASSWORD,
 # PLAY_UPLOAD_KEY_ALIAS, PLAY_UPLOAD_KEY_PASSWORD, PLAY_SERVICE_ACCOUNT_JSON.
+# Variables (required): PLAY_PACKAGE_NAME, PLAY_VERSION_CODE_OFFSET, and for
+# tags PLAY_TAG_TRACK and PLAY_TAG_STATUS.
 # Variables (optional): PESACLARITY_API_URL, PESACLARITY_VAULT_URL,
 # PESACLARITY_GOOGLE_SERVER_CLIENT_ID, PESACLARITY_PLAY_CLOUD_PROJECT,
 # PESACLARITY_CERT_PINS.
@@ -17,12 +19,10 @@ on:
         description: Play track
         type: choice
         options: [internal, alpha, beta, production]
-        default: internal
       status:
         description: Release status (use draft until the app's first release is reviewed)
         type: choice
         options: [completed, draft]
-        default: completed
   push:
     tags: ["v*"]
   pull_request:
@@ -39,7 +39,10 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.47.8"
-  PACKAGE_NAME: com.pesaclarity.app
+  PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
+  VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
+  TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}
+  STATUS: ${{ inputs.status || vars.PLAY_TAG_STATUS }}
 
 jobs:
   release:
@@ -55,8 +58,12 @@ jobs:
           KEYSTORE: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
           SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
-          if [ -z "$KEYSTORE" ] || [ -z "$SERVICE_ACCOUNT" ]; then
-            echo "::error::Add the Play signing and service account secrets first (see README, Releasing)."
+          missing=""
+          for name in KEYSTORE SERVICE_ACCOUNT PACKAGE_NAME VERSION_CODE_OFFSET TRACK STATUS; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing Play release secrets or variables for:$missing (see README, Releasing)."
             exit 1
           fi
 
@@ -117,8 +124,12 @@ jobs:
           CLOUD_PROJECT: ${{ vars.PESACLARITY_PLAY_CLOUD_PROJECT }}
           CERT_PINS: ${{ vars.PESACLARITY_CERT_PINS }}
         run: |
+          # Pull requests only check the build, so they need no offset.
+          offset="$VERSION_CODE_OFFSET"
+          [ "$GITHUB_EVENT_NAME" = pull_request ] && offset=0
+          build_number=$((BUILD_NUMBER + offset))
           flutter build appbundle --release --flavor play \
-            --build-number=$((BUILD_NUMBER + 100)) \
+            --build-number="$build_number" \
             --obfuscate --split-debug-info=build/symbols \
             --dart-define=PESACLARITY_API_URL="$API_URL" \
             --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
@@ -139,8 +150,8 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.PACKAGE_NAME }}
           releaseFiles: build/app/outputs/bundle/playRelease/app-play-release.aab
-          track: ${{ inputs.track || 'internal' }}
-          status: ${{ inputs.status || 'completed' }}
+          track: ${{ env.TRACK }}
+          status: ${{ env.STATUS }}
           mappingFile: build/app/outputs/mapping/playRelease/mapping.txt
 
       - uses: actions/upload-artifact@v7
