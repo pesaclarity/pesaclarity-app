@@ -9,6 +9,7 @@ on:
       - ".github/workflows/ui-screenshots.yml"
       - "tool/run_ui_flows.sh"
       - "tool/ui_diagnostics.sh"
+      - "tool/install_app.sh"
   workflow_dispatch:
 
 permissions:
@@ -129,7 +130,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            adb install -r "$RUNNER_TEMP/app.apk"
+            ./tool/install_app.sh "$RUNNER_TEMP/app.apk"
             ./tool/ui_diagnostics.sh build/maestro/diagnostics/startup
             ./tool/run_ui_flows.sh build/maestro
 
