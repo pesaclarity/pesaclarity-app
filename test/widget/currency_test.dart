@@ -61,6 +61,7 @@ void main() {
   });
 
   testAppWidgets('switching asks first and says what moves', (tester) async {
+    final opened = <Uri>[];
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -69,6 +70,13 @@ void main() {
           ratesConfiguredProvider.overrideWithValue(true),
           deviceRegionProvider.overrideWithValue('KE'),
           clockProvider.overrideWithValue(() => DateTime.utc(2026, 10, 27, 9)),
+          ratesSourceProvider.overrideWithValue(
+            ratesSource('Example Rates', 'https://rates.example.org'),
+          ),
+          linkOpenerProvider.overrideWithValue((uri) async {
+            opened.add(uri);
+            return true;
+          }),
         ],
         child: MaterialApp(
           theme: AppTheme.light,
@@ -78,6 +86,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Rates load once you are online'), findsOneWidget);
+
+    // The provider's credit, linking to their site.
+    await tester.tap(find.text('Rates by Example Rates'));
+    expect(opened, [Uri.parse('https://rates.example.org')]);
 
     await tester.tap(find.text('Refresh rates'));
     await tester.pumpAndSettle();

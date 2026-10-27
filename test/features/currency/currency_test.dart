@@ -221,4 +221,17 @@ void main() {
     expect(ratesUrl('https://rates.example.org/latest', 'KES'), isNull);
     expect(ratesUrl('', 'KES'), isNull);
   });
+
+  test(
+    'credits the rates provider only with a name, linking only to https',
+    () {
+      expect(ratesSource('', 'https://rates.example.org'), isNull);
+      expect(ratesSource(' Example ', 'https://rates.example.org'), (
+        name: 'Example',
+        link: Uri.parse('https://rates.example.org'),
+      ));
+      expect(ratesSource('Example', 'http://rates.example.org')!.link, isNull);
+      expect(ratesSource('Example', '')!.link, isNull);
+    },
+  );
 }
