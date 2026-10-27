@@ -1,9 +1,18 @@
 name: Dependency scan
 
+# Runs when dependencies change, and weekly for new advisories.
 on:
   push:
     branches: [main]
+    paths: &deps
+      - pubspec.yaml
+      - pubspec.lock
+      - android/**/*.gradle*
+      - android/gradle/**
+      - .github/gradle/**
+      - .github/workflows/dependency-scan.yml
   pull_request:
+    paths: *deps
   schedule:
     # Weekly, so new advisories against unchanged dependencies are caught.
     - cron: "17 4 * * 1"
@@ -32,6 +41,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:

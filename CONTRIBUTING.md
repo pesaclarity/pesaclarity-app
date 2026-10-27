@@ -50,5 +50,5 @@ Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_id
 
 - Small, focused pull requests against `main`, with a short description of what changed and why.
 - Clear, one-line commit messages in the imperative ("Add payee table").
-- Link the issue the change addresses. UI changes should include screenshots in light and dark mode; the `ui-screenshots` workflow artifact has both.
+- Link the issue the change addresses. UI changes should include screenshots in light and dark mode; run the `UI screenshots` workflow on your branch from the Actions tab and its artifact has both.
 - CI must pass before review.

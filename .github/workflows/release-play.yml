@@ -3,7 +3,8 @@ name: Release to Google Play
 # Builds a signed play-flavour App Bundle and uploads it to Google Play.
 # Runs by hand from the Actions tab, or on a version tag such as v0.1.0
 # (tags use the PLAY_TAG_TRACK and PLAY_TAG_STATUS variables). Pull requests
-# that change this workflow build with a throwaway key and skip the upload.
+# that change this workflow or the app's Gradle build check the signed build
+# with a throwaway key; they skip the tests (CI runs them) and the upload.
 #
 # Secrets: PLAY_UPLOAD_KEYSTORE_BASE64, PLAY_UPLOAD_KEYSTORE_PASSWORD,
 # PLAY_UPLOAD_KEY_ALIAS, PLAY_UPLOAD_KEY_PASSWORD, PLAY_SERVICE_ACCOUNT_JSON.
@@ -28,7 +29,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/release-play.yml
-      - android/**
+      - android/app/build.gradle.kts
 
 permissions:
   contents: read
@@ -71,6 +72,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
@@ -85,6 +87,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Test
+        if: github.event_name != 'pull_request'
         run: flutter test
 
       # key.properties and the keystore stay on the runner; both are gitignored.
