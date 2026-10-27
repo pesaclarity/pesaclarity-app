@@ -16,14 +16,14 @@ StoredSession _signedIn({String? displayName}) => StoredSession(
   refreshToken: 'refresh-0',
   accountId: 'account-1',
   deviceId: 'device-1',
-  method: SignInMethod.phone,
-  contact: '+254700000000',
+  method: SignInMethod.email,
+  contact: 'wanjiru@example.com',
   displayName: displayName,
 );
 
 /// Signs in from the welcome screen with the fake server's code.
-Future<void> _signInByPhone(WidgetTester tester) async {
-  await tester.enterText(_field('7XX XXX XXX'), '0700000000');
+Future<void> _signInByEmail(WidgetTester tester) async {
+  await tester.enterText(_field('name@example.com'), 'wanjiru@example.com');
   await tester.tap(find.text('Send code'));
   await tester.pumpAndSettle();
   await tester.enterText(_field('6-digit code'), '123456');
@@ -73,8 +73,8 @@ void main() {
     await pumpApp(tester, db: openTestDatabase());
 
     expect(find.text('Know what you can spend today.'), findsOneWidget);
-    expect(find.text('Phone number'), findsOneWidget);
-    expect(find.text('+254'), findsOneWidget);
+    expect(find.text('Email'), findsOneWidget);
+    expect(_field('name@example.com'), findsOneWidget);
     expect(find.text('Send code'), findsOneWidget);
     expect(find.text('Continue with Google'), findsNothing);
     expect(find.textContaining('Use without an account'), findsOneWidget);
@@ -131,7 +131,7 @@ void main() {
     expect(sessions.session?.method, SignInMethod.google);
   });
 
-  testAppWidgets('phone sign-in with an SMS code continues onboarding', (
+  testAppWidgets('email sign-in with a code continues onboarding', (
     tester,
   ) async {
     final api = FakeAuthApi();
@@ -143,12 +143,12 @@ void main() {
       sessions: sessions,
     );
 
-    await tester.enterText(_field('7XX XXX XXX'), '0700 000 000');
+    await tester.enterText(_field('name@example.com'), ' Wanjiru@Example.com');
     await tester.tap(find.text('Send code'));
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Enter the code sent to +254 700 000 000'),
+      find.text('Enter the code sent to wanjiru@example.com'),
       findsOneWidget,
     );
     await tester.enterText(_field('6-digit code'), '000000');
@@ -164,18 +164,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Which accounts do you use?'), findsOneWidget);
-    expect(sessions.session?.contact, '+254700000000');
+    expect(sessions.session?.contact, 'wanjiru@example.com');
   });
 
-  testAppWidgets('a bad number shows a plain message', (tester) async {
+  testAppWidgets('a bad email shows a plain message', (tester) async {
     await pumpApp(tester, db: openTestDatabase(), auth: FakeAuthApi());
 
-    await tester.enterText(_field('7XX XXX XXX'), '12');
+    await tester.enterText(_field('name@example.com'), 'wanjiru@example');
     await tester.tap(find.text('Send code'));
     await tester.pumpAndSettle();
 
     expect(
-      find.text(const AuthFailure(AuthFailureKind.invalidPhone).message),
+      find.text(const AuthFailure(AuthFailureKind.invalidEmail).message),
       findsOneWidget,
     );
   });
@@ -185,7 +185,7 @@ void main() {
   ) async {
     await pumpApp(tester, db: openTestDatabase());
 
-    await tester.enterText(_field('7XX XXX XXX'), '0700000000');
+    await tester.enterText(_field('name@example.com'), 'wanjiru@example.com');
     await tester.tap(find.text('Send code'));
     await tester.pumpAndSettle();
 
@@ -210,14 +210,14 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
-    await tester.enterText(_field('7XX XXX XXX'), '700000000');
+    await tester.enterText(_field('name@example.com'), 'wanjiru@example.com');
     await tester.tap(find.text('Send code'));
     await tester.pumpAndSettle();
     await tester.enterText(_field('6-digit code'), '123456');
     await tester.tap(find.text('Verify'));
     await tester.pumpAndSettle();
 
-    expect(find.text('+254 700 000 000'), findsOneWidget);
+    expect(find.text('wanjiru@example.com'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Sign out'),
       200,
@@ -235,7 +235,7 @@ void main() {
       auth: api,
       sessions: sessions,
     );
-    await _signInByPhone(tester);
+    await _signInByEmail(tester);
     await _finishMyAccounts(tester);
     await _openProfile(tester);
 
@@ -258,7 +258,7 @@ void main() {
       auth: api,
       sessions: sessions,
     );
-    await _signInByPhone(tester);
+    await _signInByEmail(tester);
     await _finishMyAccounts(tester);
     await _openProfile(tester);
 
@@ -301,7 +301,7 @@ void main() {
       auth: api,
       sessions: sessions,
     );
-    await _signInByPhone(tester);
+    await _signInByEmail(tester);
     api.addOtherDevice('old', 'Infinix Hot 30', DateTime.utc(2026, 9, 3, 12));
     await _finishMyAccounts(tester);
     await _openProfile(tester);
@@ -340,6 +340,6 @@ void main() {
 
     expect(find.text('John Kamau'), findsOneWidget);
     expect(find.text('JK'), findsOneWidget);
-    expect(find.text('+254 700 000 000'), findsOneWidget);
+    expect(find.text('wanjiru@example.com'), findsOneWidget);
   });
 }

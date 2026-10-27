@@ -2,29 +2,29 @@ import 'package:flutter/foundation.dart';
 
 /// How an account signs in. Matches the server's `contact_kind`.
 enum SignInMethod {
-  phone,
+  email,
   google;
 
   static SignInMethod? fromName(String? name) => switch (name) {
-    'phone' => SignInMethod.phone,
+    'email' => SignInMethod.email,
     'google' => SignInMethod.google,
     _ => null,
   };
 }
 
-/// A one-time code sent by SMS, waiting to be verified.
+/// A one-time code sent by email, waiting to be verified.
 @immutable
-class PhoneChallenge {
-  const PhoneChallenge({
+class EmailChallenge {
+  const EmailChallenge({
     required this.challengeId,
-    required this.phone,
+    required this.email,
     required this.expiresIn,
   });
 
   final String challengeId;
 
-  /// The number the code went to, in international form (+254...).
-  final String phone;
+  /// The address the code went to, trimmed and in lower case.
+  final String email;
 
   final Duration expiresIn;
 }
@@ -119,13 +119,13 @@ enum AuthFailureKind {
   /// The server could not be reached.
   network,
 
-  /// The phone number was rejected.
-  invalidPhone,
+  /// The email address was rejected.
+  invalidEmail,
 
   /// Too many codes were requested.
   rateLimited,
 
-  /// The SMS code is wrong or has expired.
+  /// The emailed code is wrong or has expired.
   invalidCode,
 
   /// The session has ended: signed out remotely, or the refresh token expired.
@@ -155,16 +155,16 @@ class AuthFailure implements Exception {
       'Accounts arrive in a later update. The app works fully without one.',
     AuthFailureKind.network =>
       'Could not reach Pesa Clarity. Check your connection and try again.',
-    AuthFailureKind.invalidPhone =>
-      'Enter a Kenyan mobile number, for example 712 345 678.',
+    AuthFailureKind.invalidEmail =>
+      'Enter your email address, for example name@example.com.',
     AuthFailureKind.rateLimited =>
       'Too many codes requested. Try again in an hour.',
     AuthFailureKind.invalidCode =>
       'That code is wrong or has expired. Check it, or send a new one.',
     AuthFailureKind.sessionEnded => 'You were signed out. Sign in again.',
     AuthFailureKind.unavailable =>
-      'This way of signing in arrives in a later update. Use your phone '
-          'number for now.',
+      'This way of signing in arrives in a later update. Use your email '
+          'for now.',
     AuthFailureKind.notFound => 'That phone is already signed out.',
     AuthFailureKind.server => 'Something went wrong. Try again in a moment.',
   };

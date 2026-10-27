@@ -70,35 +70,35 @@ class HttpAuthApi implements AuthApi {
   }
 
   @override
-  Future<PhoneChallenge> startPhoneSignIn(String phone) async {
+  Future<EmailChallenge> startEmailSignIn(String email) async {
     final response = await _send(
       'POST',
-      '/v1/auth/phone/start',
-      body: {'phone': phone},
+      '/v1/auth/email/start',
+      body: {'email': email},
     );
     if (response.statusCode != 202) {
       _fail(response, {
-        422: AuthFailureKind.invalidPhone,
+        422: AuthFailureKind.invalidEmail,
         429: AuthFailureKind.rateLimited,
       });
     }
     final json = _object(response);
-    return PhoneChallenge(
+    return EmailChallenge(
       challengeId: json['challenge_id']! as String,
-      phone: phone,
+      email: email,
       expiresIn: Duration(seconds: (json['expires_in']! as num).toInt()),
     );
   }
 
   @override
-  Future<TokenPair> verifyPhoneSignIn({
+  Future<TokenPair> verifyEmailSignIn({
     required String challengeId,
     required String code,
     required String deviceName,
   }) async {
     final response = await _send(
       'POST',
-      '/v1/auth/phone/verify',
+      '/v1/auth/email/verify',
       body: {
         'challenge_id': challengeId,
         'code': code,

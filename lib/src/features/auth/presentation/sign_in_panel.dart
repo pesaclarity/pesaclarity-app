@@ -7,9 +7,8 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
-import '../domain/phone_number.dart';
 
-/// Phone number with SMS code, and Google on Play builds. Calls [onSignedIn]
+/// Email with a 6-digit code, and Google on Play builds. Calls [onSignedIn]
 /// once the account is ready.
 class SignInPanel extends ConsumerStatefulWidget {
   const SignInPanel({required this.onSignedIn, super.key});
@@ -21,15 +20,15 @@ class SignInPanel extends ConsumerStatefulWidget {
 }
 
 class _SignInPanelState extends ConsumerState<SignInPanel> {
-  final _phone = TextEditingController();
+  final _email = TextEditingController();
   final _code = TextEditingController();
-  PhoneChallenge? _challenge;
+  EmailChallenge? _challenge;
   String? _error;
   bool _busy = false;
 
   @override
   void dispose() {
-    _phone.dispose();
+    _email.dispose();
     _code.dispose();
     super.dispose();
   }
@@ -53,14 +52,14 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
   }
 
   Future<void> _sendCode() => _run(() async {
-    final challenge = await _auth.startPhoneSignIn(_phone.text);
+    final challenge = await _auth.startEmailSignIn(_email.text);
     if (!mounted) return;
     _code.clear();
     setState(() => _challenge = challenge);
   });
 
   Future<void> _verify() => _run(() async {
-    await _auth.verifyPhoneCode(_challenge!, _code.text);
+    await _auth.verifyEmailCode(_challenge!, _code.text);
     if (mounted) widget.onSignedIn();
   });
 
@@ -69,7 +68,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
     if (signedIn && mounted) widget.onSignedIn();
   });
 
-  void _changeNumber() => setState(() {
+  void _changeEmail() => setState(() {
     _challenge = null;
     _error = null;
   });
@@ -80,11 +79,11 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
     return AnimatedSize(
       duration: const Duration(milliseconds: 200),
       alignment: Alignment.topCenter,
-      child: challenge == null ? _phoneStep(context) : _codeStep(challenge),
+      child: challenge == null ? _emailStep(context) : _codeStep(challenge),
     );
   }
 
-  Widget _phoneStep(BuildContext context) {
+  Widget _emailStep(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final flavor = ref.watch(appFlavorProvider);
@@ -95,7 +94,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
         Padding(
           padding: const EdgeInsets.only(left: 6),
           child: Text(
-            'Phone number',
+            'Email',
             style: theme.textTheme.labelLarge!.copyWith(
               fontWeight: FontWeight.w500,
               color: colors.textMuted,
@@ -104,15 +103,11 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
         ),
         const SizedBox(height: 12),
         _PillField(
-          controller: _phone,
-          prefix: '+254',
-          hint: '7XX XXX XXX',
-          keyboardType: TextInputType.phone,
-          autofillHints: const [AutofillHints.telephoneNumberNational],
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
-            LengthLimitingTextInputFormatter(16),
-          ],
+          controller: _email,
+          hint: 'name@example.com',
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
+          inputFormatters: [LengthLimitingTextInputFormatter(254)],
           onSubmitted: (_) => _sendCode(),
         ),
         if (_error != null) _ErrorText(_error!),
@@ -136,7 +131,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
     );
   }
 
-  Widget _codeStep(PhoneChallenge challenge) {
+  Widget _codeStep(EmailChallenge challenge) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
 
@@ -146,7 +141,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
         Padding(
           padding: const EdgeInsets.only(left: 6),
           child: Text(
-            'Enter the code sent to ${formatKenyanMobile(challenge.phone)}',
+            'Enter the code sent to ${challenge.email}',
             style: theme.textTheme.labelLarge!.copyWith(
               fontWeight: FontWeight.w500,
               color: colors.textMuted,
@@ -174,8 +169,8 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: _busy ? null : _changeNumber,
-              child: const Text('Change number'),
+              onPressed: _busy ? null : _changeEmail,
+              child: const Text('Change email'),
             ),
             TextButton(
               onPressed: _busy ? null : _sendCode,
@@ -195,14 +190,12 @@ class _PillField extends StatelessWidget {
     required this.keyboardType,
     required this.inputFormatters,
     required this.onSubmitted,
-    this.prefix,
     this.autofillHints,
     this.autofocus = false,
   });
 
   final TextEditingController controller;
   final String hint;
-  final String? prefix;
   final TextInputType keyboardType;
   final List<TextInputFormatter> inputFormatters;
   final Iterable<String>? autofillHints;
@@ -224,6 +217,7 @@ class _PillField extends StatelessWidget {
       inputFormatters: inputFormatters,
       autofillHints: autofillHints,
       autofocus: autofocus,
+      autocorrect: false,
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       style: theme.textTheme.bodyLarge,
@@ -236,19 +230,6 @@ class _PillField extends StatelessWidget {
           horizontal: 20,
           vertical: 16,
         ),
-        prefixIcon: prefix == null
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(left: 20, right: 10),
-                child: Text(
-                  prefix!,
-                  style: theme.textTheme.bodyLarge!.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: colors.textMuted,
-                  ),
-                ),
-              ),
-        prefixIconConstraints: const BoxConstraints(),
         border: border(colors.border),
         enabledBorder: border(colors.border),
         focusedBorder: border(theme.colorScheme.primary),

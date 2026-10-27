@@ -33,8 +33,7 @@ class StoredSession {
   final String deviceId;
   final SignInMethod? method;
 
-  /// The phone number used to sign in, shown in Profile. Kept on this phone
-  /// only; the server stores a keyed hash.
+  /// The email address used to sign in, shown in Profile.
   final String? contact;
 
   final String? displayName;

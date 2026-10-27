@@ -37,7 +37,7 @@ Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.
 
 ### Server
 
-Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. Set its address at build time:
+Accounts (sign-in, devices, delete account) talk to the Pesa Clarity server. People sign in with a 6-digit code sent to their email, or with Google on `play` builds once it is added. Set the server address at build time:
 
 ```sh
 flutter run --flavor foss --dart-define=PESACLARITY_API_URL=https://api.example.org

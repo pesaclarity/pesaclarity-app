@@ -129,22 +129,22 @@ class FakeAuthApi implements AuthApi {
   void expireAccessTokens() => _accessTokens.clear();
 
   @override
-  Future<PhoneChallenge> startPhoneSignIn(String phone) async {
-    _check('phone/start');
-    return PhoneChallenge(
+  Future<EmailChallenge> startEmailSignIn(String email) async {
+    _check('email/start');
+    return EmailChallenge(
       challengeId: 'challenge-1',
-      phone: phone,
+      email: email,
       expiresIn: const Duration(minutes: 5),
     );
   }
 
   @override
-  Future<TokenPair> verifyPhoneSignIn({
+  Future<TokenPair> verifyEmailSignIn({
     required String challengeId,
     required String code,
     required String deviceName,
   }) async {
-    _check('phone/verify');
+    _check('email/verify');
     if (code != this.code) throw const AuthFailure(AuthFailureKind.invalidCode);
     return _signIn(deviceName);
   }
@@ -210,7 +210,7 @@ class FakeAuthApi implements AuthApi {
     _deviceFor(accessToken);
     return AccountInfo(
       id: 'account-1',
-      method: SignInMethod.phone,
+      method: SignInMethod.email,
       createdAt: DateTime.utc(2026, 10, 2),
       displayName: displayName,
     );

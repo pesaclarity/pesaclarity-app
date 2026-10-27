@@ -4,11 +4,11 @@ import '../domain/auth_models.dart';
 ///
 /// Every method throws [AuthFailure] on failure.
 abstract interface class AuthApi {
-  /// `POST /v1/auth/phone/start`: texts a one-time code to [phone].
-  Future<PhoneChallenge> startPhoneSignIn(String phone);
+  /// `POST /v1/auth/email/start`: emails a one-time code to [email].
+  Future<EmailChallenge> startEmailSignIn(String email);
 
-  /// `POST /v1/auth/phone/verify`: signs in, or signs up on first use.
-  Future<TokenPair> verifyPhoneSignIn({
+  /// `POST /v1/auth/email/verify`: signs in, or signs up on first use.
+  Future<TokenPair> verifyEmailSignIn({
     required String challengeId,
     required String code,
     required String deviceName,
@@ -48,10 +48,10 @@ class UnconfiguredAuthApi implements AuthApi {
   Never _fail() => throw const AuthFailure(AuthFailureKind.notConfigured);
 
   @override
-  Future<PhoneChallenge> startPhoneSignIn(String phone) async => _fail();
+  Future<EmailChallenge> startEmailSignIn(String email) async => _fail();
 
   @override
-  Future<TokenPair> verifyPhoneSignIn({
+  Future<TokenPair> verifyEmailSignIn({
     required String challengeId,
     required String code,
     required String deviceName,
