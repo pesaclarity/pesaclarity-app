@@ -26,6 +26,8 @@ class LedgerEntry {
     this.counterpartyValue,
     this.note,
     this.balanceAfterMinor,
+    this.originalAmountMinor,
+    this.originalCurrency,
   }) : assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
 
@@ -78,6 +80,11 @@ class LedgerEntry {
   /// What was bought or a note, when known.
   final String? note;
 
+  /// The amount and currency the money actually moved in, when the entry
+  /// was converted into the base currency.
+  final int? originalAmountMinor;
+  final String? originalCurrency;
+
   bool get isInflow => direction == TransactionDirection.inflow;
 
   bool get isOutflow => direction == TransactionDirection.outflow;
@@ -109,6 +116,9 @@ class LedgerEntry {
     counterpartyKind: counterpartyKind,
     counterpartyValue: counterpartyValue,
     note: note,
+    balanceAfterMinor: balanceAfterMinor,
+    originalAmountMinor: originalAmountMinor,
+    originalCurrency: originalCurrency,
   );
 
   @override

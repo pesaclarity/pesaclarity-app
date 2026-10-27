@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_totals.dart';
@@ -42,8 +43,9 @@ class InsightsSummary {
     Iterable<LedgerEntry> history, {
     required YearMonth month,
     int trendMonths = 6,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency).toList();
     final fuliza = FulizaLedger.of(all);
     final first = month.addMonths(1 - trendMonths);

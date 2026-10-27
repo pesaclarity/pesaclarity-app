@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/exchange_rates.dart';
 import '../../domain/ledger/balances.dart';
+import '../../features/currency/application/currency_controller.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
 
@@ -25,9 +27,13 @@ abstract interface class AccountsRepository {
 }
 
 class DriftAccountsRepository implements AccountsRepository {
-  DriftAccountsRepository(this._db);
+  DriftAccountsRepository(this._db, {this._converter});
 
   final AppDatabase _db;
+
+  /// Converts opening balances into the base currency; none leaves them as
+  /// stored.
+  final CurrencyConverter? _converter;
 
   @override
   Stream<List<Account>> watchAll() => (_db.select(
@@ -62,16 +68,29 @@ class DriftAccountsRepository implements AccountsRepository {
   @override
   Future<List<AccountOpening>> openings() async => [
     for (final a in await _db.select(_db.accounts).get())
-      AccountOpening(
-        id: a.id,
-        type: a.type,
-        openingBalanceMinor: a.openingBalanceMinor,
-        openingDate: a.openingDate,
-        currency: a.currency,
-      ),
+      if (_converter?.toBase(a.openingBalanceMinor, a.currency)
+          case final inBase? when a.currency != _converter!.base)
+        AccountOpening(
+          id: a.id,
+          type: a.type,
+          openingBalanceMinor: inBase,
+          openingDate: a.openingDate,
+          currency: _converter.base,
+        )
+      else
+        AccountOpening(
+          id: a.id,
+          type: a.type,
+          openingBalanceMinor: a.openingBalanceMinor,
+          openingDate: a.openingDate,
+          currency: a.currency,
+        ),
   ];
 }
 
 final accountsRepositoryProvider = Provider<AccountsRepository>(
-  (ref) => DriftAccountsRepository(ref.watch(appDatabaseProvider)),
+  (ref) => DriftAccountsRepository(
+    ref.watch(appDatabaseProvider),
+    converter: ref.watch(currencyConverterProvider),
+  ),
 );

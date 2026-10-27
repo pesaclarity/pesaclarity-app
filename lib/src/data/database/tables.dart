@@ -254,6 +254,26 @@ class Recurring extends Table {
   IntColumn get accountId => integer().nullable().references(Accounts, #id)();
 }
 
+/// Subscriptions the person tracks, and suggested ones they marked as
+/// one-offs. A payee is tracked at most once.
+@DataClassName('SubscriptionRow')
+@TableIndex(name: 'subscriptions_payee', columns: {#payeeId}, unique: true)
+class Subscriptions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 80)();
+
+  /// The payee whose charges this follows; null for one added by hand.
+  IntColumn get payeeId => integer().nullable().references(Payees, #id)();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+  TextColumn get frequency => textEnum<RecurrenceFrequency>()();
+
+  /// When the next charge is expected, as last saved.
+  DateTimeColumn get nextDate => dateTime()();
+  TextColumn get status => textEnum<SubscriptionStatus>()();
+}
+
 /// One-offs and carried-forward arrears for a month (`yyyymm`, e.g. 202611).
 class BudgetItems extends Table {
   IntColumn get id => integer().autoIncrement()();

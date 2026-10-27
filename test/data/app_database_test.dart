@@ -222,10 +222,19 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 9, before
-    /// the categoriser's corrections and confirmations.
-    Future<AppDatabase> version9() async {
+    /// Builds the current schema, then takes it back to version 10, before
+    /// subscriptions.
+    Future<AppDatabase> version10() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE subscriptions');
+      await old.customStatement('PRAGMA user_version = 10');
+      return old;
+    }
+
+    /// Takes the schema back to version 9, before the categoriser's
+    /// corrections and confirmations.
+    Future<AppDatabase> version9() async {
+      final old = await version10();
       await old.customStatement('DROP TABLE category_confirmations');
       await old.customStatement('DROP TABLE category_corrections');
       await old.customStatement('PRAGMA user_version = 9');
@@ -389,7 +398,7 @@ void main() {
       expect((await columns(db, 'budget_snapshots'))['category_id'], isFalse);
       final kept = await db.select(db.budgetSnapshots).getSingle();
       expect(kept.plannedMinor, 100);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         await tableNames(db),
         containsAll([
@@ -453,7 +462,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
 
       final institutions = DriftInstitutionsRepository(db);
       await institutions.setSelected('mpesa', selected: true);
@@ -477,7 +486,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         (await columns(db, 'debts')).keys,
         containsAll([
@@ -512,7 +521,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(await tableNames(db), contains('review_items'));
       expect(
         (await columns(db, 'transactions')).keys,
@@ -551,6 +560,26 @@ void main() {
       );
     });
 
+    test('migrates a version 10 database: subscriptions', () async {
+      final old = await version10();
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), 11);
+      expect(
+        (await columns(db, 'subscriptions')).keys,
+        containsAll(['name', 'payee_id', 'frequency', 'next_date', 'status']),
+      );
+      final index = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND name = 'subscriptions_payee'",
+          )
+          .get();
+      expect(index, hasLength(1));
+    });
+
     test('migrates a version 7 database: statement import records', () async {
       final old = await version7();
       await old.customStatement(
@@ -565,7 +594,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       final kept = await db.select(db.imports).getSingle();
       expect(kept.fileHash, 'abc');
       expect(kept.transactionCount, 0);
@@ -580,7 +609,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         (await columns(db, 'imports')).keys,
         containsAll(['institution_id', 'transaction_count', 'result']),
@@ -596,7 +625,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         await tableNames(db),
         containsAll(['lent_loans', 'loan_payments']),
@@ -621,7 +650,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(await db.select(db.lentLoans).get(), hasLength(1));
       expect(await db.select(db.loanPayments).get(), hasLength(1));
     });
@@ -652,7 +681,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         await tableNames(db),
         containsAll(['category_corrections', 'category_confirmations']),
@@ -678,7 +707,7 @@ void main() {
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 10);
+      expect(await userVersion(db), db.schemaVersion);
       expect(await db.select(db.categoryCorrections).get(), hasLength(1));
     });
 
@@ -703,7 +732,7 @@ void main() {
 
         final db = AppDatabase(NativeDatabase(file));
         addTearDown(db.close);
-        expect(await userVersion(db), 10);
+        expect(await userVersion(db), db.schemaVersion);
         expect(await db.select(db.debts).get(), hasLength(1));
         expect(await db.select(db.debtInstalments).get(), hasLength(1));
         expect(await db.select(db.reviewItems).get(), hasLength(1));

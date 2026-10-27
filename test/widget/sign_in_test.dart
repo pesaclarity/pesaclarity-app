@@ -31,8 +31,13 @@ Future<void> _signInByEmail(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// From My accounts to Home, as [finishOnboarding] does after Get started.
+/// From the currency step or My accounts to Home, as [finishOnboarding] does.
 Future<void> _finishMyAccounts(WidgetTester tester) async {
+  // Signing in on the welcome screen moves on to the currency step first.
+  if (find.textContaining('Continue with').evaluate().isNotEmpty) {
+    await tester.tap(find.textContaining('Continue with'));
+    await tester.pumpAndSettle();
+  }
   await tester.tap(find.text('M-Pesa'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Scan my messages'));
@@ -87,8 +92,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
+    await getStarted(tester);
     expect(find.text('Which accounts do you use?'), findsOneWidget);
   });
 
@@ -140,7 +144,7 @@ void main() {
     await tester.tap(find.text('Continue with Google'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Which accounts do you use?'), findsOneWidget);
+    expect(find.text('Which currency do you count in?'), findsOneWidget);
     expect(sessions.session?.method, SignInMethod.google);
   });
 
@@ -176,7 +180,7 @@ void main() {
     await tester.tap(find.text('Verify'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Which accounts do you use?'), findsOneWidget);
+    expect(find.text('Which currency do you count in?'), findsOneWidget);
     expect(sessions.session?.contact, 'wanjiru@example.com');
   });
 

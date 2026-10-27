@@ -9,7 +9,7 @@ const _home = 'Safe to spend today';
 
 void main() {
   Future<void> toScan(WidgetTester tester) async {
-    await tapText(tester, 'Get started');
+    await getStarted(tester);
     await tapText(tester, 'M-Pesa');
     await tapText(tester, 'Scan my messages');
   }

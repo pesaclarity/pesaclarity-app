@@ -32,8 +32,8 @@ void main() {
     expect(choice(tester, 'Help improve the app').value, isTrue);
     expect(choice(tester, 'Contribute to licensed models').value, isFalse);
     expect(choice(tester, 'Send crash reports').value, isFalse);
-    await scrollTo(tester, find.text('Version 1.1 · updated 27 Oct 2026'));
-    expect(find.text('Version 1.1 · updated 27 Oct 2026'), findsOneWidget);
+    await scrollTo(tester, find.text('Version 1.2 · updated 27 Oct 2026'));
+    expect(find.text('Version 1.2 · updated 27 Oct 2026'), findsOneWidget);
   });
 
   testAppWidgets('saves a choice with the policy version and time', (
@@ -53,7 +53,7 @@ void main() {
     final licensed =
         (saved!['choices']! as Map)['licensedModels'] as Map<String, Object?>;
     expect(licensed['value'], isTrue);
-    expect(licensed['policyVersion'], '1.1');
+    expect(licensed['policyVersion'], '1.2');
     expect(DateTime.tryParse(licensed['changedAt']! as String), isNotNull);
   });
 
@@ -64,8 +64,8 @@ void main() {
 
     await tapText(tester, 'Email me a copy');
     final draft = mailer.drafts.single;
-    expect(draft.subject, 'Pesa Clarity privacy policy, version 1.1');
-    expect(draft.body, startsWith('Privacy policy\nVersion 1.1'));
+    expect(draft.subject, 'Pesa Clarity privacy policy, version 1.2');
+    expect(draft.body, startsWith('Privacy policy\nVersion 1.2'));
     expect(draft.body, contains('WHAT STAYS ON YOUR PHONE'));
   });
 
@@ -128,10 +128,10 @@ void main() {
       () =>
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
-    expect(saved!['acceptedVersion'], '1.1');
+    expect(saved!['acceptedVersion'], '1.2');
     final crash =
         (saved['choices']! as Map)['crashReports'] as Map<String, Object?>;
     expect(crash['value'], isTrue);
-    expect(crash['policyVersion'], '1.1');
+    expect(crash['policyVersion'], '1.2');
   });
 }

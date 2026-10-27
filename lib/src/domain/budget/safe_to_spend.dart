@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../time/calendar.dart';
@@ -40,8 +41,9 @@ class SafeToSpend {
     required Iterable<LedgerEntry> entries,
     required CalendarDate today,
     int weekendWeightPercent = evenWeekendWeightPercent,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     if (weekendWeightPercent <= 0) {
       throw ArgumentError.value(
         weekendWeightPercent,
@@ -152,8 +154,9 @@ int dayToDaySpendOf(LedgerEntry entry) {
 int weekendWeightFromHistory(
   Iterable<LedgerEntry> entries, {
   required CalendarDate today,
-  String currency = 'KES',
+  String? currency,
 }) {
+  currency ??= BaseCurrency.code;
   const days = 28;
   final first = today.addDays(-days);
   var weekdaySpend = 0;

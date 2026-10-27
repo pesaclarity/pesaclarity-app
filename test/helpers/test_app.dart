@@ -16,6 +16,7 @@ import 'package:pesaclarity/src/features/auth/application/auth_controller.dart';
 import 'package:pesaclarity/src/features/auth/data/auth_api.dart';
 import 'package:pesaclarity/src/features/auth/data/google_id_token_source.dart';
 import 'package:pesaclarity/src/features/auth/data/session_store.dart';
+import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 import 'package:pesaclarity/src/features/privacy/data/policy_source.dart';
 import 'package:pesaclarity/src/features/reminders/data/reminder_notifications.dart';
 import 'package:pesaclarity/src/features/security/data/biometric_authenticator.dart';
@@ -70,6 +71,7 @@ Future<void> pumpApp(
   PolicyMailer? mailer,
   SecureStore? secureStore,
   BiometricAuthenticator? biometrics,
+  String region = 'KE',
   List<Override> overrides = const [],
 }) async {
   await tester.pumpWidget(
@@ -100,6 +102,8 @@ Future<void> pumpApp(
         ),
         policyMailerProvider.overrideWithValue(mailer ?? FakePolicyMailer()),
         privacyPolicyProvider.overrideWithValue(AsyncData(bundledPolicy())),
+        // A Kenyan phone unless given, so setup suggests KES.
+        deviceRegionProvider.overrideWithValue(region),
         ...overrides,
       ],
       child: const PesaClarityApp(),
@@ -116,11 +120,18 @@ Future<void> tapText(WidgetTester tester, String text) async {
   await tester.pumpAndSettle();
 }
 
+/// From the welcome screen to My accounts, keeping the suggested currency.
+Future<void> getStarted(WidgetTester tester) async {
+  await tester.tap(find.text('Get started'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.textContaining('Continue with'));
+  await tester.pumpAndSettle();
+}
+
 /// Goes from the welcome screen to Home, ticking M-Pesa and allowing SMS
 /// access on the way.
 Future<void> finishOnboarding(WidgetTester tester) async {
-  await tester.tap(find.text('Get started'));
-  await tester.pumpAndSettle();
+  await getStarted(tester);
   await tester.tap(find.text('M-Pesa'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Scan my messages'));

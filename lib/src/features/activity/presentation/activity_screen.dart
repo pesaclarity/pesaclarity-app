@@ -378,7 +378,13 @@ class _ActivityRow extends StatelessWidget {
         avatar: _Avatar.text(_initials(_title(entry)), colors: colors),
         title: _title(entry),
         subtitle: Text(
-          '${_categoryLabel(entry)} · ${_account(entry.accountId)}',
+          [
+            _categoryLabel(entry),
+            _account(entry.accountId),
+            // Paid in another currency: the amount as it moved.
+            if (entry.originalCurrency case final code?)
+              formatMoney(Money(entry.originalAmountMinor!, currency: code)),
+          ].join(' · '),
           style: muted,
         ),
         amount: _amount(context, entry.signedMinor),

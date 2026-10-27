@@ -12,6 +12,18 @@ tags:
 - tapOn:
     id: onboarding-get-started
 - assertVisible:
+    id: title-currency
+- waitForAnimationToEnd
+- takeScreenshot: 01b-onboarding-currency-${THEME}
+# The emulator's region may not be Kenya; pick KES so amounts read as in
+# the designs.
+- tapOn: "Search by name or code"
+- inputText: "KES"
+- tapOn: "Kenyan Shilling"
+- hideKeyboard
+- tapOn:
+    id: onboarding-currency-continue
+- assertVisible:
     id: title-my-accounts
 - assertVisible:
     id: institution-mpesa

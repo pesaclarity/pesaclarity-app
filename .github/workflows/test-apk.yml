@@ -56,13 +56,29 @@ jobs:
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter test
 
-      - name: Set up a throwaway signing key
+      # Google sign-in only works for an app signed with a key registered in
+      # Google Cloud, so test builds use the dev key when it is set. Without
+      # it they get a throwaway key and the Google button stays hidden.
+      - name: Set up the signing key
+        env:
+          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE_BASE64 }}
+          DEV_KEYSTORE_PASSWORD: ${{ secrets.DEV_KEYSTORE_PASSWORD }}
+          DEV_KEY_ALIAS: ${{ secrets.DEV_KEY_ALIAS }}
+          DEV_KEY_PASSWORD: ${{ secrets.DEV_KEY_PASSWORD }}
         run: |
-          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/test.jks" \
-            -storepass throwaway -keypass throwaway -alias test \
-            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Test build"
-          printf 'storeFile=%s\nstorePassword=throwaway\nkeyAlias=test\nkeyPassword=throwaway\n' \
-            "$RUNNER_TEMP/test.jks" > android/key.properties
+          if [ -n "$DEV_KEYSTORE" ]; then
+            echo "$DEV_KEYSTORE" | base64 -d > "$RUNNER_TEMP/test.jks"
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$RUNNER_TEMP/test.jks" "$DEV_KEYSTORE_PASSWORD" "$DEV_KEY_ALIAS" \
+              "$DEV_KEY_PASSWORD" > android/key.properties
+            echo "DEV_SIGNED=true" >> "$GITHUB_ENV"
+          else
+            keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/test.jks" \
+              -storepass throwaway -keypass throwaway -alias test \
+              -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Test build"
+            printf 'storeFile=%s\nstorePassword=throwaway\nkeyAlias=test\nkeyPassword=throwaway\n' \
+              "$RUNNER_TEMP/test.jks" > android/key.properties
+          fi
 
       # Server settings for test builds come from the dev environment's
       # variables; empty ones leave that feature off.
@@ -75,13 +91,19 @@ jobs:
           VAULT_URL: ${{ vars.DEV_PESACLARITY_VAULT_URL }}
           PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
           TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+          RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
+          GOOGLE_CLIENT_ID: ${{ vars.DEV_PESACLARITY_GOOGLE_SERVER_CLIENT_ID }}
         run: |
+          # The client id only helps when the app is signed with the dev key.
+          [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
           flutter build apk --release --flavor "$FLAVOR" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=PESACLARITY_API_URL="$API_URL" \
             --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
             --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
-            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS"
+            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
+            --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
+            --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID"
           version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
           name="pesaclarity-$version-dev.$BUILD_NUMBER-${GITHUB_SHA::7}-$FLAVOR.apk"
           cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$name"

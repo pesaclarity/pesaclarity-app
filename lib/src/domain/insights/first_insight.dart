@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
@@ -24,8 +25,9 @@ class FirstInsight {
     Iterable<LedgerEntry> entries, {
     required DateTime from,
     required DateTime to,
-    String currency = 'KES',
+    String? currency,
   }) {
+    currency ??= BaseCurrency.code;
     final all = entries.where((e) => e.currency == currency).toList();
     final fuliza = FulizaLedger.of(all);
     var count = 0;

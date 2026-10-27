@@ -19,7 +19,7 @@ void main() {
         clockProvider.overrideWithValue(() => DateTime.utc(2026, 10, 26, 15)),
       ],
     );
-    await tapText(tester, 'Get started');
+    await getStarted(tester);
     await tapText(tester, 'M-Pesa');
     await tapText(tester, 'Scan my messages');
     await tapText(tester, 'Allow access to messages');

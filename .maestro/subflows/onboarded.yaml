@@ -6,6 +6,18 @@ appId: com.pesaclarity.app
     id: onboarding-get-started
 - extendedWaitUntil:
     visible:
+      id: title-currency
+    timeout: 10000
+# The emulator's region may not be Kenya; pick KES so amounts read as in
+# the designs.
+- tapOn: "Search by name or code"
+- inputText: "KES"
+- tapOn: "Kenyan Shilling"
+- hideKeyboard
+- tapOn:
+    id: onboarding-currency-continue
+- extendedWaitUntil:
+    visible:
       id: title-my-accounts
     timeout: 10000
 - tapOn:

@@ -9,6 +9,8 @@ import '../features/auth/presentation/devices_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/backup/presentation/backup_setup_screen.dart';
+import '../features/currency/presentation/base_currency_screen.dart';
+import '../features/currency/presentation/setup_currency_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
@@ -27,6 +29,7 @@ import '../features/profile/presentation/profile_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
+import '../features/subscriptions/presentation/subscriptions_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
@@ -63,6 +66,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.onboarding,
         builder: (context, state) => const WelcomeScreen(),
         routes: [
+          GoRoute(
+            path: 'currency',
+            builder: (context, state) => const SetupCurrencyScreen(),
+          ),
           GoRoute(
             path: 'accounts',
             builder: (context, state) => const MyAccountsScreen(),
@@ -127,6 +134,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'payees',
                         builder: (context, state) => const PayeesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'currency',
+                        builder: (context, state) => const BaseCurrencyScreen(),
+                      ),
+                      GoRoute(
+                        path: 'subscriptions',
+                        builder: (context, state) =>
+                            const SubscriptionsScreen(),
                       ),
                       GoRoute(
                         path: 'sign-in',

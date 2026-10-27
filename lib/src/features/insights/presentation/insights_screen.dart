@@ -16,6 +16,7 @@ import '../application/insights_report.dart';
 import '../application/month_labels.dart';
 import '../application/report_sharer.dart';
 import '../application/tag_totals_provider.dart';
+import 'spending_charts_card.dart';
 import 'tag_totals_card.dart';
 
 String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
@@ -119,6 +120,8 @@ class _InsightsBody extends StatelessWidget {
           const _EmptyCard()
         else ...[
           _LeakageCard(summary),
+          const _SectionTitle('Spending'),
+          const SpendingChartsSection(),
           const _SectionTitle('Where it goes'),
           _WhereItGoesCard(summary.current.leakage),
           _SectionTitle('Spending, last ${summary.trend.length} months'),

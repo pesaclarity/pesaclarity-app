@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const launch = '/';
 
   static const onboarding = '/onboarding';
+  static const onboardingCurrency = '/onboarding/currency';
   static const onboardingAccounts = '/onboarding/accounts';
   static const onboardingScan = '/onboarding/accounts/scan';
   static const onboardingFirstInsight = '/onboarding/accounts/scan/insight';
@@ -22,6 +23,8 @@ abstract final class AppRoutes {
   static const devices = '/home/profile/devices';
   static const privacyPolicy = '/home/profile/privacy/policy';
   static const payees = '/home/profile/payees';
+  static const baseCurrency = '/home/profile/currency';
+  static const subscriptions = '/home/profile/subscriptions';
 
   static const activity = '/activity';
 
