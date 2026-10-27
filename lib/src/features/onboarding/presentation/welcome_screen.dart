@@ -5,6 +5,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/sign_in_panel.dart';
+import '../../privacy/presentation/policy_screen.dart';
 
 /// Onboarding: the promise up front, then sign-up or no account at all.
 ///
@@ -61,8 +62,8 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Free forever. No ads. Your money data never '
-                              'leaves your phone.',
+                              'Free forever. Your money data stays on your '
+                              'phone.',
                               style: theme.textTheme.bodyLarge!.copyWith(
                                 color: colors.textMuted,
                               ),
@@ -92,7 +93,10 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 24, 12, 0),
-                    child: _Terms(color: colors.textMuted, link: colors.link),
+                    child: _PrivacyNote(
+                      color: colors.textMuted,
+                      link: colors.link,
+                    ),
                   ),
                 ],
               ),
@@ -136,8 +140,8 @@ class _AppMark extends StatelessWidget {
   }
 }
 
-class _Terms extends StatelessWidget {
-  const _Terms({required this.color, required this.link});
+class _PrivacyNote extends StatelessWidget {
+  const _PrivacyNote({required this.color, required this.link});
 
   final Color color;
   final Color link;
@@ -145,26 +149,24 @@ class _Terms extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).textTheme.bodySmall!.copyWith(color: color);
-    final linkStyle = base.copyWith(
-      color: link,
-      decoration: TextDecoration.underline,
-      decorationColor: link,
-    );
-    // TODO(legal): open the published Terms and Privacy Policy once they exist.
-    return Text.rich(
-      TextSpan(
-        style: base,
-        children: [
-          const TextSpan(text: 'By continuing you agree to our '),
-          TextSpan(text: 'Terms', style: linkStyle),
-          const TextSpan(text: ' and '),
-          TextSpan(text: 'Privacy Policy', style: linkStyle),
-          const TextSpan(
-            text: '.\nAn account is only used for sign-in and backups.',
+    return Column(
+      children: [
+        Text(
+          'An account is only used for sign-in and backups.',
+          textAlign: TextAlign.center,
+          style: base,
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const PolicyScreen())),
+          style: TextButton.styleFrom(
+            foregroundColor: link,
+            textStyle: base.copyWith(decoration: TextDecoration.underline),
           ),
-        ],
-      ),
-      textAlign: TextAlign.center,
+          child: const Text('Read our privacy policy'),
+        ),
+      ],
     );
   }
 }

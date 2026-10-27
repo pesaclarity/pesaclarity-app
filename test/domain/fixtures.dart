@@ -25,6 +25,7 @@ LedgerEntry entry({
   bool isDailySpending = false,
   int? transferPairId,
   LeakType leakType = LeakType.none,
+  int? balanceAfter,
 }) => LedgerEntry(
   id: id ?? _nextId++,
   accountId: accountId,
@@ -40,6 +41,7 @@ LedgerEntry entry({
   isDailySpending: isDailySpending,
   transferPairId: transferPairId,
   leakType: leakType,
+  balanceAfterMinor: balanceAfter,
 );
 
 LedgerEntry inflow({

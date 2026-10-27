@@ -149,12 +149,15 @@ class _DebtFreeCard extends StatelessWidget {
     final String label;
     final String figure;
     final String caption;
-    if (debts.remainingMinor == 0) {
+    final hasDebts = debts.count > 0;
+    if (!hasDebts) {
+      label = 'Debts';
+      figure = 'Add a debt';
+      caption = 'See the month you will be debt-free.';
+    } else if (debts.remainingMinor == 0) {
       label = 'Debts';
       figure = 'Debt-free';
-      caption = debts.count == 0
-          ? 'Add a debt to see your debt-free date.'
-          : 'All ${debts.count} cleared.';
+      caption = 'All ${debts.count} cleared.';
     } else {
       label = 'Debt-free by';
       figure = month == null ? 'Not yet' : monthLabel(month);
@@ -176,23 +179,25 @@ class _DebtFreeCard extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              ProgressRing(
-                value: debts.paidFraction,
-                size: 92,
-                strokeWidth: 10,
-                color: scheme.onPrimary,
-                trackColor: scheme.shadow.withValues(alpha: 0.25),
-                semanticsLabel: '$percent% of debt paid',
-                child: Text(
-                  '$percent%',
-                  style: AppTypography.amount(
-                    size: 20,
-                    weight: FontWeight.w700,
-                    color: scheme.onPrimary,
+              if (hasDebts) ...[
+                ProgressRing(
+                  value: debts.paidFraction,
+                  size: 92,
+                  strokeWidth: 10,
+                  color: scheme.onPrimary,
+                  trackColor: scheme.shadow.withValues(alpha: 0.25),
+                  semanticsLabel: '$percent% of debt paid',
+                  child: Text(
+                    '$percent%',
+                    style: AppTypography.amount(
+                      size: 20,
+                      weight: FontWeight.w700,
+                      color: scheme.onPrimary,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 18),
+                const SizedBox(width: 18),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

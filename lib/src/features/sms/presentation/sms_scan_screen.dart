@@ -174,14 +174,14 @@ class _Explanation extends StatelessWidget {
   const _Explanation();
 
   static const _points = [
-    'Only messages from the accounts you ticked are read. Every other '
-        'message, including your personal chats, is ignored.',
+    'Only messages from the accounts you ticked are read. Your personal '
+        'chats stay private.',
     'We look back 90 days, then add new messages as they arrive.',
     'From each message we keep the amount, date, fee and who you paid. The '
         'message text is then thrown away.',
     'A message we cannot read yet is kept, encrypted on this phone, until '
         'you check it, then deleted.',
-    'Nothing leaves your phone.',
+    'Everything stays on your phone.',
   ];
 
   @override

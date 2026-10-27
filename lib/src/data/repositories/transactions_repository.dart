@@ -300,6 +300,7 @@ LedgerEntry _toLedgerEntry(
     counterpartyKind: record.counterpartyKind,
     counterpartyValue: record.counterpartyValue,
     note: record.item,
+    balanceAfterMinor: record.balanceAfterMinor,
   );
 }
 

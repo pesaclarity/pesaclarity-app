@@ -64,7 +64,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Profile'));
     await tester.pumpAndSettle();
-    expect(find.text('Your account and settings'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
 
     await tester.tap(
       find.descendant(

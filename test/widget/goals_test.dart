@@ -82,7 +82,8 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db);
 
-    expect(find.text('Debt-free'), findsOneWidget);
+    expect(find.text('Add a debt'), findsWidgets);
+    expect(find.text('Debt-free'), findsNothing);
     await tester.tap(find.text('Add a goal').first);
     await settle(tester);
     await tester.enterText(
