@@ -160,7 +160,12 @@ class VaultBackupLocation implements BackupLocation {
   static void _check(int status, String body) {
     if (status >= 200 && status < 300) return;
     throw BackupLocationException(switch (status) {
-      401 || 403 => 'Sign in again to use the Pesa Clarity vault.',
+      401 => 'Sign in again to use the Pesa Clarity vault.',
+      // The server could not verify the app or phone (Play Integrity).
+      403 =>
+        'The vault takes backups from the Google Play version of Pesa '
+            'Clarity. Your phone or SD card works for this backup.',
+      503 => 'The vault is busy right now. Try again in a minute.',
       404 => 'That backup is no longer in the vault.',
       413 => 'This backup is larger than the vault accepts.',
       _ => 'The vault could not take the request (error $status).',

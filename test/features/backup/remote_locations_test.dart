@@ -191,22 +191,32 @@ void main() {
       expect(vault.list(), throwsA(isA<BackupLocationException>()));
     });
 
-    test('turns server errors into plain messages', () {
-      final vault = VaultBackupLocation(
-        baseUrl: base,
-        tokens: const _Token('t0k'),
-        client: MockClient((_) async => http.Response('', 401)),
-      );
-      expect(
-        vault.list(),
-        throwsA(
-          isA<BackupLocationException>().having(
-            (e) => e.message,
-            'message',
-            contains('Sign in again'),
+    test('turns server errors into plain messages', () async {
+      final messages = {
+        401: 'Sign in again to use the Pesa Clarity vault.',
+        403:
+            'The vault takes backups from the Google Play version of Pesa '
+            'Clarity. Your phone or SD card works for this backup.',
+        503: 'The vault is busy right now. Try again in a minute.',
+      };
+      for (final MapEntry(key: status, value: message) in messages.entries) {
+        final vault = VaultBackupLocation(
+          baseUrl: base,
+          tokens: const _Token('t0k'),
+          client: MockClient((_) async => http.Response('', status)),
+        );
+        await expectLater(
+          vault.upload(file, 'b.pcbackup'),
+          throwsA(
+            isA<BackupLocationException>().having(
+              (e) => e.message,
+              'message',
+              message,
+            ),
           ),
-        ),
-      );
+          reason: '$status',
+        );
+      }
     });
 
     test('is off unless a build names the vault', () {
