@@ -47,7 +47,7 @@ abstract final class AppTheme {
       onSecondary: BrandTokens.darkSurface,
       tertiary: BrandTokens.darkSuccess,
       onTertiary: BrandTokens.darkOnBrand,
-      error: BrandTokens.darkBrand,
+      error: BrandTokens.darkDanger,
       onError: BrandTokens.darkOnBrand,
       surface: BrandTokens.darkSurface,
       onSurface: BrandTokens.darkText,
