@@ -10,6 +10,8 @@ PickedStatement _file(String id) =>
     PickedStatement(name: '$id.pdf', bytes: fakePdf(id));
 
 void main() {
+  _withoutEngineTests();
+
   final extractor = FakePdfTextExtractor(
     {'locked': mpesaStatementText(), 'kcb': kcbStatementText},
     passwords: {'locked': '0000'},
@@ -78,5 +80,22 @@ void main() {
 
     await tapText(tester, 'Choose a PDF');
     expect(find.text('KCB statements are coming soon'), findsOneWidget);
+  });
+}
+
+void _withoutEngineTests() {
+  testAppWidgets('Profile hides statement import without a PDF engine', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      db: openTestDatabase(),
+      overrides: [pdfTextExtractorProvider.overrideWithValue(null)],
+    );
+    await finishOnboarding(tester);
+    await tester.tap(find.byTooltip('Profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import a statement'), findsNothing);
+    expect(find.text('Backup and restore'), findsOneWidget);
   });
 }

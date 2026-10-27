@@ -12,13 +12,13 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 | No build timestamps | Set `SOURCE_DATE_EPOCH` to the release commit time: `export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)`. Avoid `DateTime.now()` or `BuildConfig` timestamps in build scripts. |
 | No dependency metadata blob | Done: `dependenciesInfo { includeInApk = false; includeInBundle = false }` in `android/app/build.gradle.kts`. |
 | Same build command | `flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols`, plus the same `--dart-define` values (see `RELEASING.md`). Different defines produce a different APK. |
-| No prebuilt binaries in `foss` | Not yet: see offenders below. |
+| No prebuilt binaries in `foss` | Run `tool/prepare_foss.sh` first. PDFium is done; SQLCipher is not yet (see below). |
 | No committed binaries | Done: no `.jar`, `.so` or `.aar` files are in the repo. The Gradle wrapper jar is not committed; Flutter supplies it. |
 
 ## Current offenders
 
 1. **SQLCipher (`package:sqlite3` build hook).** `hooks.user_defines.sqlite3.source: sqlcipher` in `pubspec.yaml` makes the hook download a prebuilt `libsqlcipher.so` from the `sqlite3` package's GitHub releases (checked against hashes in the package). F-Droid does not accept prebuilt native libraries. Fix for `foss`: compile SQLCipher from source with the hook's `source: source` option (pointing `path` at a SQLCipher amalgamation built in the F-Droid recipe, with its crypto library), or have the recipe build the library and use `source: system`. This needs testing on a device before the first F-Droid submission.
-2. **PDFium (incoming).** The statement-import work adds `pdfium_flutter`, whose build hook bundles a prebuilt PDFium library. It is not on `main` yet. Before it lands in a `foss` release, either build PDFium from source in the F-Droid recipe or gate PDF import to the `play` flavour.
+2. **PDFium.** Resolved: `tool/prepare_foss.sh` removes `pdfrx_engine` and `pdfium_flutter` and swaps in `tool/foss/pdf_engine.dart`, so the `foss` build has no PDF engine and hides statement import. The `Foss build` workflow runs the script and fails if `libpdfium` is in the APK.
 3. **Flutter engine.** The Flutter SDK downloads its engine artefacts. F-Droid builds Flutter apps with the SDK as a srclib; follow fdroiddata's current guidance for Flutter when writing the recipe.
 
 ## Checking a build

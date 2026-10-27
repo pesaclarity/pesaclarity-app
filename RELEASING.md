@@ -32,6 +32,7 @@ Build, with `SOURCE_DATE_EPOCH` set for reproducibility (see `docs/reproducible-
 ```sh
 export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
 flutter build appbundle --release --flavor play --obfuscate --split-debug-info=build/symbols/play --dart-define=...
+./tool/prepare_foss.sh   # on a throwaway checkout; see docs/reproducible-builds.md
 flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols/foss --dart-define=...
 ```
 
@@ -63,7 +64,7 @@ Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clari
 
 ## 5. F-Droid
 
-1. Reproducible build and the offenders in `docs/reproducible-builds.md` resolved for `foss`.
+1. Reproducible build and the offenders in `docs/reproducible-builds.md` resolved for `foss`. The recipe runs `tool/prepare_foss.sh` as its `prebuild`, and our own `foss` release APK is built the same way so the two match.
 2. Store text and changelogs come from `fastlane/metadata/android/en-US`.
 3. Open a merge request to fdroiddata with the build recipe: Flutter srclib at the pinned version, `foss` flavour, the same build command and defines, and our signing certificate for reproducible-build verification.
 

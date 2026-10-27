@@ -21,6 +21,7 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../security/application/balance_visibility.dart';
+import '../../statements/data/pdf_text_extractor.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
@@ -63,6 +64,7 @@ class HomeScreen extends ConsumerWidget {
     final health = ref.watch(healthIndexProvider).value;
     final forecast = ref.watch(cashFlowForecastProvider).value;
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
+    final canImport = ref.watch(statementImportAvailableProvider);
 
     void openActivity(ActivityFilter filter) =>
         context.go(AppRoutes.activityWith(filter));
@@ -153,10 +155,13 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
+      // Without a PDF engine (the F-Droid build) there is only one choice.
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Add or import',
+        tooltip: canImport ? 'Add or import' : 'Add a transaction',
         shape: const CircleBorder(),
-        onPressed: () => _showAddMenu(context),
+        onPressed: () => canImport
+            ? _showAddMenu(context)
+            : showAddTransactionSheet(context),
         child: const Icon(Icons.add),
       ),
     );

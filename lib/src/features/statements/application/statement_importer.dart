@@ -339,7 +339,10 @@ DedupeFields _fieldsOfRecord(TransactionRecord t) => DedupeFields(
 
 final statementImporterProvider = Provider<StatementImporter>(
   (ref) => StatementImporter(
-    extractor: ref.watch(pdfTextExtractorProvider),
+    // Unreachable in a build without a PDF engine: import is hidden there.
+    extractor:
+        ref.watch(pdfTextExtractorProvider) ??
+        (throw StateError('This build has no PDF engine')),
     accounts: ref.watch(accountsRepositoryProvider),
     transactions: ref.watch(transactionsRepositoryProvider),
     imports: ref.watch(statementImportsRepositoryProvider),
