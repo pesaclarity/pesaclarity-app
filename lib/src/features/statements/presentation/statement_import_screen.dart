@@ -7,6 +7,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/statement_import_controller.dart';
 import '../application/statement_importer.dart';
+import '../application/statement_password_hints.dart';
 
 /// Imports an M-Pesa statement PDF to fill gaps and check the balance.
 class StatementImportScreen extends ConsumerStatefulWidget {
@@ -63,19 +64,35 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
                 child: const Text('Choose a PDF'),
               ),
             ],
-            StatementImportStage.reading => const [
-              _Heading('Reading your statement'),
-              SizedBox(height: 16),
-              LinearProgressIndicator(semanticsLabel: 'Import progress'),
-              SizedBox(height: 12),
-              _Body('This happens on your phone.'),
+            StatementImportStage.reading => [
+              _Heading(
+                state.isBatch
+                    ? 'Reading statement ${state.fileNumber} of '
+                          '${state.fileCount}'
+                    : 'Reading your statement',
+              ),
+              const SizedBox(height: 16),
+              const LinearProgressIndicator(semanticsLabel: 'Import progress'),
+              const SizedBox(height: 12),
+              const _Body('This happens on your phone.'),
             ],
             StatementImportStage.password => [
               const _Heading('This statement has a password'),
+              if (state.isBatch) ...[
+                const SizedBox(height: 4),
+                _Body(state.fileName ?? ''),
+              ],
               const SizedBox(height: 8),
-              const _Body(
-                'Safaricom sends the password by SMS when you request a '
-                'statement. It is used once to open the file, then forgotten.',
+              for (final hint in ref.watch(statementPasswordHintsProvider))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _Body(hint),
+                ),
+              _Body(
+                state.isBatch
+                    ? 'It is used to open the files you chose, then '
+                          'forgotten.'
+                    : 'It is used once to open the file, then forgotten.',
               ),
               const SizedBox(height: 16),
               TextField(
@@ -89,17 +106,24 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
                 onSubmitted: (_) => _submitPassword(),
                 decoration: InputDecoration(
                   labelText: 'Statement password',
-                  errorText: state.wrongPassword
+                  errorText: state.retryAt != null
+                      ? 'Try again in ${passwordWait.inSeconds} seconds.'
+                      : state.wrongPassword
                       ? 'That password did not open the file. Try again.'
                       : null,
                 ),
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: _submitPassword,
+                onPressed: state.retryAt == null ? _submitPassword : null,
                 child: const Text('Open statement'),
               ),
               const SizedBox(height: 8),
+              if (state.isBatch)
+                TextButton(
+                  onPressed: controller.skipFile,
+                  child: const Text('Skip this file'),
+                ),
               TextButton(
                 onPressed: controller.startOver,
                 child: const Text('Cancel'),
@@ -151,6 +175,35 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               const SizedBox(height: 24),
               chooseAnother(),
             ],
+            StatementImportStage.noText => [
+              const _Heading('This PDF is a scanned picture'),
+              const SizedBox(height: 8),
+              const _Body(noTextAdvice),
+              const SizedBox(height: 24),
+              chooseAnother(),
+            ],
+            StatementImportStage.batchDone => [
+              const _Heading('Your statements'),
+              const SizedBox(height: 16),
+              for (final result in state.results) ...[
+                Text(
+                  result.fileName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                if (result.outcome case StatementImported(:final summary))
+                  _SummaryCard(summary)
+                else
+                  _Body(_resultLine(result)),
+                const SizedBox(height: 20),
+              ],
+              FilledButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                child: const Text('Done'),
+              ),
+              const SizedBox(height: 8),
+              chooseAnother(),
+            ],
             StatementImportStage.notPdf => [
               const _Heading('This file could not be opened'),
               const SizedBox(height: 8),
@@ -183,7 +236,8 @@ class _Explanation extends StatelessWidget {
   const _Explanation();
 
   static const _points = [
-    'Choose an M-Pesa statement PDF. Bank statements are coming soon.',
+    'Choose one or more M-Pesa statement PDFs. Bank statements are coming '
+        'soon.',
     'The file is read on this phone and stays here.',
     'If it has a password, you type it once. It opens the file and is then '
         'forgotten.',
@@ -310,6 +364,30 @@ class _SummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What to do with a scanned statement.
+const noTextAdvice =
+    'Pesa Clarity reads statements saved from the M-Pesa app or your bank '
+    'website. Download it again from there and choose that file.';
+
+/// One line about a file of a batch that was not imported.
+String _resultLine(StatementFileResult result) {
+  if (result.skipped) return 'Skipped.';
+  return switch (result.outcome) {
+    null => 'The import stopped. Try this file again.',
+    StatementAlreadyImported(:final summary) =>
+      'You imported this statement on '
+          '${dayLabel(CalendarDate.nairobi(summary.importedAt))}. Its '
+          'transactions are already in your ledger.',
+    StatementComingSoon(:final bankName) =>
+      '$bankName statements are coming soon.',
+    StatementHasNoText() => 'This PDF is a scanned picture. $noTextAdvice',
+    StatementNotRead(isPdf: true) =>
+      'We could not find M-Pesa transactions here.',
+    StatementNotRead(isPdf: false) => 'This file could not be opened.',
+    StatementImported() || StatementNeedsPassword() => '',
+  };
 }
 
 /// A date as the import screen shows it, for example `1 Oct 2026`.

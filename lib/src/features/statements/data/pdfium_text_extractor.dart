@@ -2,10 +2,12 @@ import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
+import 'package:ujumbe/ujumbe.dart' show StatementPage;
 
+import 'page_words.dart';
 import 'pdf_text_extractor.dart';
 
-/// Extracts text with PDFium, through pdfrx_engine.
+/// Extracts positioned words with PDFium, through pdfrx_engine.
 class PdfiumTextExtractor implements PdfTextExtractor {
   PdfiumTextExtractor({this.tempDirectory});
 
@@ -15,6 +17,8 @@ class PdfiumTextExtractor implements PdfTextExtractor {
   static Future<void>? _initialising;
 
   // PDFium itself is packaged by the pdfium_flutter dependency's build hooks.
+  // pdfrx_engine runs PDFium calls on its own background worker, so the UI
+  // isolate only waits.
   Future<void> _initialise() => _initialising ??= () async {
     try {
       await pdfrxInitialize(
@@ -27,7 +31,10 @@ class PdfiumTextExtractor implements PdfTextExtractor {
   }();
 
   @override
-  Future<String> extractText(Uint8List bytes, {String? password}) async {
+  Future<List<StatementPage>> extractPages(
+    Uint8List bytes, {
+    String? password,
+  }) async {
     await _initialise();
     var asked = false;
     final PdfDocument document;
@@ -49,11 +56,19 @@ class PdfiumTextExtractor implements PdfTextExtractor {
       throw PdfUnreadable(error);
     }
     try {
-      final pages = <String>[];
+      final pages = <StatementPage>[];
       for (final page in document.pages) {
-        pages.add((await page.loadText())?.fullText ?? '');
+        final text = await page.loadText();
+        pages.add(
+          text == null
+              ? const StatementPage([])
+              : pageFromCharacters(text.fullText, [
+                  for (final r in text.charRects)
+                    (r.left, r.top, r.right, r.bottom),
+                ], pageHeight: page.height),
+        );
       }
-      return pages.join('\f');
+      return pages;
     } on Object catch (error) {
       throw PdfUnreadable(error);
     } finally {

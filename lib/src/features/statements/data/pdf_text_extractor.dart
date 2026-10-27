@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ujumbe/ujumbe.dart' show StatementPage;
 
 import 'pdf_engine.dart';
 
@@ -24,14 +25,15 @@ class PdfUnreadable implements Exception {
   String toString() => 'PdfUnreadable($cause)';
 }
 
-/// Pulls the text out of a PDF, on the phone.
+/// Pulls the words out of a PDF, with where each sits on its page, on the
+/// phone.
 abstract interface class PdfTextExtractor {
-  /// The text of every page of [bytes], in order, separated by form feeds.
+  /// Every page of [bytes], in order, as positioned words.
   ///
   /// [password] opens an encrypted PDF. It is passed straight to the PDF
   /// engine and not kept. Throws [PdfPasswordRequired], [PdfWrongPassword]
   /// or [PdfUnreadable].
-  Future<String> extractText(Uint8List bytes, {String? password});
+  Future<List<StatementPage>> extractPages(Uint8List bytes, {String? password});
 }
 
 /// The PDF engine of this build, or null when it has none: the F-Droid

@@ -41,13 +41,16 @@ void main() {
   final locked = File('test/fixtures/synthetic_statement_locked.pdf')
       .readAsBytesSync();
 
-  test('extracts every page, ready for the statement parser', () async {
-    final text = await extractor.extractText(plain);
+  test('extracts positioned words the M-Pesa pack reads', () async {
+    final pages = await extractor.extractPages(plain);
 
-    expect(text, contains('\f'));
-    final statement = const MpesaStatementParser().parse(text);
+    expect(pages, hasLength(2));
+    final pack = detectStatementPack(pages, loadBundledStatementPacks());
+    expect(pack?.id, 'mpesa_statement');
+    final statement = StatementReader(pack!).read(pages);
     expect(statement.transactions, hasLength(3));
     expect(statement.closingBalanceMinor, 513500);
+    expect(statement.unreadLines, isEmpty);
     expect(statement.reconciles, isTrue);
   });
 
@@ -55,16 +58,18 @@ void main() {
     'asks for a password, rejects a wrong one, opens with the right one',
     () async {
       await expectLater(
-        extractor.extractText(locked),
+        extractor.extractPages(locked),
         throwsA(isA<PdfPasswordRequired>()),
       );
       await expectLater(
-        extractor.extractText(locked, password: '1111'),
+        extractor.extractPages(locked, password: '1111'),
         throwsA(isA<PdfWrongPassword>()),
       );
-      final text = await extractor.extractText(locked, password: '0000');
+      final pages = await extractor.extractPages(locked, password: '0000');
       expect(
-        const MpesaStatementParser().parse(text).transactions,
+        StatementReader(loadBundledStatementPack('mpesa_statement'))
+            .read(pages)
+            .transactions,
         hasLength(3),
       );
     },
@@ -72,7 +77,7 @@ void main() {
 
   test('a file that is not a PDF is unreadable', () async {
     await expectLater(
-      extractor.extractText(plain.sublist(0, 20)),
+      extractor.extractPages(plain.sublist(0, 20)),
       throwsA(isA<PdfUnreadable>()),
     );
   });

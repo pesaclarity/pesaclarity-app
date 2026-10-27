@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -101,6 +103,12 @@ final class StatementNeedsPassword extends StatementImportOutcome {
   final bool wrongPassword;
 }
 
+/// A PDF with no text on any page, such as a scanned or photographed
+/// statement.
+final class StatementHasNoText extends StatementImportOutcome {
+  const StatementHasNoText();
+}
+
 /// A bank statement whose reader is not built yet.
 final class StatementComingSoon extends StatementImportOutcome {
   const StatementComingSoon(this.bankName);
@@ -117,11 +125,66 @@ final class StatementNotRead extends StatementImportOutcome {
   final bool isPdf;
 }
 
+/// A statement read with its statement pack, as plain values that can
+/// cross isolates.
+@immutable
+class StatementRead {
+  const StatementRead({
+    required this.institutionId,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.transactions,
+    required this.openingBalanceMinor,
+    required this.closingBalanceMinor,
+    required this.unreadCount,
+  });
+
+  /// The institution's id, e.g. `mpesa`.
+  final String institutionId;
+
+  /// First and last day of the period, at midnight UTC, if printed.
+  final DateTime? periodStart, periodEnd;
+
+  /// Completed rows, oldest first.
+  final List<ParsedTransaction> transactions;
+  final int? openingBalanceMinor, closingBalanceMinor;
+
+  /// Rows that could not be read, plus balances that did not follow.
+  final int unreadCount;
+}
+
+/// Finds the statement pack for [pages] and reads them, or returns null
+/// when no pack recognises the statement.
+typedef StatementReadBatch = Future<StatementRead?> Function(
+  List<StatementPage> pages,
+);
+
+/// Reads on a background isolate so a long statement never blocks the UI.
+Future<StatementRead?> readStatementInBackground(List<StatementPage> pages) =>
+    Isolate.run(() => readStatement(pages));
+
+/// Reads [pages] with the bundled statement packs, on the calling isolate.
+StatementRead? readStatement(List<StatementPage> pages) {
+  final pack = detectStatementPack(pages, loadBundledStatementPacks());
+  if (pack == null) return null;
+  final read = StatementReader(pack).read(pages);
+  return StatementRead(
+    institutionId: pack.institution,
+    periodStart: read.periodStart,
+    periodEnd: read.periodEnd,
+    transactions: read.transactions,
+    openingBalanceMinor: read.openingBalanceMinor,
+    closingBalanceMinor: read.closingBalanceMinor,
+    unreadCount: read.unreadLines.length + read.balanceBreaks.length,
+  );
+}
+
 /// Imports statement PDFs: reads them on the phone, adds the transactions
 /// SMS missed, and checks the ledger against the closing balance.
 class StatementImporter {
   StatementImporter({
     required this._extractor,
+    required this._read,
     required this._accounts,
     required this._transactions,
     required this._imports,
@@ -130,6 +193,7 @@ class StatementImporter {
   });
 
   final PdfTextExtractor _extractor;
+  final StatementReadBatch _read;
   final AccountsRepository _accounts;
   final TransactionsRepository _transactions;
   final StatementImportsRepository _imports;
@@ -150,9 +214,9 @@ class StatementImporter {
     if (earlier != null) {
       return StatementAlreadyImported(_summaryOf(earlier));
     }
-    final String text;
+    final List<StatementPage> pages;
     try {
-      text = await _extractor.extractText(bytes, password: password);
+      pages = await _extractor.extractPages(bytes, password: password);
     } on PdfPasswordRequired {
       return const StatementNeedsPassword(wrongPassword: false);
     } on PdfWrongPassword {
@@ -160,26 +224,29 @@ class StatementImporter {
     } on PdfUnreadable {
       return const StatementNotRead(isPdf: false);
     }
-    return importText(text, fileHash: fileHash);
+    if (pages.every((page) => page.words.isEmpty)) {
+      return const StatementHasNoText();
+    }
+    return importPages(pages, fileHash: fileHash);
   }
 
-  /// Imports statement [text] extracted from the file with [fileHash].
-  Future<StatementImportOutcome> importText(
-    String text, {
+  /// Imports the statement [pages] extracted from the file with [fileHash].
+  Future<StatementImportOutcome> importPages(
+    List<StatementPage> pages, {
     required String fileHash,
   }) async {
-    switch (detectStatementType(text)) {
-      case BankStatementType(:final bankName):
-        return StatementComingSoon(bankName);
-      case UnknownStatementType():
-        return const StatementNotRead(isPdf: true);
-      case MpesaStatementType():
-        return _importMpesa(const MpesaStatementParser().parse(text), fileHash);
-    }
+    final read = await _read(pages);
+    if (read != null) return _importRead(read, fileHash);
+    // No statement pack reads it yet: name the bank if the header does.
+    final firstPage = pages.isEmpty ? '' : pages.first.text;
+    return switch (detectStatementType(firstPage)) {
+      BankStatementType(:final bankName) => StatementComingSoon(bankName),
+      _ => const StatementNotRead(isPdf: true),
+    };
   }
 
-  Future<StatementImportOutcome> _importMpesa(
-    MpesaStatement statement,
+  Future<StatementImportOutcome> _importRead(
+    StatementRead statement,
     String fileHash,
   ) async {
     final parsed = statement.transactions;
@@ -200,11 +267,13 @@ class StatementImporter {
     final from = firstDay.startInstant;
     final to = lastDay.addDays(1).startInstant;
 
-    final institution = _institution('mpesa');
+    final institutionId = statement.institutionId;
+    final institution = _institution(institutionId);
+    if (institution == null) return const StatementNotRead(isPdf: true);
     final accountId = await _accounts.accountForInstitution(
-      'mpesa',
-      name: institution?.name ?? 'M-Pesa',
-      type: institution?.type ?? AccountType.mpesa,
+      institutionId,
+      name: institution.name,
+      type: institution.type,
       openingDate: from,
     );
 
@@ -245,8 +314,7 @@ class StatementImporter {
       ],
     );
 
-    final unread =
-        statement.unreadLines.length + statement.balanceBreaks.length;
+    final unread = statement.unreadCount;
     final now = _now();
     await _imports.record(
       ImportsCompanion.insert(
@@ -257,7 +325,7 @@ class StatementImporter {
         importedAt: now,
         closingBalanceMinor: Value(closing),
         reconciliationGapMinor: Value(reconciliation.gapMinor),
-        institutionId: const Value('mpesa'),
+        institutionId: Value(institutionId),
         openingBalanceMinor: Value(opening),
         transactionCount: Value(parsed.length),
         addedCount: Value(added),
@@ -268,7 +336,7 @@ class StatementImporter {
     );
     return StatementImported(
       StatementImportSummary(
-        institutionName: institution?.name ?? 'M-Pesa',
+        institutionName: institution.name,
         firstDay: firstDay,
         lastDay: lastDay,
         transactionCount: parsed.length,
@@ -343,10 +411,17 @@ final statementImporterProvider = Provider<StatementImporter>(
     extractor:
         ref.watch(pdfTextExtractorProvider) ??
         (throw StateError('This build has no PDF engine')),
+    read: ref.watch(statementReadBatchProvider),
     accounts: ref.watch(accountsRepositoryProvider),
     transactions: ref.watch(transactionsRepositoryProvider),
     imports: ref.watch(statementImportsRepositoryProvider),
     institutions: ref.watch(institutionCatalogueProvider),
     now: ref.watch(clockProvider),
   ),
+);
+
+/// How statements are read. Tests swap in [readStatement], since a
+/// background isolate does not run inside widget tests.
+final statementReadBatchProvider = Provider<StatementReadBatch>(
+  (ref) => readStatementInBackground,
 );

@@ -15,10 +15,10 @@ class PickedStatement {
   final Uint8List bytes;
 }
 
-/// Opens the system file picker for a PDF.
+/// Opens the system file picker for PDFs.
 abstract interface class StatementFilePicker {
-  /// The picked PDF, or null if the person backed out.
-  Future<PickedStatement?> pickPdf();
+  /// The picked PDFs, in the order picked; empty if the person backed out.
+  Future<List<PickedStatement>> pickPdfs();
 }
 
 /// Uses Android's document picker through file_selector.
@@ -31,14 +31,19 @@ class SystemStatementFilePicker implements StatementFilePicker {
   );
 
   @override
-  Future<PickedStatement?> pickPdf() async {
-    final file = await openFile(acceptedTypeGroups: const [_pdf]);
-    if (file == null) return null;
-    try {
-      return PickedStatement(name: file.name, bytes: await file.readAsBytes());
-    } finally {
-      await _deleteCachedCopy(file.path);
+  Future<List<PickedStatement>> pickPdfs() async {
+    final files = await openFiles(acceptedTypeGroups: const [_pdf]);
+    final picked = <PickedStatement>[];
+    for (final file in files) {
+      try {
+        picked.add(
+          PickedStatement(name: file.name, bytes: await file.readAsBytes()),
+        );
+      } finally {
+        await _deleteCachedCopy(file.path);
+      }
     }
+    return picked;
   }
 
   // The Android picker copies the document into the app's cache, in a

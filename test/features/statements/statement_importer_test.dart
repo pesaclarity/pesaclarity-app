@@ -10,6 +10,9 @@ import 'package:pesaclarity/src/features/accounts/domain/institution.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/statements/application/statement_importer.dart';
 
+import 'package:ujumbe/ujumbe.dart'
+    show FixtureColumn, StatementPage, typesetPage;
+
 import '../../helpers/sms_samples.dart';
 import '../../helpers/statement_samples.dart';
 import '../../helpers/test_app.dart';
@@ -23,16 +26,23 @@ void main() {
     db = openTestDatabase();
     extractor = FakePdfTextExtractor(
       {
-        'october': mpesaStatementText(),
-        'locked': mpesaStatementText(),
-        'missing-row': mpesaStatementText(omit: {'TJA0000004'}),
-        'kcb': kcbStatementText,
-        'invoice': 'Invoice 001\nTotal due 1,000.00',
+        'october': mpesaStatementPages(),
+        'locked': mpesaStatementPages(),
+        'missing-row': mpesaStatementPages(omit: {'TJA0000004'}),
+        'kcb': kcbStatementPages(),
+        'scan': [const StatementPage([]), const StatementPage([])],
+        'invoice': [
+          typesetPage(
+            ['Invoice 001', 'Total due 1,000.00'],
+            const [FixtureColumn(30)],
+          ),
+        ],
       },
       passwords: {'locked': '0000'},
     );
     importer = StatementImporter(
       extractor: extractor,
+      read: (pages) async => readStatement(pages),
       accounts: DriftAccountsRepository(db),
       transactions: DriftTransactionsRepository(db),
       imports: DriftStatementImportsRepository(db),
@@ -176,5 +186,13 @@ void main() {
       isA<StatementNotRead>().having((o) => o.isPdf, 'isPdf', isFalse),
     );
     expect(await db.select(db.imports).get(), isEmpty);
+  });
+
+  test('a PDF with no text on any page is reported as a scan', () async {
+    expect(
+      await importer.importPdf(fakePdf('scan')),
+      isA<StatementHasNoText>(),
+    );
+    expect(await transactions(), isEmpty);
   });
 }
