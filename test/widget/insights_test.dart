@@ -180,10 +180,20 @@ void main() {
       find.text('Up 11,030 on September. Cutting half frees 8,500 a month.'),
       findsOneWidget,
     );
+    // Spending this month by category, and so far against September.
+    expect(
+      find.bySemanticsLabel(RegExp('Spending by category: .*Fees 30')),
+      findsOneWidget,
+    );
+    expect(find.text('This month so far'), findsOneWidget);
+    expect(find.text('31,030 over last month'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Fuliza fees'), 200);
     expect(find.text('Where it goes'), findsOneWidget);
     expect(find.text('Lifestyle'), findsOneWidget);
     expect(find.text('12,000'), findsWidgets);
     expect(find.text('Fuliza fees'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Spending, last 6 months'), -100);
     expect(find.text('Spending, last 6 months'), findsOneWidget);
     expect(
       find.bySemanticsLabel(
@@ -236,5 +246,29 @@ void main() {
       200,
     );
     expect(find.textContaining('Tag a transaction'), findsOneWidget);
+  });
+
+  testAppWidgets('switches the spending charts between week, month and year', (
+    tester,
+  ) async {
+    await tester.runAsync(() => _seed(db));
+    await pumpInsights(tester);
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+    // Monday the 26th: nothing spent yet this week, nothing last week.
+    expect(find.text('This week so far'), findsOneWidget);
+    expect(
+      find.text('Spending this week shows here as it comes in.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Year'));
+    await tester.pumpAndSettle();
+    expect(find.text('This year so far'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Spending by category: .*Fees 30')),
+      findsOneWidget,
+    );
   });
 }
