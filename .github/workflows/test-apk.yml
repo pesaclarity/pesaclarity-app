@@ -75,13 +75,15 @@ jobs:
           VAULT_URL: ${{ vars.DEV_PESACLARITY_VAULT_URL }}
           PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
           TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+          RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
         run: |
           flutter build apk --release --flavor "$FLAVOR" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=PESACLARITY_API_URL="$API_URL" \
             --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
             --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
-            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS"
+            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
+            --dart-define=PESACLARITY_RATES_URL="$RATES_URL"
           version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
           name="pesaclarity-$version-dev.$BUILD_NUMBER-${GITHUB_SHA::7}-$FLAVOR.apk"
           cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$name"

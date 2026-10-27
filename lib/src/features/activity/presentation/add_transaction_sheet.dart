@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
@@ -95,6 +96,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 ? now
                 : date.startInstant.add(const Duration(hours: 12)),
             amountMinor: amount,
+            currency: Value(BaseCurrency.code),
             direction: _direction,
             source: TransactionSource.manual,
             counterpartyName: Value(name.isEmpty ? null : name),
@@ -161,7 +163,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
               ],
               decoration: InputDecoration(
-                labelText: 'Amount (KES)',
+                labelText: 'Amount (${BaseCurrency.code})',
                 errorText: _amountError,
               ),
             ),

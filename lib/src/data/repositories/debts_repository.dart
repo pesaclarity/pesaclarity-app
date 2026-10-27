@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/money.dart';
 import '../../domain/debts/debt.dart';
 import '../../domain/debts/family_loan.dart';
 import '../../domain/debts/repayment_matcher.dart';
@@ -66,7 +67,13 @@ class DriftDebtsRepository implements DebtsRepository {
   final AppDatabase _db;
 
   @override
-  Future<int> add(DebtsCompanion debt) => _db.into(_db.debts).insert(debt);
+  Future<int> add(DebtsCompanion debt) => _db
+      .into(_db.debts)
+      .insert(
+        debt.currency.present
+            ? debt
+            : debt.copyWith(currency: Value(BaseCurrency.code)),
+      );
 
   @override
   Future<void> update(int debtId, DebtsCompanion changes) =>

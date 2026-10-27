@@ -9,7 +9,7 @@ void main() {
   test('the bundled policy loads, mirroring the website page', () async {
     final policy = await loadBundledPolicy(rootBundle);
     expect(policy.title, 'Privacy policy');
-    expect(policy.version, PolicyVersion.parse('1.1'));
+    expect(policy.version, PolicyVersion.parse('1.2'));
     expect(policy.changes.first.version, policy.version);
     expect(
       policy.blocks
@@ -19,6 +19,7 @@ void main() {
         'The short version',
         'What stays on your phone',
         'What our server holds',
+        'Exchange rates',
         'Your choices',
         'Your rights',
         'This website',

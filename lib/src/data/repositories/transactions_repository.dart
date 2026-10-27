@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/exchange_rates.dart';
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_transfers.dart';
 import '../../domain/payees/payee_directory.dart';
 import '../../domain/payees/payee_identifier.dart';
+import '../../features/currency/application/currency_controller.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
 import 'payees_repository.dart';
@@ -81,9 +83,13 @@ class TransactionDetail {
 }
 
 class DriftTransactionsRepository implements TransactionsRepository {
-  DriftTransactionsRepository(this._db);
+  DriftTransactionsRepository(this._db, {this._converter});
 
   final AppDatabase _db;
+
+  /// Converts ledger entries into the base currency; none leaves them as
+  /// stored.
+  final CurrencyConverter? _converter;
 
   @override
   Stream<List<TransactionRecord>> watchRecent({int limit = 50, int? tagId}) {
@@ -198,6 +204,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           row.readTableOrNull(_db.payees),
           categories,
           tags,
+          _converter,
         ),
     ];
   }
@@ -265,7 +272,16 @@ LedgerEntry _toLedgerEntry(
   Payee? payee,
   Map<int, Category> categories,
   Map<int, Set<int>> tags,
+  CurrencyConverter? converter,
 ) {
+  // Amounts in another currency are converted into the base one; with no
+  // rate they keep their own currency, so totals in the base leave them out.
+  final amount = converter?.toBase(record.amountMinor, record.currency);
+  final converted =
+      converter != null && record.currency != converter.base && amount != null;
+  int? inBase(int? minor) => minor == null || !converted
+      ? minor
+      : converter.toBase(minor, record.currency);
   final applied = applyPayee(
     payee == null
         ? null
@@ -283,11 +299,11 @@ LedgerEntry _toLedgerEntry(
     id: record.id,
     accountId: record.accountId,
     occurredAt: record.occurredAt,
-    amountMinor: record.amountMinor,
+    amountMinor: converted ? amount : record.amountMinor,
     direction: record.direction,
     kind: record.kind ?? TransactionKind.bank,
-    currency: record.currency,
-    feeMinor: record.feeMinor,
+    currency: converted ? converter.base : record.currency,
+    feeMinor: inBase(record.feeMinor)!,
     payeeId: record.payeeId,
     categoryId: categoryId,
     categoryType: category?.type,
@@ -300,12 +316,17 @@ LedgerEntry _toLedgerEntry(
     counterpartyKind: record.counterpartyKind,
     counterpartyValue: record.counterpartyValue,
     note: record.item,
-    balanceAfterMinor: record.balanceAfterMinor,
+    balanceAfterMinor: inBase(record.balanceAfterMinor),
+    originalAmountMinor: converted ? record.amountMinor : null,
+    originalCurrency: converted ? record.currency : null,
   );
 }
 
 final transactionsRepositoryProvider = Provider<TransactionsRepository>(
-  (ref) => DriftTransactionsRepository(ref.watch(appDatabaseProvider)),
+  (ref) => DriftTransactionsRepository(
+    ref.watch(appDatabaseProvider),
+    converter: ref.watch(currencyConverterProvider),
+  ),
 );
 
 /// Counts changes to the ledger, so providers that read it with one-off

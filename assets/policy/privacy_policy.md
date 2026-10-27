@@ -37,6 +37,13 @@ If "improve the app" is on, your phone sends clipped, noised updates
 to the categoriser, combined with other users' before we can see them.
 Never your transactions. You can switch this off at any time.
 
+## Exchange rates
+
+To count money in other currencies, the app downloads today's exchange
+rates from a public rates service. The request carries only your base
+currency's code, such as KES; the service sees your IP address, as any
+website does. You can set your own rates instead.
+
 ## Your choices
 
 The app asks on first run, and you can change these any time:

@@ -12,6 +12,7 @@ import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
+import '../../currency/application/currency_controller.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
@@ -67,6 +68,15 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: const Text('Names, categories and leak types'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(AppRoutes.payees),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('profile-base-currency'),
+                  leading: const Icon(Icons.currency_exchange),
+                  title: const Text('Base currency'),
+                  subtitle: Text(ref.watch(baseCurrencyProvider)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.baseCurrency),
                 ),
                 const Divider(height: 1),
                 ListTile(

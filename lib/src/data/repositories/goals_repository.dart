@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/money.dart';
 import '../../domain/goals/savings_goal.dart';
 import '../../domain/time/calendar.dart';
 import '../database/app_database.dart';
@@ -66,6 +67,7 @@ class DriftGoalsRepository implements GoalsRepository {
         GoalsCompanion.insert(
           name: name,
           targetMinor: targetMinor,
+          currency: Value(BaseCurrency.code),
           savedMinor: Value(savedMinor),
           targetDate: Value(targetDate?.startInstant),
           status: Value(_statusFor(savedMinor, targetMinor)),

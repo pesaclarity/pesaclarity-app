@@ -53,6 +53,8 @@ void main() {
 
     expectId(SemanticIds.titleWelcome);
     await tapId(tester, SemanticIds.onboardingGetStarted);
+    expectId(SemanticIds.titleCurrency);
+    await tapId(tester, SemanticIds.onboardingCurrencyContinue);
     expectId(SemanticIds.titleMyAccounts);
     expectId(SemanticIds.institution('im_bank'));
     expectId(SemanticIds.institution('kcb'));

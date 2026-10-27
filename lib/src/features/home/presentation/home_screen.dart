@@ -31,7 +31,7 @@ import '../application/upcoming_bills_provider.dart';
 const _billsShown = 3;
 
 String _kes(BuildContext context, int minor) => _AmountsHidden.of(context)
-    ? 'KES $maskedDigits'
+    ? '${BaseCurrency.code} $maskedDigits'
     : formatMoney(Money(minor));
 
 String _plain(BuildContext context, int minor) => _AmountsHidden.of(context)
@@ -87,9 +87,9 @@ class HomeScreen extends ConsumerWidget {
               _Header(today: today),
               const SizedBox(height: 20),
               if (safeToSpend == null)
-                const HeroFigureCard(
+                HeroFigureCard(
                   label: 'Safe to spend today',
-                  figure: 'KES —',
+                  figure: '${BaseCurrency.code} —',
                   caption:
                       'Shows once your messages have been read and Plan has '
                       'a day-to-day budget.',
