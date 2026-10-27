@@ -46,7 +46,8 @@ class SmsIngestSummary {
   /// Messages from selected senders that no rule matched, newly in review.
   final int forReview;
 
-  /// Messages from senders that are not selected, dropped unstored.
+  /// Messages dropped unstored: from senders that are not selected, or, with
+  /// review off, ones no rule read.
   final int ignored;
 
   SmsIngestSummary operator +(SmsIngestSummary other) => SmsIngestSummary(
@@ -92,10 +93,13 @@ class SmsIngestor {
   final SmsParseBatch _parse;
 
   /// Ingests [messages], reading only those from the [selected] institutions.
+  /// With [reviewUnmatched] false, messages no rule reads are dropped instead
+  /// of going to the review inbox.
   Future<SmsIngestSummary> ingest(
     List<SmsMessage> messages,
-    List<Institution> selected,
-  ) async {
+    List<Institution> selected, {
+    bool reviewUnmatched = true,
+  }) async {
     if (messages.isEmpty) return const SmsIngestSummary();
     if (selected.isEmpty) return SmsIngestSummary(ignored: messages.length);
 
@@ -110,6 +114,8 @@ class SmsIngestor {
       switch (result) {
         case ParsedTransaction():
           (parsedByPack[result.packId] ??= []).add(result);
+        case Unmatched() when !reviewUnmatched:
+          ignored++;
         case Unmatched(:final message):
           final added = await _reviewInbox.addIfNew(
             institutionId: result.packId,
