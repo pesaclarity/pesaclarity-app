@@ -25,8 +25,9 @@ const uncategorisedName = 'Uncategorised';
 
 /// The default Kenyan category set, seeded on first run.
 ///
-/// Keys mirror `src/akili/resources/categories.yaml` (version 1) in
-/// pesaclarity/pesaclarity-ml so the categoriser's outputs map one to one.
+/// Keys mirror `src/akili/resources/categories.yaml`
+/// (version 2) in pesaclarity/pesaclarity-ml so the categoriser's outputs map
+/// one to one.
 /// Change both together.
 const defaultCategories = <CategorySeed>[
   CategorySeed('salary', 'Salary', CategoryType.income),
@@ -52,6 +53,7 @@ const defaultCategories = <CategorySeed>[
     CategoryType.expense,
     isDailySpending: true,
   ),
+  CategorySeed('snacks', 'Snacks', CategoryType.expense, isDailySpending: true),
   CategorySeed(
     'transport',
     'Transport',
@@ -99,11 +101,8 @@ const defaultCategories = <CategorySeed>[
   CategorySeed('shopping', 'Shopping and clothing', CategoryType.expense),
   CategorySeed('giving', 'Church, giving and harambee', CategoryType.expense),
   CategorySeed('fees_charges', 'Fees and charges', CategoryType.expense),
-  CategorySeed(
-    'loan_repayment',
-    'Loan and Fuliza repayment',
-    CategoryType.debt,
-  ),
+  CategorySeed('loan_repayment', 'Loan repayment', CategoryType.debt),
+  CategorySeed('fuliza_repayment', 'Fuliza repayment', CategoryType.debt),
   CategorySeed(
     'savings',
     'Savings, SACCO and money market',

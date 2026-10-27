@@ -222,10 +222,24 @@ void main() {
         .get()
         .then(Map.fromEntries);
 
-    /// Builds the current schema, then takes it back to version 10, before
-    /// subscriptions.
-    Future<AppDatabase> version10() async {
+    /// Builds the current schema, then takes it back to version 11, before
+    /// Fuliza and snacks had their own categories.
+    Future<AppDatabase> version11() async {
       final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        "DELETE FROM categories WHERE key IN ('fuliza_repayment', 'snacks')",
+      );
+      await old.customStatement(
+        "UPDATE categories SET name = 'Loan and Fuliza repayment' "
+        "WHERE key = 'loan_repayment'",
+      );
+      await old.customStatement('PRAGMA user_version = 11');
+      return old;
+    }
+
+    /// Takes the schema back to version 10, before subscriptions.
+    Future<AppDatabase> version10() async {
+      final old = await version11();
       await old.customStatement('DROP TABLE subscriptions');
       await old.customStatement('PRAGMA user_version = 10');
       return old;
@@ -457,7 +471,6 @@ void main() {
         'INSERT INTO payees (id, display_name, default_category_id, leak_type) '
         "VALUES (1, 'Test Grocer', ${groceries.id}, 'none')",
       );
-      final categoryCount = (await old.select(old.categories).get()).length;
       await old.close();
 
       final db = AppDatabase(NativeDatabase(file));
@@ -473,7 +486,11 @@ void main() {
       final payee = await db.select(db.payees).getSingle();
       expect(payee.displayName, 'Test Grocer');
       expect(payee.defaultCategoryId, groceries.id);
-      expect(await db.select(db.categories).get(), hasLength(categoryCount));
+      // Nothing lost; the categories added since come in on the way.
+      expect(
+        await db.select(db.categories).get(),
+        hasLength(defaultCategories.length),
+      );
     });
 
     test('migrates a version 5 database: the debt planner', () async {
@@ -560,13 +577,62 @@ void main() {
       );
     });
 
+    test('migrates a version 11 database: Fuliza and snacks apart', () async {
+      final old = await version11();
+      await old.customStatement(
+        'INSERT INTO accounts (id, name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES (1, 'M-Pesa', 'mpesa', 'KES', 0, 0)",
+      );
+      for (final (id, kind) in [(1, 'fulizaRepayment'), (2, 'paybill')]) {
+        await old.customStatement(
+          'INSERT INTO transactions (id, account_id, occurred_at, amount_minor, '
+          'direction, kind, currency, source, category_override_id) '
+          "VALUES ($id, 1, 0, 100, 'outflow', '$kind', 'KES', 'manual', "
+          "(SELECT id FROM categories WHERE key = 'loan_repayment'))",
+        );
+      }
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final byKey = {
+        for (final c in await db.select(db.categories).get())
+          if (c.key != null) c.key!: c,
+      };
+      expect(byKey['loan_repayment']!.name, 'Loan repayment');
+      expect(byKey['fuliza_repayment']!.name, 'Fuliza repayment');
+      expect(byKey['snacks']!.isDailySpending, isTrue);
+      final rows = await (db.select(
+        db.transactions,
+      )..orderBy([(t) => OrderingTerm(expression: t.id)])).get();
+      expect(rows.map((r) => r.categoryOverrideId), [
+        byKey['fuliza_repayment']!.id,
+        byKey['loan_repayment']!.id,
+      ]);
+    });
+
+    test('a loan category the person renamed keeps its name', () async {
+      final old = await version11();
+      await old.customStatement(
+        "UPDATE categories SET name = 'Madeni' WHERE key = 'loan_repayment'",
+      );
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final loan = await (db.select(
+        db.categories,
+      )..where((c) => c.key.equals('loan_repayment'))).getSingle();
+      expect(loan.name, 'Madeni');
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();
 
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await userVersion(db), 11);
+      expect(await userVersion(db), db.schemaVersion);
       expect(
         (await columns(db, 'subscriptions')).keys,
         containsAll(['name', 'payee_id', 'frequency', 'next_date', 'status']),
