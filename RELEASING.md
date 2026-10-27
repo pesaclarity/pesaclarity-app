@@ -50,9 +50,9 @@ The upload key (Play) and the release key (F-Droid and direct downloads) never g
 
 ## 4. Google Play: SMS permissions declaration
 
-Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clarity applies under the SMS-based money management exception, and a person at Google reviews it. Before the first Play release:
+Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clarity applies under the SMS-based money management exception, and a person at Google reviews it. Before the first Play release (draft answers are in `docs/play-console.md`):
 
-1. Check the app matches the policy: SMS budgeting is the core feature, only SMS and notification permissions are requested, and the in-app disclosure before the SMS permission prompt explains what is read and why.
+1. Check the app matches the policy: SMS budgeting is the core feature, no permissions beyond SMS, notifications, restart and network are requested, and the in-app disclosure before the SMS permission prompt explains what is read and why.
 2. Publish the privacy policy at a public URL and add it to the store listing.
 3. In Play Console, open **App content** and complete the permissions declaration form for SMS and Call Log permissions:
    - choose the core functionality that matches SMS-based money management;
