@@ -92,6 +92,8 @@ jobs:
           PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
           TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
           RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
+          RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
+          RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
           GOOGLE_CLIENT_ID: ${{ vars.DEV_PESACLARITY_GOOGLE_SERVER_CLIENT_ID }}
         run: |
           # The client id only helps when the app is signed with the dev key.
@@ -103,6 +105,8 @@ jobs:
             --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
             --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
             --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
+            --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
+            --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
             --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID"
           version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
           name="pesaclarity-$version-dev.$BUILD_NUMBER-${GITHUB_SHA::7}-$FLAVOR.apk"

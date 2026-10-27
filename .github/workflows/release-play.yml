@@ -13,7 +13,8 @@ name: Release to Google Play
 # tags PLAY_TAG_TRACK and PLAY_TAG_STATUS.
 # Variables (optional): PESACLARITY_API_URL, PESACLARITY_VAULT_URL,
 # PESACLARITY_GOOGLE_SERVER_CLIENT_ID, PESACLARITY_PLAY_CLOUD_PROJECT,
-# PESACLARITY_PINNED_HOSTS, PESACLARITY_TRUSTED_ROOTS, PESACLARITY_RATES_URL.
+# PESACLARITY_PINNED_HOSTS, PESACLARITY_TRUSTED_ROOTS, PESACLARITY_RATES_URL,
+# PESACLARITY_RATES_SOURCE_NAME, PESACLARITY_RATES_SOURCE_URL.
 on:
   workflow_dispatch:
     inputs:
@@ -139,6 +140,8 @@ jobs:
           PINNED_HOSTS: ${{ vars.PESACLARITY_PINNED_HOSTS }}
           TRUSTED_ROOTS: ${{ vars.PESACLARITY_TRUSTED_ROOTS }}
           RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
+          RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
+          RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
         run: |
           # Pull requests only check the build, so they need no offset.
           offset="$VERSION_CODE_OFFSET"
@@ -153,7 +156,9 @@ jobs:
             --dart-define=PESACLARITY_PLAY_CLOUD_PROJECT="$CLOUD_PROJECT" \
             --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
             --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
-            --dart-define=PESACLARITY_RATES_URL="$RATES_URL"
+            --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
+            --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
+            --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL"
 
       - name: Check the bundle is signed with the upload key
         run: |

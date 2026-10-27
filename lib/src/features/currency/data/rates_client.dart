@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/network/pinned_http_client.dart';
@@ -73,4 +74,40 @@ final ratesClientProvider = Provider<RatesClient>(
 /// Whether this build can fetch rates.
 final ratesConfiguredProvider = Provider<bool>(
   (ref) => ratesUrl(ratesUrlDefine, 'USD') != null,
+);
+
+/// Who provides the rates, as their terms ask to be credited. Set at build
+/// time with `--dart-define=PESACLARITY_RATES_SOURCE_NAME=...` and
+/// `--dart-define=PESACLARITY_RATES_SOURCE_URL=https://...`.
+const ratesSourceNameDefine = String.fromEnvironment(
+  'PESACLARITY_RATES_SOURCE_NAME',
+);
+const ratesSourceUrlDefine = String.fromEnvironment(
+  'PESACLARITY_RATES_SOURCE_URL',
+);
+
+/// The rates provider's name and link, for the credit line.
+typedef RatesSource = ({String name, Uri? link});
+
+/// The credit from [name] and [url], or null without a name. A link that is
+/// not https is left out.
+RatesSource? ratesSource(String name, String url) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return null;
+  final uri = Uri.tryParse(url.trim());
+  final link = uri != null && uri.isScheme('https') && uri.host.isNotEmpty
+      ? uri
+      : null;
+  return (name: trimmed, link: link);
+}
+
+/// The credit this build shows under the rates, or null when none is set.
+final ratesSourceProvider = Provider<RatesSource?>(
+  (ref) => ratesSource(ratesSourceNameDefine, ratesSourceUrlDefine),
+);
+
+/// Opens a link in the browser; tests swap in a fake.
+final linkOpenerProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) =>
+      (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
 );
