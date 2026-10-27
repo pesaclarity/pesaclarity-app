@@ -178,6 +178,21 @@ The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release b
 3. When `dev` is ready, open a pull request from `dev` to `main`. The `Release gate` check allows only `dev` (or the release pull request) into `main`, and its QA job waits for a reviewer in the `qa` environment to approve after trying the test APK. Merge it with a merge commit, not a squash, so each change keeps its own title.
 4. On `main`, release-please keeps a release pull request open with the next version (SemVer from the titles: `feat` bumps the minor, `fix` the patch; before 1.0 a breaking change bumps the minor) and the `CHANGELOG.md` entry. Merging it tags `vX.Y.Z`, uploads to Google Play (below) and merges the release back into `dev`.
 
+## Google sign-in
+
+The play build signs in with Google through Android's Credential Manager (`GoogleSignInChannel.kt` in `android/app/src/play`); the foss build has no Google code and offers email sign-in only. The **Continue with Google** button shows only when the build has `PESACLARITY_GOOGLE_SERVER_CLIENT_ID`, and Google answers only for an app signed with a key it knows. To turn it on:
+
+1. In Google Cloud, set up the OAuth consent screen, then create OAuth clients:
+   - a **Web application** client: its id is the token audience, for the app (`PESACLARITY_GOOGLE_SERVER_CLIENT_ID`) and the server;
+   - an **Android** client for package `com.pesaclarity.app` for each signing key's SHA-1: the Play App Signing key (Play Console › App integrity), the upload key, and the dev key below (`keytool -list -v -keystore dev.jks`).
+2. On the server, set `NGOME_GOOGLE_SIGN_IN_ENABLED=true` and `NGOME_GOOGLE_CLIENT_IDS` to the web client id (see the server README).
+3. Repository variables: `PESACLARITY_GOOGLE_SERVER_CLIENT_ID` for releases and `DEV_PESACLARITY_GOOGLE_SERVER_CLIENT_ID` for test APKs (the same web client id, or a dev project's).
+4. For test APKs, make a dev key once and add it as secrets `DEV_KEYSTORE_BASE64`, `DEV_KEYSTORE_PASSWORD`, `DEV_KEY_ALIAS` and `DEV_KEY_PASSWORD`; without them test APKs use a throwaway key and leave Google off.
+
+   ```sh
+   keytool -genkeypair -keystore dev.jks -alias dev -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
 ## Releasing to Google Play
 
 The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) runs the tests, builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
