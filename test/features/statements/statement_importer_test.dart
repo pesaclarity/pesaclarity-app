@@ -10,7 +10,8 @@ import 'package:pesaclarity/src/features/accounts/domain/institution.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/statements/application/statement_importer.dart';
 
-import 'package:ujumbe/ujumbe.dart' show FixtureColumn, typesetPage;
+import 'package:ujumbe/ujumbe.dart'
+    show FixtureColumn, StatementPage, typesetPage;
 
 import '../../helpers/sms_samples.dart';
 import '../../helpers/statement_samples.dart';
@@ -29,6 +30,7 @@ void main() {
         'locked': mpesaStatementPages(),
         'missing-row': mpesaStatementPages(omit: {'TJA0000004'}),
         'kcb': kcbStatementPages(),
+        'scan': [const StatementPage([]), const StatementPage([])],
         'invoice': [
           typesetPage(
             ['Invoice 001', 'Total due 1,000.00'],
@@ -184,5 +186,13 @@ void main() {
       isA<StatementNotRead>().having((o) => o.isPdf, 'isPdf', isFalse),
     );
     expect(await db.select(db.imports).get(), isEmpty);
+  });
+
+  test('a PDF with no text on any page is reported as a scan', () async {
+    expect(
+      await importer.importPdf(fakePdf('scan')),
+      isA<StatementHasNoText>(),
+    );
+    expect(await transactions(), isEmpty);
   });
 }

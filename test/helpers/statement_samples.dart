@@ -230,13 +230,25 @@ class FakePdfTextExtractor implements PdfTextExtractor {
   }
 }
 
-/// Hands out [files] in order, then null as if the person backed out.
+/// Hands out [files] one per pick, then nothing as if the person backed
+/// out.
 class FakeStatementFilePicker implements StatementFilePicker {
   FakeStatementFilePicker(this.files);
 
   final List<PickedStatement> files;
 
   @override
-  Future<PickedStatement?> pickPdf() async =>
-      files.isEmpty ? null : files.removeAt(0);
+  Future<List<PickedStatement>> pickPdfs() async =>
+      files.isEmpty ? const [] : [files.removeAt(0)];
+}
+
+/// Hands out [picks] in order, each a batch of files picked together.
+class FakeBatchFilePicker implements StatementFilePicker {
+  FakeBatchFilePicker(this.picks);
+
+  final List<List<PickedStatement>> picks;
+
+  @override
+  Future<List<PickedStatement>> pickPdfs() async =>
+      picks.isEmpty ? const [] : picks.removeAt(0);
 }

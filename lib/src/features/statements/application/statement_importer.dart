@@ -103,6 +103,12 @@ final class StatementNeedsPassword extends StatementImportOutcome {
   final bool wrongPassword;
 }
 
+/// A PDF with no text on any page, such as a scanned or photographed
+/// statement.
+final class StatementHasNoText extends StatementImportOutcome {
+  const StatementHasNoText();
+}
+
 /// A bank statement whose reader is not built yet.
 final class StatementComingSoon extends StatementImportOutcome {
   const StatementComingSoon(this.bankName);
@@ -217,6 +223,9 @@ class StatementImporter {
       return const StatementNeedsPassword(wrongPassword: true);
     } on PdfUnreadable {
       return const StatementNotRead(isPdf: false);
+    }
+    if (pages.every((page) => page.words.isEmpty)) {
+      return const StatementHasNoText();
     }
     return importPages(pages, fileHash: fileHash);
   }
