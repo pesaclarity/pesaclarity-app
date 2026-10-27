@@ -15,17 +15,25 @@ Release builds take these `--dart-define` values. Keep them in the release envir
 | Define | What it is |
 | --- | --- |
 | `PESACLARITY_API_URL` | The server's base URL (https only) |
-| `PESACLARITY_CERT_PINS` | SPKI SHA-256 pins per host: `host=pin,pin;host=pin,pin`. At least two pins per host: the live key and a backup key kept offline. An invalid value makes the app refuse to connect, by design. |
+| `PESACLARITY_PINNED_HOSTS` | Our server hosts, comma-separated, such as `api.pesaclarity.org,vault.pesaclarity.org` |
+| `PESACLARITY_TRUSTED_ROOTS` | The root certificates those hosts' chains may end in, as comma-separated base64 DER. At least two: the root in use and one the provider may switch to. An invalid value makes the app refuse to connect, by design. |
 | `PESACLARITY_PLAY_CLOUD_PROJECT` | `play` only: the Google Cloud project number for Play Integrity |
 
-Get a pin from a server certificate or a backup key's certificate signing request:
+The app pins certificate authorities, not keys: Cloud Run and Cloudflare renew our certificates with new keys every few months, which would lock out every installed app if keys were pinned.
+
+Find the root a host uses: the last certificate's issuer in
 
 ```sh
-openssl x509 -in server.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
-openssl req -in backup.csr -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
+openssl s_client -connect api.pesaclarity.org:443 -showcerts </dev/null
 ```
 
-Rotate keys by first shipping a release that pins both the current and the next key, then switching the server.
+Download that root from the authority (Google Trust Services publishes theirs at pki.goog), check its fingerprint against the authority's page, and convert it:
+
+```sh
+openssl x509 -in root.pem -outform der | base64 -w0
+```
+
+Include every root the providers list for our hosts, plus the next one they announce. Before a provider changes authority, ship a release that trusts both.
 
 Build, with `SOURCE_DATE_EPOCH` set for reproducibility (see `docs/reproducible-builds.md`):
 
@@ -70,7 +78,7 @@ Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clari
 
 ## Release checklist (not done yet)
 
-- [ ] Server deployed; real certificate pins and a backup key generated and set in `PESACLARITY_CERT_PINS`
+- [ ] Server deployed; `PESACLARITY_PINNED_HOSTS` and `PESACLARITY_TRUSTED_ROOTS` set for its hosts
 - [ ] Play Console project and Google Cloud project created; Play Integrity added to the `play` flavour behind `IntegrityAttestor`, with server-side token checks
 - [ ] Upload and release keys created in a hardware key or secrets manager, with an offline backup
 - [ ] SMS permissions declaration and Data safety form submitted and approved

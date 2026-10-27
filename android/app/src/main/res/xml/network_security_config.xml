@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Dart's HttpClient uses its own TLS stack and ignores this file, so certificate pins
-         live in Dart (lib/src/core/network, set with PESACLARITY_CERT_PINS). -->
+    <!-- Dart's HttpClient uses its own TLS stack and ignores this file, so pinning
+         lives in Dart (lib/src/core/network, set with PESACLARITY_PINNED_HOSTS and
+         PESACLARITY_TRUSTED_ROOTS). -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
