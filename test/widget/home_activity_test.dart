@@ -7,6 +7,7 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/features/activity/presentation/activity_screen.dart';
 import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
+import 'package:pesaclarity/src/routing/app_shell.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/statement_samples.dart';
@@ -217,7 +218,7 @@ void main() {
 
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(PillNavigationBar),
         matching: find.text('Activity'),
       ),
     );
