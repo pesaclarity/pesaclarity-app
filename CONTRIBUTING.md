@@ -48,7 +48,8 @@ Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_id
 
 ## Commits and pull requests
 
-- Small, focused pull requests against `main`, with a short description of what changed and why.
+- Small, focused pull requests against `dev`, with a short description of what changed and why. `main` takes only `dev` and release pull requests (see [Branches and releases](README.md#branches-and-releases)).
+- Pull request titles follow [Conventional Commits](https://www.conventionalcommits.org): `feat: add payee table`, `fix: …`, `feat!: …` for a breaking change. They set the next version and the changelog.
 - Clear, one-line commit messages in the imperative ("Add payee table").
 - Link the issue the change addresses. UI changes should include screenshots in light and dark mode; run the `UI screenshots` workflow on your branch from the Actions tab and its artifact has both.
 - CI must pass before review.
