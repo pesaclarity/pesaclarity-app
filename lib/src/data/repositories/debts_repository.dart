@@ -14,6 +14,9 @@ import 'transactions_repository.dart';
 abstract interface class DebtsRepository {
   Future<int> add(DebtsCompanion debt);
 
+  /// Changes a debt's details, such as its lender, rate or minimum.
+  Future<void> update(int debtId, DebtsCompanion changes);
+
   Future<void> remove(int debtId);
 
   /// Records a balance the user confirmed on [asOf], such as from a lender
@@ -64,6 +67,10 @@ class DriftDebtsRepository implements DebtsRepository {
 
   @override
   Future<int> add(DebtsCompanion debt) => _db.into(_db.debts).insert(debt);
+
+  @override
+  Future<void> update(int debtId, DebtsCompanion changes) =>
+      (_db.update(_db.debts)..where((d) => d.id.equals(debtId))).write(changes);
 
   @override
   Future<void> remove(int debtId) => _db.transaction(() async {

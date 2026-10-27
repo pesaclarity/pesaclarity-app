@@ -75,6 +75,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('See debts'));
     await tester.pumpAndSettle();
-    expect(find.text('When will I be debt-free?'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Debts'), findsOneWidget);
   });
 }
