@@ -145,24 +145,24 @@ class _ProgressDialog extends StatelessWidget {
   }
 }
 
-class _BackupListSheet extends StatefulWidget {
+class _BackupListSheet extends ConsumerStatefulWidget {
   const _BackupListSheet({required this.location, required this.title});
 
   final BackupLocation location;
   final String title;
 
   @override
-  State<_BackupListSheet> createState() => _BackupListSheetState();
+  ConsumerState<_BackupListSheet> createState() => _BackupListSheetState();
 }
 
-class _BackupListSheetState extends State<_BackupListSheet> {
+class _BackupListSheetState extends ConsumerState<_BackupListSheet> {
   late final Future<List<BackupEntry>> _entries = widget.location.list();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final now = DateTime.now();
+    final now = ref.watch(clockProvider)();
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
