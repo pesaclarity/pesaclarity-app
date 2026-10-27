@@ -33,13 +33,14 @@ part 'app_database.g.dart';
     ReviewItems,
     CategoryCorrections,
     CategoryConfirmations,
+    Subscriptions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -122,6 +123,12 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(table);
           }
         }
+      }
+      if (from < 11) {
+        if (!await _exists('table', subscriptions.actualTableName)) {
+          await m.createTable(subscriptions);
+        }
+        await _createIndexIfMissing(m, subscriptionsPayee);
       }
     },
     beforeOpen: (details) async {

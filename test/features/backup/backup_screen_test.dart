@@ -296,6 +296,9 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('SD card · today'), findsOneWidget);
+    // Unmount so the database's stream queries close inside the fake clock.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
     h.work.deleteSync(recursive: true);
   });
 }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/flavor.dart';
+import '../../../core/money/money.dart';
+import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
@@ -16,6 +18,7 @@ import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
 import '../../statements/data/pdf_text_extractor.dart';
+import '../../subscriptions/application/subscriptions_providers.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -25,6 +28,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final flavor = ref.watch(appFlavorProvider);
     final canImport = ref.watch(statementImportAvailableProvider);
+    final subscriptions = ref.watch(subscriptionsOverviewProvider).value;
     final backupSettings = ref.watch(backupControllerProvider).value;
     final lastBackup = backupSettings == null
         ? null
@@ -63,6 +67,19 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: const Text('Names, categories and leak types'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(AppRoutes.payees),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('profile-subscriptions'),
+                  leading: const Icon(Icons.autorenew),
+                  title: const Text('Subscriptions'),
+                  subtitle: Text(
+                    subscriptions == null || subscriptions.lines.isEmpty
+                        ? 'What repeats, and what it costs'
+                        : '${formatMoney(Money(subscriptions.monthlyTotalMinor), withCurrency: false)} a month',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.subscriptions),
                 ),
                 const Divider(height: 1),
                 ListTile(
