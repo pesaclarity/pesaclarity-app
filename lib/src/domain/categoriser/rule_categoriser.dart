@@ -51,6 +51,7 @@ const _outflowPayees = <(String, List<String>)>[
       'pizza',
     ],
   ),
+  ('snacks', ['snacks', 'snack', 'bakery', 'bakers', 'ice cream', 'sweets']),
   ('lifestyle', ['lounge', 'bar', 'club', 'cinema', 'showmax', 'netflix']),
   ('airtime_data', ['airtime', 'bundles', 'data']),
   ('rent', ['rent', 'landlord', 'apartments']),
@@ -73,7 +74,8 @@ const _outflowPayees = <(String, List<String>)>[
   ('giving', ['church', 'tithe', 'harambee', 'parish', 'mosque']),
   ('tax', ['kra', 'itax']),
   ('savings', ['sacco', 'mshwari', 'mmf', 'money market', 'ziidi']),
-  ('loan_repayment', ['loan', 'fuliza', 'tala', 'zenka']),
+  ('fuliza_repayment', ['fuliza']),
+  ('loan_repayment', ['loan', 'tala', 'zenka']),
   ('fees_charges', ['charges', 'charge', 'fee']),
 ];
 
@@ -109,7 +111,7 @@ class RuleCategoriser implements Categoriser {
 
   String? _byKind(CategoriserInput input) => switch (input.kind) {
     TransactionKind.airtime when !input.isInflow => 'airtime_data',
-    TransactionKind.fulizaRepayment => 'loan_repayment',
+    TransactionKind.fulizaRepayment => 'fuliza_repayment',
     TransactionKind.charge when !input.isInflow => 'fees_charges',
     TransactionKind.roundUp => 'savings',
     _ => null,
