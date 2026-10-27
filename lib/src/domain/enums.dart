@@ -43,6 +43,10 @@ enum PayeeIdentifierKind { phone, till, paybill, account }
 
 enum RecurrenceFrequency { weekly, monthly, quarterly, yearly }
 
+/// Whether a repeat charge is tracked as a subscription, or was marked as a
+/// one-off so it is not suggested again.
+enum SubscriptionStatus { tracking, dismissed }
+
 /// A budget line that is not a recurring bill.
 enum BudgetItemKind { oneOff, carriedArrears }
 

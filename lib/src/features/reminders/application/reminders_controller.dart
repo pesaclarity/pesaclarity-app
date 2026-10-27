@@ -8,11 +8,13 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
+import '../../../data/repositories/subscriptions_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/reminders/recurring_charges.dart';
 import '../../../domain/reminders/reminder_schedule.dart';
 import '../../../domain/reminders/reminder_settings.dart';
+import '../../../domain/subscriptions/subscriptions.dart';
 import '../../../domain/time/calendar.dart';
 import '../../home/application/safe_to_spend_provider.dart';
 import '../data/reminder_notifications.dart';
@@ -154,9 +156,26 @@ class ReminderSync {
       paydays.addAll(due.paydays);
     }
 
+    // Tracked subscriptions are reminded at their own next date; suggested
+    // charges only until they are tracked or marked as one-offs.
+    final subscriptions = SubscriptionsOverview.of(
+      saved: await _ref.read(subscriptionsRepositoryProvider).watchAll().first,
+      entries: entries,
+      today: today,
+    );
     final billNames = {for (final b in bills) b.name.trim().toLowerCase()};
     final charges = [
-      for (final charge in detectRecurringCharges(entries, today: today))
+      for (final line in subscriptions.lines)
+        if (!billNames.contains(line.subscription.name.trim().toLowerCase()))
+          RecurringCharge(
+            name: line.subscription.name,
+            payeeId: line.subscription.payeeId,
+            amountMinor: line.amountMinor,
+            currency: line.subscription.currency,
+            lastDate: line.lastChargedOn ?? line.nextDate,
+            nextDate: line.nextDate,
+          ),
+      for (final charge in subscriptions.suggestions)
         if (!billNames.contains(charge.name.trim().toLowerCase())) charge,
     ];
 
@@ -197,6 +216,7 @@ final reminderSyncProvider = Provider<ReminderSync>((ref) {
           db.categories,
           db.transactions,
           db.payees,
+          db.subscriptions,
         ]),
       )
       .listen((_) => sync.dataChanged());
