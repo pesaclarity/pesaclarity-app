@@ -174,10 +174,10 @@ void main() {
 
     await goToBackground(tester, const Duration(seconds: 31));
     expect(find.text(_lockTitle), findsOneWidget);
-    expect(find.text('Your account and settings'), findsNothing);
+    expect(find.widgetWithText(AppBar, 'Profile'), findsNothing);
 
     await enterPin(tester, _pin);
-    expect(find.text('Your account and settings'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
   });
 
   testAppWidgets('stays open in the background when no PIN is set', (

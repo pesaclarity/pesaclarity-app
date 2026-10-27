@@ -53,4 +53,44 @@ void main() {
       kes(3970 + 49000),
     );
   });
+
+  group('balances the institution reported', () {
+    // Opening balance unknown (0), as for an account found by reading SMS.
+    final found = AccountOpening(
+      id: 7,
+      type: AccountType.mpesa,
+      openingBalanceMinor: 0,
+      openingDate: eat(2026, 10, 1, 0),
+    );
+    final reported = [
+      entry(
+        accountId: 7,
+        at: eat(2026, 10, 2),
+        amount: kes(500),
+        fee: kes(15),
+        balanceAfter: kes(9485),
+      ),
+      entry(accountId: 7, at: eat(2026, 10, 4), amount: kes(200)),
+      entry(
+        accountId: 7,
+        at: eat(2026, 10, 6),
+        amount: kes(300),
+        balanceAfter: kes(8985),
+      ),
+      entry(accountId: 7, at: eat(2026, 10, 8), amount: kes(100)),
+    ];
+
+    test('the latest reported balance wins, plus what came after', () {
+      expect(balanceAt(found, reported, at: eat(2026, 10, 5)), kes(9285));
+      expect(balanceAt(found, reported, at: eat(2026, 10, 9)), kes(8885));
+    });
+
+    test('before the first report, it walks back from it', () {
+      expect(balanceAt(found, reported, at: eat(2026, 10, 1, 6)), kes(10000));
+    });
+
+    test('a report taken after an unreported entry still anchors it', () {
+      expect(balanceAt(found, reported, at: eat(2026, 10, 7)), kes(8985));
+    });
+  });
 }

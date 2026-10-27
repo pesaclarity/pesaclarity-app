@@ -25,11 +25,16 @@ class LedgerEntry {
     this.counterpartyKind,
     this.counterpartyValue,
     this.note,
+    this.balanceAfterMinor,
   }) : assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
 
   final int id;
   final int accountId;
+
+  /// The account balance the institution reported after this entry, such as
+  /// M-Pesa's "New M-PESA balance". Null when the message gave none.
+  final int? balanceAfterMinor;
   final DateTime occurredAt;
 
   /// Always positive; [direction] says which way it moved.

@@ -37,9 +37,8 @@ class MyAccountsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tick the ones you transact with. Pesa Clarity reads only '
-              'messages from these senders, on this phone. No logins, no '
-              'passwords.',
+              'Tick the ones you transact with. Pesa Clarity reads messages '
+              'from these senders only, right here on your phone.',
               style: theme.textTheme.bodyLarge!.copyWith(
                 color: colors.textMuted,
               ),

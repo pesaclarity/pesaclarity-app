@@ -25,24 +25,46 @@ class AccountOpening {
   bool get isSavings => savingsAccountTypes.contains(type);
 }
 
-/// The balance of [account] just before [at]: its opening balance plus every
-/// entry on it from its opening date, less transaction costs.
+/// The balance of [account] just before [at].
+///
+/// A balance the institution reported in a message wins: the latest one before
+/// [at], plus the entries after it. With none before [at], the first one after
+/// [at] is walked back. Without any, it is the opening balance plus every entry
+/// from the opening date, less transaction costs.
 int balanceAt(
   AccountOpening account,
   Iterable<LedgerEntry> entries, {
   required DateTime at,
 }) {
-  var balance = account.openingBalanceMinor;
-  for (final entry in entries) {
-    if (entry.accountId != account.id ||
-        entry.currency != account.currency ||
-        entry.occurredAt.isBefore(account.openingDate) ||
-        !entry.occurredAt.isBefore(at)) {
-      continue;
-    }
-    balance += entry.signedMinor - entry.feeMinor;
+  final own = [
+    for (final entry in entries)
+      if (entry.accountId == account.id &&
+          entry.currency == account.currency &&
+          !entry.occurredAt.isBefore(account.openingDate))
+        entry,
+  ]..sort(_chronological);
+  int change(LedgerEntry e) => e.signedMinor - e.feeMinor;
+
+  final before = own.where((e) => e.occurredAt.isBefore(at)).toList();
+  final anchor = before.lastIndexWhere((e) => e.balanceAfterMinor != null);
+  if (anchor >= 0) {
+    return before
+        .skip(anchor + 1)
+        .fold(before[anchor].balanceAfterMinor!, (sum, e) => sum + change(e));
   }
-  return balance;
+  final after = own.skip(before.length).toList();
+  final next = after.indexWhere((e) => e.balanceAfterMinor != null);
+  if (next >= 0) {
+    return after
+        .take(next + 1)
+        .fold(after[next].balanceAfterMinor!, (sum, e) => sum - change(e));
+  }
+  return before.fold(account.openingBalanceMinor, (sum, e) => sum + change(e));
+}
+
+int _chronological(LedgerEntry a, LedgerEntry b) {
+  final byTime = a.occurredAt.compareTo(b.occurredAt);
+  return byTime != 0 ? byTime : a.id.compareTo(b.id);
 }
 
 /// The combined balance just before [at] of the [accounts] that pass [where].

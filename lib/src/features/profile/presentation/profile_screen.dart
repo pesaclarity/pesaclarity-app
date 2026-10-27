@@ -6,7 +6,6 @@ import '../../../config/flavor.dart';
 import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
-import '../../../shared/widgets/feature_placeholder.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
@@ -36,18 +35,11 @@ class ProfileScreen extends ConsumerWidget {
           child: const Text('Profile'),
         ),
       ),
-      body: FeaturePlaceholder(
-        hero: const AccountCard(),
-        question: 'Your account and settings',
-        contents: const [
-          'Account details',
-          'My accounts: the institutions whose messages the app reads',
-          'Payday and currency',
-          'Import, export and backup',
-          'Security: app lock, hide balances',
-          'Sign out and delete account',
-        ],
-        actions: [
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          const AccountCard(),
+          const SizedBox(height: 16),
           const DeviceWarningCard(),
           Card(
             child: Column(
