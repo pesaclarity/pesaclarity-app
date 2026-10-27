@@ -3,7 +3,7 @@ name: Dependency scan
 # Runs when dependencies change, and weekly for new advisories.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths: &deps
       - pubspec.yaml
       - pubspec.lock
