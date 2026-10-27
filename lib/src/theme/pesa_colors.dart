@@ -27,11 +27,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
 
   static const dark = PesaColors(
     brandSoft: BrandTokens.darkBrandSoft,
-    link: BrandTokens.darkBrand,
+    link: BrandTokens.darkBrandLink,
     border: BrandTokens.darkBorder,
     textMuted: BrandTokens.darkTextMuted,
     success: BrandTokens.darkSuccess,
-    successText: BrandTokens.darkSuccess,
+    successText: BrandTokens.darkSuccessText,
     warning: BrandTokens.darkWarning,
   );
 

@@ -2,6 +2,10 @@ import 'package:flutter/painting.dart';
 
 /// Colour and shape values from the brand tokens
 /// (https://github.com/pesaclarity/docs, `brand/tokens.json`).
+///
+/// `test/fixtures/brand/tokens.json` is a copy of that file, and
+/// `test/theme/brand_tokens_test.dart` fails if a value here differs from
+/// it. When the brand tokens change, copy the new file and update these.
 abstract final class BrandTokens {
   static const brand = Color(0xFFC8102E);
   static const brandLink = Color(0xFFB81D2F);
@@ -19,17 +23,17 @@ abstract final class BrandTokens {
 
   static const darkBackground = Color(0xFF1A1214);
   static const darkSurface = Color(0xFF251B1E);
+  static const darkBorder = Color(0xFF3D2E32);
   static const darkText = Color(0xFFEDE4E6);
   static const darkTextMuted = Color(0xFFB3A5A9);
   static const darkBrand = Color(0xFFFF6B7A);
-
-  // Not yet in tokens.json; chosen to keep contrast on the dark surface.
-  // TODO(docs): add these dark values to brand/tokens.json.
-  static const darkBrandSoft = Color(0xFF3D2228);
-  static const darkBorder = Color(0xFF3A2C30);
-  static const darkSuccess = Color(0xFF34D399);
-  static const darkWarning = Color(0xFFF59E0B);
   static const darkOnBrand = Color(0xFF1A1214);
+  static const darkBrandLink = Color(0xFFFF8592);
+  static const darkBrandSoft = Color(0xFF3A1D23);
+  static const darkSuccess = Color(0xFF34D399);
+  static const darkSuccessText = Color(0xFF6EE7B7);
+  static const darkWarning = Color(0xFFFBBF24);
+  static const darkDanger = Color(0xFFFF6B7A);
 
   static const cardRadius = 24.0;
   static const pillRadius = 999.0;
