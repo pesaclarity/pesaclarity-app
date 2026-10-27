@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
+import 'package:pesaclarity/src/core/integrity/integrity_attestor.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_location.dart';
 import 'package:pesaclarity/src/features/backup/data/drive_client.dart';
 import 'package:pesaclarity/src/features/backup/data/vault_client.dart';
@@ -34,6 +35,19 @@ class _DriveAuth implements DriveAuth {
 
   @override
   Future<void> signOut() async {}
+}
+
+class _Attestor implements IntegrityAttestor {
+  _Attestor(this.result);
+
+  final Attestation result;
+  final hashes = <String>[];
+
+  @override
+  Future<Attestation> attest({required String requestHash}) async {
+    hashes.add(requestHash);
+    return result;
+  }
 }
 
 String _sha(List<int> bytes) => [
@@ -74,6 +88,39 @@ void main() {
       expect(seen.headers['Authorization'], 'Bearer t0k');
       expect(seen.headers['Content-Type'], 'application/octet-stream');
       expect(seen.headers['X-Content-SHA256'], _sha(bytes));
+      expect(seen.bodyBytes, bytes);
+    });
+
+    test('adds an integrity token bound to the uploaded bytes', () async {
+      late http.Request seen;
+      final attestor = _Attestor(const Attested('play-token'));
+      final vault = VaultBackupLocation(
+        baseUrl: base,
+        tokens: const _Token('t0k'),
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('{}', 201);
+        }),
+        integrity: IntegrityHeaderHook(attestor),
+      );
+      await vault.upload(file, 'b.pcbackup');
+      expect(seen.headers[integrityTokenHeader], 'play-token');
+      expect(attestor.hashes, [IntegrityHeaderHook.requestHashOf(bytes)]);
+    });
+
+    test('uploads without a token when the build cannot attest', () async {
+      late http.Request seen;
+      final vault = VaultBackupLocation(
+        baseUrl: base,
+        tokens: const _Token('t0k'),
+        client: MockClient((request) async {
+          seen = request;
+          return http.Response('{}', 201);
+        }),
+        integrity: const IntegrityHeaderHook(NoIntegrityAttestor()),
+      );
+      await vault.upload(file, 'b.pcbackup');
+      expect(seen.headers.containsKey(integrityTokenHeader), isFalse);
       expect(seen.bodyBytes, bytes);
     });
 

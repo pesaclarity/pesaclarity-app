@@ -67,6 +67,11 @@ class HttpClientFactory {
   /// Whether clients from [create] enforce pins.
   bool get pinning => pins.isConfigured;
 
+  /// A client for third-party services whose keys we cannot pin, such as
+  /// Google Drive. Never use it for our own servers.
+  HttpClient createUnpinned() =>
+      HttpClient(context: context)..connectionTimeout = connectionTimeout;
+
   HttpClient create() {
     final client = HttpClient(context: context)
       ..connectionTimeout = connectionTimeout;

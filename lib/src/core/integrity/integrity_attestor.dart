@@ -85,9 +85,14 @@ class IntegrityHeaderHook {
 
   final IntegrityAttestor _attestor;
 
-  Future<Map<String, String>> headersFor(List<int> body) async {
+  Future<Map<String, String>> headersFor(List<int> body) =>
+      headersForDigest(Sha256().toSync().hashSync(body).bytes);
+
+  /// Like [headersFor], for a body already hashed with SHA-256, such as a
+  /// file streamed from disk.
+  Future<Map<String, String>> headersForDigest(List<int> sha256) async {
     final attestation = await _attestor.attest(
-      requestHash: requestHashOf(body),
+      requestHash: requestHashOfDigest(sha256),
     );
     return switch (attestation) {
       Attested(:final token) => {integrityTokenHeader: token},
@@ -96,9 +101,11 @@ class IntegrityHeaderHook {
   }
 
   /// The request hash Play Integrity binds a token to: base64url SHA-256.
-  static String requestHashOf(List<int> body) => base64Url
-      .encode(Sha256().toSync().hashSync(body).bytes)
-      .replaceAll('=', '');
+  static String requestHashOf(List<int> body) =>
+      requestHashOfDigest(Sha256().toSync().hashSync(body).bytes);
+
+  static String requestHashOfDigest(List<int> sha256) =>
+      base64Url.encode(sha256).replaceAll('=', '');
 }
 
 final integrityAttestorProvider = Provider<IntegrityAttestor>(

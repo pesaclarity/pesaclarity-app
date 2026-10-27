@@ -106,6 +106,11 @@ void main() {
     expect(await get(unpinned.create(), server.url('/')), 200);
   });
 
+  test('createUnpinned ignores the pins, for third-party services', () async {
+    final pins = CertificatePins.of({'api.example.org': otherPins});
+    expect(await get(factory(pins).createUnpinned(), server.url('/')), 200);
+  });
+
   group('verifyPeerCertificate', () {
     final pins = CertificatePins.of({
       'api.example.org': [testCertificatePin, otherPins[0]],

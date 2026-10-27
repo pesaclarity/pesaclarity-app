@@ -18,4 +18,23 @@ void main() {
     ];
     expect(offenders, isEmpty, reason: 'Use httpClientFactoryProvider');
   });
+
+  test('unpinned clients are used for Google Drive only', () {
+    final users = [
+      for (final file in Directory('lib').listSync(recursive: true))
+        if (file is File &&
+            file.path.endsWith('.dart') &&
+            file.readAsStringSync().contains('.createUnpinned('))
+          file.path.replaceAll(r'\', '/'),
+    ];
+    expect(users, [
+      'lib/src/features/backup/application/backup_providers.dart',
+    ]);
+    final providers = File(users.single).readAsStringSync();
+    expect('.createUnpinned('.allMatches(providers), hasLength(1));
+    expect(
+      providers.indexOf('.createUnpinned('),
+      greaterThan(providers.indexOf('DriveBackupLocation(')),
+    );
+  });
 }

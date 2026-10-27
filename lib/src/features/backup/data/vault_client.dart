@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:cryptography/dart.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/integrity/integrity_attestor.dart';
+
 import 'backup_location.dart';
 import 'backup_settings_repository.dart';
 
@@ -41,11 +43,15 @@ class VaultBackupLocation implements BackupLocation {
     required this.baseUrl,
     required this._tokens,
     required this._client,
+    this._integrity,
   });
 
   final Uri baseUrl;
   final VaultTokenSource _tokens;
   final http.Client _client;
+
+  /// Adds a Play Integrity token to uploads when the build can make one.
+  final IntegrityHeaderHook? _integrity;
 
   @override
   BackupLocationId get id => BackupLocationId.vault;
@@ -65,10 +71,12 @@ class VaultBackupLocation implements BackupLocation {
 
   @override
   Future<void> upload(File file, String fileName) async {
+    final digest = await _sha256(file);
     final request = http.StreamedRequest('POST', _backups())
       ..headers.addAll(await _auth())
+      ..headers.addAll(await _integrity?.headersForDigest(digest) ?? const {})
       ..headers['Content-Type'] = 'application/octet-stream'
-      ..headers['X-Content-SHA256'] = await _sha256Hex(file)
+      ..headers['X-Content-SHA256'] = _hex(digest)
       ..contentLength = await file.length();
     final sending = _client.send(request);
     await request.sink.addStream(file.openRead());
@@ -111,7 +119,7 @@ class VaultBackupLocation implements BackupLocation {
     }
     final expected = response.headers['x-content-sha256'];
     if (expected != null &&
-        expected.toLowerCase() != await _sha256Hex(destination)) {
+        expected.toLowerCase() != _hex(await _sha256(destination))) {
       await destination.delete();
       throw const BackupLocationException(
         'The download from the vault was damaged. Try again.',
@@ -119,16 +127,17 @@ class VaultBackupLocation implements BackupLocation {
     }
   }
 
-  static Future<String> _sha256Hex(File file) async {
+  static Future<List<int>> _sha256(File file) async {
     final sink = const DartSha256().newHashSink();
     await for (final piece in file.openRead()) {
       sink.add(piece);
     }
     sink.close();
-    final hash = await sink.hash();
-    return [for (final b in hash.bytes) b.toRadixString(16).padLeft(2, '0')]
-        .join();
+    return (await sink.hash()).bytes;
   }
+
+  static String _hex(List<int> bytes) =>
+      [for (final b in bytes) b.toRadixString(16).padLeft(2, '0')].join();
 
   static Future<T> _call<T>(Future<T> Function() request) async {
     try {
