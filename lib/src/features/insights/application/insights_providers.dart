@@ -15,7 +15,7 @@ const firstInsightDays = 90;
 /// This Nairobi month's leakages, its change on last month, and the
 /// six-month spending trend.
 final insightsSummaryProvider = FutureProvider<InsightsSummary>((ref) async {
-  final month = CalendarDate.nairobi(ref.watch(clockProvider)()).yearMonth;
+  final month = CalendarDate.local(ref.watch(clockProvider)()).yearMonth;
   // A month before the trend's first month lets Fuliza repayments find their
   // draws.
   final entries = await ref
@@ -38,7 +38,7 @@ final tagNamesProvider = StreamProvider<Map<int, String>>(
 /// Income, spending, leakages and Fuliza fees over the days the first scan
 /// read, up to the end of today.
 final firstInsightProvider = FutureProvider<FirstInsight>((ref) async {
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final from = today.addDays(-firstInsightDays).startInstant;
   final to = today.addDays(1).startInstant;
   final entries = await ref
@@ -65,7 +65,7 @@ final chartPeriodProvider =
 final spendingChartProvider = FutureProvider<SpendingChart>((ref) async {
   ref.watch(ledgerChangesProvider);
   final period = ref.watch(chartPeriodProvider);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final window = ChartWindow.of(period, today);
   // A month before the previous window lets Fuliza repayments find draws.
   final from = window.previous(period).start.yearMonth.previous.startInstant;

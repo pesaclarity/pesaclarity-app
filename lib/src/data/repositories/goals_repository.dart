@@ -48,7 +48,7 @@ class DriftGoalsRepository implements GoalsRepository {
           savedMinor: row.savedMinor,
           targetDate: row.targetDate == null
               ? null
-              : CalendarDate.nairobi(row.targetDate!),
+              : CalendarDate.local(row.targetDate!),
           currency: row.currency,
           status: row.status,
         ),

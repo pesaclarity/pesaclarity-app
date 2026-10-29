@@ -29,9 +29,7 @@ class AutoCategoriser {
       leftOuterJoin(p, p.id.equalsExp(t.payeeId)),
     ]);
 
-    final conditions = <Expression<bool>>[
-      t.categoryOverrideId.isNull(),
-    ];
+    final conditions = <Expression<bool>>[t.categoryOverrideId.isNull()];
 
     if (transactionIds != null) {
       conditions.add(t.id.isIn(transactionIds));
@@ -40,9 +38,7 @@ class AutoCategoriser {
       conditions.add(t.payeeId.equals(payeeId));
     }
 
-    query.where(
-      conditions.reduce((a, b) => a & b),
-    );
+    query.where(conditions.reduce((a, b) => a & b));
 
     final rows = await query.get();
     var changed = 0;
@@ -59,7 +55,9 @@ class AutoCategoriser {
             if (tx.autoCategoryId != null ||
                 tx.autoCategorySource != null ||
                 tx.autoCategoryConfidence != null) {
-              await (_db.update(_db.transactions)..where((tbl) => tbl.id.equals(tx.id))).write(
+              await (_db.update(
+                _db.transactions,
+              )..where((tbl) => tbl.id.equals(tx.id))).write(
                 const TransactionsCompanion(
                   autoCategoryId: Value(null),
                   autoCategorySource: Value(null),
@@ -106,7 +104,9 @@ class AutoCategoriser {
           if (tx.autoCategoryId != newAutoId ||
               tx.autoCategorySource != newSource ||
               tx.autoCategoryConfidence != newConfidence) {
-            await (_db.update(_db.transactions)..where((tbl) => tbl.id.equals(tx.id))).write(
+            await (_db.update(
+              _db.transactions,
+            )..where((tbl) => tbl.id.equals(tx.id))).write(
               TransactionsCompanion(
                 autoCategoryId: Value(newAutoId),
                 autoCategorySource: Value(newSource),

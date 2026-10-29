@@ -68,7 +68,7 @@ void main() {
           ),
         );
   });
-  
+
   tearDown(() => db.close());
 
   Future<void> spend(int categoryId, DateTime at, int amount) =>

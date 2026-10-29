@@ -47,7 +47,7 @@ class LendingOverview {
 }
 
 final lendingOverviewProvider = FutureProvider<LendingOverview>((ref) async {
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final debts = ref.watch(debtsRepositoryProvider);
   final borrowed = <BorrowedLoan>[];
   for (final debt in await debts.debts(today: today)) {

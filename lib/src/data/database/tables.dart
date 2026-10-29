@@ -232,11 +232,15 @@ class Transactions extends Table {
       integer().nullable().references(Transactions, #id)();
 
   /// The category predicted automatically by the on-device ML model or rules.
-  IntColumn get autoCategoryId =>
-      integer().nullable().references(Categories, #id, onDelete: KeyAction.setNull)();
+  IntColumn get autoCategoryId => integer().nullable().references(
+    Categories,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   /// Whether the prediction came from rules, model, or user correction.
-  TextColumn get autoCategorySource => textEnum<SuggestionSource>().nullable()();
+  TextColumn get autoCategorySource =>
+      textEnum<SuggestionSource>().nullable()();
 
   /// Prediction confidence score between 0.0 and 1.0.
   RealColumn get autoCategoryConfidence => real().nullable()();

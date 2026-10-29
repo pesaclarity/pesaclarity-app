@@ -20,7 +20,7 @@ import 'month_close.dart';
 
 /// Today's month in Nairobi.
 final currentMonthProvider = Provider<YearMonth>(
-  (ref) => YearMonth.nairobi(ref.watch(clockProvider)()),
+  (ref) => YearMonth.local(ref.watch(clockProvider)()),
 );
 
 /// The month Plan is showing; starts on the current month.
@@ -130,7 +130,7 @@ final planViewProvider = FutureProvider.family<PlanView, YearMonth>((
 ) async {
   await ref.watch(monthCloseProvider.future);
   final repository = ref.watch(planRepositoryProvider);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final plan = await repository.monthPlan(month);
   final entries = await ref
       .watch(transactionsRepositoryProvider)
@@ -184,7 +184,7 @@ class PaydayProposal {
 final paydayProvider = FutureProvider<PaydayProposal?>((ref) async {
   await ref.watch(monthCloseProvider.future);
   final now = ref.watch(clockProvider)();
-  final today = CalendarDate.nairobi(now);
+  final today = CalendarDate.local(now);
   final month = today.yearMonth;
   final repository = ref.watch(planRepositoryProvider);
   final plan = await repository.monthPlan(month);

@@ -10,11 +10,17 @@ void main() {
       final utc = DateTime.utc(2026, 10, 29, 13, 30);
       UserTimeZone.set(const Duration(hours: 3), name: 'EAT');
       expect(formatTimestamp(utc), '2026-10-29 16:30');
-      expect(formatTimestamp(utc, includeTimezone: true), '2026-10-29 16:30 (UTC+03:00)');
+      expect(
+        formatTimestamp(utc, includeTimezone: true),
+        '2026-10-29 16:30 (UTC+03:00)',
+      );
 
       UserTimeZone.set(const Duration(hours: -5), name: 'EST');
       expect(formatTimestamp(utc), '2026-10-29 08:30');
-      expect(formatTimestamp(utc, includeTimezone: true), '2026-10-29 08:30 (UTC-05:00)');
+      expect(
+        formatTimestamp(utc, includeTimezone: true),
+        '2026-10-29 08:30 (UTC-05:00)',
+      );
 
       UserTimeZone.set(Duration.zero, name: 'GMT');
       expect(formatTimestamp(utc), '2026-10-29 13:30');
@@ -24,9 +30,18 @@ void main() {
       // 21:30 UTC on Oct 25 is Oct 26 00:30 in EAT (UTC+3), but still Oct 25 in GMT and EST
       final instant = DateTime.utc(2026, 10, 25, 21, 30);
 
-      expect(CalendarDate.of(instant, const Duration(hours: 3)), CalendarDate(2026, 10, 26));
-      expect(CalendarDate.of(instant, Duration.zero), CalendarDate(2026, 10, 25));
-      expect(CalendarDate.of(instant, const Duration(hours: -5)), CalendarDate(2026, 10, 25));
+      expect(
+        CalendarDate.of(instant, const Duration(hours: 3)),
+        CalendarDate(2026, 10, 26),
+      );
+      expect(
+        CalendarDate.of(instant, Duration.zero),
+        CalendarDate(2026, 10, 25),
+      );
+      expect(
+        CalendarDate.of(instant, const Duration(hours: -5)),
+        CalendarDate(2026, 10, 25),
+      );
     });
 
     test('CalendarDate.startInstant adapts to active timezone offset', () {
@@ -45,29 +60,29 @@ void main() {
   group('CalendarDate.nairobi', () {
     test('rolls over at 21:00 UTC, which is midnight EAT', () {
       expect(
-        CalendarDate.nairobi(DateTime.utc(2026, 10, 25, 20, 59)),
+        CalendarDate.local(DateTime.utc(2026, 10, 25, 20, 59)),
         CalendarDate(2026, 10, 25),
       );
       expect(
-        CalendarDate.nairobi(DateTime.utc(2026, 10, 25, 21)),
+        CalendarDate.local(DateTime.utc(2026, 10, 25, 21)),
         CalendarDate(2026, 10, 26),
       );
     });
 
     test('crosses month and year boundaries', () {
       expect(
-        CalendarDate.nairobi(DateTime.utc(2026, 10, 31, 22)),
+        CalendarDate.local(DateTime.utc(2026, 10, 31, 22)),
         CalendarDate(2026, 11, 1),
       );
       expect(
-        CalendarDate.nairobi(DateTime.utc(2026, 12, 31, 21, 30)),
+        CalendarDate.local(DateTime.utc(2026, 12, 31, 21, 30)),
         CalendarDate(2027, 1, 1),
       );
     });
 
     test('ignores the zone the DateTime was created in', () {
       final utc = DateTime.utc(2026, 3, 1, 22);
-      expect(CalendarDate.nairobi(utc.toLocal()), CalendarDate(2026, 3, 2));
+      expect(CalendarDate.local(utc.toLocal()), CalendarDate(2026, 3, 2));
     });
   });
 
@@ -127,7 +142,25 @@ void main() {
       final month = YearMonth(2026, 11);
       expect(month.startInstant, DateTime.utc(2026, 10, 31, 21));
       expect(month.endInstant, DateTime.utc(2026, 11, 30, 21));
-      expect(YearMonth.nairobi(DateTime.utc(2026, 10, 31, 21)), month);
+      expect(YearMonth.local(DateTime.utc(2026, 10, 31, 21)), month);
     });
+  });
+
+  test('dates and the start of each day follow the same timezone', () {
+    addTearDown(() => UserTimeZone.set(nairobiUtcOffset));
+    for (final offset in [
+      const Duration(hours: -5),
+      Duration.zero,
+      const Duration(hours: 5, minutes: 30),
+    ]) {
+      UserTimeZone.set(offset);
+      // 23:30 and 00:30 local, either side of midnight.
+      final day = CalendarDate(2026, 10, 6);
+      final late = day.startInstant.subtract(const Duration(minutes: 30));
+      final early = day.startInstant.add(const Duration(minutes: 30));
+      expect(CalendarDate.local(late), CalendarDate(2026, 10, 5));
+      expect(CalendarDate.local(early), day);
+      expect(YearMonth.local(day.yearMonth.startInstant), day.yearMonth);
+    }
   });
 }

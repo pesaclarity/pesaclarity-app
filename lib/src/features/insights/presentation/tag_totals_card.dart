@@ -26,7 +26,7 @@ class TagTotalsSection extends ConsumerWidget {
       for (final u in ref.watch(tagUsageProvider).value ?? const <TagUse>[])
         u.tag.id: u.tag.name,
     };
-    final month = YearMonth.nairobi(ref.watch(clockProvider)());
+    final month = YearMonth.local(ref.watch(clockProvider)());
     final monthName = _monthNames[month.month - 1];
 
     final rows = (totals?.values.toList() ?? <TagSummary>[])

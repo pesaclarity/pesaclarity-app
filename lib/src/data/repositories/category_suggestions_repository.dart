@@ -67,12 +67,11 @@ class DriftCategorySuggestionsRepository
           );
     }
     if (entry.payeeId != null) {
-      await (_db.update(_db.transactions)
-            ..where(
-              (t) =>
-                  t.payeeId.equals(entry.payeeId!) &
-                  t.categoryOverrideId.isNull(),
-            ))
+      await (_db.update(_db.transactions)..where(
+            (t) =>
+                t.payeeId.equals(entry.payeeId!) &
+                t.categoryOverrideId.isNull(),
+          ))
           .write(
             TransactionsCompanion(
               autoCategoryId: Value(categoryId),

@@ -189,10 +189,9 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: Text(
                     '${DateTime.now().timeZoneName} (${UserTimeZone.formatOffset(DateTime.now().timeZoneOffset)})',
                   ),
-                  trailing:
-                      current.isAuto
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : null,
+                  trailing: current.isAuto
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
                   onTap: () async {
                     Navigator.pop(context);
                     await ref
@@ -209,9 +208,9 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     trailing:
                         (!current.isAuto &&
-                                current.offsetMinutes == tz.offsetMinutes)
-                            ? const Icon(Icons.check, color: Colors.green)
-                            : null,
+                            current.offsetMinutes == tz.offsetMinutes)
+                        ? const Icon(Icons.check, color: Colors.green)
+                        : null,
                     onTap: () async {
                       Navigator.pop(context);
                       await ref

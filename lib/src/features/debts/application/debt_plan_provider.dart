@@ -9,7 +9,7 @@ import 'debts_overview_provider.dart';
 /// Today's payoff plan against minimums only, from this month, with the
 /// strategy the person chose on Debts. Null when nothing is owed.
 final debtPlanProvider = FutureProvider<PayoffComparison?>((ref) async {
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final repository = ref.watch(debtsRepositoryProvider);
   final debts = await repository.debts(today: today);
   if (debts.every((d) => d.balanceMinor == 0)) return null;

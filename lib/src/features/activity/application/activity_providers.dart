@@ -18,7 +18,7 @@ const activityPageDays = 60;
 final activityEntriesProvider =
     FutureProvider.family<List<LedgerEntry>, CalendarDate>((ref, from) async {
       ref.watch(ledgerChangesProvider);
-      final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+      final today = CalendarDate.local(ref.watch(clockProvider)());
       final monday = startOfWeek(today);
       final start = from.isBefore(monday) ? from : monday;
       return ref

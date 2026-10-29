@@ -60,7 +60,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = _filter.from ?? today.addDays(-activityPageDays * _pages);
     final loaded = ref.watch(activityEntriesProvider(from));
     final entries = loaded.value ?? const <LedgerEntry>[];

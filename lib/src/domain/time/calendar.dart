@@ -85,12 +85,6 @@ class CalendarDate implements Comparable<CalendarDate> {
     return CalendarDate._(shifted.year, shifted.month, shifted.day);
   }
 
-  /// The Nairobi date of [instant], whatever zone the [DateTime] is in.
-  factory CalendarDate.nairobi(DateTime instant) {
-    final local = instant.toUtc().add(nairobiUtcOffset);
-    return CalendarDate._(local.year, local.month, local.day);
-  }
-
   /// Today's date in the user's active timezone.
   factory CalendarDate.today([DateTime Function()? now]) {
     final current = now != null ? now() : DateTime.now();
@@ -114,9 +108,6 @@ class CalendarDate implements Comparable<CalendarDate> {
   /// Whole days from this date to [other]; negative when [other] is earlier.
   int daysUntil(CalendarDate other) =>
       other._utc.difference(_utc).inHours ~/ Duration.hoursPerDay;
-
-  /// The UTC instant at which this date starts in Nairobi (00:00 EAT).
-  DateTime get nairobiStartInstant => _utc.subtract(nairobiUtcOffset);
 
   /// The UTC instant at which this date starts in the user's active timezone.
   DateTime get startInstant => _utc.subtract(UserTimeZone.currentOffset);
@@ -173,10 +164,6 @@ class YearMonth implements Comparable<YearMonth> {
   factory YearMonth.of(DateTime instant, [Duration? offset]) =>
       CalendarDate.of(instant, offset).yearMonth;
 
-  /// The Nairobi month of [instant].
-  factory YearMonth.nairobi(DateTime instant) =>
-      CalendarDate.nairobi(instant).yearMonth;
-
   final int year;
   final int month;
 
@@ -203,14 +190,8 @@ class YearMonth implements Comparable<YearMonth> {
   /// The UTC instant at which this month starts in the user's active timezone.
   DateTime get startInstant => firstDay.startInstant;
 
-  /// The UTC instant at which this month starts in Nairobi.
-  DateTime get nairobiStartInstant => firstDay.nairobiStartInstant;
-
   /// The UTC instant at which the next month starts in the user's active timezone (exclusive end).
   DateTime get endInstant => next.startInstant;
-
-  /// The UTC instant at which the next month starts in Nairobi (exclusive end).
-  DateTime get nairobiEndInstant => next.nairobiStartInstant;
 
   @override
   int compareTo(YearMonth other) => key.compareTo(other.key);

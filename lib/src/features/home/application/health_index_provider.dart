@@ -24,7 +24,7 @@ class HealthOnHome {
 /// that month has no transactions.
 final healthIndexProvider = FutureProvider<HealthOnHome?>((ref) async {
   ref.watch(ledgerChangesProvider);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final month = today.yearMonth.previous;
   final before = month.previous;
 

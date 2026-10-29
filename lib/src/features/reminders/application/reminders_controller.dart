@@ -134,7 +134,7 @@ class ReminderSync {
 
   Future<List<Reminder>> _plan(ReminderSettings settings) async {
     final now = _ref.read(clockProvider)();
-    final today = CalendarDate.nairobi(now);
+    final today = CalendarDate.local(now);
     final month = today.yearMonth;
     final plans = _ref.read(planRepositoryProvider);
     final entries = await _ref

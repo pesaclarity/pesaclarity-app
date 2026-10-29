@@ -266,7 +266,7 @@ class ExportService {
     final file = File(
       p.join(
         folder.path,
-        'pesaclarity-${scope.fileStem}-${CalendarDate.nairobi(now)}.$extension',
+        'pesaclarity-${scope.fileStem}-${CalendarDate.local(now)}.$extension',
       ),
     );
     await file.writeAsBytes(bytes, flush: true);
@@ -313,8 +313,8 @@ class ExportService {
 
 /// `[from, to)` as dates, for example `1 Oct 2026 to 31 Oct 2026`.
 String periodLabel(DateTime from, DateTime to) {
-  final first = CalendarDate.nairobi(from);
-  final last = CalendarDate.nairobi(to).addDays(-1);
+  final first = CalendarDate.local(from);
+  final last = CalendarDate.local(to).addDays(-1);
   return '${dateLabel(first)} to ${dateLabel(last)}';
 }
 

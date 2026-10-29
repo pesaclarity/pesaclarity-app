@@ -24,7 +24,7 @@ class LendingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overview = ref.watch(lendingOverviewProvider);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
 
     return Scaffold(
       appBar: AppBar(title: const Text('Lent and borrowed')),
@@ -274,7 +274,7 @@ class _LoanActions extends StatelessWidget {
     final theme = Theme.of(context);
     final container = ProviderScope.containerOf(context, listen: false);
     final now = container.read(clockProvider)();
-    final today = CalendarDate.nairobi(now);
+    final today = CalendarDate.local(now);
     final lent = loan.lent;
     final borrowed = loan.borrowed;
     final open = loan.remainingMinor > 0;

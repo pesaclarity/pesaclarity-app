@@ -67,7 +67,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
   final current = summary.current;
   final previous = summary.previous;
   final month = report.month;
-  final today = CalendarDate.nairobi(report.createdAt);
+  final today = CalendarDate.local(report.createdAt);
 
   String kes(int minor) => formatMoney(Money(minor), withCurrency: false);
 

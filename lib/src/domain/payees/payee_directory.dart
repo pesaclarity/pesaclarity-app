@@ -57,7 +57,8 @@ AppliedPayee applyPayee(
   return AppliedPayee(
     payeeId: payee?.id,
     displayName: payee?.displayName,
-    categoryId: categoryOverrideId ?? payee?.defaultCategoryId ?? autoCategoryId,
+    categoryId:
+        categoryOverrideId ?? payee?.defaultCategoryId ?? autoCategoryId,
     leakType: payee?.leakType ?? LeakType.none,
     isCategoryOverridden: hasOverride,
     isCategoryAuto: hasAuto,

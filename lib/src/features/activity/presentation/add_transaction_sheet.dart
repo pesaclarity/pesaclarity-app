@@ -109,7 +109,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = (ref.watch(activityCategoriesProvider).value ?? const {})
         .values
