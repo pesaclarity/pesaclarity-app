@@ -34,6 +34,11 @@ abstract interface class CategoriesRepository {
   /// The category with a seeded [key], such as a categoriser label. Null for
   /// [uncategorisedKey] and for keys the user's set no longer has.
   Future<Category?> byKey(String key);
+
+  /// How many transactions each category holds, by id: the person's own
+  /// choice, else the payee's, else the automatic one. Updates as
+  /// transactions or payees change.
+  Stream<Map<int, int>> watchUsage();
 }
 
 class DriftCategoriesRepository implements CategoriesRepository {
@@ -104,6 +109,23 @@ class DriftCategoriesRepository implements CategoriesRepository {
   Future<Category?> byKey(String key) => (_db.select(
     _db.categories,
   )..where((c) => c.key.equals(key))).getSingleOrNull();
+
+  @override
+  Stream<Map<int, int>> watchUsage() => _db
+      .customSelect(
+        'SELECT COALESCE(t.category_override_id, p.default_category_id, '
+        't.auto_category_id) AS category, COUNT(*) AS uses '
+        'FROM transactions t LEFT JOIN payees p ON p.id = t.payee_id '
+        'GROUP BY category',
+        readsFrom: {_db.transactions, _db.payees},
+      )
+      .watch()
+      .map(
+        (rows) => {
+          for (final row in rows)
+            ?row.read<int?>('category'): row.read<int>('uses'),
+        },
+      );
 }
 
 final categoriesRepositoryProvider = Provider<CategoriesRepository>(

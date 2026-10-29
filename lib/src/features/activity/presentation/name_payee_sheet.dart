@@ -5,7 +5,7 @@ import '../../../data/repositories/payees_repository.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/payees/payee_identifier.dart';
-import '../application/activity_providers.dart';
+import '../../payees/presentation/category_picker.dart';
 
 /// Opens the sheet that names the party behind [entry]. Does nothing when
 /// the entry has no number or till to name.
@@ -78,14 +78,6 @@ class _NamePayeeSheetState extends ConsumerState<NamePayeeSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categories = (ref.watch(activityCategoriesProvider).value ?? const {})
-        .values
-        .where(
-          (c) => widget.isInflow
-              ? c.type != CategoryType.expense
-              : c.type != CategoryType.income,
-        )
-        .toList();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -114,19 +106,15 @@ class _NamePayeeSheetState extends ConsumerState<NamePayeeSheet> {
               decoration: InputDecoration(labelText: 'Name', errorText: _error),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
-              initialValue: _categoryId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: widget.isInflow
-                    ? 'What was it? Gift, loan or repayment'
-                    : 'Category',
-              ),
-              items: [
-                const DropdownMenuItem<int?>(child: Text('Choose later')),
-                for (final c in categories)
-                  DropdownMenuItem(value: c.id, child: Text(c.name)),
-              ],
+            CategorySelectorField(
+              key: const Key('name-payee-category'),
+              label: widget.isInflow
+                  ? 'What was it? Gift, loan or repayment'
+                  : 'Category',
+              selectedId: _categoryId,
+              allowType: (type) => widget.isInflow
+                  ? type != CategoryType.expense
+                  : type != CategoryType.income,
               onChanged: (id) => setState(() => _categoryId = id),
             ),
             const SizedBox(height: 16),

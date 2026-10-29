@@ -11,6 +11,7 @@ import '../../../data/repositories/debts_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/selector_field.dart';
 import '../../goals/application/goals_overview_provider.dart';
 import '../application/debts_overview_provider.dart';
 
@@ -189,17 +190,22 @@ class _DebtSheetState extends State<DebtSheet> {
                 style: theme.textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<DebtType>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Kind of debt'),
-                items: [
-                  for (final type in DebtType.values)
-                    DropdownMenuItem(
-                      value: type,
-                      child: Text(debtTypeLabel(type)),
-                    ),
-                ],
-                onChanged: (type) => setState(() => _type = type ?? _type),
+              // A fixed set of eight: shown in full, nothing to search.
+              SelectorField(
+                label: 'Kind of debt',
+                value: debtTypeLabel(_type),
+                onTap: () async {
+                  final type = await showOptionSheet<DebtType>(
+                    context,
+                    title: 'Kind of debt',
+                    options: [
+                      for (final type in DebtType.values)
+                        (type, debtTypeLabel(type)),
+                    ],
+                    selected: _type,
+                  );
+                  if (type != null) setState(() => _type = type);
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(
