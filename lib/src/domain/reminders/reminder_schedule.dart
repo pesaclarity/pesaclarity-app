@@ -107,7 +107,7 @@ List<Reminder> planReminders({
 }) {
   currency ??= BaseCurrency.code;
   if (!settings.enabled) return const [];
-  final today = CalendarDate.nairobi(now);
+  final today = CalendarDate.local(now);
   final drafts = <_Draft>[];
 
   DateTime atMinute(CalendarDate date, int minuteOfDay) =>
@@ -132,7 +132,7 @@ List<Reminder> planReminders({
     for (final bill in bills) {
       final at = dueReminderTime(bill.dueDate, settings.leadDays);
       if (at == null) continue;
-      final when = _whenDue(CalendarDate.nairobi(at), bill.dueDate);
+      final when = _whenDue(CalendarDate.local(at), bill.dueDate);
       drafts.add(
         _Draft(
           ReminderKind.bill,
@@ -152,7 +152,7 @@ List<Reminder> planReminders({
     for (final charge in charges) {
       final at = dueReminderTime(charge.nextDate, settings.leadDays);
       if (at == null) continue;
-      final when = _whenDue(CalendarDate.nairobi(at), charge.nextDate);
+      final when = _whenDue(CalendarDate.local(at), charge.nextDate);
       drafts.add(
         _Draft(
           ReminderKind.cardCharge,

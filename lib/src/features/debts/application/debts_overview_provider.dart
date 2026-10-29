@@ -106,7 +106,7 @@ class DebtsOverview {
 
 final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
   final now = ref.watch(clockProvider)();
-  final today = CalendarDate.nairobi(now);
+  final today = CalendarDate.local(now);
   final repository = ref.watch(debtsRepositoryProvider);
   final preference = await ref.watch(debtPreferenceProvider.future);
   final owed = [

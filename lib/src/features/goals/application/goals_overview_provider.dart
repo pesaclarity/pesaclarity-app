@@ -36,7 +36,7 @@ class GoalsOverview {
 
 final goalsOverviewProvider = FutureProvider<GoalsOverview>((ref) async {
   final now = ref.watch(clockProvider)();
-  final today = CalendarDate.nairobi(now);
+  final today = CalendarDate.local(now);
   final month = today.yearMonth;
   final debtsRepository = ref.watch(debtsRepositoryProvider);
   final plan = await ref.watch(debtPlanProvider.future);

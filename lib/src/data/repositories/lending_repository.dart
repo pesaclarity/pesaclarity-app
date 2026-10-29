@@ -54,7 +54,7 @@ class DriftLendingRepository implements LendingRepository {
     for (final row in paymentRows) {
       (payments[row.lentLoanId!] ??= []).add(
         LoanPayment(
-          date: CalendarDate.nairobi(row.paidOn),
+          date: CalendarDate.local(row.paidOn),
           amountMinor: row.amountMinor,
         ),
       );
@@ -65,10 +65,10 @@ class DriftLendingRepository implements LendingRepository {
           id: row.id,
           person: row.person,
           amountMinor: row.amountMinor,
-          lentOn: CalendarDate.nairobi(row.lentOn),
+          lentOn: CalendarDate.local(row.lentOn),
           dueDate: row.dueDate == null
               ? null
-              : CalendarDate.nairobi(row.dueDate!),
+              : CalendarDate.local(row.dueDate!),
           note: row.note,
           currency: row.currency,
           payments: payments[row.id] ?? const [],

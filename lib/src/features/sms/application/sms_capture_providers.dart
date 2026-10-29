@@ -156,7 +156,9 @@ class SmsScanController extends Notifier<SmsScanState> {
       if (summary.added > 0) {
         final suggester = ref.read(categorySuggesterProvider);
         if (suggester != null) {
-          unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
+          unawaited(
+            ref.read(autoCategoriserProvider).autoCategorise(suggester),
+          );
         }
       }
       state = SmsScanState(SmsScanStage.finished, summary: summary);

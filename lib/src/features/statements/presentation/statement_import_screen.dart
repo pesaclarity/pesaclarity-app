@@ -144,7 +144,7 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
             StatementImportStage.alreadyImported => [
               _Heading(
                 'You imported this statement on '
-                '${dayLabel(CalendarDate.nairobi(state.summary!.importedAt))}',
+                '${dayLabel(CalendarDate.local(state.summary!.importedAt))}',
               ),
               const SizedBox(height: 8),
               const _Body(
@@ -378,7 +378,7 @@ String _resultLine(StatementFileResult result) {
     null => 'The import stopped. Try this file again.',
     StatementAlreadyImported(:final summary) =>
       'You imported this statement on '
-          '${dayLabel(CalendarDate.nairobi(summary.importedAt))}. Its '
+          '${dayLabel(CalendarDate.local(summary.importedAt))}. Its '
           'transactions are already in your ledger.',
     StatementComingSoon(:final bankName) =>
       '$bankName statements are coming soon.',

@@ -51,7 +51,7 @@ class DriftSubscriptionsRepository implements SubscriptionsRepository {
     amountMinor: r.amountMinor,
     currency: r.currency,
     frequency: r.frequency,
-    nextDate: CalendarDate.nairobi(r.nextDate),
+    nextDate: CalendarDate.local(r.nextDate),
     status: r.status,
   );
 

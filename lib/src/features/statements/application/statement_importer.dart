@@ -258,11 +258,11 @@ class StatementImporter {
 
     final firstDay = _earlier(
       statement.periodStart,
-      CalendarDate.nairobi(parsed.first.time),
+      CalendarDate.local(parsed.first.time),
     );
     final lastDay = _later(
       statement.periodEnd,
-      CalendarDate.nairobi(parsed.last.time),
+      CalendarDate.local(parsed.last.time),
     );
     final from = firstDay.startInstant;
     final to = lastDay.addDays(1).startInstant;

@@ -74,11 +74,8 @@ String formatDateTime(
   DateTime instant, {
   Duration? offset,
   bool includeTimezone = false,
-}) => formatTimestamp(
-  instant,
-  offset: offset,
-  includeTimezone: includeTimezone,
-);
+}) =>
+    formatTimestamp(instant, offset: offset, includeTimezone: includeTimezone);
 
 /// Formats time in the user's active timezone: `16:45`.
 String formatTime(DateTime instant, {Duration? offset}) {

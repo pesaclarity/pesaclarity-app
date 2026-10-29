@@ -20,17 +20,61 @@ class TimeZoneOption {
 }
 
 const commonTimeZones = <TimeZoneOption>[
-  TimeZoneOption(name: 'EAT', label: 'East Africa Time (Nairobi, Kampala, Dar es Salaam)', offsetMinutes: 180),
-  TimeZoneOption(name: 'CAT', label: 'Central Africa Time (Kigali, Harare, Lusaka, Maputo)', offsetMinutes: 120),
-  TimeZoneOption(name: 'WAT', label: 'West Africa Time (Lagos, Kinshasa, Luanda, Yaoundé)', offsetMinutes: 60),
-  TimeZoneOption(name: 'GMT', label: 'Greenwich Mean Time (Accra, Dakar, London)', offsetMinutes: 0),
-  TimeZoneOption(name: 'CET', label: 'Central European Time (Paris, Berlin, Rome)', offsetMinutes: 60),
-  TimeZoneOption(name: 'SAST', label: 'South Africa Standard Time (Johannesburg, Cape Town)', offsetMinutes: 120),
-  TimeZoneOption(name: 'GST', label: 'Gulf Standard Time (Dubai, Abu Dhabi, Muscat)', offsetMinutes: 240),
-  TimeZoneOption(name: 'IST', label: 'India Standard Time (New Delhi, Mumbai)', offsetMinutes: 330),
-  TimeZoneOption(name: 'EST', label: 'Eastern Time (New York, Toronto)', offsetMinutes: -300),
-  TimeZoneOption(name: 'CST', label: 'Central Time (Chicago, Mexico City)', offsetMinutes: -360),
-  TimeZoneOption(name: 'PST', label: 'Pacific Time (Los Angeles, Vancouver)', offsetMinutes: -480),
+  TimeZoneOption(
+    name: 'EAT',
+    label: 'East Africa Time (Nairobi, Kampala, Dar es Salaam)',
+    offsetMinutes: 180,
+  ),
+  TimeZoneOption(
+    name: 'CAT',
+    label: 'Central Africa Time (Kigali, Harare, Lusaka, Maputo)',
+    offsetMinutes: 120,
+  ),
+  TimeZoneOption(
+    name: 'WAT',
+    label: 'West Africa Time (Lagos, Kinshasa, Luanda, Yaoundé)',
+    offsetMinutes: 60,
+  ),
+  TimeZoneOption(
+    name: 'GMT',
+    label: 'Greenwich Mean Time (Accra, Dakar, London)',
+    offsetMinutes: 0,
+  ),
+  TimeZoneOption(
+    name: 'CET',
+    label: 'Central European Time (Paris, Berlin, Rome)',
+    offsetMinutes: 60,
+  ),
+  TimeZoneOption(
+    name: 'SAST',
+    label: 'South Africa Standard Time (Johannesburg, Cape Town)',
+    offsetMinutes: 120,
+  ),
+  TimeZoneOption(
+    name: 'GST',
+    label: 'Gulf Standard Time (Dubai, Abu Dhabi, Muscat)',
+    offsetMinutes: 240,
+  ),
+  TimeZoneOption(
+    name: 'IST',
+    label: 'India Standard Time (New Delhi, Mumbai)',
+    offsetMinutes: 330,
+  ),
+  TimeZoneOption(
+    name: 'EST',
+    label: 'Eastern Time (New York, Toronto)',
+    offsetMinutes: -300,
+  ),
+  TimeZoneOption(
+    name: 'CST',
+    label: 'Central Time (Chicago, Mexico City)',
+    offsetMinutes: -360,
+  ),
+  TimeZoneOption(
+    name: 'PST',
+    label: 'Pacific Time (Los Angeles, Vancouver)',
+    offsetMinutes: -480,
+  ),
 ];
 
 @immutable

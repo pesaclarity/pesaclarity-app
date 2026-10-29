@@ -12,7 +12,7 @@ import '../../../domain/time/calendar.dart';
 /// SACCO and money market accounts), or null when there are none.
 final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
   ref.watch(ledgerChangesProvider);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final accounts = (await ref.watch(accountsRepositoryProvider).openings())
       .where((a) => !a.isSavings)
       .toList();
@@ -41,6 +41,6 @@ final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
     today: today,
     plan: await ref.watch(planRepositoryProvider).monthPlan(today.yearMonth),
     entries: entries,
-    historyFrom: CalendarDate.nairobi(opened),
+    historyFrom: CalendarDate.local(opened),
   );
 });

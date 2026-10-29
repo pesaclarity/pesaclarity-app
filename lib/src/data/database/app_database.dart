@@ -133,7 +133,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 12) await _splitLoansAndSnacks();
       if (from < 13) {
         await _addColumnIfMissing(m, transactions, transactions.autoCategoryId);
-        await _addColumnIfMissing(m, transactions, transactions.autoCategorySource);
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.autoCategorySource,
+        );
         await _addColumnIfMissing(
           m,
           transactions,
