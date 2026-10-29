@@ -60,7 +60,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = _filter.from ?? today.addDays(-activityPageDays * _pages);
     final loaded = ref.watch(activityEntriesProvider(from));
     final entries = loaded.value ?? const <LedgerEntry>[];
@@ -464,7 +464,11 @@ class _ActivityRow extends StatelessWidget {
 
   String _categoryLabel(LedgerEntry entry) {
     if (roleOf(entry) == LedgerRole.awaitingPayee) return 'Not named yet';
-    return categoryName(entry) ?? 'Uncategorised';
+    final name = categoryName(entry) ?? 'Uncategorised';
+    if (entry.categoryIsAuto && entry.categoryId != null) {
+      return '$name (Auto)';
+    }
+    return name;
   }
 
   Widget _row(

@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
@@ -7,14 +8,14 @@ import '../time/calendar.dart';
 /// streaming subscription or a card instalment, and when the next one is
 /// expected.
 class RecurringCharge {
-  const RecurringCharge({
+  RecurringCharge({
     required this.name,
     required this.amountMinor,
     required this.lastDate,
     required this.nextDate,
     this.payeeId,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   final String name;
   final int? payeeId;

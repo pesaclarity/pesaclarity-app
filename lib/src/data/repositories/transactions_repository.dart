@@ -58,17 +58,20 @@ class TransactionDetail {
     this.payee,
     this.category,
     this.payeeCategory,
+    this.isCategoryAuto = false,
   });
 
   final TransactionRecord record;
   final Account account;
   final Payee? payee;
 
-  /// The override, or else the payee's default; null is Uncategorised.
+  /// The override, or else the payee's default, or auto-category; null is Uncategorised.
   final Category? category;
 
   /// The payee's default category, which applies without an override.
   final Category? payeeCategory;
+
+  final bool isCategoryAuto;
 
   bool get isCategoryOverridden => record.categoryOverrideId != null;
 
@@ -235,14 +238,20 @@ class DriftTransactionsRepository implements TransactionsRepository {
               _db.categories,
             )..where((c) => c.id.equals(id))).getSingleOrNull();
       final payeeCategory = await category(payee?.defaultCategoryId);
+      final isOverridden = record.categoryOverrideId != null;
+      final autoCategory = (!isOverridden && payeeCategory == null)
+          ? await category(record.autoCategoryId)
+          : null;
       return TransactionDetail(
         record: record,
         account: row.readTable(_db.accounts),
         payee: payee,
         payeeCategory: payeeCategory,
-        category: record.categoryOverrideId == null
-            ? payeeCategory
-            : await category(record.categoryOverrideId),
+        category: isOverridden
+            ? await category(record.categoryOverrideId)
+            : (payeeCategory ?? autoCategory),
+        isCategoryAuto:
+            !isOverridden && payeeCategory == null && autoCategory != null,
       );
     });
   }
@@ -292,6 +301,7 @@ LedgerEntry _toLedgerEntry(
             leakType: payee.leakType,
           ),
     categoryOverrideId: record.categoryOverrideId,
+    autoCategoryId: record.autoCategoryId,
   );
   final categoryId = applied.categoryId;
   final category = categoryId == null ? null : categories[categoryId];
@@ -308,6 +318,7 @@ LedgerEntry _toLedgerEntry(
     categoryId: categoryId,
     categoryType: category?.type,
     isDailySpending: category?.isDailySpending ?? false,
+    categoryIsAuto: applied.isCategoryAuto,
     transferPairId: record.transferPairId,
     payeeName: applied.displayName,
     leakType: applied.leakType,

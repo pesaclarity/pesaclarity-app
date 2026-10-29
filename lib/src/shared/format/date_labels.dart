@@ -68,3 +68,19 @@ String relativeDays(CalendarDate date, {required CalendarDate today}) {
   if (days > 1) return 'in $days days';
   return days == -1 ? '1 day late' : '${-days} days late';
 }
+
+/// Formats an instant in the user's active timezone: `2026-10-29 16:45`.
+String formatDateTime(
+  DateTime instant, {
+  Duration? offset,
+  bool includeTimezone = false,
+}) =>
+    formatTimestamp(instant, offset: offset, includeTimezone: includeTimezone);
+
+/// Formats time in the user's active timezone: `16:45`.
+String formatTime(DateTime instant, {Duration? offset}) {
+  final tzOffset = offset ?? UserTimeZone.currentOffset;
+  final local = instant.toUtc().add(tzOffset);
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(local.hour)}:${two(local.minute)}';
+}

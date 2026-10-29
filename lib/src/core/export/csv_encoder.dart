@@ -33,7 +33,7 @@ String _cell(Object? cell) => switch (cell) {
   final String s => _safeText(s),
   final int n => n.toString(),
   final Money m => plainDecimal(m),
-  final DateTime d => nairobiTimestamp(d),
+  final DateTime d => localTimestamp(d),
   _ => throw ArgumentError.value(cell, 'cell'),
 };
 

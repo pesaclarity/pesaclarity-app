@@ -232,9 +232,9 @@ String _column(int index) {
   return column;
 }
 
-/// [instant] in Nairobi time as an Excel date serial (days since 1899-12-30).
+/// [instant] in the user's timezone as an Excel date serial (days since 1899-12-30).
 String excelSerial(DateTime instant) {
-  final local = instant.toUtc().add(nairobiUtcOffset);
+  final local = instant.toUtc().add(UserTimeZone.currentOffset);
   final epoch = DateTime.utc(1899, 12, 30);
   final wall = DateTime.utc(
     local.year,

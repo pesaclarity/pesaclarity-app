@@ -38,7 +38,7 @@ Future<Uint8List> encodePdf(
           children: [
             pw.Text(
               'Pesa Clarity. Made on this phone, '
-              '${nairobiTimestamp(createdAt)}.',
+              '${localTimestamp(createdAt)}.',
               style: pw.TextStyle(fontSize: 8, color: muted),
             ),
             pw.Text(
@@ -129,7 +129,7 @@ String _text(Object? cell) => switch (cell) {
   final String s => _latin1(s),
   final int n => n.toString(),
   final Money m => formatMoney(m, withCurrency: false),
-  final DateTime d => nairobiTimestamp(d),
+  final DateTime d => localTimestamp(d),
   _ => throw ArgumentError.value(cell, 'cell'),
 };
 

@@ -8,16 +8,17 @@ import '../time/date_labels.dart';
 /// Money the user lent to a friend or relative, with the part payments they
 /// have made back. No interest, like a family loan the user owes.
 class LentLoan {
-  const LentLoan({
+  LentLoan({
     required this.id,
     required this.person,
     required this.amountMinor,
     required this.lentOn,
     this.dueDate,
     this.note,
-    this.currency = 'KES',
+    String? currency,
     this.payments = const [],
-  }) : assert(amountMinor > 0, 'loans are positive');
+  }) : currency = currency ?? BaseCurrency.code,
+       assert(amountMinor > 0, 'loans are positive');
 
   final int id;
   final String person;

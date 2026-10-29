@@ -33,7 +33,7 @@ class SubscriptionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overview = ref.watch(subscriptionsOverviewProvider);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
 
     return Scaffold(
       appBar: AppBar(
@@ -245,7 +245,7 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
           : formatMoney(Money(s.amountMinor), withCurrency: false),
     );
     _frequency = s?.frequency ?? RecurrenceFrequency.monthly;
-    _nextDate = s?.nextDate ?? CalendarDate.nairobi(ref.read(clockProvider)());
+    _nextDate = s?.nextDate ?? CalendarDate.local(ref.read(clockProvider)());
   }
 
   @override

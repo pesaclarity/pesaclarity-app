@@ -91,9 +91,9 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // AppCompat themes keep the biometric dialog from crashing on Android 8 and older.
-    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.appcompat:appcompat:1.8.0")
     // Google sign-in, play build only: the foss build must stay free of Google libraries.
     "playImplementation"("androidx.credentials:credentials:1.5.0")
     "playImplementation"("androidx.credentials:credentials-play-services-auth:1.5.0")

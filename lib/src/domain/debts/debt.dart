@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../payees/payee_identifier.dart';
 import '../time/calendar.dart';
@@ -9,19 +10,20 @@ const _monthlyRateDivisor = 10000 * 12;
 /// One debt as the payoff rules see it: what is owed now, in integer minor
 /// units, with its rate and the payment the lender or family expects.
 class Debt {
-  const Debt({
+  Debt({
     required this.id,
     required this.lender,
     required this.type,
     required this.balanceMinor,
-    this.currency = 'KES',
+    String? currency,
     this.annualRateBasisPoints = 0,
     this.minimumPaymentMinor = 0,
     bool? isFormal,
     this.instalments = const [],
     this.payeeId,
     this.identifiers = const [],
-  }) : isFormal = isFormal ?? type != DebtType.family,
+  }) : currency = currency ?? BaseCurrency.code,
+       isFormal = isFormal ?? type != DebtType.family,
        assert(balanceMinor >= 0, 'balanceMinor is never negative'),
        assert(annualRateBasisPoints >= 0, 'rates are never negative'),
        assert(minimumPaymentMinor >= 0, 'minimums are never negative');

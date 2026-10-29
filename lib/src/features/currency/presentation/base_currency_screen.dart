@@ -77,7 +77,7 @@ class BaseCurrencyScreen extends ConsumerWidget {
     final settings = ref.watch(currencyControllerProvider).value;
     final region = ref.watch(deviceRegionProvider);
     final configured = ref.watch(ratesConfiguredProvider);
-    final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+    final today = CalendarDate.local(ref.watch(clockProvider)());
 
     return Scaffold(
       appBar: AppBar(title: const Text('Base currency')),
@@ -149,9 +149,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
     final settings = widget.settings;
     final source = ref.watch(ratesSourceProvider);
     final rates = settings.rates;
-    final fetched = rates == null
-        ? null
-        : CalendarDate.nairobi(rates.fetchedAt);
+    final fetched = rates == null ? null : CalendarDate.local(rates.fetchedAt);
     final status = !widget.configured
         ? 'Only the rates you set'
         : fetched == null

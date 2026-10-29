@@ -28,7 +28,7 @@ class NetWorth {
     String? currency,
   }) {
     currency ??= BaseCurrency.code;
-    final monthStart = YearMonth.nairobi(now).startInstant;
+    final monthStart = YearMonth.local(now).startInstant;
     bool inCurrency(AccountOpening a) => a.currency == currency;
     final list = entries.toList();
     final balancesNow = totalBalanceAt(

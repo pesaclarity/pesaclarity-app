@@ -9,7 +9,7 @@ import '../../../domain/time/calendar.dart';
 /// Unpaid bills due in the next two weeks, for Coming up on Home.
 final upcomingBillsProvider = FutureProvider<List<UpcomingBill>>((ref) async {
   ref.watch(ledgerChangesProvider);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final month = today.yearMonth;
   final plans = ref.watch(planRepositoryProvider);
   final entries = await ref

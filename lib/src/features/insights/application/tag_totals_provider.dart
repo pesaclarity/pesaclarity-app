@@ -12,7 +12,7 @@ final tagTotalsThisMonthProvider = FutureProvider<Map<int, TagSummary>>((
   ref,
 ) async {
   await ref.watch(tagUsageProvider.future);
-  final month = CalendarDate.nairobi(ref.watch(clockProvider)()).yearMonth;
+  final month = CalendarDate.local(ref.watch(clockProvider)()).yearMonth;
   final from = month.startInstant;
   final to = month.endInstant;
   final entries = await ref

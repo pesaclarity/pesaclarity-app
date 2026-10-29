@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import 'ledger_entry.dart';
 
@@ -6,13 +7,13 @@ const savingsAccountTypes = {AccountType.sacco, AccountType.moneyMarket};
 
 /// What the ledger needs to know to work out an account's balance.
 class AccountOpening {
-  const AccountOpening({
+  AccountOpening({
     required this.id,
     required this.type,
     required this.openingBalanceMinor,
     required this.openingDate,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   final int id;
   final AccountType type;

@@ -246,7 +246,7 @@ class DriftDebtsRepository implements DebtsRepository {
     for (final row in await _db.select(_db.debtInstalments).get()) {
       (byDebt[row.debtId] ??= []).add(
         DebtInstalment(
-          dueDate: CalendarDate.nairobi(row.dueDate),
+          dueDate: CalendarDate.local(row.dueDate),
           amountMinor: row.amountMinor,
         ),
       );
@@ -341,7 +341,7 @@ typedef _Repayment = ({DateTime at, int amountMinor});
 
 List<LoanPayment> _loanPayments(List<_Repayment> repayments) => [
   for (final r in repayments)
-    LoanPayment(date: CalendarDate.nairobi(r.at), amountMinor: r.amountMinor),
+    LoanPayment(date: CalendarDate.local(r.at), amountMinor: r.amountMinor),
 ];
 
 PayeeIdentifier? _counterparty(TransactionRecord? record) {

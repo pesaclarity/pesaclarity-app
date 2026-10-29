@@ -98,13 +98,13 @@ class IndicatorScore {
 /// The single change that would raise the score most: bringing [indicator]
 /// to full marks.
 class HealthAction {
-  const HealthAction({
+  HealthAction({
     required this.indicator,
     required this.gainPoints,
     this.amountMinor = 0,
     this.count = 0,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   final HealthIndicator indicator;
 
@@ -181,12 +181,12 @@ class HealthAction {
 /// gets full marks). With no bills due, Bills on time gets full marks; with
 /// no planned expense categories, Plan adherence gets none.
 class HealthIndex {
-  const HealthIndex({
+  HealthIndex({
     required this.inputs,
     required this.indicators,
     required this.score,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   factory HealthIndex.compute(HealthInputs inputs, {String? currency}) {
     currency ??= BaseCurrency.code;

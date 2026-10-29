@@ -66,7 +66,7 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
     return CurrencySettings(
       // Amounts saved before a currency was chosen are in KES, so that stays
       // the base until the person picks one; setup suggests their region's.
-      base: base is String && isKnownCurrency(base) ? base : 'KES',
+      base: base is String && isKnownCurrency(base) ? base : BaseCurrency.code,
       chosen: json?['chosen'] == true,
       ownRates: {
         if (own is Map)

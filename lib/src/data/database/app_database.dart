@@ -40,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -131,6 +131,19 @@ class AppDatabase extends _$AppDatabase {
         await _createIndexIfMissing(m, subscriptionsPayee);
       }
       if (from < 12) await _splitLoansAndSnacks();
+      if (from < 13) {
+        await _addColumnIfMissing(m, transactions, transactions.autoCategoryId);
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.autoCategorySource,
+        );
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.autoCategoryConfidence,
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

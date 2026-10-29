@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../categoriser/application/auto_categoriser.dart';
+import '../../categoriser/application/categoriser_providers.dart';
 import '../data/statement_file_picker.dart';
 import 'statement_importer.dart';
 
@@ -243,6 +245,17 @@ class StatementImportController extends Notifier<StatementImportState> {
     final results = List<StatementFileResult>.unmodifiable(_results);
     final count = _fileCount;
     _forget();
+    final hasImported = results.any(
+      (r) =>
+          r.outcome is StatementImported &&
+          (r.outcome as StatementImported).summary.addedCount > 0,
+    );
+    if (hasImported) {
+      final suggester = ref.read(categorySuggesterProvider);
+      if (suggester != null) {
+        unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
+      }
+    }
     if (count > 1) {
       state = StatementImportState(
         StatementImportStage.batchDone,

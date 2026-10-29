@@ -102,10 +102,8 @@ class DriftPlanRepository implements PlanRepository {
             categoryId: r.categoryId,
             amountMinor: r.amountMinor,
             frequency: r.frequency,
-            startDate: CalendarDate.nairobi(r.startDate),
-            endDate: r.endDate == null
-                ? null
-                : CalendarDate.nairobi(r.endDate!),
+            startDate: CalendarDate.local(r.startDate),
+            endDate: r.endDate == null ? null : CalendarDate.local(r.endDate!),
           ),
       ],
       items: [for (final b in items) _budgetItem(b)],
@@ -207,7 +205,7 @@ class DriftPlanRepository implements PlanRepository {
     final start = startRow.read(firstStart);
     final itemKey = itemRow.read(firstItem);
     final months = [
-      if (start != null) YearMonth.nairobi(start),
+      if (start != null) YearMonth.local(start),
       if (itemKey != null) YearMonth.fromKey(itemKey),
     ];
     if (months.isEmpty) return null;
@@ -226,8 +224,8 @@ class DriftPlanRepository implements PlanRepository {
       categoryId: row.categoryId,
       amountMinor: row.amountMinor,
       frequency: row.frequency,
-      startDate: CalendarDate.nairobi(row.startDate),
-      endDate: row.endDate == null ? null : CalendarDate.nairobi(row.endDate!),
+      startDate: CalendarDate.local(row.startDate),
+      endDate: row.endDate == null ? null : CalendarDate.local(row.endDate!),
     );
   }
 

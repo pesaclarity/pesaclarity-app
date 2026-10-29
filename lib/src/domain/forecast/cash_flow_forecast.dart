@@ -148,15 +148,15 @@ class FailingCharge {
 /// amount; it is still taken off, since a failed charge is usually retried
 /// or still owed, so later days show the shortfall.
 class CashFlowForecast {
-  const CashFlowForecast({
+  CashFlowForecast({
     required this.today,
     required this.startingBalanceMinor,
     required this.pace,
     required this.scheduled,
     required this.days,
     required this.failingCharges,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   /// Projects from [balanceMinor], the balance of day-to-day accounts now.
   ///

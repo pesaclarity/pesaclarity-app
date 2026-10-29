@@ -18,7 +18,7 @@ final subscriptionsOverviewProvider = FutureProvider<SubscriptionsOverview>((
 ) async {
   ref.watch(ledgerChangesProvider);
   final saved = await ref.watch(savedSubscriptionsProvider.future);
-  final today = CalendarDate.nairobi(ref.watch(clockProvider)());
+  final today = CalendarDate.local(ref.watch(clockProvider)());
   final entries = await ref
       .watch(transactionsRepositoryProvider)
       .ledgerEntries(

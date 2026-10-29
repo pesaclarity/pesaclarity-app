@@ -94,7 +94,7 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
     _categoryId = bill?.categoryId ?? line?.categoryId;
     _frequency = bill?.frequency ?? RecurrenceFrequency.monthly;
     _paid = line?.isMarkedPaid ?? false;
-    final today = CalendarDate.nairobi(ref.read(clockProvider)());
+    final today = CalendarDate.local(ref.read(clockProvider)());
     _startDate =
         bill?.startDate ??
         (widget.month.contains(today) ? today : widget.month.firstDay);

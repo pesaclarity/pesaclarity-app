@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
+import 'package:pesaclarity/src/routing/app_shell.dart';
 
 import '../helpers/fake_auth.dart';
 import '../helpers/test_app.dart';
@@ -15,7 +16,7 @@ void main() {
     await finishOnboarding(tester);
 
     expect(find.text('Safe to spend today'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(PillNavigationBar), findsOneWidget);
     // With no accounts or transactions yet, Home has no index or forecast.
     expect(find.text('Financial Health Index'), findsNothing);
     expect(find.textContaining('At this pace'), findsNothing);
@@ -47,7 +48,7 @@ void main() {
     for (final MapEntry(key: label, value: question) in tabs.entries) {
       await tester.tap(
         find.descendant(
-          of: find.byType(NavigationBar),
+          of: find.byType(PillNavigationBar),
           matching: find.text(label),
         ),
       );
@@ -68,7 +69,7 @@ void main() {
 
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(PillNavigationBar),
         matching: find.text('Goals'),
       ),
     );

@@ -66,6 +66,20 @@ class DriftCategorySuggestionsRepository
             ),
           );
     }
+    if (entry.payeeId != null) {
+      await (_db.update(_db.transactions)..where(
+            (t) =>
+                t.payeeId.equals(entry.payeeId!) &
+                t.categoryOverrideId.isNull(),
+          ))
+          .write(
+            TransactionsCompanion(
+              autoCategoryId: Value(categoryId),
+              autoCategorySource: const Value(SuggestionSource.correction),
+              autoCategoryConfidence: const Value(1.0),
+            ),
+          );
+    }
     await _db
         .into(_db.categoryConfirmations)
         .insert(

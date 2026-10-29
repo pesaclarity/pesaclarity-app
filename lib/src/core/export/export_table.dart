@@ -42,13 +42,9 @@ class ExportWorkbook {
   final List<ExportTable> tables;
 }
 
-/// [instant] as Nairobi wall-clock time, for example `2026-10-03 09:15`.
-String nairobiTimestamp(DateTime instant) {
-  final local = instant.toUtc().add(nairobiUtcOffset);
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} '
-      '${two(local.hour)}:${two(local.minute)}';
-}
+/// [instant] as wall-clock time in the user's timezone, for example
+/// `2026-10-03 09:15`.
+String localTimestamp(DateTime instant) => formatTimestamp(instant);
 
 /// [money] as a plain decimal with no grouping, for example `-1440.50`.
 String plainDecimal(Money money) {
