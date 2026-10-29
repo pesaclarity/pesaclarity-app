@@ -1,7 +1,15 @@
 {
-  "version": "1.2",
-  "updated": "2026-10-27",
+  "version": "1.3",
+  "updated": "2026-10-29",
   "changes": [
+    {
+      "version": "1.3",
+      "date": "2026-10-29",
+      "items": [
+        "On iPhone, messages come from a Shortcuts automation you set up.",
+        "Vault backups check with Google or Apple that they come from the real app."
+      ]
+    },
     {
       "version": "1.2",
       "date": "2026-10-27",
