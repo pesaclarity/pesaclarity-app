@@ -6,7 +6,7 @@ import '../tags/tag_totals.dart';
 
 /// One transaction with everything an export shows, names already looked up.
 class ExportTransaction {
-  const ExportTransaction({
+  ExportTransaction({
     required this.id,
     required this.occurredAt,
     required this.accountName,
@@ -14,7 +14,7 @@ class ExportTransaction {
     required this.direction,
     required this.kind,
     required this.source,
-    this.currency = 'KES',
+    String? currency,
     this.feeMinor = 0,
     this.payeeName,
     this.counterpartyName,
@@ -24,7 +24,7 @@ class ExportTransaction {
     this.tags = const [],
     this.receiptNo,
     this.isOwnTransfer = false,
-  });
+  }) : currency = currency ?? BaseCurrency.code;
 
   final int id;
   final DateTime occurredAt;

@@ -32,12 +32,12 @@ class Reminder {
 
 /// A dated line from the plan that a reminder can point at.
 class DuePayment {
-  const DuePayment({
+  DuePayment({
     required this.name,
     required this.amountMinor,
     required this.dueDate,
-    this.currency = 'KES',
-  });
+    String? currency,
+  }) : currency = currency ?? BaseCurrency.code;
 
   final String name;
   final int amountMinor;

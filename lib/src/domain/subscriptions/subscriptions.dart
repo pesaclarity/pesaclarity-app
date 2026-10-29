@@ -6,16 +6,16 @@ import '../time/calendar.dart';
 
 /// A subscription as saved: tracked, or a suggestion marked as a one-off.
 class Subscription {
-  const Subscription({
+  Subscription({
     required this.id,
     required this.name,
     required this.amountMinor,
     required this.frequency,
     required this.nextDate,
     this.payeeId,
-    this.currency = 'KES',
+    String? currency,
     this.status = SubscriptionStatus.tracking,
-  });
+  }) : currency = currency ?? BaseCurrency.code;
 
   final int id;
   final String name;

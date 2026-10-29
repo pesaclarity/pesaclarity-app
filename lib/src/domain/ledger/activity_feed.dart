@@ -181,7 +181,7 @@ List<ActivityDay> buildActivityFeed(
     } else {
       mapped = line;
     }
-    final date = CalendarDate.nairobi(line.occurredAt);
+    final date = CalendarDate.of(line.occurredAt);
     final lines = days[date];
     if (lines == null) {
       days[date] = [mapped];

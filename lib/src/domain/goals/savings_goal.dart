@@ -1,17 +1,19 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../time/calendar.dart';
 
 /// Something the user is saving for, with what is put aside so far.
 class SavingsGoal {
-  const SavingsGoal({
+  SavingsGoal({
     required this.id,
     required this.name,
     required this.targetMinor,
     this.savedMinor = 0,
     this.targetDate,
-    this.currency = 'KES',
+    String? currency,
     this.status = GoalStatus.active,
-  }) : assert(targetMinor > 0, 'targets are positive'),
+  }) : currency = currency ?? BaseCurrency.code,
+       assert(targetMinor > 0, 'targets are positive'),
        assert(savedMinor >= 0, 'savings are never negative');
 
   final int id;

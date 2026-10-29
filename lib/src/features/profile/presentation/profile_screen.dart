@@ -6,6 +6,7 @@ import '../../../config/flavor.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
+import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
@@ -20,6 +21,7 @@ import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../../subscriptions/application/subscriptions_providers.dart';
+import '../../timezone/application/timezone_controller.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -77,6 +79,15 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: Text(ref.watch(baseCurrencyProvider)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(AppRoutes.baseCurrency),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('profile-timezone'),
+                  leading: const Icon(Icons.schedule),
+                  title: const Text('Timezone'),
+                  subtitle: Text(ref.watch(userTimeZoneProvider).displayName),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showTimeZoneSheet(context, ref),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -147,6 +158,72 @@ class ProfileScreen extends ConsumerWidget {
           const AccountActions(),
         ],
       ),
+    );
+  }
+
+  void _showTimeZoneSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        final current = ref.watch(userTimeZoneProvider);
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: Text(
+                    'Select Timezone',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.my_location),
+                  title: const Text('Device location (Automatic)'),
+                  subtitle: Text(
+                    '${DateTime.now().timeZoneName} (${UserTimeZone.formatOffset(DateTime.now().timeZoneOffset)})',
+                  ),
+                  trailing:
+                      current.isAuto
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : null,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await ref
+                        .read(timeZoneControllerProvider.notifier)
+                        .useDeviceLocation();
+                  },
+                ),
+                const Divider(),
+                for (final tz in commonTimeZones)
+                  ListTile(
+                    title: Text(tz.name),
+                    subtitle: Text(
+                      '${tz.label} · ${UserTimeZone.formatOffset(tz.offset)}',
+                    ),
+                    trailing:
+                        (!current.isAuto &&
+                                current.offsetMinutes == tz.offsetMinutes)
+                            ? const Icon(Icons.check, color: Colors.green)
+                            : null,
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await ref
+                          .read(timeZoneControllerProvider.notifier)
+                          .setTimeZone(tz.offset, name: tz.name);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

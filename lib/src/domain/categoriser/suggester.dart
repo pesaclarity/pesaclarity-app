@@ -134,3 +134,13 @@ class CategorySuggester {
       ? option.type != CategoryType.expense
       : option.type != CategoryType.income;
 }
+
+/// Confidence threshold at or above which an automatic suggestion is applied.
+const autoApplyConfidence = 0.6;
+
+/// Whether [suggestion] is confident enough to apply automatically.
+bool autoApplies(CategorySuggestion? suggestion) {
+  if (suggestion == null) return false;
+  return suggestion.source == SuggestionSource.correction ||
+      suggestion.confidence >= autoApplyConfidence;
+}

@@ -1,22 +1,24 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../time/calendar.dart';
 
 /// One transaction as the ledger rules see it: immutable, amounts in integer
 /// minor units, with its payee's category already resolved.
 class LedgerEntry {
-  const LedgerEntry({
+  LedgerEntry({
     required this.id,
     required this.accountId,
     required this.occurredAt,
     required this.amountMinor,
     required this.direction,
     required this.kind,
-    this.currency = 'KES',
+    String? currency,
     this.feeMinor = 0,
     this.payeeId,
     this.categoryId,
     this.categoryType,
     this.isDailySpending = false,
+    this.categoryIsAuto = false,
     this.transferPairId,
     this.payeeName,
     this.leakType = LeakType.none,
@@ -28,7 +30,8 @@ class LedgerEntry {
     this.balanceAfterMinor,
     this.originalAmountMinor,
     this.originalCurrency,
-  }) : assert(amountMinor >= 0, 'amountMinor is always positive'),
+  }) : currency = currency ?? BaseCurrency.code,
+       assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
 
   final int id;
@@ -55,6 +58,9 @@ class LedgerEntry {
 
   /// Whether [categoryId] counts towards the day-to-day budget.
   final bool isDailySpending;
+
+  /// Whether [categoryId] was auto-assigned by ML/rules prediction.
+  final bool categoryIsAuto;
 
   /// The other half of an own-account transfer.
   final int? transferPairId;
@@ -89,8 +95,8 @@ class LedgerEntry {
 
   bool get isOutflow => direction == TransactionDirection.outflow;
 
-  /// The Nairobi calendar day this entry belongs to.
-  CalendarDate get date => CalendarDate.nairobi(occurredAt);
+  /// The calendar day this entry belongs to, in the user's active timezone.
+  CalendarDate get date => CalendarDate.of(occurredAt);
 
   /// Amount with sign: positive in, negative out.
   int get signedMinor => isInflow ? amountMinor : -amountMinor;

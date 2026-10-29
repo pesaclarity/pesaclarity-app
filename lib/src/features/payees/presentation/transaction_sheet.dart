@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/export/export_table.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../data/repositories/categories_repository.dart';
@@ -9,6 +8,7 @@ import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/export/export_tables.dart';
+import '../../../domain/time/calendar.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/payee_providers.dart';
@@ -108,6 +108,8 @@ class _Body extends ConsumerWidget {
         kindLabel(r.kind ?? TransactionKind.bank);
     final categoryNote = detail.isCategoryOverridden
         ? 'Set for this transaction'
+        : detail.isCategoryAuto
+        ? 'Predicted automatically'
         : payee != null && payee.defaultCategoryId != null
         ? 'From ${payee.displayName}'
         : null;
@@ -120,7 +122,7 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(
           [
-            nairobiTimestamp(r.occurredAt),
+            formatTimestamp(r.occurredAt),
             detail.account.name,
             kindLabel(r.kind ?? TransactionKind.bank),
           ].join(' · '),

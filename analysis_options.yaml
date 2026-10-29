@@ -7,6 +7,11 @@ analyzer:
     - android/**
     # Swapped into lib/ by tool/prepare_foss.sh; checked there by its test.
     - tool/foss/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
   language:
     strict-casts: true
     strict-inference: true

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,8 @@ import '../../../data/repositories/sms_scan_marks_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/domain/institution.dart';
+import '../../categoriser/application/auto_categoriser.dart';
+import '../../categoriser/application/categoriser_providers.dart';
 import '../data/sms_source.dart';
 import 'sms_ingestor.dart';
 import 'sms_scan_service.dart';
@@ -56,10 +60,22 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   final ingestor = ref.watch(smsIngestorProvider);
   if (selected.isEmpty || await source.access() != SmsAccess.granted) return;
 
-  yield await scan.scan(selected);
+  void triggerAutoCategorise() {
+    final suggester = ref.read(categorySuggesterProvider);
+    if (suggester != null) {
+      unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
+    }
+  }
+
+  final initial = await scan.scan(selected);
+  if (initial.added > 0) triggerAutoCategorise();
+  yield initial;
+
   final senders = {for (final i in selected) ...i.senderIds};
   await for (final message in source.incoming(senders)) {
-    yield await ingestor.ingest([message], selected);
+    final summary = await ingestor.ingest([message], selected);
+    if (summary.added > 0) triggerAutoCategorise();
+    yield summary;
   }
 });
 
@@ -137,6 +153,12 @@ class SmsScanController extends Notifier<SmsScanState> {
               total: total,
             ),
           );
+      if (summary.added > 0) {
+        final suggester = ref.read(categorySuggesterProvider);
+        if (suggester != null) {
+          unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
+        }
+      }
       state = SmsScanState(SmsScanStage.finished, summary: summary);
     } on Object catch (error) {
       if (kDebugMode) debugPrint('SMS scan failed: $error');

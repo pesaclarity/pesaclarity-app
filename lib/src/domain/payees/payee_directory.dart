@@ -26,6 +26,7 @@ class AppliedPayee {
     this.categoryId,
     this.leakType = LeakType.none,
     this.isCategoryOverridden = false,
+    this.isCategoryAuto = false,
   });
 
   final int? payeeId;
@@ -35,22 +36,33 @@ class AppliedPayee {
   final int? categoryId;
   final LeakType leakType;
   final bool isCategoryOverridden;
+  final bool isCategoryAuto;
 }
 
 /// Applies [payee] to one transaction.
 ///
 /// A category override on the transaction beats the payee's default
-/// category. The override touches the category only: the payee's display
-/// name and leak type still apply, because the leak type describes who the
-/// money went to, not what it was for.
-AppliedPayee applyPayee(PayeeRule? payee, {int? categoryOverrideId}) =>
-    AppliedPayee(
-      payeeId: payee?.id,
-      displayName: payee?.displayName,
-      categoryId: categoryOverrideId ?? payee?.defaultCategoryId,
-      leakType: payee?.leakType ?? LeakType.none,
-      isCategoryOverridden: categoryOverrideId != null,
-    );
+/// category, which beats an automatically suggested category. The override
+/// touches the category only: the payee's display name and leak type still
+/// apply, because the leak type describes who the money went to, not what it
+/// was for.
+AppliedPayee applyPayee(
+  PayeeRule? payee, {
+  int? categoryOverrideId,
+  int? autoCategoryId,
+}) {
+  final hasOverride = categoryOverrideId != null;
+  final hasPayeeDefault = !hasOverride && payee?.defaultCategoryId != null;
+  final hasAuto = !hasOverride && !hasPayeeDefault && autoCategoryId != null;
+  return AppliedPayee(
+    payeeId: payee?.id,
+    displayName: payee?.displayName,
+    categoryId: categoryOverrideId ?? payee?.defaultCategoryId ?? autoCategoryId,
+    leakType: payee?.leakType ?? LeakType.none,
+    isCategoryOverridden: hasOverride,
+    isCategoryAuto: hasAuto,
+  );
+}
 
 /// Resolves raw identifiers to payees.
 class PayeeDirectory {

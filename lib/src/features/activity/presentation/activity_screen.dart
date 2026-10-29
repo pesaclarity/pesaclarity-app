@@ -464,7 +464,11 @@ class _ActivityRow extends StatelessWidget {
 
   String _categoryLabel(LedgerEntry entry) {
     if (roleOf(entry) == LedgerRole.awaitingPayee) return 'Not named yet';
-    return categoryName(entry) ?? 'Uncategorised';
+    final name = categoryName(entry) ?? 'Uncategorised';
+    if (entry.categoryIsAuto && entry.categoryId != null) {
+      return '$name (Auto)';
+    }
+    return name;
   }
 
   Widget _row(

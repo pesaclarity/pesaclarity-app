@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/money/exchange_rates.dart';
+import '../../../core/money/money.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
@@ -38,7 +39,7 @@ class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
         _picked ??
         (settings?.chosen ?? false
             ? settings!.base
-            : suggested ?? settings?.base ?? 'KES');
+            : suggested ?? settings?.base ?? BaseCurrency.code);
 
     return Scaffold(
       appBar: AppBar(

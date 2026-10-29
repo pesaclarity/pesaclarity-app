@@ -2,6 +2,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
 void main() {
+  setUp(() => UserTimeZone.set(nairobiUtcOffset));
+  tearDown(UserTimeZone.resetToDevice);
+
+  group('UserTimeZone & Timezone Awareness', () {
+    test('formatTimestamp formats in user active timezone', () {
+      final utc = DateTime.utc(2026, 10, 29, 13, 30);
+      UserTimeZone.set(const Duration(hours: 3), name: 'EAT');
+      expect(formatTimestamp(utc), '2026-10-29 16:30');
+      expect(formatTimestamp(utc, includeTimezone: true), '2026-10-29 16:30 (UTC+03:00)');
+
+      UserTimeZone.set(const Duration(hours: -5), name: 'EST');
+      expect(formatTimestamp(utc), '2026-10-29 08:30');
+      expect(formatTimestamp(utc, includeTimezone: true), '2026-10-29 08:30 (UTC-05:00)');
+
+      UserTimeZone.set(Duration.zero, name: 'GMT');
+      expect(formatTimestamp(utc), '2026-10-29 13:30');
+    });
+
+    test('CalendarDate.of resolves date across timezone boundaries', () {
+      // 21:30 UTC on Oct 25 is Oct 26 00:30 in EAT (UTC+3), but still Oct 25 in GMT and EST
+      final instant = DateTime.utc(2026, 10, 25, 21, 30);
+
+      expect(CalendarDate.of(instant, const Duration(hours: 3)), CalendarDate(2026, 10, 26));
+      expect(CalendarDate.of(instant, Duration.zero), CalendarDate(2026, 10, 25));
+      expect(CalendarDate.of(instant, const Duration(hours: -5)), CalendarDate(2026, 10, 25));
+    });
+
+    test('CalendarDate.startInstant adapts to active timezone offset', () {
+      final date = CalendarDate(2026, 11, 1);
+      UserTimeZone.set(const Duration(hours: 3));
+      expect(date.startInstant, DateTime.utc(2026, 10, 31, 21));
+
+      UserTimeZone.set(Duration.zero);
+      expect(date.startInstant, DateTime.utc(2026, 11));
+
+      UserTimeZone.set(const Duration(hours: -5));
+      expect(date.startInstant, DateTime.utc(2026, 11, 1, 5));
+    });
+  });
+
   group('CalendarDate.nairobi', () {
     test('rolls over at 21:00 UTC, which is midnight EAT', () {
       expect(
