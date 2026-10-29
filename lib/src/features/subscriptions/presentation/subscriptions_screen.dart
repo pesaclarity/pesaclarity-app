@@ -12,6 +12,7 @@ import '../../../domain/subscriptions/subscriptions.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/selector_field.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/reminders_controller.dart';
 import '../application/subscriptions_providers.dart';
@@ -351,15 +352,22 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
                       : null,
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<RecurrenceFrequency>(
-                  initialValue: _frequency,
-                  decoration: const InputDecoration(labelText: 'How often'),
-                  items: [
-                    for (final MapEntry(:key, :value)
-                        in frequencyLabels.entries)
-                      DropdownMenuItem(value: key, child: Text(value)),
-                  ],
-                  onChanged: (v) => setState(() => _frequency = v!),
+                SelectorField(
+                  label: 'How often',
+                  value: frequencyLabels[_frequency]!,
+                  onTap: () async {
+                    final picked = await showOptionSheet<RecurrenceFrequency>(
+                      context,
+                      title: 'How often',
+                      options: [
+                        for (final MapEntry(:key, :value)
+                            in frequencyLabels.entries)
+                          (key, value),
+                      ],
+                      selected: _frequency,
+                    );
+                    if (picked != null) setState(() => _frequency = picked);
+                  },
                 ),
                 const SizedBox(height: 8),
                 ListTile(

@@ -37,3 +37,8 @@ final transactionTagsProvider = StreamProvider.autoDispose
     .family<List<Tag>, int>(
       (ref, id) => ref.watch(tagsRepositoryProvider).watchTagsOf(id),
     );
+
+/// How many transactions each category holds, for the picker's most used.
+final categoryUsageProvider = StreamProvider<Map<int, int>>(
+  (ref) => ref.watch(categoriesRepositoryProvider).watchUsage(),
+);
