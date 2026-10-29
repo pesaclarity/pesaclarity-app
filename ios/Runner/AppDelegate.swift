@@ -26,6 +26,7 @@ import UserNotifications
       ShareChannel(messenger: messenger),
       DeviceChannel(messenger: messenger),
       DeviceIntegrityChannel(messenger: messenger),
+      AppAttestChannel(messenger: messenger),
     ]
   }
 }
