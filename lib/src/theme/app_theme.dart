@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app_typography.dart';
@@ -70,19 +71,29 @@ abstract final class AppTheme {
     required Color background,
     required PesaColors colors,
   }) {
+    // Read when the theme is built, so tests can override the platform.
+    final platform = defaultTargetPlatform;
+    final ios = platform == TargetPlatform.iOS;
     final textTheme = AppTypography.textTheme(
       scheme.onSurface,
       scheme.onSurfaceVariant,
+      ios: ios,
     );
     const minTouch = Size(BrandTokens.touchTarget, BrandTokens.touchTarget);
-    const pill = StadiumBorder();
+    // iPhone buttons are rounded rectangles; Android's are pills.
+    final OutlinedBorder pill = ios
+        ? RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BrandTokens.iosRadius),
+          )
+        : const StadiumBorder();
 
     return ThemeData(
       useMaterial3: true,
+      platform: platform,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
-      fontFamily: BrandTokens.bodyFont,
+      fontFamily: ios ? null : BrandTokens.bodyFont,
       textTheme: textTheme,
       extensions: [colors],
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -92,8 +103,8 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
-        titleTextStyle: textTheme.titleLarge,
+        centerTitle: ios,
+        titleTextStyle: ios ? textTheme.titleMedium : textTheme.titleLarge,
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -101,13 +112,15 @@ abstract final class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-          side: BorderSide(color: colors.border),
+          borderRadius: BorderRadius.circular(
+            ios ? BrandTokens.iosRadius : BrandTokens.cardRadius,
+          ),
+          side: ios ? BorderSide.none : BorderSide(color: colors.border),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: minTouch,
+          minimumSize: ios ? const Size(BrandTokens.touchTarget, 50) : minTouch,
           shape: pill,
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -132,16 +145,29 @@ abstract final class AppTheme {
         backgroundColor: scheme.surface,
         selectedColor: colors.brandSoft,
         side: BorderSide(color: colors.border),
-        shape: pill,
+        shape: const StadiumBorder(),
         labelStyle: textTheme.labelMedium,
       ),
-      dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
+      dividerTheme: DividerThemeData(
+        color: colors.border,
+        thickness: ios ? 0.5 : 1,
+      ),
       listTileTheme: ListTileThemeData(
-        minVerticalPadding: 12,
+        minVerticalPadding: ios ? 10 : 12,
         iconColor: scheme.onSurfaceVariant,
         titleTextStyle: textTheme.bodyLarge,
         subtitleTextStyle: textTheme.bodySmall,
       ),
+      bottomSheetTheme: ios
+          ? BottomSheetThemeData(
+              backgroundColor: background,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(BrandTokens.iosRadius),
+                ),
+              ),
+            )
+          : null,
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
           (states) =>

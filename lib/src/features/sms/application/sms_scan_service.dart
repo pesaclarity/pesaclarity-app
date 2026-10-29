@@ -72,6 +72,8 @@ class SmsScanService {
       }
       await _marks.markScanned(institution.id, startedAt);
     }
+    // Everything before the start has now been read for every institution.
+    if (selected.isNotEmpty) await _source.release(startedAt);
     return summary;
   }
 }

@@ -1,6 +1,6 @@
 # Pesa Clarity app
 
-Pesa Clarity is a free, ad-free, open-source Android app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
+Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
 **Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
 
@@ -8,7 +8,7 @@ The product spec, brand guide and design tokens live in [pesaclarity/docs](https
 
 ## Quick start
 
-You need Flutter stable (3.47 or later) and, for device builds, the Android SDK with JDK 17.
+You need Flutter stable (3.47 or later) and, for device builds, the Android SDK with JDK 17, or Xcode on a Mac for iPhone.
 
 ```sh
 flutter pub get
@@ -24,7 +24,7 @@ flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/s
 
 Release builds use the debug key unless `android/key.properties` exists (see `android/key.properties.example`). Keystores never go in the repo.
 
-iOS comes after the Android MVP. Add the platform then with `flutter create --platforms ios .`.
+For iPhone, see [iPhone](#iphone).
 
 ## Build flavours
 
@@ -32,8 +32,9 @@ iOS comes after the Android MVP. Add the platform then with `flutter create --pl
 | --- | --- | --- |
 | `play` | Google Play | May use Google services (Sign-In, Play Integrity) |
 | `foss` | F-Droid | No Google services or other proprietary dependencies |
+| `appstore` | App Store (iPhone) | No Google services. iPhone builds take no `--flavor`; they resolve to this one |
 
-Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.dart`). Builds without a known flavour, including tests, behave as `foss`.
+Dart code reads the flavour through `appFlavorProvider` (`lib/src/config/flavor.dart`). Android builds without a known flavour, including tests, behave as `foss`.
 
 ### Server
 
@@ -118,11 +119,30 @@ SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers]
 
 ## SMS capture
 
+- **iPhone.** Messages arrive through a Shortcuts automation instead; see [iPhone](#iphone).
 - **Only selected senders.** The Android side (`SmsChannel.kt`) queries the inbox and listens for `SMS_RECEIVED` with the sender IDs of the ticked institutions; every other message is filtered out before it reaches Dart. The Dart parser filters by sender again.
 - **Permission.** `READ_SMS` and `RECEIVE_SMS` are asked for only after a screen that says in plain words what is read, kept and discarded. Refusing is fine: onboarding goes on without messages.
 - **Scans.** "Scan my messages" reads the last 90 days. Afterwards, each time the app opens it reads what arrived since the last scan (90 days for a newly ticked institution), then adds new messages as they land while it runs. Messages that arrive while the app is closed wait in the inbox for the next scan, so there is no background service.
 - **Parsing** runs on a background isolate. A parsed message keeps its fields (amount, time, fee, receipt, balance, counterparty) and a SHA-256 hash; the text is discarded. Each institution gets its own account, created on its first transaction. Transactions are deduplicated per account by ujumbe's dedupe key (receipt, amount and minute), which statement imports share. Counterparties are normalised with `PayeeIdentifier`, so named payees apply.
 - **Review inbox.** A message from a selected sender that no rule matches is kept for review, text included, because tagging its fields to make a local rule needs the text. It lives only in the SQLCipher database and its text is deleted when the item is resolved; the hash stays so a later scan does not bring it back.
+
+## iPhone
+
+The iPhone app (`ios/`, bundle id `com.pesaclarity.app`, iOS 16 or later, iPhone only, portrait) shares all the Dart code. What differs:
+
+- **Messages come from Shortcuts.** iOS lets no app read SMS. The app adds a Shortcuts action, **Add transaction from message** (`AddTransactionIntent.swift`, an App Intent that runs without opening the app). The person sets up a personal automation once: *When I get a message from MPESA (or their bank) → Add transaction from message*, passing the message and its sender. The action queues the message in `Application Support/shortcut_messages.json`, protected until the first unlock after a restart, so messages that land while the iPhone is locked still count (`MessageQueue.swift`). The `com.pesaclarity.app/sms` channel on iPhone (`MessagesChannel.swift`) uses the Android method names, so the scan service, live capture, parser and review inbox are unchanged; `ShortcutSmsSource` adds `release`, which drops queued messages once a scan has read past them. Anything left unread is dropped after 35 days.
+- **Onboarding** shows **Connect your messages** (`ConnectMessagesScreen`) in place of the SMS scan: the three steps, a button that opens Shortcuts, and whether a message has arrived. Profile links to it. Past months come from a statement import.
+- **Look and feel.** `lib/src/shared/adaptive/` switches on the theme's platform: the system font at iOS sizes (figures stay Space Grotesk), a full-width tab bar, inset grouped lists with coloured icons in Profile, Cupertino alerts, the sliding segmented control, date and time wheels, ticked option lists and iOS switches and spinners. Android keeps its own design. Widget tests run both (`test/widget/iphone_test.dart` uses `TargetPlatformVariant.only(TargetPlatform.iOS)`).
+- **Native channels** in Swift mirror the Android ones: documents (backups to a folder picked in Files, kept as a bookmark), share sheet, device name and jailbreak signs. Google sign-in, Drive and Play Integrity are absent, as in `foss`.
+
+Build on a Mac:
+
+```sh
+flutter build ios --release --no-codesign      # checks it compiles
+flutter run -d <simulator or iPhone>           # Xcode signs with your team
+```
+
+The `iOS build` workflow (Actions tab, run by hand) compiles an unsigned release and a simulator build on macOS. Linux CI cannot compile Swift, so run it after changing `ios/`. App Store uploads need an Apple Developer account and signing, which are not set up yet.
 
 ## Currencies
 

@@ -44,7 +44,7 @@ class GoalsScreen extends ConsumerWidget {
             child: const Text('Goals could not load. Tap to try again.'),
           ),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }

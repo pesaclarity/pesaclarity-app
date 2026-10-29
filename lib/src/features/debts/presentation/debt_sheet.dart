@@ -10,6 +10,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/selector_field.dart';
 import '../../goals/application/goals_overview_provider.dart';
@@ -140,20 +141,22 @@ class _DebtSheetState extends State<DebtSheet> {
 
   Future<void> _remove() async {
     final debt = widget.debt!;
-    final sure = await showDialog<bool>(
+    final sure = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text('Remove ${debt.lender}?'),
         content: const Text(
           'Its payments stay in Activity and go back to being plain '
           'spending.',
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Keep it'),
           ),
-          FilledButton(
+          DialogAction(
+            destructive: true,
+            filled: true,
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Remove'),
           ),

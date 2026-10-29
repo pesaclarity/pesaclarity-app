@@ -10,6 +10,7 @@ import '../../../data/repositories/lending_repository.dart';
 import '../../../domain/lending/lent_loan.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../goals/application/goals_overview_provider.dart';
@@ -42,7 +43,7 @@ class LendingScreen extends ConsumerWidget {
             child: const Text('This list could not load. Tap to try again.'),
           ),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }
@@ -293,9 +294,9 @@ class _LoanActions extends StatelessWidget {
     }
 
     Future<void> remove() async {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showAdaptiveDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) => AlertDialog.adaptive(
           title: Text('Delete ${loan.person}?'),
           content: Text(
             lent != null
@@ -303,11 +304,12 @@ class _LoanActions extends StatelessWidget {
                 : 'The loan is removed from Debts too.',
           ),
           actions: [
-            TextButton(
+            DialogAction(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Keep'),
             ),
-            TextButton(
+            DialogAction(
+              destructive: true,
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete'),
             ),
@@ -410,17 +412,17 @@ Future<void> _confirmReminder(
   String person,
   String message,
 ) async {
-  final share = await showDialog<bool>(
+  final share = await showAdaptiveDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => AlertDialog.adaptive(
       title: Text('Reminder for $person'),
       content: Text(message),
       actions: [
-        TextButton(
+        DialogAction(
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        DialogAction(
           onPressed: () => Navigator.of(context).pop(true),
           child: const Text('Share'),
         ),

@@ -4,6 +4,7 @@ import '../../core/money/money.dart';
 import '../../core/money/money_format.dart';
 import '../../domain/time/calendar.dart';
 import '../../domain/time/date_labels.dart';
+import '../adaptive/adaptive.dart';
 
 /// A text field for an amount in the base currency, read with [parseMoneyMinor].
 class AmountField extends StatelessWidget {
@@ -86,8 +87,8 @@ class DateField extends StatelessWidget {
       onTap: () async {
         DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
         final initial = date ?? firstDate;
-        final picked = await showDatePicker(
-          context: context,
+        final picked = await pickDate(
+          context,
           initialDate: asDay(
             initial.isAfter(lastDate)
                 ? lastDate

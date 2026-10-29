@@ -76,6 +76,15 @@ Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clari
 2. Store text and changelogs come from `fastlane/metadata/android/en-US`.
 3. Open a merge request to fdroiddata with the build recipe: Flutter srclib at the pinned version, `foss` flavour, the same build command and defines, and our signing certificate for reproducible-build verification.
 
+## 6. App Store (iPhone)
+
+Not set up yet. Before the first upload:
+
+1. Join the Apple Developer Program and register the bundle id `com.pesaclarity.app`.
+2. In App Store Connect, create the app, fill in the privacy details (the email address for accounts; nothing else leaves the phone) and the export compliance answer. The app encrypts its database with SQLCipher, so answer that it uses encryption; it qualifies for the mass-market exemption. Then add `ITSAppUsesNonExemptEncryption` to `ios/Runner/Info.plist` to match.
+3. Set the signing team in Xcode, or add signing to the `iOS build` workflow with an App Store Connect API key, and upload to TestFlight.
+4. App Review will try the Shortcuts automation: the review notes should explain the three steps on the Connect your messages screen.
+
 ## Release checklist (not done yet)
 
 - [ ] Server deployed; `PESACLARITY_PINNED_HOSTS` and `PESACLARITY_TRUSTED_ROOTS` set for its hosts
