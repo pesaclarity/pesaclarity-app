@@ -7,9 +7,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../config/flavor.dart';
 import '../../../core/backup/backup.dart';
+import '../../../core/integrity/app_attest.dart';
 import '../../../core/integrity/integrity_attestor.dart';
 import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../security/data/secure_store.dart';
 import '../data/backup_location.dart';
 import '../data/backup_settings_repository.dart';
 import '../data/backup_sharing.dart';
@@ -46,6 +49,34 @@ final vaultBaseUrlProvider = Provider<Uri?>((ref) => VaultConfig.uri);
 final vaultTokenSourceProvider = Provider<VaultTokenSource>(
   (ref) => const SignedOutVaultTokenSource(),
 );
+
+/// Apple App Attest on the iPhone.
+final appAttestServiceProvider = Provider<AppAttestService>(
+  (ref) => const PlatformAppAttestService(),
+);
+
+/// Proves vault uploads come from the genuine app: Play Integrity on Google
+/// Play builds, App Attest on iPhone, nothing on F-Droid builds.
+final vaultIntegrityProvider = Provider<IntegrityHeaderHook>((ref) {
+  final url = ref.watch(vaultBaseUrlProvider);
+  if (ref.watch(appFlavorProvider) != AppFlavor.appstore || url == null) {
+    return ref.watch(integrityHeaderHookProvider);
+  }
+  final tokens = ref.watch(vaultTokenSourceProvider);
+  final sessions = ref.watch(sessionStoreProvider);
+  return IntegrityHeaderHook(
+    AppAttestAttestor(
+      service: ref.watch(appAttestServiceProvider),
+      server: HttpAppAttestServer(
+        baseUrl: url,
+        accessToken: tokens.accessToken,
+        client: IOClient(ref.watch(httpClientFactoryProvider).create()),
+      ),
+      store: ref.watch(secureStoreProvider),
+      accountId: () async => (await sessions.read())?.accountId,
+    ),
+  );
+});
 
 /// Google sign-in for Drive.
 ///
@@ -177,7 +208,7 @@ class BackupController extends AsyncNotifier<BackupSettings> {
                 baseUrl: url,
                 tokens: ref.read(vaultTokenSourceProvider),
                 client: _pinnedClient(),
-                integrity: ref.read(integrityHeaderHookProvider),
+                integrity: ref.read(vaultIntegrityProvider),
               );
       case BackupLocationId.drive:
         final auth = ref.read(driveAuthProvider);

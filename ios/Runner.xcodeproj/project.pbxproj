@@ -21,6 +21,7 @@
 		F51BE10C00C93C0521D5D687 /* AddTransactionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18432D7A70DD1B287A636ECC /* AddTransactionIntent.swift */; };
 		75C6E0FA6A4C62844ED7BF11 /* DocumentsChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEF237A48C07A007E0B19D5 /* DocumentsChannel.swift */; };
 		E97ADF63CCBAC3383B223B85 /* DeviceChannels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A435FF0924E60783204F35B /* DeviceChannels.swift */; };
+		7666ECC84D2B8689DCC206FC /* AppAttestChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10222930310992951F4FB3E /* AppAttestChannel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 		18432D7A70DD1B287A636ECC /* AddTransactionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTransactionIntent.swift; sourceTree = "<group>"; };
 		5BEF237A48C07A007E0B19D5 /* DocumentsChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsChannel.swift; sourceTree = "<group>"; };
 		7A435FF0924E60783204F35B /* DeviceChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceChannels.swift; sourceTree = "<group>"; };
+		C10222930310992951F4FB3E /* AppAttestChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestChannel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -133,6 +135,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
+				C10222930310992951F4FB3E /* AppAttestChannel.swift */,
 				6230B04A952C1DEF2353802F /* MessageQueue.swift */,
 				D9279290E94480140A334A0B /* MessagesChannel.swift */,
 				18432D7A70DD1B287A636ECC /* AddTransactionIntent.swift */,
@@ -299,6 +302,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
+				7666ECC84D2B8689DCC206FC /* AppAttestChannel.swift in Sources */,
 				084C90188E4271AC6B298ABA /* MessageQueue.swift in Sources */,
 				65D356A89ADD2172C18C0B4E /* MessagesChannel.swift in Sources */,
 				F51BE10C00C93C0521D5D687 /* AddTransactionIntent.swift in Sources */,
@@ -403,6 +407,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pesaclarity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -584,6 +589,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pesaclarity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -606,6 +612,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pesaclarity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

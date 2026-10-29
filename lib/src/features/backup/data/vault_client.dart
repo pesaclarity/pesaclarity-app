@@ -50,7 +50,8 @@ class VaultBackupLocation implements BackupLocation {
   final VaultTokenSource _tokens;
   final http.Client _client;
 
-  /// Adds a Play Integrity token to uploads when the build can make one.
+  /// Adds a Play Integrity token or App Attest assertion to uploads when
+  /// the build can make one.
   final IntegrityHeaderHook? _integrity;
 
   @override
