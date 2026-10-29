@@ -9,6 +9,7 @@ import '../../../domain/debts/fuliza_tracker.dart';
 import '../../../domain/debts/payoff_order.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/time/date_labels.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
@@ -43,7 +44,7 @@ class DebtsScreen extends ConsumerWidget {
         ],
       ),
       body: overview == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator.adaptive())
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
@@ -181,25 +182,19 @@ class _StrategyPicker extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentedButton<PayoffStrategy>(
+        AdaptiveSegmented<PayoffStrategy>(
           showSelectedIcon: false,
           segments: const [
-            ButtonSegment(
-              value: PayoffStrategy.avalanche,
-              label: Text('Avalanche'),
-            ),
-            ButtonSegment(
-              value: PayoffStrategy.snowball,
-              label: Text('Snowball'),
-            ),
-            ButtonSegment(value: PayoffStrategy.custom, label: Text('Custom')),
+            (PayoffStrategy.avalanche, 'Avalanche'),
+            (PayoffStrategy.snowball, 'Snowball'),
+            (PayoffStrategy.custom, 'Custom'),
           ],
-          selected: {strategy},
-          onSelectionChanged: (choice) async {
+          selected: strategy,
+          onChanged: (choice) async {
             final container = ProviderScope.containerOf(context, listen: false);
             await saveDebtStrategy(
               container,
-              choice.single,
+              choice,
               currentOrder: [for (final d in overview.debts) d.id],
             );
             refreshDebts(container);

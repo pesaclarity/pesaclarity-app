@@ -26,6 +26,9 @@ abstract final class AppRoutes {
   static const baseCurrency = '/home/profile/currency';
   static const subscriptions = '/home/profile/subscriptions';
 
+  /// iPhone: the Shortcuts automation that passes messages.
+  static const connectMessages = '/home/profile/connect';
+
   static const activity = '/activity';
 
   /// Activity opened with [filter] applied.

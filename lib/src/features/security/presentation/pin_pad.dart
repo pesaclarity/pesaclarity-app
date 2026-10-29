@@ -106,7 +106,7 @@ class _PinPadState extends State<PinPad> {
               ? const Center(
                   child: SizedBox.square(
                     dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
                   ),
                 )
               : message == null

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/reminders/reminder_settings.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/selector_field.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/reminders_controller.dart';
 
@@ -122,26 +124,14 @@ class RemindersSettingsCard extends ConsumerWidget {
     WidgetRef ref,
     int current,
   ) async {
-    final choice = await showDialog<int>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Remind me'),
-        children: [
-          RadioGroup<int>(
-            groupValue: current,
-            onChanged: (value) => Navigator.of(context).pop(value),
-            child: Column(
-              children: [
-                for (final days in ReminderSettings.leadDayChoices)
-                  RadioListTile<int>(
-                    value: days,
-                    title: Text(leadDaysLabel(days)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final choice = await pickOne<int>(
+      context,
+      title: 'Remind me',
+      options: [
+        for (final option in ReminderSettings.leadDayChoices)
+          (option, leadDaysLabel(option)),
+      ],
+      selected: current,
     );
     if (choice != null) {
       await ref
@@ -155,8 +145,8 @@ class RemindersSettingsCard extends ConsumerWidget {
     WidgetRef ref,
     int current,
   ) async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await pickTime(
+      context,
       initialTime: _timeOf(current),
       helpText: 'Daily safe-to-spend at',
     );

@@ -56,7 +56,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               _ => [
                 const Padding(
                   padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
                 ),
               ],
             },

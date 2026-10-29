@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ujumbe/ujumbe.dart';
@@ -35,6 +36,11 @@ abstract interface class SmsSource {
 
   /// Messages from [senders] as they arrive, while listened to.
   Stream<SmsMessage> incoming(Set<String> senders);
+
+  /// Lets go of messages received before [before], once they are read.
+  /// Only sources that keep their own copy, such as [ShortcutSmsSource],
+  /// drop anything.
+  Future<void> release(DateTime before);
 }
 
 /// [SmsSource] backed by the Android platform channel in `SmsChannel.kt`.
@@ -87,6 +93,10 @@ class PlatformSmsSource implements SmsSource {
             .receiveBroadcastStream(senders.toList())
             .map((event) => _fromMap(event as Map<Object?, Object?>));
 
+  /// The phone's inbox keeps its messages; nothing to let go of.
+  @override
+  Future<void> release(DateTime before) async {}
+
   static SmsMessage _fromMap(Map<Object?, Object?> map) => SmsMessage(
     sender: map['sender']! as String,
     body: map['body']! as String,
@@ -97,6 +107,45 @@ class PlatformSmsSource implements SmsSource {
   );
 }
 
+/// The Shortcuts automation that passes messages on iPhone.
+abstract interface class ShortcutConnection {
+  /// When the automation last passed a message, or null before the first.
+  Future<DateTime?> lastArrival();
+
+  /// Opens the Shortcuts app, where the automation is set up.
+  Future<void> openShortcuts();
+}
+
+/// [SmsSource] on iPhone, where apps cannot read messages. A Shortcuts
+/// automation passes each M-Pesa or bank message to the app's "Add
+/// transaction from message" action, which queues it in a file only this app
+/// can open (`MessageQueue.swift`). The channel has the Android method names.
+class ShortcutSmsSource extends PlatformSmsSource
+    implements ShortcutConnection {
+  const ShortcutSmsSource();
+
+  static const _methods = MethodChannel('com.pesaclarity.app/sms');
+
+  @override
+  Future<void> release(DateTime before) => _methods.invokeMethod<void>(
+    'release',
+    {'beforeMillis': before.millisecondsSinceEpoch},
+  );
+
+  @override
+  Future<DateTime?> lastArrival() async {
+    final millis = await _methods.invokeMethod<int>('lastArrival');
+    return millis == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
+  }
+
+  @override
+  Future<void> openShortcuts() => _methods.invokeMethod<void>('openShortcuts');
+}
+
 final smsSourceProvider = Provider<SmsSource>(
-  (ref) => const PlatformSmsSource(),
+  (ref) => defaultTargetPlatform == TargetPlatform.iOS
+      ? const ShortcutSmsSource()
+      : const PlatformSmsSource(),
 );

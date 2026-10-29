@@ -56,7 +56,7 @@ class TransactionSheet extends ConsumerWidget {
       AsyncData(value: final d?) => _Body(d, controller),
       AsyncData() => const Center(child: Text('This transaction is gone.')),
       AsyncError() => const Center(child: Text('Could not open it.')),
-      _ => const Center(child: CircularProgressIndicator()),
+      _ => const Center(child: CircularProgressIndicator.adaptive()),
     };
   }
 }

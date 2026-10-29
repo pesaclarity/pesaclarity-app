@@ -70,7 +70,7 @@ class _InstitutionTile extends StatelessWidget {
         subtitle: subtitle,
         controlAffinity: ListTileControlAffinity.trailing,
       ),
-      InstitutionControl.toggle => SwitchListTile(
+      InstitutionControl.toggle => SwitchListTile.adaptive(
         value: selected,
         onChanged: onChanged,
         title: title,

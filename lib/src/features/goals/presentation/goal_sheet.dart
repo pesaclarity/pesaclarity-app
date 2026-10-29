@@ -6,6 +6,7 @@ import '../../../core/money/money_format.dart';
 import '../../../data/repositories/goals_repository.dart';
 import '../../../domain/goals/savings_goal.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../application/goals_overview_provider.dart';
 
@@ -90,17 +91,18 @@ class _GoalSheetState extends State<GoalSheet> {
   Future<void> _delete() async {
     final goal = widget.goal!;
     final container = ProviderScope.containerOf(context, listen: false);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text('Delete ${goal.name}?'),
         content: const Text('The goal and its saved amount are removed.'),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Keep'),
           ),
-          TextButton(
+          DialogAction(
+            destructive: true,
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),

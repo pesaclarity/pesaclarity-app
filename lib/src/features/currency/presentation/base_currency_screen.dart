@@ -5,6 +5,7 @@ import '../../../core/money/currency_data.dart';
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
@@ -47,9 +48,9 @@ class BaseCurrencyScreen extends ConsumerWidget {
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text('Count in $code?'),
         content: Text(
           'Your plan, goals, debts, loans and subscriptions move to $code at '
@@ -57,11 +58,13 @@ class BaseCurrencyScreen extends ConsumerWidget {
           'keeps the currency it was paid in.',
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.pop(context, false),
             child: Text('Keep ${settings.base}'),
           ),
-          FilledButton(
+          DialogAction(
+            destructive: true,
+            filled: true,
             onPressed: () => Navigator.pop(context, true),
             child: Text('Switch to $code'),
           ),
@@ -82,7 +85,7 @@ class BaseCurrencyScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Base currency')),
       body: settings == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator.adaptive())
           : CurrencyPicker(
               selected: settings.base,
               suggested: currencyOfRegion(region),

@@ -137,7 +137,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             if (loaded.isLoading && !loaded.hasValue)
               const Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: CircularProgressIndicator.adaptive()),
               )
             else if (days.isEmpty)
               Padding(

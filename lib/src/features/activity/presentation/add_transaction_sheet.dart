@@ -9,6 +9,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/selector_field.dart';
 import '../../payees/presentation/category_picker.dart';
@@ -129,20 +130,14 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
           children: [
             Text('Add a transaction', style: theme.textTheme.titleLarge),
             const SizedBox(height: 16),
-            SegmentedButton<TransactionDirection>(
+            AdaptiveSegmented<TransactionDirection>(
               segments: const [
-                ButtonSegment(
-                  value: TransactionDirection.outflow,
-                  label: Text('Money out'),
-                ),
-                ButtonSegment(
-                  value: TransactionDirection.inflow,
-                  label: Text('Money in'),
-                ),
+                (TransactionDirection.outflow, 'Money out'),
+                (TransactionDirection.inflow, 'Money in'),
               ],
-              selected: {_direction},
-              onSelectionChanged: (s) => setState(() {
-                _direction = s.first;
+              selected: _direction,
+              onChanged: (value) => setState(() {
+                _direction = value;
                 _categoryId = null;
               }),
             ),
@@ -203,8 +198,8 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
               title: Text(dayHeading(date, today: today)),
               subtitle: const Text('Tap to change the day'),
               onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
+                final picked = await pickDate(
+                  context,
                   initialDate: DateTime(date.year, date.month, date.day),
                   firstDate: DateTime(today.year - 2),
                   lastDate: DateTime(today.year, today.month, today.day),

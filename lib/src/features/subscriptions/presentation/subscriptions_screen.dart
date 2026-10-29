@@ -10,6 +10,7 @@ import '../../../domain/reminders/recurring_charges.dart';
 import '../../../domain/reminders/reminder_settings.dart';
 import '../../../domain/subscriptions/subscriptions.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/selector_field.dart';
@@ -52,7 +53,7 @@ class SubscriptionsScreen extends ConsumerWidget {
         AsyncError() => const Center(
           child: Text('Subscriptions did not load. Open them again.'),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }
@@ -125,7 +126,7 @@ class _Body extends ConsumerWidget {
         ],
         const SizedBox(height: 12),
         Card(
-          child: SwitchListTile(
+          child: SwitchListTile.adaptive(
             key: const Key('subscription-reminders'),
             title: Text(
               reminders == null
@@ -295,8 +296,8 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickDate(
+      context,
       initialDate: DateTime(_nextDate.year, _nextDate.month, _nextDate.day),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
