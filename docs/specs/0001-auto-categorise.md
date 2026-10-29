@@ -1,6 +1,6 @@
 # 0001 — Categorise transactions automatically
 
-**Status:** Draft
+**Status:** Implemented
 **Date:** 2026-10-27
 
 ## Problem

@@ -1,6 +1,6 @@
 # 0002 — Cut runtime overhead and stabilise emulator testing
 
-**Status:** Draft
+**Status:** Implemented
 **Date:** 2026-10-27
 
 ## Problem

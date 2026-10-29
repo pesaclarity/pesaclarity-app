@@ -131,6 +131,10 @@ SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers]
 - **Typed in the base.** Plan items, goals, debts, money lent and subscriptions are in the base currency. Switching converts them once at today's rate, after the person confirms.
 - **Rates.** The phone fetches today's rates from the public service in `PESACLARITY_RATES_URL` (an https template with `{base}`, such as `https://open.er-api.com/v6/latest/{base}`), at most every 12 hours; the request carries only the currency code. Rates the person sets win. Without the variable, only their own rates are used. The service is a build setting, so it can be changed without code: `PESACLARITY_RATES_SOURCE_NAME` and `PESACLARITY_RATES_SOURCE_URL` set the credit line under the rates ("Rates by …", linking to the provider), which free services such as ExchangeRate-API's open endpoint ask for; check the provider's current terms before release.
 
+## Timezone
+
+Every date, day start, month and export timestamp uses one timezone: the one picked in Profile › Timezone, or the phone's own (`UserTimeZone` in `lib/src/domain/time/calendar.dart`). It is a fixed offset, with no daylight-saving rules yet. Tests pin East Africa Time in `test/flutter_test_config.dart`, so they pass on any machine.
+
 ## Statement import
 
 - **On the phone only.** The PDF and its password never leave the phone. The password goes straight to PDFium and is cleared once used.
@@ -146,6 +150,7 @@ SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers]
 - **Model.** No model ships with the app; one arrives only after passing the ML repo's privacy release gate. An installed model sits in the app's support directory under `categoriser/`, with `model-manifest.json` and `labels.json`. The app refuses it, and uses the rules below instead, when the feature schema, config or input differ from what it produces, or when the file's size or SHA-256 differ from the manifest.
 - **Runtime.** `tflite_flutter` (Apache-2.0, published by tensorflow.org) runs the model, and only `tflite_flutter_runtime.dart` imports it. On Android it links Google's prebuilt LiteRT AAR from Maven, so F-Droid may require LiteRT built from source or another runtime behind the `TfliteRuntime` interface.
 - **Without a model** suggestions come from the message type (airtime, Fuliza, charges) and well-known payee names.
+- **Applied automatically.** `AutoCategoriser` runs after each scan and import: the person's earlier choice for the payee always applies, rules and known payees apply at 60% confidence or more, and weaker guesses stay suggestions. The result sits in its own columns (`auto_category_*`), shows as Auto, and never overrides the person's choice or the payee's default; see `docs/specs/0001-auto-categorise.md`.
 - **Your choices win.** Accepting or changing a suggestion sets that transaction's category and remembers it for the payee; the next transaction from that payee suggests the same category first. Each choice is also logged on the phone as encoded features and a label, never the payee text, for later fine-tuning.
 - **Learning** (on-device fine-tuning and federated updates) runs only when "Help improve the app" is on. The gate and interfaces are in `learning.dart`; the trainers are not built yet.
 
