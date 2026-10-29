@@ -1,0 +1,65 @@
+name: iOS build
+
+# Compiles the iPhone app without signing, to check the Swift code and the
+# Xcode project. Run by hand: macOS runners cost ten times the minutes of
+# Linux ones. Signing and TestFlight need an Apple developer account first.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  build:
+    name: Build for iPhone (unsigned)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # Server settings come from the dev environment's variables; empty
+      # ones leave that feature off.
+      - name: Build the app
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          API_URL: ${{ vars.DEV_PESACLARITY_API_URL }}
+          VAULT_URL: ${{ vars.DEV_PESACLARITY_VAULT_URL }}
+          PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
+          TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+          RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
+          RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
+          RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
+        run: |
+          flutter build ios --release --no-codesign \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=PESACLARITY_API_URL="$API_URL" \
+            --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
+            --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
+            --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
+            --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
+            --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
+            --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL"
+
+      - name: Build for the simulator
+        run: flutter build ios --simulator --debug
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pesaclarity-ios-simulator
+          path: build/ios/iphonesimulator/Runner.app
+          retention-days: 14

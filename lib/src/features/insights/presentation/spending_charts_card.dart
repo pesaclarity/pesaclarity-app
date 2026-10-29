@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/insights/spending_charts.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_providers.dart';
@@ -47,23 +48,23 @@ class SpendingChartsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentedButton<ChartPeriod>(
+        AdaptiveSegmented<ChartPeriod>(
           key: const Key('chart-period'),
           showSelectedIcon: false,
           segments: const [
-            ButtonSegment(value: ChartPeriod.week, label: Text('Week')),
-            ButtonSegment(value: ChartPeriod.month, label: Text('Month')),
-            ButtonSegment(value: ChartPeriod.year, label: Text('Year')),
+            (ChartPeriod.week, 'Week'),
+            (ChartPeriod.month, 'Month'),
+            (ChartPeriod.year, 'Year'),
           ],
-          selected: {period},
-          onSelectionChanged: (s) =>
-              ref.read(chartPeriodProvider.notifier).select(s.single),
+          selected: period,
+          onChanged: (value) =>
+              ref.read(chartPeriodProvider.notifier).select(value),
         ),
         const SizedBox(height: 12),
         if (chart == null)
           const SizedBox(
             height: 160,
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: CircularProgressIndicator.adaptive()),
           )
         else ...[
           _BreakdownCard(chart: chart, names: names, period: period),

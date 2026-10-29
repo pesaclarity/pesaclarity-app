@@ -18,6 +18,7 @@ on:
       - .github/workflows/ui-screenshots.yml
       - .github/workflows/dependency-scan.yml
       - .github/workflows/release-play.yml
+      - .github/workflows/ios-build.yml
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *skip

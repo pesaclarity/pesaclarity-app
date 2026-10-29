@@ -25,6 +25,7 @@ abstract final class SemanticIds {
   static const titleCurrency = 'title-currency';
   static const titleMyAccounts = 'title-my-accounts';
   static const titleSmsScan = 'title-sms-scan';
+  static const titleConnectMessages = 'title-connect-messages';
   static const titleHome = 'title-home';
   static const titleActivity = 'title-activity';
   static const titlePlan = 'title-plan';

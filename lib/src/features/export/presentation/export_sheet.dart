@@ -110,7 +110,9 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                 trailing: _busy == format
                     ? const SizedBox.square(
                         dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Icon(Icons.ios_share),
                 onTap: () => _export(format),

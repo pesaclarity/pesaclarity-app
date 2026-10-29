@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/pesa_colors.dart';
+import '../adaptive/adaptive.dart';
 
 /// Lists up to this long show in full, with no search; longer ones show the
 /// most used and a search box.
@@ -89,8 +91,9 @@ class SelectorField extends StatelessWidget {
   }
 }
 
-/// A short list to pick one from, shown in full in a bottom sheet. Returns
-/// the picked value, or null when dismissed.
+/// A short list to pick one from, shown in full in a bottom sheet: radio
+/// rows on Android, a grouped list with a tick on iPhone. Returns the picked
+/// value, or null when dismissed.
 Future<T?> showOptionSheet<T>(
   BuildContext context, {
   required String title,
@@ -102,39 +105,105 @@ Future<T?> showOptionSheet<T>(
   isScrollControlled: true,
   builder: (context) {
     final theme = Theme.of(context);
+    final cupertino = isCupertino(context);
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: EdgeInsets.fromLTRB(
+          cupertino ? 16 : 20,
+          0,
+          cupertino ? 16 : 20,
+          24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: theme.textTheme.titleLarge),
+            Text(
+              title,
+              textAlign: cupertino ? TextAlign.center : TextAlign.start,
+              style: cupertino
+                  ? theme.textTheme.titleMedium
+                  : theme.textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
-            Card(
-              child: RadioGroup<T>(
-                groupValue: selected,
-                onChanged: (value) => Navigator.of(context).pop(value),
-                child: Column(
-                  children: [
-                    for (final (i, (value, label)) in options.indexed) ...[
-                      if (i > 0) const Divider(height: 1),
-                      RadioListTile<T>(
-                        value: value,
-                        title: Text(
-                          label,
-                          style: value == selected
-                              ? const TextStyle(fontWeight: FontWeight.w600)
-                              : null,
+            if (cupertino)
+              GroupedSection(
+                children: [
+                  for (final (value, label) in options)
+                    ListTile(
+                      selected: value == selected,
+                      title: Text(label),
+                      trailing: value == selected
+                          ? Icon(
+                              CupertinoIcons.checkmark_alt,
+                              color: theme.colorScheme.primary,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(context).pop(value),
+                    ),
+                ],
+              )
+            else
+              Card(
+                child: RadioGroup<T>(
+                  groupValue: selected,
+                  onChanged: (value) => Navigator.of(context).pop(value),
+                  child: Column(
+                    children: [
+                      for (final (i, (value, label)) in options.indexed) ...[
+                        if (i > 0) const Divider(height: 1),
+                        RadioListTile<T>(
+                          value: value,
+                          title: Text(
+                            label,
+                            style: value == selected
+                                ? const TextStyle(fontWeight: FontWeight.w600)
+                                : null,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
     );
   },
 );
+
+/// Picks one of a few settings values: a dialog of radio rows on Android,
+/// the option sheet on iPhone.
+Future<T?> pickOne<T>(
+  BuildContext context, {
+  required String title,
+  required List<(T, String)> options,
+  required T selected,
+}) {
+  if (isCupertino(context)) {
+    return showOptionSheet<T>(
+      context,
+      title: title,
+      options: options,
+      selected: selected,
+    );
+  }
+  return showDialog<T>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: Text(title),
+      children: [
+        RadioGroup<T>(
+          groupValue: selected,
+          onChanged: (value) => Navigator.of(context).pop(value),
+          child: Column(
+            children: [
+              for (final (value, label) in options)
+                RadioListTile<T>(value: value, title: Text(label)),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}

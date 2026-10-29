@@ -68,6 +68,7 @@ void main() {
     expect(progress, [(0, 3), (2, 3), (3, 3)]);
     expect(await marks.scannedUntil('mpesa'), today);
     expect(await marks.scannedUntil('kcb'), isNull);
+    expect(source.releases, [today]);
   });
 
   test('later scans read only what is new, and new institutions '
@@ -119,6 +120,12 @@ void main() {
     );
     await expectLater(failing.scan([_institution('mpesa')]), throwsStateError);
     expect(await marks.scannedUntil('mpesa'), isNull);
+    expect(source.releases, isEmpty);
     expect((await service().scan([_institution('mpesa')])).added, 2);
+  });
+
+  test('an empty selection lets go of nothing', () async {
+    await service().scan(const []);
+    expect(source.releases, isEmpty);
   });
 }

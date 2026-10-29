@@ -86,7 +86,9 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 icon: _sharing
                     ? const SizedBox.square(
                         dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Icon(Icons.file_download_outlined, size: 18),
                 label: const Text('Report'),
@@ -100,7 +102,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
         AsyncError() => const _Message(
           'Insights did not load. Close the app and open it again.',
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }

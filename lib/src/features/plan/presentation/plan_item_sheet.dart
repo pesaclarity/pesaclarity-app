@@ -10,6 +10,7 @@ import '../../../domain/categories/default_categories.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/plan_inputs.dart' as plan;
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/selector_field.dart';
 import '../../debts/presentation/debts_screen.dart' show monthLabel;
 import '../../payees/presentation/category_picker.dart';
@@ -135,19 +136,13 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
                 Text(title, style: theme.textTheme.titleLarge),
                 const SizedBox(height: 16),
                 if (!_isEditing) ...[
-                  SegmentedButton<_Kind>(
+                  AdaptiveSegmented<_Kind>(
                     segments: const [
-                      ButtonSegment(
-                        value: _Kind.repeats,
-                        label: Text('Repeats'),
-                      ),
-                      ButtonSegment(
-                        value: _Kind.oneOff,
-                        label: Text('One-off'),
-                      ),
+                      (_Kind.repeats, 'Repeats'),
+                      (_Kind.oneOff, 'One-off'),
                     ],
-                    selected: {_kind},
-                    onSelectionChanged: (s) => setState(() => _kind = s.first),
+                    selected: _kind,
+                    onChanged: (value) => setState(() => _kind = value),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -210,7 +205,7 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
                     onTap: _pickDate,
                   ),
                 ] else
-                  SwitchListTile(
+                  SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Paid'),
                     subtitle: const Text('Mark it paid, for example in cash'),
@@ -241,8 +236,8 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickDate(
+      context,
       initialDate: DateTime(_startDate.year, _startDate.month, _startDate.day),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
@@ -292,9 +287,9 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
   Future<void> _delete() async {
     final line = widget.line!;
     final recurring = line.source == PlanLineSource.recurring;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text('Delete ${line.name}?'),
         content: Text(
           recurring
@@ -303,11 +298,12 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
               : 'It leaves ${monthLabel(widget.month)}.',
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Keep'),
           ),
-          TextButton(
+          DialogAction(
+            destructive: true,
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),

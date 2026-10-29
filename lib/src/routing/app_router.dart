@@ -27,6 +27,7 @@ import '../features/privacy/presentation/policy_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
+import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
@@ -76,7 +77,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'scan',
-                builder: (context, state) => const SmsScanScreen(),
+                // iPhone has no inbox to scan; it connects Shortcuts instead.
+                builder: (context, state) =>
+                    defaultTargetPlatform == TargetPlatform.iOS
+                    ? const ConnectMessagesScreen(onboarding: true)
+                    : const SmsScanScreen(),
                 routes: [
                   GoRoute(
                     path: 'insight',
@@ -130,6 +135,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                             builder: (context, state) => const PolicyScreen(),
                           ),
                         ],
+                      ),
+                      GoRoute(
+                        path: 'connect',
+                        builder: (context, state) =>
+                            const ConnectMessagesScreen(),
                       ),
                       GoRoute(
                         path: 'payees',

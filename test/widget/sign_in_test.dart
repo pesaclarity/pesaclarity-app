@@ -297,7 +297,7 @@ void main() {
     await _scrollAndTap(tester, find.text('Delete account'));
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.bySubtype<AlertDialog>(),
         matching: find.text('Delete account'),
       ),
     );
@@ -334,7 +334,7 @@ void main() {
     expect(find.text('Sign out Infinix Hot 30?'), findsOneWidget);
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.bySubtype<AlertDialog>(),
         matching: find.text('Sign out'),
       ),
     );

@@ -87,7 +87,7 @@ Future<T?> _withProgress<T>(
   final navigator = Navigator.of(context);
   final messenger = ScaffoldMessenger.of(context);
   unawaited(
-    showDialog<void>(
+    showAdaptiveDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => _ProgressDialog(label: label),
@@ -129,12 +129,12 @@ class _ProgressDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      child: AlertDialog(
+      child: AlertDialog.adaptive(
         content: Row(
           children: [
             const SizedBox.square(
               dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 3),
+              child: CircularProgressIndicator.adaptive(strokeWidth: 3),
             ),
             const SizedBox(width: 16),
             Expanded(child: Text(label)),
@@ -190,7 +190,9 @@ class _BackupListSheetState extends ConsumerState<_BackupListSheet> {
                   if (entries == null) {
                     return const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      ),
                     );
                   }
                   if (entries.isEmpty) {

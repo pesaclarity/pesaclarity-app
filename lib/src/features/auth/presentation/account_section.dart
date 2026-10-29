@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
@@ -147,7 +148,7 @@ class _AccountActionsState extends ConsumerState<AccountActions> {
   }
 
   Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => const _DeleteAccountDialog(),
     );
@@ -228,7 +229,7 @@ class _DeleteAccountDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
+    return AlertDialog.adaptive(
       title: const Text('Delete your account?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -248,18 +249,19 @@ class _DeleteAccountDialog extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Your money data on this phone stays here, and you can keep '
-            'using the app without an account. Backups saved to your own '
-            'Google Drive or SD card stay too.',
+            'using the app without an account. '
+            '${isCupertino(context) ? 'Backups saved to Files stay too.' : 'Backups saved to your own Google Drive or SD card stay too.'}',
             style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
       actions: [
-        TextButton(
+        DialogAction(
           onPressed: () => Navigator.pop(context, false),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        DialogAction(
+          destructive: true,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete account'),

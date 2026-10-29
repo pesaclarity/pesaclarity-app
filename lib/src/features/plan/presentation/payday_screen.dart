@@ -26,7 +26,7 @@ class PaydayScreen extends ConsumerWidget {
           'the day Plan expects it.',
         ),
         AsyncError() => const _Message('The checklist could not load.'),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }

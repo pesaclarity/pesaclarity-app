@@ -10,6 +10,7 @@ import '../../../data/repositories/lending_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/lending/lent_loan.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../goals/application/goals_overview_provider.dart';
 
@@ -141,16 +142,13 @@ class _LoanSheetState extends State<LoanSheet> {
               ),
               const SizedBox(height: 16),
               if (!editing) ...[
-                SegmentedButton<LoanSide>(
+                AdaptiveSegmented<LoanSide>(
                   segments: const [
-                    ButtonSegment(value: LoanSide.lent, label: Text('I lent')),
-                    ButtonSegment(
-                      value: LoanSide.borrowed,
-                      label: Text('I borrowed'),
-                    ),
+                    (LoanSide.lent, 'I lent'),
+                    (LoanSide.borrowed, 'I borrowed'),
                   ],
-                  selected: {_side},
-                  onSelectionChanged: (s) => setState(() => _side = s.first),
+                  selected: _side,
+                  onChanged: (value) => setState(() => _side = value),
                 ),
                 const SizedBox(height: 16),
               ],

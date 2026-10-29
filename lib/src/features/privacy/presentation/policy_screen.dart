@@ -27,7 +27,7 @@ class PolicyScreen extends ConsumerWidget {
         AsyncError() => const Center(
           child: Text('The policy could not be opened. Try again later.'),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );
   }

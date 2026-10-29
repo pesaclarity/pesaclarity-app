@@ -71,5 +71,11 @@ class FakeSmsSource implements SmsSource {
     );
   }
 
+  /// The cut-offs passed to [release], in order.
+  final releases = <DateTime>[];
+
+  @override
+  Future<void> release(DateTime before) async => releases.add(before);
+
   Future<void> close() => _incoming.close();
 }

@@ -1,23 +1,29 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/backup/backup.dart';
 import 'key_value_store.dart';
 
 /// Places a backup can be sent to automatically and restored from.
 enum BackupLocationId {
-  vault('Pesa Clarity vault'),
-  drive('My Google Drive'),
-  deviceFolder('Phone or SD card');
+  vault,
+  drive,
+  deviceFolder;
 
-  const BackupLocationId(this.label);
+  static bool get _iPhone => defaultTargetPlatform == TargetPlatform.iOS;
 
-  final String label;
+  String get label => switch (this) {
+    vault => 'Pesa Clarity vault',
+    drive => 'My Google Drive',
+    deviceFolder => _iPhone ? 'Files on this iPhone' : 'Phone or SD card',
+  };
 
   /// Short form for summaries such as "Vault + SD card".
   String get shortLabel => switch (this) {
     vault => 'Vault',
     drive => 'Drive',
-    deviceFolder => 'SD card',
+    deviceFolder => _iPhone ? 'Files' : 'SD card',
   };
 }
 

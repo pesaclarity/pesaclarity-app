@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
@@ -33,20 +34,21 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
   }
 
   Future<void> _signOut(SignedInDevice device) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text('Sign out ${device.name}?'),
         content: const Text(
           'That phone loses access to your account and backups straight '
           'away. Data already on it stays there, protected by its app lock.',
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          DialogAction(
+            destructive: true,
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Sign out'),
           ),
@@ -87,7 +89,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(
-              child: CircularProgressIndicator(semanticsLabel: 'Loading'),
+              child: CircularProgressIndicator.adaptive(
+                semanticsLabel: 'Loading',
+              ),
             );
           }
           if (snapshot.hasError) {
@@ -151,7 +155,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                             : _signingOut.contains(device.id)
                             ? const SizedBox.square(
                                 dimension: 20,
-                                child: CircularProgressIndicator(
+                                child: CircularProgressIndicator.adaptive(
                                   strokeWidth: 2,
                                 ),
                               )

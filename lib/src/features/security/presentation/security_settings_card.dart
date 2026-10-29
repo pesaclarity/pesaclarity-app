@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/selector_field.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/app_lock_controller.dart';
 import '../data/biometric_authenticator.dart';
@@ -115,26 +116,14 @@ class SecuritySettingsCard extends ConsumerWidget {
     WidgetRef ref,
     Duration current,
   ) async {
-    final choice = await showDialog<Duration>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Lock after'),
-        children: [
-          RadioGroup<Duration>(
-            groupValue: current,
-            onChanged: (value) => Navigator.of(context).pop(value),
-            child: Column(
-              children: [
-                for (final option in LockSettings.lockAfterChoices)
-                  RadioListTile<Duration>(
-                    value: option,
-                    title: Text(lockAfterLabel(option)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final choice = await pickOne<Duration>(
+      context,
+      title: 'Lock after',
+      options: [
+        for (final option in LockSettings.lockAfterChoices)
+          (option, lockAfterLabel(option)),
+      ],
+      selected: current,
     );
     if (choice != null) {
       await ref.read(appLockControllerProvider.notifier).setLockAfter(choice);

@@ -116,7 +116,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         ),
       ),
       body: settings == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator.adaptive())
           : _body(context, settings),
     );
   }
