@@ -10,6 +10,8 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/selector_field.dart';
+import '../../payees/presentation/category_picker.dart';
 import '../application/activity_providers.dart';
 
 /// Opens the sheet for adding a transaction by hand.
@@ -111,14 +113,6 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     final theme = Theme.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
-    final categories = (ref.watch(activityCategoriesProvider).value ?? const {})
-        .values
-        .where(
-          (c) => _direction == TransactionDirection.inflow
-              ? c.type != CategoryType.expense
-              : c.type != CategoryType.income,
-        )
-        .toList();
     final date = _date ?? today;
 
     return Padding(
@@ -178,29 +172,28 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
-              key: ValueKey(_direction),
-              initialValue: _categoryId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [
-                const DropdownMenuItem<int?>(child: Text('Choose later')),
-                for (final c in categories)
-                  DropdownMenuItem(value: c.id, child: Text(c.name)),
-              ],
+            CategorySelectorField(
+              key: const Key('add-transaction-category'),
+              selectedId: _categoryId,
+              allowType: (type) => _direction == TransactionDirection.inflow
+                  ? type != CategoryType.expense
+                  : type != CategoryType.income,
               onChanged: (id) => setState(() => _categoryId = id),
             ),
             if (accounts.length > 1) ...[
               const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: _accountId ?? accounts.keys.first,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Account'),
-                items: [
-                  for (final a in accounts.values)
-                    DropdownMenuItem(value: a.id, child: Text(a.name)),
-                ],
-                onChanged: (id) => setState(() => _accountId = id),
+              SelectorField(
+                label: 'Account',
+                value: accounts[_accountId ?? accounts.keys.first]!.name,
+                onTap: () async {
+                  final id = await showOptionSheet<int>(
+                    context,
+                    title: 'Account',
+                    options: [for (final a in accounts.values) (a.id, a.name)],
+                    selected: _accountId ?? accounts.keys.first,
+                  );
+                  if (id != null) setState(() => _accountId = id);
+                },
               ),
             ],
             const SizedBox(height: 4),

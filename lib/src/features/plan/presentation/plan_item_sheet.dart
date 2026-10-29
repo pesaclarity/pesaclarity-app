@@ -10,7 +10,9 @@ import '../../../domain/categories/default_categories.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/plan_inputs.dart' as plan;
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/selector_field.dart';
 import '../../debts/presentation/debts_screen.dart' show monthLabel;
+import '../../payees/presentation/category_picker.dart';
 import '../application/plan_providers.dart';
 
 /// Opens the form to add a bill, income or one-off to [month], or to edit
@@ -172,33 +174,32 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
                       : null,
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<int?>(
-                  initialValue: categories.any((c) => c.id == _categoryId)
+                CategorySelectorField(
+                  key: const Key('plan-item-category'),
+                  selectedId: categories.any((c) => c.id == _categoryId)
                       ? _categoryId
                       : null,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: [
-                    const DropdownMenuItem(child: Text(uncategorisedName)),
-                    for (final c in categories)
-                      DropdownMenuItem(
-                        value: c.id,
-                        child: Text(c.name, overflow: TextOverflow.ellipsis),
-                      ),
-                  ],
+                  noneLabel: uncategorisedName,
                   onChanged: (v) => setState(() => _categoryId = v),
                 ),
                 const SizedBox(height: 16),
                 if (_kind == _Kind.repeats) ...[
-                  DropdownButtonFormField<RecurrenceFrequency>(
-                    initialValue: _frequency,
-                    decoration: const InputDecoration(labelText: 'How often'),
-                    items: [
-                      for (final MapEntry(:key, :value)
-                          in _frequencyLabels.entries)
-                        DropdownMenuItem(value: key, child: Text(value)),
-                    ],
-                    onChanged: (v) => setState(() => _frequency = v!),
+                  SelectorField(
+                    label: 'How often',
+                    value: _frequencyLabels[_frequency]!,
+                    onTap: () async {
+                      final picked = await showOptionSheet<RecurrenceFrequency>(
+                        context,
+                        title: 'How often',
+                        options: [
+                          for (final MapEntry(:key, :value)
+                              in _frequencyLabels.entries)
+                            (key, value),
+                        ],
+                        selected: _frequency,
+                      );
+                      if (picked != null) setState(() => _frequency = picked);
+                    },
                   ),
                   const SizedBox(height: 8),
                   ListTile(
