@@ -49,3 +49,6 @@ key.properties
 
 # Generated code (run `dart run build_runner build`)
 *.g.dart
+
+# Local release settings
+release.env

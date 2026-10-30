@@ -57,6 +57,25 @@ The upload key (Play) and the release key (F-Droid and direct downloads) never g
 - **Play App Signing.** Google holds the app signing key for Play; we hold the upload key. Register a new upload key with Play support if it is ever lost or exposed.
 - **F-Droid.** With reproducible builds, F-Droid rebuilds the APK, checks it matches ours and ships it with our signature, so updates install over our direct-download APK.
 
+## 3a. Manual release to Google Play (no Actions minutes)
+
+The steps the `Release to Google Play` workflow automates, done by hand:
+
+1. **Deploy the server** with pesaclarity-backend's `tool/deploy_cloud_run.sh` (its README, "Deploying without GitHub Actions"). Set `APP_API_URL_SECRET` there and the script stores the service address in Secret Manager.
+2. **Build the bundle** on your machine, with the upload key in `android/key.properties`:
+
+   ```sh
+   cp release.env.example release.env   # git-ignored: BUILD_NUMBER, and either
+                                        # PESACLARITY_API_URL or GCP_PROJECT_ID +
+                                        # PESACLARITY_API_URL_SECRET
+   tool/build_release.sh
+   ```
+
+   It reads the address from Secret Manager when asked (with your `gcloud` login), refuses anything but https, points the vault at the same server unless `PESACLARITY_VAULT_URL` says otherwise, and prints where the bundle, mapping and Dart symbols are.
+3. **Upload by hand** in Play Console › Test and release › Internal testing (or Closed testing): create a release, upload `app-play-release.aab`, add the notes from `fastlane/metadata/android/en-US/changelogs/<code>.txt`, then send it for review. Google reviews the SMS permission declaration (section 4) and the Data safety form before the first release goes out; new personal developer accounts also need a closed test with at least 12 testers for 14 days before production.
+
+The address is kept out of the repository, but it is compiled into the app, so anyone with the APK can read it. The server must not rely on it staying secret.
+
 ## 4. Google Play: SMS permissions declaration
 
 Play allows `READ_SMS` and `RECEIVE_SMS` only for approved core uses. Pesa Clarity applies under the SMS-based money management exception, and a person at Google reviews it. Before the first Play release (draft answers are in `docs/play-console.md`):
