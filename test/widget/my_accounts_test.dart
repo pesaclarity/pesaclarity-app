@@ -17,13 +17,19 @@ void main() {
 
     expect(find.text('Which accounts do you use?'), findsOneWidget);
     expect(find.text('Messages from MPESA'), findsOneWidget);
+    // Five or more accounts run past a small screen.
+    await tester.scrollUntilVisible(
+      find.text('Tick at least one account to continue.'),
+      200,
+    );
     expect(
       tester.widget<FilledButton>(_button('Scan my messages')).enabled,
       isFalse,
     );
-    expect(find.text('Tick at least one account to continue.'), findsOneWidget);
 
+    await tester.scrollUntilVisible(find.text('M-Pesa'), -200);
     await tester.tap(find.text('M-Pesa'));
+    await tester.scrollUntilVisible(find.text('KCB'), 200);
     await tester.tap(find.text('KCB'));
     await tester.pumpAndSettle();
     expect(await tester.runAsync(repo.selectedIds), {'mpesa', 'kcb'});
@@ -31,6 +37,7 @@ void main() {
     await tester.tap(find.text('KCB'));
     await tester.pumpAndSettle();
     expect(await tester.runAsync(repo.selectedIds), {'mpesa'});
+    await tester.scrollUntilVisible(find.text('M-Pesa'), -200);
     expect(
       tester
           .widget<CheckboxListTile>(
@@ -44,6 +51,7 @@ void main() {
       tester.widget<FilledButton>(_button('Scan my messages')).enabled,
       isTrue,
     );
+    await tester.scrollUntilVisible(_button('Scan my messages'), 200);
     await tester.tap(_button('Scan my messages'));
     await tester.pumpAndSettle();
     expect(
@@ -60,6 +68,7 @@ void main() {
 
     const senders = {'M-Pesa': 'MPESA', 'I&M Bank': 'I&M', 'KCB': 'KCB'};
     for (final MapEntry(key: name, value: sender) in senders.entries) {
+      await tester.scrollUntilVisible(find.text(name), 100);
       final tile = find.widgetWithText(CheckboxListTile, name);
       expect(tester.getSize(tile).height, greaterThanOrEqualTo(44));
       expect(
@@ -102,9 +111,9 @@ void main() {
     await tester.tap(find.text('I&M Bank'));
     await tester.pumpAndSettle();
     expect(await tester.runAsync(repo.selectedIds), isEmpty);
-    expect(
+    await tester.scrollUntilVisible(
       find.text('All accounts are off, so no messages are read.'),
-      findsOneWidget,
+      200,
     );
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
   });
