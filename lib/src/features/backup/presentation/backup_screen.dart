@@ -143,13 +143,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             _DestinationTile(
               key: const Key('backup-vault'),
               title: BackupLocationId.vault.label,
-              subtitle: availability.vault
+              subtitle: !availability.vault
+                  ? 'Available when the vault service opens'
+                  : availability.signedIn
                   ? 'Encrypted copies on the Pesa Clarity server'
-                  : 'Available when the vault service opens',
+                  : 'Sign in from Profile to use it',
               value:
-                  availability.vault &&
+                  availability.vaultReady &&
                   enabled.contains(BackupLocationId.vault),
-              onChanged: availability.vault && !_busy
+              onChanged: availability.vaultReady && !_busy
                   ? (on) => _toggle(settings, BackupLocationId.vault, on)
                   : null,
             ),
@@ -205,8 +207,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           children: [
             _SourceTile(
               title: 'Vault',
-              trailing: availability.vault ? 'See backups' : 'Coming soon',
-              onTap: availability.vault && !_busy
+              trailing: !availability.vault
+                  ? 'Coming soon'
+                  : availability.signedIn
+                  ? 'See backups'
+                  : 'Sign in first',
+              onTap: availability.vaultReady && !_busy
                   ? () => _restoreFrom(
                       settings,
                       BackupLocationId.vault,

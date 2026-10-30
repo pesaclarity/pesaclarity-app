@@ -56,6 +56,12 @@ void main() {
     expect(container.read(displayNameProvider), isNull);
   });
 
+  test('hands other services a token only when signed in', () async {
+    expect(await auth().accessToken(), isNull);
+    await signInByEmail();
+    expect(await auth().accessToken(), startsWith('access-'));
+  });
+
   test('email sign-in keeps only the refresh token on disk', () async {
     await signInByEmail();
 

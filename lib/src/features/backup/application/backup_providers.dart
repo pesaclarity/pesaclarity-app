@@ -46,8 +46,11 @@ final documentPrinterProvider = Provider<DocumentPrinter>(
 /// The vault's address; null while the vault is not deployed.
 final vaultBaseUrlProvider = Provider<Uri?>((ref) => VaultConfig.uri);
 
+/// The vault signs in with the account's access token.
 final vaultTokenSourceProvider = Provider<VaultTokenSource>(
-  (ref) => const SignedOutVaultTokenSource(),
+  (ref) => SessionVaultTokenSource(
+    () => ref.read(authControllerProvider.notifier).accessToken(),
+  ),
 );
 
 /// Apple App Attest on the iPhone.
@@ -114,16 +117,28 @@ final backupServiceProvider = Provider<BackupService>(
 /// Which locations this build and phone can offer, whether or not they are
 /// switched on.
 final class BackupAvailability {
-  const BackupAvailability({required this.vault, required this.drive});
+  const BackupAvailability({
+    required this.vault,
+    required this.drive,
+    this.signedIn = true,
+  });
 
+  /// Whether this build has a vault server.
   final bool vault;
   final bool drive;
+
+  /// Whether an account is signed in, which the vault needs.
+  final bool signedIn;
+
+  /// Whether the vault can be used now.
+  bool get vaultReady => vault && signedIn;
 }
 
 final backupAvailabilityProvider = Provider<BackupAvailability>(
   (ref) => BackupAvailability(
     vault: ref.watch(vaultBaseUrlProvider) != null,
     drive: ref.watch(driveAuthProvider).isAvailable,
+    signedIn: ref.watch(authControllerProvider).value != null,
   ),
 );
 

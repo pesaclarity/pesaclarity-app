@@ -218,6 +218,14 @@ class AuthController extends AsyncNotifier<AccountSession?> {
     state = const AsyncData(null);
   }
 
+  /// A valid access token for the other services on our server, such as the
+  /// vault, refreshed when due; null when nobody is signed in.
+  Future<String?> accessToken() async {
+    await future;
+    if (_session == null) return null;
+    return _validAccessToken();
+  }
+
   /// Runs [call] with a valid access token, refreshing once on a 401.
   Future<T> _authorised<T>(
     Future<T> Function(AuthApi api, String token) call,
