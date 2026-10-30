@@ -1,7 +1,17 @@
 {
-  "version": "1.3",
-  "updated": "2026-10-29",
+  "version": "1.4",
+  "updated": "2026-10-30",
   "changes": [
+    {
+      "version": "1.4",
+      "date": "2026-10-30",
+      "items": [
+        "Messages the app is still learning wait, encrypted on your phone, until you check them.",
+        "Layouts you save stay on your phone.",
+        "Names the services that run our server and how long we keep sign-in data.",
+        "Adds your right to complain to the Data Protection Commissioner."
+      ]
+    },
     {
       "version": "1.3",
       "date": "2026-10-29",

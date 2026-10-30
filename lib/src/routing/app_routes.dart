@@ -26,6 +26,7 @@ abstract final class AppRoutes {
   static const signIn = '/home/profile/sign-in';
   static const devices = '/home/profile/devices';
   static const privacyPolicy = '/home/profile/privacy/policy';
+  static const terms = '/home/profile/privacy/terms';
   static const payees = '/home/profile/payees';
   static const baseCurrency = '/home/profile/currency';
   static const subscriptions = '/home/profile/subscriptions';

@@ -6,7 +6,14 @@ import 'package:ujumbe/ujumbe.dart';
 
 void main() {
   test('the catalogue is the bundled parser packs, mobile money first', () {
-    expect(institutionCatalogue.map((i) => i.id), ['mpesa', 'equity', 'im_bank', 'kcb', 'loop']);
+    expect(institutionCatalogue.map((i) => i.id), [
+      'mpesa',
+      'airtel_money',
+      'equity',
+      'im_bank',
+      'kcb',
+      'loop',
+    ]);
     expect(
       institutionCatalogue.map((i) => i.id).toSet(),
       bundledPackIds.toSet(),
