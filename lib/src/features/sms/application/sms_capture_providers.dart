@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/sms_scan_marks_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -26,6 +27,7 @@ final smsIngestorProvider = Provider<SmsIngestor>(
     accounts: ref.watch(accountsRepositoryProvider),
     transactions: ref.watch(transactionsRepositoryProvider),
     reviewInbox: ref.watch(reviewInboxRepositoryProvider),
+    templates: ref.watch(readerTemplatesRepositoryProvider),
     parse: ref.watch(smsParseBatchProvider),
   ),
 );
