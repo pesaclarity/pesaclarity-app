@@ -81,6 +81,7 @@ void main() {
       await getStarted(tester);
       await tester.tap(find.text('M-Pesa'));
       await tester.pumpAndSettle();
+      await scrollTo(tester, find.text('Scan my messages'));
       await tester.tap(find.text('Scan my messages'));
       await tester.pumpAndSettle();
     }
@@ -230,6 +231,7 @@ void main() {
     await getStarted(tester);
     await tester.tap(find.text('M-Pesa'));
     await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Scan my messages'));
     await tester.tap(find.text('Scan my messages'));
     await tester.pumpAndSettle();
     expect(find.text('Allow access to messages'), findsOneWidget);

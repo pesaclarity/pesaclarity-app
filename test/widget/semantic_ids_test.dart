@@ -59,6 +59,10 @@ void main() {
     expectId(SemanticIds.institution('im_bank'));
     expectId(SemanticIds.institution('kcb'));
     expectChecked(tester, SemanticIds.institution('mpesa'), checked: false);
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.onboardingScanMessages),
+    );
     expect(
       tester.getSemantics(
         find.bySemanticsIdentifier(SemanticIds.onboardingScanMessages),
