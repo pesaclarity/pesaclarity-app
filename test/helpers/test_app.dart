@@ -134,6 +134,7 @@ Future<void> finishOnboarding(WidgetTester tester) async {
   await getStarted(tester);
   await tester.tap(find.text('M-Pesa'));
   await tester.pumpAndSettle();
+  await scrollTo(tester, find.text('Scan my messages'));
   await tester.tap(find.text('Scan my messages'));
   await tester.pumpAndSettle();
   await tapText(tester, 'Allow access to messages');
