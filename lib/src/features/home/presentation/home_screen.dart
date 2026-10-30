@@ -20,6 +20,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
+import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../application/cash_flow_forecast_provider.dart';
@@ -103,6 +104,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: 12),
+              const _ReviewCard(),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -677,6 +679,36 @@ class _BillRow extends StatelessWidget {
         style: AppTypography.amount(
           size: 18,
           color: theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+}
+
+/// "3 messages to check", while the review inbox holds any.
+class _ReviewCard extends ConsumerWidget {
+  const _ReviewCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingReviewProvider).value?.length ?? 0;
+    if (count == 0) return const SizedBox.shrink();
+    final colors = PesaColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: ListTile(
+          key: const Key('home-review'),
+          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          minLeadingWidth: 10,
+          title: Text(
+            count == 1 ? '1 message to check' : '$count messages to check',
+          ),
+          trailing: Text(
+            'Check',
+            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
+          ),
+          onTap: () => context.push(AppRoutes.review),
         ),
       ),
     );
