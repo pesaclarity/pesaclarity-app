@@ -134,4 +134,14 @@ void main() {
     expect(crash['value'], isTrue);
     expect(crash['policyVersion'], '1.4');
   });
+
+  testAppWidgets('opens the terms from Privacy', (tester) async {
+    await pumpApp(tester, db: openTestDatabase());
+    await openPrivacy(tester);
+
+    await scrollTo(tester, find.text('Read the terms'));
+    await tapText(tester, 'Read the terms');
+    expect(find.text('The short version'), findsOneWidget);
+    expect(find.text('Version 1.0 · updated 30 Oct 2026'), findsOneWidget);
+  });
 }

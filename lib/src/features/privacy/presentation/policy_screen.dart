@@ -33,6 +33,26 @@ class PolicyScreen extends ConsumerWidget {
   }
 }
 
+/// The terms bundled with the app, laid out like the privacy policy.
+class TermsScreen extends ConsumerWidget {
+  const TermsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final terms = ref.watch(termsProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Terms')),
+      body: switch (terms) {
+        AsyncData(:final value) => PolicyText(policy: value),
+        AsyncError() => const Center(
+          child: Text('The terms could not be opened. Try again later.'),
+        ),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
+      },
+    );
+  }
+}
+
 /// The policy's blocks laid out for reading.
 class PolicyText extends StatelessWidget {
   const PolicyText({required this.policy, this.footer, super.key});

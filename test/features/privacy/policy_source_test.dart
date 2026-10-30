@@ -30,4 +30,17 @@ void main() {
       ],
     );
   });
+
+  test('the bundled terms load', () async {
+    final terms = await loadBundledDocument(rootBundle, 'terms');
+    expect(terms.title, 'Terms');
+    expect(terms.version, PolicyVersion.parse('1.0'));
+    expect(terms.changes.first.version, terms.version);
+    expect(
+      terms.blocks
+          .where((b) => b.type == PolicyBlockType.heading)
+          .map((b) => b.text),
+      contains('Kenyan law'),
+    );
+  });
 }
