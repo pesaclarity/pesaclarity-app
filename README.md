@@ -2,7 +2,7 @@
 
 Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
-**Status:** pre-alpha. The structure, theme, encrypted database and navigation are in place; the screens are placeholders that state what each one will show, apart from safe to spend on Home.
+**Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
 
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
@@ -53,36 +53,41 @@ lib/
   main.dart
   src/
     app.dart                 root widget
-    config/                  build flavour
+    config/                  build flavour (play, foss, appstore) and server settings
     core/backup/             .pcbackup format: AES-256-GCM, Argon2id, recovery key (pure Dart)
     core/network/            pinned HttpClient factory (trusted roots per host, from build config)
-    core/integrity/          IntegrityAttestor: Play stub, foss no-op, request header hook
-    core/money/              Money (integer minor units) and KES formatting
+    core/integrity/          Play Integrity stub, App Attest (iPhone), foss no-op, request header hook
+    core/money/              Money (integer minor units), base currency and formatting
     domain/                  pure-Dart money rules, no Flutter or database imports
-      time/                  Nairobi calendar dates and months
+      time/                  calendar dates and months in the person's timezone
       ledger/                own transfers, Fuliza fees, noise collapse, honest totals
       budget/                safe to spend today, weekday and weekend limits
       plan/                  monthly plan, arrears, category status, surplus split, snapshots
       payees/                identifier normalising and matching, payee and override precedence
-      categories/            default Kenyan category set (keys shared with the categoriser)
+      categories/            default category set (keys shared with the categoriser)
+      categoriser/           categoriser input, rules fallback, model manifest
+      reader/                message reader input, decoding, rules reader, saved layouts
       tags/                  tag names, filtering and totals by tag
       debts/                 payoff strategies, payday split, family loans, Fuliza tracker, repayment matching
       health/                Financial Health Index: eight indicators, bands, best action
       forecast/              cash-flow forecast to month end: zero date, charges that may fail
+      subscriptions/         recurring charges and their totals
     data/
       database/              Drift tables, SQLCipher connection, key store
       repositories/          thin repository interfaces and Drift implementations
-    features/                one folder per screen in the spec
-      onboarding/ home/ activity/ plan/ goals/ debts/
-      insights/ profile/ backup/ privacy/ accounts/
-      sms/                   SMS permission, inbox scan, live capture, parsing
+    features/                one folder per area: onboarding, home, activity, plan, goals,
+                             debts, lending, insights, profile, backup, privacy, accounts,
+                             auth, security, reminders, export, payees, categoriser,
+                             currency, timezone, subscriptions, statements, review, sms
     routing/                 go_router: five-tab shell; Profile under Home, Debts under Goals
+    shared/adaptive/         iPhone and Android variants of shared controls
     shared/widgets/
-    theme/                   brand tokens, light and dark themes, typography
+    theme/                   brand tokens, light and dark themes, iOS and Android typography
 test/                        unit, widget and database tests
 .maestro/                    Maestro UI flows (YAML), one per journey
-tool/run_ui_flows.sh         runs the flows in light and dark mode
+tool/                        UI flows, F-Droid prep, release build, Swift type-check
 android/                     Android project (applicationId com.pesaclarity.app)
+ios/                         iPhone project (bundle id com.pesaclarity.app)
 assets/fonts/                Space Grotesk and Inter, with their OFL licences
 ```
 
@@ -101,7 +106,9 @@ From the spec's "Mobile security" section:
 - Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
-Not done yet: unlock with BiometricPrompt or PIN before the key is released, StrongBox, the pinned hosts and roots for the deployed server, and Play Integrity tokens. These are marked `TODO(security)` and similar in the code.
+- App lock: with a PIN (and fingerprint or Face ID) set, the database key is released only after unlocking (`UnlockedDatabaseKeyStore`).
+
+Not done yet: StrongBox-backed keys, the pinned hosts and roots for the deployed server (set at build time once it is live), and real Play Integrity tokens (the `play` attestor is a stub until the Play project exists; iPhone uses App Attest).
 
 Releases: see [RELEASING.md](RELEASING.md), [docs/reproducible-builds.md](docs/reproducible-builds.md) and [docs/performance-budget.md](docs/performance-budget.md). F-Droid store text lives in `fastlane/metadata/android/en-US`.
 
