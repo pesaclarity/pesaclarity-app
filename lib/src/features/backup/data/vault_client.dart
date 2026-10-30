@@ -26,12 +26,22 @@ abstract interface class VaultTokenSource {
   Future<String?> accessToken();
 }
 
-/// Used until sign-in exists: nobody is ever signed in.
+/// Nobody is ever signed in, such as in builds without a server.
 class SignedOutVaultTokenSource implements VaultTokenSource {
   const SignedOutVaultTokenSource();
 
   @override
   Future<String?> accessToken() async => null;
+}
+
+/// The signed-in account's access token, from [read].
+class SessionVaultTokenSource implements VaultTokenSource {
+  const SessionVaultTokenSource(this._read);
+
+  final Future<String?> Function() _read;
+
+  @override
+  Future<String?> accessToken() => _read();
 }
 
 /// Client for the ngome vault (`/v1/vault/backups`).

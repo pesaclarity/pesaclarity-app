@@ -182,6 +182,20 @@ void main() {
       expect(bad.existsSync(), isFalse);
     });
 
+    test('signs in with the session token', () async {
+      String? auth;
+      final vault = VaultBackupLocation(
+        baseUrl: base,
+        tokens: SessionVaultTokenSource(() async => 'session-token'),
+        client: MockClient((request) async {
+          auth = request.headers['Authorization'];
+          return http.Response('[]', 200);
+        }),
+      );
+      await vault.list();
+      expect(auth, 'Bearer session-token');
+    });
+
     test('asks for sign-in when there is no token', () {
       final vault = VaultBackupLocation(
         baseUrl: base,

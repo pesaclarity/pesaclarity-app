@@ -64,6 +64,7 @@ class _Harness {
   Future<void> pump(
     WidgetTester tester, {
     AppFlavor flavor = AppFlavor.foss,
+    List<Override> extra = const [],
   }) async {
     addTearDown(() => work.deleteSync(recursive: true));
     final router = GoRouter(
@@ -84,7 +85,7 @@ class _Harness {
     addTearDown(router.dispose);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: overrides(flavor),
+        overrides: [...overrides(flavor), ...extra],
         child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
       ),
     );
@@ -146,6 +147,40 @@ void main() {
     );
     expect(vault.value, isFalse);
     expect(vault.onChanged, isNull);
+  });
+
+  testWidgets('the vault asks for sign-in first', (tester) async {
+    CheckboxListTile vaultTile() => tester.widget<CheckboxListTile>(
+      find.descendant(
+        of: find.byKey(const Key('backup-vault')),
+        matching: find.byType(CheckboxListTile),
+      ),
+    );
+
+    await _Harness().pump(
+      tester,
+      extra: [
+        backupAvailabilityProvider.overrideWithValue(
+          const BackupAvailability(vault: true, drive: false, signedIn: false),
+        ),
+      ],
+    );
+    expect(find.text('Sign in from Profile to use it'), findsOneWidget);
+    expect(vaultTile().onChanged, isNull);
+
+    await _Harness().pump(
+      tester,
+      extra: [
+        backupAvailabilityProvider.overrideWithValue(
+          const BackupAvailability(vault: true, drive: false),
+        ),
+      ],
+    );
+    expect(
+      find.text('Encrypted copies on the Pesa Clarity server'),
+      findsOneWidget,
+    );
+    expect(vaultTile().onChanged, isNotNull);
   });
 
   testWidgets('the Play build lists Google Drive', (tester) async {
