@@ -224,6 +224,9 @@ The play build signs in with Google through Android's Credential Manager (`Googl
 
 ## Releasing to Google Play
 
+Without Actions minutes, build the bundle locally with `tool/build_release.sh` and upload it in Play Console; see RELEASING.md, "Manual release to Google Play".
+
+
 The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) runs the tests, builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
 
 One-time setup:

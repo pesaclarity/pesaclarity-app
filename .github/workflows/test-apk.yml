@@ -87,8 +87,8 @@ jobs:
         env:
           BUILD_NUMBER: ${{ github.run_number }}
           FLAVOR: ${{ matrix.flavor }}
-          API_URL: ${{ vars.DEV_PESACLARITY_API_URL }}
-          VAULT_URL: ${{ vars.DEV_PESACLARITY_VAULT_URL }}
+          API_URL: ${{ secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
+          VAULT_URL: ${{ secrets.DEV_PESACLARITY_VAULT_URL || vars.DEV_PESACLARITY_VAULT_URL || secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
           PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
           TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
           RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
