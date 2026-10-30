@@ -148,6 +148,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                             path: 'policy',
                             builder: (context, state) => const PolicyScreen(),
                           ),
+                          GoRoute(
+                            path: 'terms',
+                            builder: (context, state) => const TermsScreen(),
+                          ),
                         ],
                       ),
                       GoRoute(

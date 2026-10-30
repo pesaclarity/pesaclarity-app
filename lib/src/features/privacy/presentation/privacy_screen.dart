@@ -48,6 +48,11 @@ class PrivacyScreen extends ConsumerWidget {
             child: const Text('Read the full privacy policy'),
           ),
           const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () => context.go(AppRoutes.terms),
+            child: const Text('Read the terms'),
+          ),
+          const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: policy == null
                 ? null

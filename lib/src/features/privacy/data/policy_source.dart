@@ -6,21 +6,34 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/privacy/privacy_policy.dart';
 
-/// Loads the privacy policy bundled under `assets/policy/`.
-Future<PrivacyPolicy> loadBundledPolicy(AssetBundle bundle) async {
+/// Loads the document [name] bundled under `assets/policy/`: its text from
+/// `<name>.md` and its version and changes from `<name>.json`.
+Future<PrivacyPolicy> loadBundledDocument(
+  AssetBundle bundle,
+  String name,
+) async {
   final metadata = jsonDecode(
-    await bundle.loadString('assets/policy/privacy_policy.json'),
+    await bundle.loadString('assets/policy/$name.json'),
   );
-  final markdown = await bundle.loadString('assets/policy/privacy_policy.md');
+  final markdown = await bundle.loadString('assets/policy/$name.md');
   return PrivacyPolicy.fromAssets(
     metadata: metadata as Map<String, Object?>,
     markdown: markdown,
   );
 }
 
+/// Loads the privacy policy bundled under `assets/policy/`.
+Future<PrivacyPolicy> loadBundledPolicy(AssetBundle bundle) =>
+    loadBundledDocument(bundle, 'privacy_policy');
+
 /// The privacy policy that ships with this build of the app.
 final privacyPolicyProvider = FutureProvider<PrivacyPolicy>(
   (ref) => loadBundledPolicy(rootBundle),
+);
+
+/// The terms that ship with this build of the app.
+final termsProvider = FutureProvider<PrivacyPolicy>(
+  (ref) => loadBundledDocument(rootBundle, 'terms'),
 );
 
 /// Hands the policy to the phone's email app as a draft to the person.

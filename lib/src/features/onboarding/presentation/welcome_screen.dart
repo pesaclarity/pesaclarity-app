@@ -166,6 +166,16 @@ class _PrivacyNote extends StatelessWidget {
           ),
           child: const Text('Read our privacy policy'),
         ),
+        TextButton(
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const TermsScreen())),
+          style: TextButton.styleFrom(
+            foregroundColor: link,
+            textStyle: base.copyWith(decoration: TextDecoration.underline),
+          ),
+          child: const Text('Read the terms'),
+        ),
       ],
     );
   }
