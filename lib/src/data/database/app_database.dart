@@ -31,6 +31,7 @@ part 'app_database.g.dart';
     SelectedInstitutions,
     AppSettings,
     ReviewItems,
+    ReaderTemplates,
     CategoryCorrections,
     CategoryConfirmations,
     Subscriptions,
@@ -40,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -143,6 +144,10 @@ class AppDatabase extends _$AppDatabase {
           transactions,
           transactions.autoCategoryConfidence,
         );
+      }
+      if (from < 14 &&
+          !await _exists('table', readerTemplates.actualTableName)) {
+        await m.createTable(readerTemplates);
       }
     },
     beforeOpen: (details) async {

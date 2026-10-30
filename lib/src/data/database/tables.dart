@@ -383,6 +383,20 @@ class ReviewItems extends Table {
   DateTimeColumn get resolvedAt => dateTime().nullable()();
 }
 
+/// "Read messages like this the same way": the layout of a message the
+/// person checked once, so later ones from the same institution are read
+/// without asking. Holds the words around the fields, numbers only as their
+/// layout, and the fields as empty slots: no amounts, names or dates.
+@DataClassName('ReaderTemplateRow')
+class ReaderTemplates extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get institutionId => text()();
+
+  /// `ReadingTemplate.toJson`.
+  TextColumn get template => text()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
 /// Institutions the person ticked in My accounts. A row means it is switched
 /// on; its sender IDs join the SMS watch list.
 class SelectedInstitutions extends Table {

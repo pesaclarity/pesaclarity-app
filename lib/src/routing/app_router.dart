@@ -26,6 +26,8 @@ import '../features/plan/presentation/plan_screen.dart';
 import '../features/privacy/presentation/policy_screen.dart';
 import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
+import '../features/review/presentation/review_inbox_screen.dart';
+import '../features/review/presentation/review_message_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
@@ -102,6 +104,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.home,
                 builder: (context, state) => const HomeScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'review',
+                    builder: (context, state) => const ReviewInboxScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':id',
+                        builder: (context, state) => ReviewMessageScreen(
+                          itemId: int.parse(state.pathParameters['id']!),
+                        ),
+                      ),
+                    ],
+                  ),
                   GoRoute(
                     path: 'import',
                     builder: (context, state) => const StatementImportScreen(),

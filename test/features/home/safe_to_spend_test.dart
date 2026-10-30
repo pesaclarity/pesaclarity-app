@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/features/home/application/health_index_provider.
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 void main() {
@@ -126,6 +127,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
           safeToSpendTodayProvider.overrideWith((ref) async => result),
           cashFlowForecastProvider.overrideWith((ref) async => null),
           healthIndexProvider.overrideWith((ref) async => null),

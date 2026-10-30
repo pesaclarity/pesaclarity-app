@@ -14,6 +14,10 @@ abstract final class AppRoutes {
 
   /// Statement import, opened from the Home + button and from Profile.
   static const importStatement = '/home/import';
+
+  /// Messages no parser rule read, and one of them by review item id.
+  static const review = '/home/review';
+  static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
   static const backup = '/home/profile/backup';
