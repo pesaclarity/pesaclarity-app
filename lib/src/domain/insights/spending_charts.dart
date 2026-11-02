@@ -113,7 +113,7 @@ class SpendingChart {
       final date = entry.date;
       final inWindow = window.contains(date);
       if (!inWindow && !before.contains(date)) continue;
-      final parts = _spendingOf(entry, fuliza);
+      final parts = spendingPartsOf(entry, fuliza);
       if (parts.isEmpty) continue;
       if (inWindow) {
         final day = window.start.daysUntil(date);
@@ -185,7 +185,7 @@ class SpendingChart {
 
 /// The spending in [entry], split into fees and the rest, as Insights counts
 /// it: spending net of refunds, plus every fee.
-List<(SliceKey, int)> _spendingOf(LedgerEntry entry, FulizaLedger fuliza) {
+List<(SliceKey, int)> spendingPartsOf(LedgerEntry entry, FulizaLedger fuliza) {
   final parts = <(SliceKey, int)>[];
   if (entry.feeMinor > 0) parts.add((const FeesSlice(), entry.feeMinor));
   final category = entry.categoryId == null

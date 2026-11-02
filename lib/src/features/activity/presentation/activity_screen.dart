@@ -130,7 +130,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _Filters(filter: _filter, accounts: accounts, onChanged: _update),
+            _Filters(
+              filter: _filter,
+              accounts: accounts,
+              categories: categories,
+              onChanged: _update,
+            ),
             const SizedBox(height: 16),
             _WeekCard(week),
             const SizedBox(height: 8),
@@ -199,11 +204,13 @@ class _Filters extends StatelessWidget {
   const _Filters({
     required this.filter,
     required this.accounts,
+    required this.categories,
     required this.onChanged,
   });
 
   final ActivityFilter filter;
   final Map<int, Account> accounts;
+  final Map<int, Category> categories;
   final void Function(ActivityFilter Function(ActivityFilter)) onChanged;
 
   @override
@@ -236,6 +243,17 @@ class _Filters extends StatelessWidget {
             onTap: () => onChanged(
               (f) => f.copyWith(type: f.type == type ? ActivityType.all : type),
             ),
+          ),
+        if (filter.hasCategory)
+          InputChip(
+            key: const Key('activity-category'),
+            label: Text(
+              filter.categoryId == null
+                  ? 'Uncategorised'
+                  : categories[filter.categoryId]?.name ?? 'Category',
+            ),
+            deleteButtonTooltipMessage: 'Show all categories',
+            onDeleted: () => onChanged((f) => f.withoutCategory()),
           ),
         if (filter.hasDateRange)
           InputChip(

@@ -4,6 +4,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/insights/findings.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/spending_charts.dart';
@@ -82,3 +83,18 @@ final categoryNamesProvider = StreamProvider<Map<int, String>>(
       .watchAll()
       .map((all) => {for (final c in all) c.id: c.name}),
 );
+
+/// What changed this month against the same days of last month. Updates as
+/// the ledger changes.
+final findingsProvider = FutureProvider<List<Finding>>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  // A month before last month lets Fuliza repayments find their draws.
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(
+        from: today.yearMonth.addMonths(-2).startInstant,
+        to: today.addDays(1).startInstant,
+      );
+  return findingsFor(entries, today: today);
+});

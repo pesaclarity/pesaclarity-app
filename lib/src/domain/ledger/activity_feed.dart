@@ -15,6 +15,9 @@ enum ActivityType {
   /// Spending in day-to-day categories, the money behind safe to spend.
   dayToDay('Day-to-day'),
 
+  /// Fees, and anything that carried a transaction cost.
+  fees('Fees'),
+
   /// Money in, other than own transfers.
   moneyIn('Money in'),
 
@@ -32,14 +35,15 @@ enum ActivityType {
       all => true,
       spending => role == LedgerRole.spending || role == LedgerRole.fee,
       dayToDay => entry.isDailySpending && role == LedgerRole.spending,
+      fees => role == LedgerRole.fee || entry.feeMinor > 0,
       moneyIn => entry.isInflow && role != LedgerRole.ownTransfer,
       transfers => role == LedgerRole.ownTransfer,
     };
   }
 }
 
-/// What Activity shows: one account or all, a type, a search and an optional
-/// date range (both ends included).
+/// What Activity shows: one account or all, a type, a search, an optional
+/// date range (both ends included) and an optional category.
 class ActivityFilter {
   const ActivityFilter({
     this.accountId,
@@ -47,6 +51,8 @@ class ActivityFilter {
     this.query = '',
     this.from,
     this.to,
+    this.categoryId,
+    this.uncategorised = false,
   });
 
   /// Reads a filter from route query parameters, as written by [toQuery].
@@ -60,14 +66,26 @@ class ActivityFilter {
       type: type ?? ActivityType.all,
       from: parseCalendarDate(params['from']),
       to: parseCalendarDate(params['to']),
+      categoryId: int.tryParse(params['category'] ?? ''),
+      uncategorised: params['category'] == _none,
     );
   }
+
+  static const _none = 'none';
 
   final int? accountId;
   final ActivityType type;
   final String query;
   final CalendarDate? from;
   final CalendarDate? to;
+
+  /// Only spending in this category.
+  final int? categoryId;
+
+  /// Only spending without a category. Ignored when [categoryId] is set.
+  final bool uncategorised;
+
+  bool get hasCategory => categoryId != null || uncategorised;
 
   bool get hasDateRange => from != null || to != null;
 
@@ -77,6 +95,10 @@ class ActivityFilter {
     if (type != ActivityType.all) 'type': type.name,
     if (from != null) 'from': formatCalendarDate(from!),
     if (to != null) 'to': formatCalendarDate(to!),
+    if (categoryId != null)
+      'category': '$categoryId'
+    else if (uncategorised)
+      'category': _none,
   };
 
   ActivityFilter copyWith({
@@ -85,13 +107,21 @@ class ActivityFilter {
     String? query,
     CalendarDate? Function()? from,
     CalendarDate? Function()? to,
+    int? Function()? categoryId,
+    bool? uncategorised,
   }) => ActivityFilter(
     accountId: accountId == null ? this.accountId : accountId(),
     type: type ?? this.type,
     query: query ?? this.query,
     from: from == null ? this.from : from(),
     to: to == null ? this.to : to(),
+    categoryId: categoryId == null ? this.categoryId : categoryId(),
+    uncategorised: uncategorised ?? this.uncategorised,
   );
+
+  /// The same filter without its category.
+  ActivityFilter withoutCategory() =>
+      copyWith(categoryId: () => null, uncategorised: false);
 
   /// Whether [entry] passes every part of the filter. [labels] are the
   /// entry's category and account names, searched with its payee, the
@@ -99,6 +129,12 @@ class ActivityFilter {
   bool matches(LedgerEntry entry, {Iterable<String?> labels = const []}) {
     if (accountId != null && entry.accountId != accountId) return false;
     if (!type.matches(entry)) return false;
+    if (categoryId != null && entry.categoryId != categoryId) return false;
+    if (categoryId == null &&
+        uncategorised &&
+        (entry.categoryId != null || roleOf(entry) != LedgerRole.spending)) {
+      return false;
+    }
     final date = entry.date;
     if (from != null && date.isBefore(from!)) return false;
     if (to != null && date.isAfter(to!)) return false;
