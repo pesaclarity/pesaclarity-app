@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
-
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/presentation/institution_list.dart';
+import '../../sms/application/scan_range_provider.dart';
+import '../../sms/domain/scan_range.dart';
+import '../../sms/presentation/scan_range_tile.dart';
 
 /// Onboarding: tick the institutions whose messages the app should read.
 class MyAccountsScreen extends ConsumerWidget {
@@ -17,6 +19,7 @@ class MyAccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    final range = ref.watch(scanRangeProvider).value ?? ScanRange.all;
     final hasSelection =
         ref.watch(selectedInstitutionIdsProvider).value?.isNotEmpty ?? false;
 
@@ -45,6 +48,8 @@ class MyAccountsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             const InstitutionList(control: InstitutionControl.checkbox),
+            const SizedBox(height: 12),
+            const ScanRangeTile(),
             const SizedBox(height: 24),
             // Merged so the id lands on the node with the enabled state.
             MergeSemantics(
@@ -61,8 +66,8 @@ class MyAccountsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               hasSelection
-                  ? 'We look back over the last 90 days. You can change '
-                        'your accounts any time in Profile.'
+                  ? '${scanRangeSentence(range)} You can change this any '
+                        'time in Profile.'
                   : 'Tick at least one account to continue.',
               style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,

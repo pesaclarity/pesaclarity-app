@@ -86,13 +86,18 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testOnIPhone('the theme uses the system font at iOS sizes', (tester) async {
+    testOnIPhone('the theme is the Android design, with swipe-back pages', (
+      tester,
+    ) async {
       final theme = AppTheme.light;
-      expect(theme.platform, TargetPlatform.iOS);
-      expect(theme.textTheme.bodyLarge!.fontSize, 17);
-      expect(theme.textTheme.bodyLarge!.fontFamily, isNot('Inter'));
-      // Figures keep the brand face.
+      expect(theme.platform, TargetPlatform.android);
+      expect(theme.textTheme.bodyLarge!.fontSize, 16);
+      expect(theme.textTheme.bodyLarge!.fontFamily, 'Inter');
       expect(theme.textTheme.displaySmall!.fontFamily, 'SpaceGrotesk');
+      expect(
+        theme.pageTransitionsTheme.builders[TargetPlatform.android],
+        isA<CupertinoPageTransitionsBuilder>(),
+      );
     });
 
     testOnIPhone('onboarding connects Shortcuts in place of the SMS scan', (
@@ -109,8 +114,7 @@ void main() {
       expect(shortcuts.opened, 1);
 
       await tapText(tester, 'Do this later');
-      expect(find.byType(CupertinoStyleTabBar), findsOneWidget);
-      expect(find.byType(PillNavigationBar), findsNothing);
+      expect(find.byType(PillNavigationBar), findsOneWidget);
     });
 
     testOnIPhone('once a message arrives, onboarding can continue', (
@@ -122,10 +126,10 @@ void main() {
       expect(find.text('Connected'), findsOneWidget);
       expect(find.text('Last message 2 min ago'), findsOneWidget);
       await tapText(tester, 'Continue');
-      expect(find.byType(CupertinoStyleTabBar), findsOneWidget);
+      expect(find.byType(PillNavigationBar), findsOneWidget);
     });
 
-    testOnIPhone('Profile groups its rows and links to Connect messages', (
+    testOnIPhone('Profile is the Android list, plus Connect messages', (
       tester,
     ) async {
       await toConnectStep(tester);
@@ -133,7 +137,7 @@ void main() {
       await tester.tap(find.byTooltip('Profile'));
       await tester.pumpAndSettle();
 
-      expect(find.text('MONEY'), findsOneWidget);
+      expect(find.text('MONEY'), findsNothing);
       await tapText(tester, 'Connect messages');
       expect(find.text('Connect your messages'), findsOneWidget);
     });
@@ -151,24 +155,23 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testOnIPhone('forms use the sliding control and the date wheel', (
+    testOnIPhone('forms use the Android controls and date dialog', (
       tester,
     ) async {
       await pumpSheet(tester);
       expect(
-        find.byWidgetPredicate((w) => w is CupertinoSlidingSegmentedControl),
+        find.byWidgetPredicate((w) => w is SegmentedButton),
         findsOneWidget,
       );
-      expect(find.byWidgetPredicate((w) => w is SegmentedButton), findsNothing);
 
       await tapText(tester, 'Tap to change the day');
-      expect(find.byType(CupertinoDatePicker), findsOneWidget);
-      await tester.tap(find.text('Done'));
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      expect(find.byType(CupertinoDatePicker), findsNothing);
+      expect(find.byType(DatePickerDialog), findsNothing);
     });
 
-    testOnIPhone('dialogs and choices look like iOS', (tester) async {
+    testOnIPhone('dialogs and choices look like Android', (tester) async {
       String? picked;
       await tester.pumpWidget(
         MaterialApp(
@@ -212,21 +215,21 @@ void main() {
 
       await tester.tap(find.text('Ask'));
       await tester.pumpAndSettle();
-      expect(find.byType(CupertinoAlertDialog), findsOneWidget);
+      expect(find.bySubtype<AlertDialog>(), findsOneWidget);
+      expect(find.byType(CupertinoAlertDialog), findsNothing);
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Choose'));
       await tester.pumpAndSettle();
-      expect(find.byType(SimpleDialog), findsNothing);
-      expect(find.byIcon(CupertinoIcons.checkmark_alt), findsOneWidget);
+      expect(find.byType(SimpleDialog), findsOneWidget);
       await tester.tap(find.text('1 minute'));
       await tester.pumpAndSettle();
       expect(picked, '1m');
     });
   });
 
-  testAppWidgets('Android keeps its own look', (tester) async {
+  testAppWidgets('Android scans the inbox', (tester) async {
     await pumpApp(tester, db: openTestDatabase());
     await getStarted(tester);
     await tester.tap(find.text('M-Pesa'));

@@ -4,13 +4,12 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/insights/findings.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/spending_charts.dart';
 import '../../../domain/time/calendar.dart';
-
-/// How far back the first scan reads, and so the first insight covers.
-const firstInsightDays = 90;
+import '../../sms/application/scan_range_provider.dart';
 
 /// This Nairobi month's leakages, its change on last month, and the
 /// six-month spending trend.
@@ -35,15 +34,22 @@ final tagNamesProvider = StreamProvider<Map<int, String>>(
       .map((tags) => {for (final t in tags) t.id: t.name}),
 );
 
-/// Income, spending, leakages and Fuliza fees over the days the first scan
-/// read, up to the end of today.
+/// Income, spending, leakages and Fuliza fees over the period the first scan
+/// read, up to the end of today. Every message reads from the first
+/// transaction found.
 final firstInsightProvider = FutureProvider<FirstInsight>((ref) async {
   final today = CalendarDate.local(ref.watch(clockProvider)());
-  final from = today.addDays(-firstInsightDays).startInstant;
+  final range = await ref.watch(scanRangeProvider.future);
   final to = today.addDays(1).startInstant;
   final entries = await ref
       .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: to);
+      .ledgerEntries(
+        from: range.firstDay(today)?.startInstant ?? DateTime.utc(2000),
+        to: to,
+      );
+  final from =
+      range.firstDay(today)?.startInstant ??
+      (entries.isEmpty ? today.startInstant : entries.first.occurredAt);
   return FirstInsight.of(entries, from: from, to: to);
 });
 
@@ -82,3 +88,18 @@ final categoryNamesProvider = StreamProvider<Map<int, String>>(
       .watchAll()
       .map((all) => {for (final c in all) c.id: c.name}),
 );
+
+/// What changed this month against the same days of last month. Updates as
+/// the ledger changes.
+final findingsProvider = FutureProvider<List<Finding>>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  // A month before last month lets Fuliza repayments find their draws.
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(
+        from: today.yearMonth.addMonths(-2).startInstant,
+        to: today.addDays(1).startInstant,
+      );
+  return findingsFor(entries, today: today);
+});

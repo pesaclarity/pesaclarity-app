@@ -222,4 +222,47 @@ void main() {
     expect(parseCalendarDate('2026-13-01'), isNull);
     expect(parseCalendarDate(null), isNull);
   });
+
+  group('category and fee filters', () {
+    final food = entry(at: eat(2026, 10, 20), amount: kes(900), categoryId: 7);
+    final loose = entry(at: eat(2026, 10, 20), amount: kes(300));
+    final withFee = entry(
+      at: eat(2026, 10, 21),
+      amount: kes(500),
+      fee: kes(15),
+    );
+    final income = inflow(at: eat(2026, 10, 1), amount: kes(1000));
+
+    test('narrows to one category, or to spending without one', () {
+      const byCategory = ActivityFilter(categoryId: 7);
+      expect(byCategory.matches(food), isTrue);
+      expect(byCategory.matches(loose), isFalse);
+
+      const none = ActivityFilter(uncategorised: true);
+      expect(none.matches(loose), isTrue);
+      expect(none.matches(food), isFalse);
+      expect(none.matches(income), isFalse);
+    });
+
+    test('fees cover fee entries and anything with a transaction cost', () {
+      const fees = ActivityFilter(type: ActivityType.fees);
+      expect(fees.matches(withFee), isTrue);
+      expect(fees.matches(food), isFalse);
+    });
+
+    test('the category survives the route', () {
+      for (final filter in const [
+        ActivityFilter(categoryId: 7),
+        ActivityFilter(uncategorised: true),
+      ]) {
+        final back = ActivityFilter.fromQuery(filter.toQuery());
+        expect(back.categoryId, filter.categoryId);
+        expect(back.uncategorised, filter.uncategorised);
+      }
+      expect(
+        const ActivityFilter(categoryId: 7).withoutCategory().hasCategory,
+        isFalse,
+      );
+    });
+  });
 }

@@ -8,9 +8,11 @@ import '../../../domain/insights/leakage.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
+import '../../sms/application/scan_range_provider.dart';
+import '../../sms/domain/scan_range.dart';
 import '../application/onboarding_controller.dart';
 
-/// Onboarding, after the first scan: what the last 90 days of messages show,
+/// Onboarding, after the first scan: what the messages read show,
 /// before any setup.
 class FirstInsightScreen extends ConsumerWidget {
   const FirstInsightScreen({super.key});
@@ -27,12 +29,16 @@ class FirstInsightScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             ...switch (insight) {
-              AsyncData(:final value) => _figures(context, value),
+              AsyncData(:final value) => _figures(
+                context,
+                value,
+                ref.watch(scanRangeProvider).value,
+              ),
               AsyncError() => [
                 const _Body('Your figures will show on Home and Insights.'),
               ],
               _ => [
-                const _Body('Adding up your last $firstInsightDays days.'),
+                const _Body('Adding up your messages.'),
                 const SizedBox(height: 16),
                 const LinearProgressIndicator(semanticsLabel: 'Adding up'),
               ],
@@ -45,13 +51,17 @@ class FirstInsightScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _figures(BuildContext context, FirstInsight insight) {
+  List<Widget> _figures(
+    BuildContext context,
+    FirstInsight insight,
+    ScanRange? range,
+  ) {
     String kes(int minor) => formatMoney(Money(minor));
     final share = insight.leakageShareBasisPoints;
     final count = insight.transactionCount;
     return [
       Text(
-        'Your last $firstInsightDays days',
+        firstInsightTitle(range),
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       const SizedBox(height: 8),
@@ -181,3 +191,11 @@ class _Body extends StatelessWidget {
         .copyWith(color: PesaColors.of(context).textMuted),
   );
 }
+
+/// "Your last 3 months", "Since 5 Mar 2026" or, for every message,
+/// "Everything so far".
+String firstInsightTitle(ScanRange? range) => switch (range?.period) {
+  null || ScanPeriod.all => 'Everything so far',
+  ScanPeriod.since => 'Since ${range!.label.substring('From '.length)}',
+  _ => 'Your ${range!.label.toLowerCase()}',
+};

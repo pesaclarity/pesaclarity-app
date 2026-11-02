@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/health/health_index.dart';
+import '../../../domain/insights/findings.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/leakage.dart';
+import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../home/application/health_index_provider.dart';
+import '../../statements/data/pdf_text_extractor.dart';
 import '../application/insights_providers.dart';
 import '../application/insights_report.dart';
 import '../application/month_labels.dart';
 import '../application/report_sharer.dart';
 import '../application/tag_totals_provider.dart';
+import 'health_pillar_sheet.dart';
 import 'spending_charts_card.dart';
 import 'tag_totals_card.dart';
 
@@ -121,22 +127,77 @@ class _InsightsBody extends StatelessWidget {
         if (!summary.hasData)
           const _EmptyCard()
         else ...[
-          _LeakageCard(summary),
+          const _FindingsSection(),
           const _SectionTitle('Spending'),
-          const SpendingChartsSection(),
-          const _SectionTitle('Where it goes'),
-          _WhereItGoesCard(summary.current.leakage),
-          _SectionTitle('Spending, last ${summary.trend.length} months'),
-          _TrendCard(summary.trend),
+          SpendingChartsSection(trend: summary.trend),
+          const SizedBox(height: 12),
+          _LeakageCard(summary),
+          const _SectionTitle('Financial Health Index'),
+          const _HealthCard(),
         ],
-        const _SectionTitle('Financial Health Index'),
-        const _HealthCard(),
         const SizedBox(height: 24),
         const TagTotalsSection(),
       ],
     );
   }
 }
+
+/// This month's changes against the same days of last month; each opens
+/// the transactions behind it.
+class _FindingsSection extends ConsumerWidget {
+  const _FindingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final findings = ref.watch(findingsProvider).value ?? const <Finding>[];
+    if (findings.isEmpty) return const SizedBox.shrink();
+    final names = ref.watch(categoryNamesProvider).value ?? const {};
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle('What changed'),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (final (i, f) in findings.indexed) ...[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  key: Key('finding-$i'),
+                  title: Text(findingTitle(f, names)),
+                  subtitle: Text(findingDetail(f)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      context.go(AppRoutes.activityWith(f.filterFor(today))),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Food up 2,300 on last month", "Fees 1,200 so far".
+String findingTitle(Finding f, Map<int, String> names) => switch (f) {
+  CategoryFinding(:final slice, :final changeMinor) =>
+    '${sliceLabel(slice, names)} ${changeMinor > 0 ? 'up' : 'down'} '
+        '${_amount(changeMinor.abs())} on last month',
+  FeesFinding(:final nowMinor) => 'Fees ${_amount(nowMinor)} so far',
+  IncomeFinding(:final nowMinor) => 'Money in ${_amount(nowMinor)} so far',
+};
+
+/// "22,800 so far this month", "300 more than last month".
+String findingDetail(Finding f) => switch (f) {
+  CategoryFinding(:final nowMinor) => '${_amount(nowMinor)} so far this month',
+  _ => switch (f.changeMinor) {
+    0 => 'Same as last month',
+    > 0 => '${_amount(f.changeMinor)} more than last month',
+    _ => '${_amount(-f.changeMinor)} less than last month',
+  },
+};
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -167,26 +228,40 @@ class _Message extends StatelessWidget {
   );
 }
 
-class _EmptyCard extends StatelessWidget {
+class _EmptyCard extends ConsumerWidget {
   const _EmptyCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final canImport = ref.watch(statementImportAvailableProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Your leakages show here', style: theme.textTheme.titleMedium),
+            Text('Your insights show here', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
-              'Once your messages or statements are read, this shows what '
-              'goes to lifestyle, friends, family and fees, and how your '
-              'spending moves month to month.',
+              'Once your messages or a statement are read, this fills with '
+              'what changed, where your money goes and your health score.',
               style: theme.textTheme.bodyMedium,
             ),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('insights-accounts'),
+              onPressed: () => context.go(AppRoutes.myAccounts),
+              child: const Text('Choose my accounts'),
+            ),
+            if (canImport) ...[
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: const Key('insights-import'),
+                onPressed: () => context.go(AppRoutes.importStatement),
+                child: const Text('Import a statement'),
+              ),
+            ],
           ],
         ),
       ),
@@ -258,6 +333,20 @@ class _LeakageCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(sentence, style: theme.textTheme.bodyMedium),
             ],
+            if (current.leakage.groups.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final g in current.leakage.groups)
+                    Chip(
+                      label: Text('${g.label} ${_amount(g.amountMinor)}'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -310,124 +399,6 @@ class _BarRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-double _fraction(int value, int largest) =>
-    value <= 0 || largest <= 0 ? 0 : value / largest;
-
-class _WhereItGoesCard extends StatelessWidget {
-  const _WhereItGoesCard(this.leakage);
-
-  final LeakageBreakdown leakage;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = PesaColors.of(context);
-    final groups = leakage.groups;
-    final largest = groups.fold(
-      0,
-      (m, g) => g.amountMinor > m ? g.amountMinor : m,
-    );
-    final palette = [
-      scheme.primary,
-      colors.link,
-      scheme.primary.withValues(alpha: .55),
-      colors.textMuted.withValues(alpha: .55),
-      colors.warning,
-    ];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            for (final (i, g) in groups.indexed) ...[
-              if (i > 0) const SizedBox(height: 14),
-              _BarRow(
-                label: g.label,
-                value: _amount(g.amountMinor),
-                fraction: _fraction(g.amountMinor, largest),
-                color: palette[i % palette.length],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendCard extends StatelessWidget {
-  const _TrendCard(this.trend);
-
-  final List<MonthInsight> trend;
-
-  static const _chartHeight = 100.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final largest = trend.fold(
-      0,
-      (m, x) => x.spendingMinor > m ? x.spendingMinor : m,
-    );
-    final description = [
-      for (final m in trend)
-        '${monthName(m.month)} ${_amount(m.spendingMinor)}',
-    ].join(', ');
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Semantics(
-          label: 'Monthly spending: $description',
-          excludeSemantics: true,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (final (i, m) in trend.indexed)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Column(
-                      children: [
-                        Container(
-                          height:
-                              8 +
-                              (_chartHeight - 8) *
-                                  _fraction(m.spendingMinor, largest),
-                          decoration: BoxDecoration(
-                            color: i == trend.length - 1
-                                ? theme.colorScheme.primary
-                                : i == trend.length - 2
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: .3,
-                                  )
-                                : colors.border,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          shortMonthName(m.month),
-                          style: theme.textTheme.labelMedium!.copyWith(
-                            color: i == trend.length - 1
-                                ? theme.colorScheme.onSurface
-                                : colors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -492,14 +463,22 @@ class _HealthCard extends ConsumerWidget {
               ],
             ),
             for (final pillar in HealthPillar.values) ...[
-              const SizedBox(height: 14),
-              _BarRow(
-                label: pillar.label,
-                value: '${pillarPoints(index, pillar)} of 25',
-                fraction: index.pillarCentipoints(pillar) / 2500,
-                color: pillar == index.weakestPillar
-                    ? theme.colorScheme.primary
-                    : colors.textMuted,
+              const SizedBox(height: 6),
+              InkWell(
+                key: Key('pillar-${pillar.name}'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => showHealthPillar(context, index, pillar),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: _BarRow(
+                    label: pillar.label,
+                    value: '${pillarPoints(index, pillar)} of 25',
+                    fraction: index.pillarCentipoints(pillar) / 2500,
+                    color: pillar == index.weakestPillar
+                        ? theme.colorScheme.primary
+                        : colors.textMuted,
+                  ),
+                ),
               ),
             ],
             if (action != null) ...[

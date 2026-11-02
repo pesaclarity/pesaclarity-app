@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
@@ -154,7 +155,27 @@ void main() {
             return Uint8List.fromList(latin1.encode('%PDF-1.4'));
           }),
         ],
-        child: MaterialApp(theme: AppTheme.light, home: const InsightsScreen()),
+        child: MaterialApp.router(
+          theme: AppTheme.light,
+          routerConfig: GoRouter(
+            initialLocation: '/insights',
+            routes: [
+              GoRoute(
+                path: '/insights',
+                builder: (_, _) => const InsightsScreen(),
+              ),
+              GoRoute(
+                path: '/activity',
+                builder: (_, state) =>
+                    Scaffold(body: Text('Activity ${state.uri.query}')),
+              ),
+              GoRoute(
+                path: '/home/profile/accounts',
+                builder: (_, _) => const Scaffold(body: Text('My accounts')),
+              ),
+            ],
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -166,13 +187,30 @@ void main() {
     reports = [];
   });
 
-  testAppWidgets('shows leakage, where it goes, trend, health and tags', (
+  testAppWidgets('shows what changed, spending, leakage, health and tags', (
     tester,
   ) async {
     await tester.runAsync(() => _seed(db));
     await pumpInsights(tester);
 
-    expect(find.text('Leakage in October'), findsOneWidget);
+    // October to the 26th against 1-26 September.
+    expect(find.text('What changed'), findsOneWidget);
+    expect(find.text('Uncategorised up 31,000 on last month'), findsOneWidget);
+    expect(find.text('37,000 so far this month'), findsOneWidget);
+    expect(find.text('Fees 30 so far'), findsOneWidget);
+    expect(find.text('30 more than last month'), findsOneWidget);
+    expect(find.text('Money in 100,000 so far'), findsOneWidget);
+
+    // Spending this month by category, and so far against September.
+    await tester.scrollUntilVisible(find.text('This month so far'), 200);
+    expect(
+      find.bySemanticsLabel(RegExp('Spending by category: .*Fees 30')),
+      findsOneWidget,
+    );
+    expect(find.text('31,030 over last month'), findsOneWidget);
+    expect(find.text('Spending, last 6 months'), findsNothing);
+
+    await tester.scrollUntilVisible(find.text('Leakage in October'), 200);
     // 12,000 lifestyle + 5,000 friends + 30 in fees.
     expect(find.text('17,030'), findsOneWidget);
     expect(find.text('17% of income'), findsOneWidget);
@@ -180,27 +218,8 @@ void main() {
       find.text('Up 11,030 on September. Cutting half frees 8,500 a month.'),
       findsOneWidget,
     );
-    // Spending this month by category, and so far against September.
-    expect(
-      find.bySemanticsLabel(RegExp('Spending by category: .*Fees 30')),
-      findsOneWidget,
-    );
-    expect(find.text('This month so far'), findsOneWidget);
-    expect(find.text('31,030 over last month'), findsOneWidget);
-
-    await tester.scrollUntilVisible(find.text('Fuliza fees'), 200);
-    expect(find.text('Where it goes'), findsOneWidget);
-    expect(find.text('Lifestyle'), findsOneWidget);
-    expect(find.text('12,000'), findsWidgets);
-    expect(find.text('Fuliza fees'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Spending, last 6 months'), -100);
-    expect(find.text('Spending, last 6 months'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel(
-        RegExp('Monthly spending: May 0, .*October 37,030'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Lifestyle 12,000'), findsOneWidget);
+    expect(find.text('Where it goes'), findsNothing);
 
     await tester.scrollUntilVisible(find.text('What helps most'), 200);
     expect(find.text('Financial Health Index'), findsOneWidget);
@@ -213,6 +232,54 @@ void main() {
 
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(textContrastGuideline));
+  });
+
+  testAppWidgets('a finding opens the transactions behind it', (tester) async {
+    await tester.runAsync(() => _seed(db));
+    await pumpInsights(tester);
+
+    await tester.tap(find.text('Fees 30 so far'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Activity type=fees&from=2026-10-01&to=2026-10-26'),
+      findsOneWidget,
+    );
+  });
+
+  testAppWidgets('a category in the ring opens its transactions', (
+    tester,
+  ) async {
+    await tester.runAsync(() => _seed(db));
+    await pumpInsights(tester);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('slice-0')), 200);
+    await tester.tap(find.byKey(const Key('slice-0')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Activity from=2026-10-01&to=2026-10-26&category=none'),
+      findsOneWidget,
+    );
+  });
+
+  testAppWidgets('a health pillar opens its indicators', (tester) async {
+    await tester.runAsync(() => _seed(db));
+    await pumpInsights(tester);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('pillar-save')), 200);
+    await tester.ensureVisible(find.byKey(const Key('pillar-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('pillar-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Emergency cushion'), findsOneWidget);
+    expect(find.text('Savings rate'), findsOneWidget);
+    expect(
+      find.textContaining('Each pillar is worth 25 points'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('pillar-transactions')));
+    await tester.pumpAndSettle();
+    expect(find.text('Activity from=2026-09-01&to=2026-09-30'), findsOneWidget);
   });
 
   testAppWidgets('Report builds the PDF and opens the share sheet', (
@@ -240,12 +307,18 @@ void main() {
     tester,
   ) async {
     await pumpInsights(tester);
-    expect(find.text('Your leakages show here'), findsOneWidget);
+    expect(find.text('Your insights show here'), findsOneWidget);
+    expect(find.text('Financial Health Index'), findsNothing);
     await tester.scrollUntilVisible(
       find.textContaining('Tag a transaction'),
       200,
     );
     expect(find.textContaining('Tag a transaction'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Choose my accounts'), -200);
+    await tester.tap(find.text('Choose my accounts'));
+    await tester.pumpAndSettle();
+    expect(find.text('My accounts'), findsOneWidget);
   });
 
   testAppWidgets('switches the spending charts between week, month and year', (
@@ -268,6 +341,17 @@ void main() {
     expect(find.text('This year so far'), findsOneWidget);
     expect(
       find.bySemanticsLabel(RegExp('Spending by category: .*Fees 30')),
+      findsOneWidget,
+    );
+
+    // The year shows month by month; a month opens its spending.
+    await tester.scrollUntilVisible(find.text('Spending, last 6 months'), 200);
+    await tester.ensureVisible(find.byKey(const Key('trend-4')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('trend-4')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Activity type=spending&from=2026-09-01&to=2026-09-30'),
       findsOneWidget,
     );
   });

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/domain/ledger/activity_feed.dart';
 import 'package:pesaclarity/src/features/activity/presentation/activity_screen.dart';
 import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
 import 'package:pesaclarity/src/routing/app_shell.dart';
@@ -109,7 +110,11 @@ final _withPdfEngine = pdfTextExtractorProvider.overrideWithValue(
 );
 final _withoutPdfEngine = pdfTextExtractorProvider.overrideWithValue(null);
 
-Future<void> _pumpActivity(WidgetTester tester, AppDatabase db) async {
+Future<void> _pumpActivity(
+  WidgetTester tester,
+  AppDatabase db, {
+  ActivityFilter filter = const ActivityFilter(),
+}) async {
   // Tall enough that the whole feed is built.
   tester.view.physicalSize = const Size(800, 2400);
   tester.view.devicePixelRatio = 1;
@@ -120,7 +125,10 @@ Future<void> _pumpActivity(WidgetTester tester, AppDatabase db) async {
         appDatabaseProvider.overrideWithValue(db),
         clockProvider.overrideWithValue(_now),
       ],
-      child: MaterialApp(theme: AppTheme.light, home: const ActivityScreen()),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: ActivityScreen(initialFilter: filter),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -176,6 +184,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Naivas Juja City'), findsOneWidget);
     expect(find.text('Employer Ltd'), findsNothing);
+  });
+
+  testAppWidgets('Activity opens on one category and can show them all', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    await tester.runAsync(() => _seed(db));
+    final groceries = await tester.runAsync(
+      () => (db.select(
+        db.categories,
+      )..where((c) => c.key.equals('groceries'))).getSingle(),
+    );
+    await _pumpActivity(
+      tester,
+      db,
+      filter: ActivityFilter(categoryId: groceries!.id),
+    );
+
+    expect(find.byKey(const Key('activity-category')), findsOneWidget);
+    expect(find.text('Naivas Juja City'), findsOneWidget);
+    expect(find.text('Employer Ltd'), findsNothing);
+
+    await tester.tap(find.byTooltip('Show all categories'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('activity-category')), findsNothing);
+    expect(find.text('Employer Ltd'), findsOneWidget);
   });
 
   testAppWidgets('naming an unknown number updates the feed', (tester) async {

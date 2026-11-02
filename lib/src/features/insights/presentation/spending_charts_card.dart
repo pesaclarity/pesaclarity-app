@@ -2,14 +2,21 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../core/time/clock.dart';
+import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/spending_charts.dart';
+import '../../../domain/ledger/activity_feed.dart';
+import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_providers.dart';
+import '../application/month_labels.dart';
 
 String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
 
@@ -34,16 +41,44 @@ String _periodName(ChartPeriod period) => switch (period) {
   ChartPeriod.year => 'year',
 };
 
-/// Insights: the period switch, spending by category as a ring, and spending
-/// so far against the period before as two lines.
+/// Activity for the spending behind [key] in [window], up to [today].
+ActivityFilter sliceFilter(
+  SliceKey key,
+  ChartWindow window,
+  CalendarDate today,
+) {
+  final last = window.end.addDays(-1);
+  final range = ActivityFilter(
+    from: window.start,
+    to: today.isBefore(last) ? today : last,
+  );
+  return switch (key) {
+    CategorySlice(:final categoryId) => range.copyWith(
+      categoryId: () => categoryId,
+    ),
+    UncategorisedSlice() => range.copyWith(uncategorised: true),
+    FeesSlice() => range.copyWith(type: ActivityType.fees),
+    OtherSlice() => range.copyWith(type: ActivityType.spending),
+  };
+}
+
+/// Insights: the period switch, spending by category as a ring, spending so
+/// far against the period before as two lines and, for the year, spending
+/// month by month. Tapping a category or a month opens its transactions.
 class SpendingChartsSection extends ConsumerWidget {
-  const SpendingChartsSection({super.key});
+  const SpendingChartsSection({this.trend = const [], super.key});
+
+  /// Recent months, oldest first, shown under the year.
+  final List<MonthInsight> trend;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(chartPeriodProvider);
     final chart = ref.watch(spendingChartProvider).value;
     final names = ref.watch(categoryNamesProvider).value ?? const {};
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    void open(ActivityFilter filter) =>
+        context.go(AppRoutes.activityWith(filter));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,9 +102,27 @@ class SpendingChartsSection extends ConsumerWidget {
             child: Center(child: CircularProgressIndicator.adaptive()),
           )
         else ...[
-          _BreakdownCard(chart: chart, names: names, period: period),
+          _BreakdownCard(
+            chart: chart,
+            names: names,
+            period: period,
+            onOpen: (key) => open(sliceFilter(key, chart.window, today)),
+          ),
           const SizedBox(height: 12),
           _SoFarCard(chart: chart, period: period),
+          if (period == ChartPeriod.year && trend.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            MonthlyTrendCard(
+              trend,
+              onOpen: (month) => open(
+                ActivityFilter(
+                  from: month.firstDay,
+                  to: today.isBefore(month.lastDay) ? today : month.lastDay,
+                  type: ActivityType.spending,
+                ),
+              ),
+            ),
+          ],
         ],
       ],
     );
@@ -88,11 +141,13 @@ class _BreakdownCard extends StatelessWidget {
     required this.chart,
     required this.names,
     required this.period,
+    required this.onOpen,
   });
 
   final SpendingChart chart;
   final Map<int, String> names;
   final ChartPeriod period;
+  final void Function(SliceKey key) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -169,33 +224,43 @@ class _BreakdownCard extends StatelessWidget {
               child: Column(
                 children: [
                   for (final (i, s) in chart.slices.indexed)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: colorOf(i, s.key),
-                              shape: BoxShape.circle,
+                    InkWell(
+                      key: Key('slice-$i'),
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => onOpen(s.key),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: colorOf(i, s.key),
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              sliceLabel(s.key, names),
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                sliceLabel(s.key, names),
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall,
+                              ),
                             ),
-                          ),
-                          Text(
-                            _amount(s.amountMinor),
-                            style: theme.textTheme.bodySmall!.copyWith(
-                              fontWeight: FontWeight.w600,
+                            Text(
+                              _amount(s.amountMinor),
+                              style: theme.textTheme.bodySmall!.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: colors.textMuted,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -430,4 +495,93 @@ class _LinesPainter extends CustomPainter {
       old.current != current ||
       old.previous != previous ||
       old.currentColor != currentColor;
+}
+
+/// Spending month by month, the latest month highlighted. Tapping a month
+/// opens its spending.
+class MonthlyTrendCard extends StatelessWidget {
+  const MonthlyTrendCard(this.trend, {required this.onOpen, super.key});
+
+  final List<MonthInsight> trend;
+  final void Function(YearMonth month) onOpen;
+
+  static const _chartHeight = 100.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final largest = trend.fold(
+      0,
+      (m, x) => x.spendingMinor > m ? x.spendingMinor : m,
+    );
+    double fraction(int value) =>
+        value <= 0 || largest <= 0 ? 0 : value / largest;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Spending, last ${trend.length} months',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final (i, m) in trend.indexed)
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '${monthName(m.month)} ${_amount(m.spendingMinor)}',
+                      excludeSemantics: true,
+                      child: InkWell(
+                        key: Key('trend-$i'),
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => onOpen(m.month),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                height:
+                                    8 +
+                                    (_chartHeight - 8) *
+                                        fraction(m.spendingMinor),
+                                decoration: BoxDecoration(
+                                  color: i == trend.length - 1
+                                      ? theme.colorScheme.primary
+                                      : colors.border,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                shortMonthName(m.month),
+                                style: theme.textTheme.labelMedium!.copyWith(
+                                  color: i == trend.length - 1
+                                      ? theme.colorScheme.onSurface
+                                      : colors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

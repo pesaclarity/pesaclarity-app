@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/sms_scan_marks_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/time/calendar.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/auto_categoriser.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../data/sms_source.dart';
+import 'scan_range_provider.dart';
 import 'sms_ingestor.dart';
 import 'sms_scan_service.dart';
 
@@ -50,8 +53,9 @@ final selectedInstitutionsProvider = Provider<List<Institution>>((ref) {
 });
 
 /// Keeps the ledger current while the app runs: first a scan for messages
-/// that arrived while it was closed (or, for a newly ticked institution, the
-/// last 90 days), then each watched message as it lands.
+/// that arrived while it was closed (or, for a newly ticked institution, its
+/// messages from the chosen [scanRangeProvider] start), then each watched
+/// message as it lands.
 ///
 /// Messages that arrive while the app is closed stay in the inbox and are
 /// picked up by the next scan, so no background service is needed.
@@ -69,7 +73,13 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
     }
   }
 
-  final initial = await scan.scan(selected);
+  final range = await ref.watch(scanRangeProvider.future);
+  final initial = await scan.scan(
+    selected,
+    from: range
+        .firstDay(CalendarDate.local(ref.read(clockProvider)()))
+        ?.startInstant,
+  );
   if (initial.added > 0) triggerAutoCategorise();
   yield initial;
 
@@ -110,7 +120,8 @@ class SmsScanState {
   final SmsIngestSummary summary;
 }
 
-/// Onboarding: asks for SMS access, then runs the first 90-day scan.
+/// Onboarding: asks for SMS access, then runs the first scan, from the
+/// chosen [scanRangeProvider] start.
 class SmsScanController extends Notifier<SmsScanState> {
   @override
   SmsScanState build() => const SmsScanState(SmsScanStage.explain);
@@ -145,10 +156,14 @@ class SmsScanController extends Notifier<SmsScanState> {
     state = const SmsScanState(SmsScanStage.scanning);
     try {
       await ref.read(selectedInstitutionIdsProvider.future);
+      final range = await ref.read(scanRangeProvider.future);
       final summary = await ref
           .read(smsScanServiceProvider)
           .scan(
             ref.read(selectedInstitutionsProvider),
+            from: range
+                .firstDay(CalendarDate.local(ref.read(clockProvider)()))
+                ?.startInstant,
             onProgress: (done, total) => state = SmsScanState(
               SmsScanStage.scanning,
               done: done,
