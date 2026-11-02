@@ -36,7 +36,7 @@ void main() {
     expect(find.text('Found 2 transactions'), findsOneWidget);
 
     await tapText(tester, 'Continue');
-    expect(find.text('Your last 90 days'), findsOneWidget);
+    expect(find.text('Everything so far'), findsOneWidget);
     expect(find.text('From 2 transactions in your messages.'), findsOneWidget);
     expect(find.text('Money in'), findsOneWidget);
     // 1,500 sent and 350 paid, plus the 15 transaction cost.
@@ -63,6 +63,6 @@ void main() {
 
     await tapText(tester, 'Continue');
     expect(find.text(_home), findsOneWidget);
-    expect(find.text('Your last 90 days'), findsNothing);
+    expect(find.text('Everything so far'), findsNothing);
   });
 }

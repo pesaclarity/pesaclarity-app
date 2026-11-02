@@ -70,8 +70,18 @@ void main() {
       isSemantics(isButton: true, hasEnabledState: true, isEnabled: false),
     );
 
+    await tester.scrollUntilVisible(
+      find.bySemanticsIdentifier(SemanticIds.institution('mpesa')),
+      -300,
+      scrollable: find.byType(Scrollable).hitTestable().first,
+    );
+    await tester.pumpAndSettle();
     await tapId(tester, SemanticIds.institution('mpesa'));
     expectChecked(tester, SemanticIds.institution('mpesa'), checked: true);
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.onboardingScanMessages),
+    );
     await tapId(tester, SemanticIds.onboardingScanMessages);
     expectId(SemanticIds.titleSmsScan);
     await tapId(tester, SemanticIds.smsScanNotNow);

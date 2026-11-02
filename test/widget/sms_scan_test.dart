@@ -49,7 +49,7 @@ void main() {
     expect(review!.single.body, mpesaNotice().body);
 
     await tapText(tester, 'Continue');
-    expect(find.text('Your last 90 days'), findsOneWidget);
+    expect(find.text('Everything so far'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Go to Home'), 200);
     await tapText(tester, 'Go to Home');
     expect(find.text(_home), findsOneWidget);
