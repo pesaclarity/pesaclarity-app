@@ -2,8 +2,13 @@ name: Release
 
 # On every push to main, release-please keeps a release pull request open
 # with the next version (from the Conventional Commit titles merged since the
-# last release) and the changelog. Merging it tags vX.Y.Z, which starts the
-# Google Play upload (release-play.yml).
+# last release) and the changelog. Merging it tags vX.Y.Z and makes a GitHub
+# release with the changelog as its notes; test-apk.yml adds the APKs to it,
+# and release-play.yml uploads to Google Play once that is set up.
+#
+# release-please opens its pull request with the workflow token, so the
+# organisation and the repository must allow GitHub Actions to create pull
+# requests (Settings > Actions > General > Workflow permissions).
 on:
   push:
     branches: [main]
@@ -29,10 +34,13 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # Waits for the Play Console setup (README, Releasing to Google Play): until
+  # PLAY_PACKAGE_NAME is set, releases go to GitHub only, with their APKs
+  # (test-apk.yml).
   play:
     name: Upload to Google Play
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    if: needs.release-please.outputs.released == 'true' && vars.PLAY_PACKAGE_NAME != ''
     permissions:
       contents: read
     uses: ./.github/workflows/release-play.yml
