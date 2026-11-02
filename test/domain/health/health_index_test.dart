@@ -125,6 +125,18 @@ void main() {
       );
     });
 
+    test('says what brings each indicator to full marks', () {
+      final index = HealthIndex.compute(HealthInputs(month: october));
+      expect(index.actionFor(HealthIndicator.billsOnTime), isNull);
+      final save = index.actionFor(HealthIndicator.savingsRate)!;
+      expect(save.indicator, HealthIndicator.savingsRate);
+      expect(save.gainPoints, greaterThan(0));
+      expect(
+        index.actionFor(HealthIndicator.emergencyCushion)!.message,
+        index.bestAction!.message,
+      );
+    });
+
     test('with no income, any spending or debt earns nothing', () {
       final index = HealthIndex.compute(
         HealthInputs(

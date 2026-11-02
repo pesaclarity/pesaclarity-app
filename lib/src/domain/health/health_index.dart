@@ -253,6 +253,19 @@ class HealthIndex {
     );
   }
 
+  /// What would bring [indicator] to full marks; null when it has them.
+  HealthAction? actionFor(HealthIndicator indicator) {
+    final gap = indicators[indicator.index].gapCentipoints;
+    if (gap <= 0) return null;
+    final total = indicators.fold(0, (sum, s) => sum + s.centipoints);
+    return _actionFor(
+      indicator,
+      inputs,
+      gainPoints: _round(total + gap) - score,
+      currency: currency,
+    );
+  }
+
   /// Score change since [previous]; null without one.
   int? changeSince(HealthIndex? previous) =>
       previous == null ? null : score - previous.score;

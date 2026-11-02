@@ -143,12 +143,7 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _HealthIndexCard(
                   health,
-                  onTap: () {
-                    final month = health.index.month;
-                    openActivity(
-                      ActivityFilter(from: month.firstDay, to: month.lastDay),
-                    );
-                  },
+                  onTap: () => context.go(AppRoutes.insights),
                 ),
               ],
               const SizedBox(height: 24),
