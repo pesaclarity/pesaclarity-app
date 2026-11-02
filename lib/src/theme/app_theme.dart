@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -71,29 +72,31 @@ abstract final class AppTheme {
     required Color background,
     required PesaColors colors,
   }) {
-    // Read when the theme is built, so tests can override the platform.
-    final platform = defaultTargetPlatform;
-    final ios = platform == TargetPlatform.iOS;
     final textTheme = AppTypography.textTheme(
       scheme.onSurface,
       scheme.onSurfaceVariant,
-      ios: ios,
     );
     const minTouch = Size(BrandTokens.touchTarget, BrandTokens.touchTarget);
-    // iPhone buttons are rounded rectangles; Android's are pills.
-    final OutlinedBorder pill = ios
-        ? RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BrandTokens.iosRadius),
-          )
-        : const StadiumBorder();
+    const OutlinedBorder pill = StadiumBorder();
+    // Read when the theme is built, so tests can override the platform.
+    final iPhone = defaultTargetPlatform == TargetPlatform.iOS;
 
     return ThemeData(
       useMaterial3: true,
-      platform: platform,
+      // One design on Android and iPhone (decision 0011); iPhone keeps its
+      // swipe-back page transition.
+      platform: TargetPlatform.android,
+      pageTransitionsTheme: iPhone
+          ? const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+              },
+            )
+          : null,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
-      fontFamily: ios ? null : BrandTokens.bodyFont,
+      fontFamily: BrandTokens.bodyFont,
       textTheme: textTheme,
       extensions: [colors],
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -103,8 +106,8 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: ios,
-        titleTextStyle: ios ? textTheme.titleMedium : textTheme.titleLarge,
+        centerTitle: false,
+        titleTextStyle: textTheme.titleLarge,
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -112,15 +115,13 @@ abstract final class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            ios ? BrandTokens.iosRadius : BrandTokens.cardRadius,
-          ),
-          side: ios ? BorderSide.none : BorderSide(color: colors.border),
+          borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+          side: BorderSide(color: colors.border),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: ios ? const Size(BrandTokens.touchTarget, 50) : minTouch,
+          minimumSize: minTouch,
           shape: pill,
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -148,26 +149,13 @@ abstract final class AppTheme {
         shape: const StadiumBorder(),
         labelStyle: textTheme.labelMedium,
       ),
-      dividerTheme: DividerThemeData(
-        color: colors.border,
-        thickness: ios ? 0.5 : 1,
-      ),
+      dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
       listTileTheme: ListTileThemeData(
-        minVerticalPadding: ios ? 10 : 12,
+        minVerticalPadding: 12,
         iconColor: scheme.onSurfaceVariant,
         titleTextStyle: textTheme.bodyLarge,
         subtitleTextStyle: textTheme.bodySmall,
       ),
-      bottomSheetTheme: ios
-          ? BottomSheetThemeData(
-              backgroundColor: background,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(BrandTokens.iosRadius),
-                ),
-              ),
-            )
-          : null,
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
           (states) =>

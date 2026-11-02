@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -250,7 +251,7 @@ class _DeleteAccountDialog extends StatelessWidget {
           Text(
             'Your money data on this phone stays here, and you can keep '
             'using the app without an account. '
-            '${isCupertino(context) ? 'Backups saved to Files stay too.' : 'Backups saved to your own Google Drive or SD card stay too.'}',
+            '${defaultTargetPlatform == TargetPlatform.iOS ? 'Backups saved to Files stay too.' : 'Backups saved to your own Google Drive or SD card stay too.'}',
             style: theme.textTheme.bodyMedium,
           ),
         ],
