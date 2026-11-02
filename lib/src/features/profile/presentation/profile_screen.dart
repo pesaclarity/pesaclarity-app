@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/build_info.dart';
 import '../../../config/flavor.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
@@ -172,7 +173,7 @@ class ProfileScreen extends ConsumerWidget {
         color: CupertinoColors.systemGrey,
       ),
       title: const Text('Build'),
-      subtitle: Text(flavor.name),
+      subtitle: Text(buildLabel(ref.watch(buildVersionProvider), flavor)),
     );
     final money = [
       myAccounts,

@@ -1,15 +1,20 @@
-name: Test APK
+name: APK
 
-# Every push to dev builds the APKs QA tries before dev is merged to main:
-# the play flavour and the foss (F-Droid) flavour, release builds signed with
-# the dev key (or a throwaway key without it), named after the version and
-# commit. Download them from the run's artifacts, or from the test-build
-# pre-release, which always holds the newest dev build under fixed names:
-# https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk
-# https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk
+# Builds the play flavour and the foss (F-Droid) flavour as release APKs,
+# signed with the dev key (or a throwaway key without it), for ARM phones.
+# Each run keeps them as artifacts for 30 days, and puts them on Releases:
+#
+# - dev, every push: the test-build pre-release, for QA to try before dev is
+#   merged to main. Its notes list the changes since the last release.
+#   https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk
+# - main, when the push is a release (merging release-please's pull request):
+#   that version's release, whose notes are the changelog.
+#   https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-play.apk
+#
+# CI (ci.yml) runs the tests on the same push, so they are not repeated here.
 on:
   push:
-    branches: [dev]
+    branches: [dev, main]
     paths-ignore:
       - "*.md"
       - docs/**
@@ -20,23 +25,52 @@ permissions:
   contents: read
 
 concurrency:
-  group: test-apk
-  cancel-in-progress: true
+  group: apk-${{ github.ref }}
+  # A newer push replaces an unfinished dev build; main builds always finish,
+  # so every release gets its APKs.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   FLUTTER_VERSION: "3.47.8"
 
 jobs:
   build:
-    name: Build ${{ matrix.flavor }} test APK
+    name: Build ${{ matrix.flavor }} APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         flavor: [play, foss]
     steps:
+      # Two commits, to tell whether this push is a release. No stored token:
+      # build code runs in this job, and only the publish steps get one.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # A release (the push that merges release-please's pull request, which
+      # changes the manifest) is named after the version, such as 0.2.0.
+      # Other builds add the branch and run number, such as 0.2.0-dev.31.
+      # The run number is the version code, so it keeps rising across dev and
+      # main and each APK installs over the one before.
+      - name: Name the build
+        id: version
+        run: |
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          if [ "$GITHUB_REF" = refs/heads/main ] &&
+            ! git diff --quiet HEAD^ HEAD -- .release-please-manifest.json; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            name="$version"
+          else
+            name="$version-${GITHUB_REF_NAME//[^A-Za-z0-9]/-}.$GITHUB_RUN_NUMBER"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Building $name"
 
       # The same changes F-Droid makes: no prebuilt native libraries.
       - name: Prepare the F-Droid build
@@ -55,13 +89,31 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # Gradle reuses the outputs of unchanged tasks (Kotlin, dex, R8) from
+      # the last run. The key is new each run, so the cache stays current.
+      - name: Turn on the Gradle build cache
+        run: |
+          mkdir -p "$HOME/.gradle"
+          echo "org.gradle.caching=true" >> "$HOME/.gradle/gradle.properties"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-${{ matrix.flavor }}-${{ github.run_id }}
+          restore-keys: gradle-build-${{ matrix.flavor }}-
+
       - run: flutter pub get
+
+      # build_runner reuses its compiled build script while the packages
+      # stay the same.
+      - uses: actions/cache@v6
+        with:
+          path: .dart_tool/build/entrypoint
+          key: build-runner-${{ matrix.flavor }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}
       - run: dart run build_runner build --delete-conflicting-outputs
-      - run: flutter test
 
       # Google sign-in only works for an app signed with a key registered in
-      # Google Cloud, so test builds use the dev key when it is set. Without
-      # it they get a throwaway key and the Google button stays hidden.
+      # Google Cloud, so builds use the dev key when it is set. Without it
+      # they get a throwaway key and the Google button stays hidden.
       - name: Set up the signing key
         env:
           DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE_BASE64 }}
@@ -83,17 +135,20 @@ jobs:
               "$RUNNER_TEMP/test.jks" > android/key.properties
           fi
 
-      # Server settings for test builds come from the dev environment's
-      # variables; empty ones leave that feature off.
+      # Server settings follow the branch: main builds use the release
+      # variables, other branches the dev ones; empty ones leave that feature
+      # off. The Google client id follows the signing key, so it is the dev
+      # one. 32- and 64-bit ARM only: x86_64 is for emulators.
       - name: Build the APK
         id: build
         env:
+          BUILD_NAME: ${{ steps.version.outputs.name }}
           BUILD_NUMBER: ${{ github.run_number }}
           FLAVOR: ${{ matrix.flavor }}
-          API_URL: ${{ secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
-          VAULT_URL: ${{ secrets.DEV_PESACLARITY_VAULT_URL || vars.DEV_PESACLARITY_VAULT_URL || secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
-          PINNED_HOSTS: ${{ vars.DEV_PESACLARITY_PINNED_HOSTS }}
-          TRUSTED_ROOTS: ${{ vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+          API_URL: ${{ github.ref == 'refs/heads/main' && (secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL) || secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
+          VAULT_URL: ${{ github.ref == 'refs/heads/main' && (secrets.PESACLARITY_VAULT_URL || vars.PESACLARITY_VAULT_URL) || secrets.DEV_PESACLARITY_VAULT_URL || vars.DEV_PESACLARITY_VAULT_URL }}
+          PINNED_HOSTS: ${{ github.ref == 'refs/heads/main' && vars.PESACLARITY_PINNED_HOSTS || vars.DEV_PESACLARITY_PINNED_HOSTS }}
+          TRUSTED_ROOTS: ${{ github.ref == 'refs/heads/main' && vars.PESACLARITY_TRUSTED_ROOTS || vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
           RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
           RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
           RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
@@ -101,8 +156,11 @@ jobs:
         run: |
           # The client id only helps when the app is signed with the dev key.
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
+          VAULT_URL="${VAULT_URL:-$API_URL}"
           flutter build apk --release --flavor "$FLAVOR" \
-            --build-number="$BUILD_NUMBER" \
+            --target-platform android-arm,android-arm64 \
+            --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
+            --dart-define=PESACLARITY_VERSION="$BUILD_NAME" \
             --dart-define=PESACLARITY_API_URL="$API_URL" \
             --dart-define=PESACLARITY_VAULT_URL="$VAULT_URL" \
             --dart-define=PESACLARITY_PINNED_HOSTS="$PINNED_HOSTS" \
@@ -111,11 +169,14 @@ jobs:
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
             --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID"
-          version=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)
-          name="pesaclarity-$version-dev.$BUILD_NUMBER-${GITHUB_SHA::7}-$FLAVOR.apk"
+          name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR.apk"
           cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$name"
           echo "path=$RUNNER_TEMP/$name" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/test.jks"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -123,64 +184,31 @@ jobs:
           path: ${{ steps.build.outputs.path }}
           retention-days: 30
 
-      - name: Remove signing files
-        if: always()
-        run: rm -f android/key.properties "$RUNNER_TEMP/test.jks"
+      # Only dev-key builds go on Releases: Android will not install an update
+      # signed with a different key, and uninstalling first deletes the
+      # person's data. Throwaway-signed builds stay in the artifacts.
+      - name: Skip Releases without the dev key
+        if: env.DEV_SIGNED != 'true' && (github.ref == 'refs/heads/dev' || steps.version.outputs.release == 'true')
+        run: echo "::warning::Not put on Releases; add the DEV_KEYSTORE_* secrets (README, Google sign-in)."
 
-  # Artifacts expire and need a GitHub login, so dev builds also replace the
-  # files on the test-build pre-release: a link anyone can open, any time.
-  publish:
-    name: Publish to the test-build release
-    needs: build
-    if: github.ref == 'refs/heads/dev'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          path: apks
-          merge-multiple: true
-
-      # Throwaway-signed builds stay in the artifacts only: Android will not
-      # install an update signed with a different key, and uninstalling first
-      # deletes the person's data.
-      - name: Update the release
+      - name: Put on the test-build release
+        if: env.DEV_SIGNED == 'true' && github.ref == 'refs/heads/dev'
         env:
-          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE_BASE64 }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: test-build
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ -z "$DEV_KEYSTORE" ]; then
-            echo "::warning::Not published: add the DEV_KEYSTORE_* secrets so test builds share one signing key (see README, Google sign-in)."
-            exit 0
-          fi
-          mkdir out
-          for flavor in play foss; do
-            cp apks/*-"$flavor".apk "out/pesaclarity-$flavor.apk"
-          done
-          build=$(basename apks/*-play.apk -play.apk)
-          title="Test build ${build#pesaclarity-}"
-          notes=$(printf '%s\n' \
-            "The newest build from \`dev\`, commit ${GITHUB_SHA::7}, not yet through QA. Each push to \`dev\` replaces these files." \
-            "" \
-            "- \`pesaclarity-play.apk\`: the Google Play flavour." \
-            "- \`pesaclarity-foss.apk\`: the F-Droid flavour, with no Google services." \
-            "" \
-            "On Android, open the file and allow installs from this source when asked." \
-            "" \
-            "Built by $RUN_URL")
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            # Point the tag at this commit, then swap in the new files.
-            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
-              -f sha="$GITHUB_SHA" -F force=true > /dev/null
-            gh release upload "$TAG" out/*.apk --clobber
-            gh release edit "$TAG" --title "$title" --notes "$notes" \
-              --prerelease --latest=false
-          else
-            gh release create "$TAG" out/*.apk --target "$GITHUB_SHA" \
-              --title "$title" --notes "$notes" --prerelease --latest=false
-          fi
+          APK: ${{ steps.build.outputs.path }}
+          FLAVOR: ${{ matrix.flavor }}
+          BUILD_NAME: ${{ steps.version.outputs.name }}
+        run: tool/publish_apk.sh test-build "$APK" "$FLAVOR" "$BUILD_NAME"
+
+      - name: Add to the release
+        if: env.DEV_SIGNED == 'true' && steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          APK: ${{ steps.build.outputs.path }}
+          FLAVOR: ${{ matrix.flavor }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: tool/publish_apk.sh release "$APK" "$FLAVOR" "$VERSION"
