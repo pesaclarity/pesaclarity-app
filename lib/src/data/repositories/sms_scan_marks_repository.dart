@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
@@ -10,6 +11,10 @@ abstract interface class SmsScanMarksRepository {
   Future<DateTime?> scannedUntil(String institutionId);
 
   Future<void> markScanned(String institutionId, DateTime until);
+
+  /// Forgets every mark, so the next scan reads each account from the
+  /// chosen start again. Messages already read are skipped by their hash.
+  Future<void> clearAll();
 }
 
 class DriftSmsScanMarksRepository implements SmsScanMarksRepository {
@@ -17,8 +22,13 @@ class DriftSmsScanMarksRepository implements SmsScanMarksRepository {
 
   final AppDatabase _db;
 
-  static String keyFor(String institutionId) =>
-      'sms.scanned_until.$institutionId';
+  static const _prefix = 'sms.scanned_until.';
+
+  static String keyFor(String institutionId) => '$_prefix$institutionId';
+
+  @override
+  Future<void> clearAll() =>
+      (_db.delete(_db.appSettings)..where((t) => t.key.like('$_prefix%'))).go();
 
   @override
   Future<DateTime?> scannedUntil(String institutionId) async {

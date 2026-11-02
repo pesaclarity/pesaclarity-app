@@ -13,7 +13,7 @@ An Android Go phone with 2 GB RAM and a quad-core Cortex-A53, Android 11 Go edit
 | Cold start to first frame | 2.0 s or less | `TotalTime` from `am start -W` |
 | Cold start to Home with numbers | 3.0 s or less | With 12 months of data (about 6,000 transactions) |
 | Memory on Home, steady | 150 MB PSS or less | After 30 s idle |
-| Memory peak, first 90-day SMS scan | 220 MB PSS or less | 2,000 messages from selected senders |
+| Memory peak, first SMS scan | 220 MB PSS or less | 2,000 messages from selected senders |
 | Scrolling Activity | 95% of frames under 16 ms | 1,000 transactions, profile build |
 | Download size | 25 MB or less | arm64 `foss` APK |
 

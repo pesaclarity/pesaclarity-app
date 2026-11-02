@@ -9,7 +9,7 @@ import '../../onboarding/application/onboarding_controller.dart';
 import '../application/sms_capture_providers.dart';
 
 /// Onboarding: explains what reading SMS means before Android asks, then
-/// shows the 90-day scan.
+/// shows the first scan.
 class SmsScanScreen extends ConsumerWidget {
   const SmsScanScreen({super.key});
 
@@ -176,7 +176,7 @@ class _Explanation extends StatelessWidget {
   static const _points = [
     'Only messages from the accounts you ticked are read. Your personal '
         'chats stay private.',
-    'We look back 90 days, then add new messages as they arrive.',
+    'We read the messages you chose, then add new ones as they arrive.',
     'From each message we keep the amount, date, fee and who you paid. The '
         'message text is then thrown away.',
     'A message we cannot read yet is kept, encrypted on this phone, until '

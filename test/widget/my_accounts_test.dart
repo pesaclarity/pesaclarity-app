@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
 
 import '../helpers/test_app.dart';
@@ -27,7 +28,7 @@ void main() {
       isFalse,
     );
 
-    await tester.scrollUntilVisible(find.text('M-Pesa'), -200);
+    await scrollTo(tester, find.text('M-Pesa'));
     await tester.tap(find.text('M-Pesa'));
     await tester.scrollUntilVisible(find.text('KCB'), 200);
     await tester.tap(find.text('KCB'));
@@ -37,7 +38,7 @@ void main() {
     await tester.tap(find.text('KCB'));
     await tester.pumpAndSettle();
     expect(await tester.runAsync(repo.selectedIds), {'mpesa'});
-    await tester.scrollUntilVisible(find.text('M-Pesa'), -200);
+    await scrollTo(tester, find.text('M-Pesa'));
     expect(
       tester
           .widget<CheckboxListTile>(
@@ -51,7 +52,7 @@ void main() {
       tester.widget<FilledButton>(_button('Scan my messages')).enabled,
       isTrue,
     );
-    await tester.scrollUntilVisible(_button('Scan my messages'), 200);
+    await scrollTo(tester, _button('Scan my messages'));
     await tester.tap(_button('Scan my messages'));
     await tester.pumpAndSettle();
     expect(
@@ -116,5 +117,37 @@ void main() {
       200,
     );
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+  });
+
+  testAppWidgets('chooses how far back messages are read', (tester) async {
+    final db = openTestDatabase();
+    await pumpApp(tester, db: db);
+    await getStarted(tester);
+    await tester.tap(find.text('M-Pesa'));
+    await tester.pumpAndSettle();
+
+    await scrollTo(tester, find.byKey(const Key('scan-range')));
+    expect(find.text('All messages'), findsOneWidget);
+    await scrollTo(
+      tester,
+      find.textContaining('We read every message these accounts have sent.'),
+    );
+
+    await tester.tap(find.byKey(const Key('scan-range')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scan-range-months6')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scan-range-done')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last 6 months'), findsOneWidget);
+    await scrollTo(
+      tester,
+      find.textContaining('We read messages from the last 6 months.'),
+    );
+    final saved = await tester.runAsync(
+      () => DriftAppSettingsRepository(db).readJson('sms.scan_range'),
+    );
+    expect(saved, {'period': 'months6'});
   });
 }

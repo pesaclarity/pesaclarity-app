@@ -56,23 +56,49 @@ void main() {
     batchSize: batchSize,
   );
 
-  test('first scan reads 90 days from watched senders only', () async {
-    final progress = <(int, int)>[];
-    final summary = await service(batchSize: 2).scan([
-      _institution('mpesa'),
-    ], onProgress: (done, total) => progress.add((done, total)));
+  test(
+    'first scan reads from the chosen start, watched senders only',
+    () async {
+      final progress = <(int, int)>[];
+      final summary = await service(batchSize: 2).scan(
+        [_institution('mpesa')],
+        from: today.subtract(const Duration(days: 90)),
+        onProgress: (done, total) => progress.add((done, total)),
+      );
 
-    expect(summary, const SmsIngestSummary(added: 2, forReview: 1));
-    expect(source.reads.single.senders, {'MPESA'});
-    expect(source.reads.single.since, today.subtract(const Duration(days: 90)));
-    expect(progress, [(0, 3), (2, 3), (3, 3)]);
-    expect(await marks.scannedUntil('mpesa'), today);
-    expect(await marks.scannedUntil('kcb'), isNull);
-    expect(source.releases, [today]);
+      expect(summary, const SmsIngestSummary(added: 2, forReview: 1));
+      expect(source.reads.single.senders, {'MPESA'});
+      expect(
+        source.reads.single.since,
+        today.subtract(const Duration(days: 90)),
+      );
+      expect(progress, [(0, 3), (2, 3), (3, 3)]);
+      expect(await marks.scannedUntil('mpesa'), today);
+      expect(await marks.scannedUntil('kcb'), isNull);
+      expect(source.releases, [today]);
+    },
+  );
+
+  test('without a start, the first scan reads every message', () async {
+    final summary = await service().scan([_institution('mpesa')]);
+    expect(summary.added, 3);
+    expect(source.reads.single.since, DateTime.utc(2000));
   });
 
+  test(
+    'cleared marks read again from the start, skipping what was read',
+    () async {
+      await service().scan([_institution('mpesa')]);
+      await marks.clearAll();
+      expect(await marks.scannedUntil('mpesa'), isNull);
+      final again = await service().scan([_institution('mpesa')]);
+      expect(again.added, 0);
+      expect(source.reads.last.since, DateTime.utc(2000));
+    },
+  );
+
   test('later scans read only what is new, and new institutions '
-      'their last 90 days', () async {
+      'from the chosen start', () async {
     await service().scan([_institution('mpesa')]);
 
     now = today.add(const Duration(hours: 2));
@@ -85,7 +111,7 @@ void main() {
     final summary = await service().scan([
       _institution('mpesa'),
       _institution('kcb'),
-    ]);
+    ], from: now.subtract(const Duration(days: 90)));
 
     expect(summary, const SmsIngestSummary(added: 2));
     final [_, mpesa, kcb] = source.reads;
@@ -93,7 +119,8 @@ void main() {
     expect(mpesa.since, today);
     expect(kcb.senders, {'KCB'});
     expect(kcb.since, now.subtract(const Duration(days: 90)));
-    expect(await db.select(db.transactions).get(), hasLength(4));
+    // Every message the first time, then the new one and KCB's.
+    expect(await db.select(db.transactions).get(), hasLength(5));
   });
 
   test('runs scans one at a time', () async {
@@ -102,8 +129,8 @@ void main() {
       scans.scan([_institution('mpesa')]),
       scans.scan([_institution('mpesa')]),
     ]);
-    expect(results.map((s) => s.added), [2, 0]);
-    expect(await db.select(db.transactions).get(), hasLength(2));
+    expect(results.map((s) => s.added), [3, 0]);
+    expect(await db.select(db.transactions).get(), hasLength(3));
   });
 
   test('a failed scan leaves no mark, so the next one retries', () async {
@@ -121,7 +148,7 @@ void main() {
     await expectLater(failing.scan([_institution('mpesa')]), throwsStateError);
     expect(await marks.scannedUntil('mpesa'), isNull);
     expect(source.releases, isEmpty);
-    expect((await service().scan([_institution('mpesa')])).added, 2);
+    expect((await service().scan([_institution('mpesa')])).added, 3);
   });
 
   test('an empty selection lets go of nothing', () async {
