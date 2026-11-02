@@ -42,7 +42,7 @@ void main() {
       'Activity': 'Search payee, amount, note',
       'Plan': 'Planned of expected income',
       'Goals': 'Saving for',
-      'Insights': 'Your leakages show here',
+      'Insights': 'Your insights show here',
       'Home': 'Safe to spend today',
     };
     for (final MapEntry(key: label, value: question) in tabs.entries) {
