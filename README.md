@@ -4,6 +4,8 @@ Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M
 
 **Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
 
+**Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`) or the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services). The privacy policy and terms ship in `assets/policy/` and match the website.
+
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
 ## Quick start
