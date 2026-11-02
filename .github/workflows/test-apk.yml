@@ -2,8 +2,11 @@ name: Test APK
 
 # Every push to dev builds the APKs QA tries before dev is merged to main:
 # the play flavour and the foss (F-Droid) flavour, release builds signed with
-# a throwaway key, named after the version and commit. Download them from the
-# run's artifacts.
+# the dev key (or a throwaway key without it), named after the version and
+# commit. Download them from the run's artifacts, or from the test-build
+# pre-release, which always holds the newest dev build under fixed names:
+# https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk
+# https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk
 on:
   push:
     branches: [dev]
@@ -123,3 +126,61 @@ jobs:
       - name: Remove signing files
         if: always()
         run: rm -f android/key.properties "$RUNNER_TEMP/test.jks"
+
+  # Artifacts expire and need a GitHub login, so dev builds also replace the
+  # files on the test-build pre-release: a link anyone can open, any time.
+  publish:
+    name: Publish to the test-build release
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: apks
+          merge-multiple: true
+
+      # Throwaway-signed builds stay in the artifacts only: Android will not
+      # install an update signed with a different key, and uninstalling first
+      # deletes the person's data.
+      - name: Update the release
+        env:
+          DEV_KEYSTORE: ${{ secrets.DEV_KEYSTORE_BASE64 }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: test-build
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$DEV_KEYSTORE" ]; then
+            echo "::warning::Not published: add the DEV_KEYSTORE_* secrets so test builds share one signing key (see README, Google sign-in)."
+            exit 0
+          fi
+          mkdir out
+          for flavor in play foss; do
+            cp apks/*-"$flavor".apk "out/pesaclarity-$flavor.apk"
+          done
+          build=$(basename apks/*-play.apk -play.apk)
+          title="Test build ${build#pesaclarity-}"
+          notes=$(printf '%s\n' \
+            "The newest build from \`dev\`, commit ${GITHUB_SHA::7}, not yet through QA. Each push to \`dev\` replaces these files." \
+            "" \
+            "- \`pesaclarity-play.apk\`: the Google Play flavour." \
+            "- \`pesaclarity-foss.apk\`: the F-Droid flavour, with no Google services." \
+            "" \
+            "On Android, open the file and allow installs from this source when asked." \
+            "" \
+            "Built by $RUN_URL")
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # Point the tag at this commit, then swap in the new files.
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
+              -f sha="$GITHUB_SHA" -F force=true > /dev/null
+            gh release upload "$TAG" out/*.apk --clobber
+            gh release edit "$TAG" --title "$title" --notes "$notes" \
+              --prerelease --latest=false
+          else
+            gh release create "$TAG" out/*.apk --target "$GITHUB_SHA" \
+              --title "$title" --notes "$notes" --prerelease --latest=false
+          fi
