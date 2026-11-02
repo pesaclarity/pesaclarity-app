@@ -210,7 +210,7 @@ The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release b
 `main` is what users get; nothing lands there untested.
 
 1. Pull requests go to `dev`, with a [Conventional Commits](https://www.conventionalcommits.org) title (`feat: …`, `fix: …`, `feat!: …` for a breaking change; `docs`, `test`, `ci`, `chore`, `refactor`, `build`, `perf`, `style`, `revert` too). The `PR title` check enforces it, and squash merges keep the title as the commit message.
-2. Each push to `dev` runs CI and the `Test APK` workflow, which builds `play` and `foss` release APKs against the `DEV_PESACLARITY_*` variables and keeps them as artifacts for 30 days.
+2. Each push to `dev` runs CI and the `Test APK` workflow, which builds `play` and `foss` release APKs against the `DEV_PESACLARITY_*` variables (`DEV_PESACLARITY_API_URL` is the server) and keeps them as artifacts for 30 days. When the dev key below is set, it also puts them on the `test-build` pre-release, so the newest test build is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk), with no GitHub login needed.
 3. When `dev` is ready, open a pull request from `dev` to `main`. The `Release gate` check allows only `dev` (or the release pull request) into `main`, and its QA job waits for a reviewer in the `qa` environment to approve after trying the test APK. Merge it with a merge commit, not a squash, so each change keeps its own title.
 4. On `main`, release-please keeps a release pull request open with the next version (SemVer from the titles: `feat` bumps the minor, `fix` the patch; before 1.0 a breaking change bumps the minor) and the `CHANGELOG.md` entry. Merging it tags `vX.Y.Z`, uploads to Google Play (below) and merges the release back into `dev`.
 
@@ -223,7 +223,7 @@ The play build signs in with Google through Android's Credential Manager (`Googl
    - an **Android** client for package `com.pesaclarity.app` for each signing key's SHA-1: the Play App Signing key (Play Console › App integrity), the upload key, and the dev key below (`keytool -list -v -keystore dev.jks`).
 2. On the server, set `NGOME_GOOGLE_SIGN_IN_ENABLED=true` and `NGOME_GOOGLE_CLIENT_IDS` to the web client id (see the server README).
 3. Repository variables: `PESACLARITY_GOOGLE_SERVER_CLIENT_ID` for releases and `DEV_PESACLARITY_GOOGLE_SERVER_CLIENT_ID` for test APKs (the same web client id, or a dev project's).
-4. For test APKs, make a dev key once and add it as secrets `DEV_KEYSTORE_BASE64`, `DEV_KEYSTORE_PASSWORD`, `DEV_KEY_ALIAS` and `DEV_KEY_PASSWORD`; without them test APKs use a throwaway key and leave Google off.
+4. For test APKs, make a dev key once and add it as secrets `DEV_KEYSTORE_BASE64`, `DEV_KEYSTORE_PASSWORD`, `DEV_KEY_ALIAS` and `DEV_KEY_PASSWORD`; without them test APKs use a throwaway key, leave Google off and are not put on the `test-build` release (each build would have a different key, so it could not update the one before).
 
    ```sh
    keytool -genkeypair -keystore dev.jks -alias dev -keyalg RSA -keysize 4096 -validity 10000
