@@ -37,9 +37,6 @@ abstract final class BrandTokens {
 
   static const cardRadius = 24.0;
 
-  /// Corner radius of grouped lists, buttons and sheets on iPhone, as in
-  /// Apple's own apps. Not part of the brand tokens file.
-  static const iosRadius = 12.0;
   static const pillRadius = 999.0;
   static const touchTarget = 44.0;
 

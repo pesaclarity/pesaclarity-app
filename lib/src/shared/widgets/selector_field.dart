@@ -1,8 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/pesa_colors.dart';
-import '../adaptive/adaptive.dart';
 
 /// Lists up to this long show in full, with no search; longer ones show the
 /// most used and a search box.
@@ -105,66 +103,36 @@ Future<T?> showOptionSheet<T>(
   isScrollControlled: true,
   builder: (context) {
     final theme = Theme.of(context);
-    final cupertino = isCupertino(context);
     return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          cupertino ? 16 : 20,
-          0,
-          cupertino ? 16 : 20,
-          24,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              title,
-              textAlign: cupertino ? TextAlign.center : TextAlign.start,
-              style: cupertino
-                  ? theme.textTheme.titleMedium
-                  : theme.textTheme.titleLarge,
-            ),
+            Text(title, style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            if (cupertino)
-              GroupedSection(
-                children: [
-                  for (final (value, label) in options)
-                    ListTile(
-                      selected: value == selected,
-                      title: Text(label),
-                      trailing: value == selected
-                          ? Icon(
-                              CupertinoIcons.checkmark_alt,
-                              color: theme.colorScheme.primary,
-                            )
-                          : null,
-                      onTap: () => Navigator.of(context).pop(value),
-                    ),
-                ],
-              )
-            else
-              Card(
-                child: RadioGroup<T>(
-                  groupValue: selected,
-                  onChanged: (value) => Navigator.of(context).pop(value),
-                  child: Column(
-                    children: [
-                      for (final (i, (value, label)) in options.indexed) ...[
-                        if (i > 0) const Divider(height: 1),
-                        RadioListTile<T>(
-                          value: value,
-                          title: Text(
-                            label,
-                            style: value == selected
-                                ? const TextStyle(fontWeight: FontWeight.w600)
-                                : null,
-                          ),
+            Card(
+              child: RadioGroup<T>(
+                groupValue: selected,
+                onChanged: (value) => Navigator.of(context).pop(value),
+                child: Column(
+                  children: [
+                    for (final (i, (value, label)) in options.indexed) ...[
+                      if (i > 0) const Divider(height: 1),
+                      RadioListTile<T>(
+                        value: value,
+                        title: Text(
+                          label,
+                          style: value == selected
+                              ? const TextStyle(fontWeight: FontWeight.w600)
+                              : null,
                         ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -172,22 +140,13 @@ Future<T?> showOptionSheet<T>(
   },
 );
 
-/// Picks one of a few settings values: a dialog of radio rows on Android,
-/// the option sheet on iPhone.
+/// Picks one of a few settings values from a dialog of radio rows.
 Future<T?> pickOne<T>(
   BuildContext context, {
   required String title,
   required List<(T, String)> options,
   required T selected,
 }) {
-  if (isCupertino(context)) {
-    return showOptionSheet<T>(
-      context,
-      title: title,
-      options: options,
-      selected: selected,
-    );
-  }
   return showDialog<T>(
     context: context,
     builder: (context) => SimpleDialog(

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,16 +39,13 @@ class ProfileScreen extends ConsumerWidget {
     final lastBackup = backupSettings == null
         ? null
         : lastBackupSummary(backupSettings, ref.watch(clockProvider)());
-    final ios = isCupertino(context);
+    // Only iPhone needs the Shortcuts automation to capture messages.
+    final ios = defaultTargetPlatform == TargetPlatform.iOS;
 
     final myAccounts = Semantics(
       identifier: SemanticIds.profileMyAccounts,
       child: ListTile(
-        leading: const RowIcon(
-          Icons.account_balance_outlined,
-          cupertinoIcon: CupertinoIcons.building_2_fill,
-          color: CupertinoColors.systemRed,
-        ),
+        leading: const RowIcon(Icons.account_balance_outlined),
         title: const Text('My accounts'),
         subtitle: const Text('Choose whose messages are read'),
         trailing: const Icon(Icons.chevron_right),
@@ -57,22 +54,14 @@ class ProfileScreen extends ConsumerWidget {
     );
     final connect = ListTile(
       key: const Key('profile-connect-messages'),
-      leading: const RowIcon(
-        Icons.sms_outlined,
-        cupertinoIcon: CupertinoIcons.chat_bubble_fill,
-        color: CupertinoColors.systemGreen,
-      ),
+      leading: const RowIcon(Icons.sms_outlined),
       title: const Text('Connect messages'),
       subtitle: const Text('The Shortcuts automation'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.connectMessages),
     );
     final payees = ListTile(
-      leading: const RowIcon(
-        Icons.people_outline,
-        cupertinoIcon: CupertinoIcons.person_2_fill,
-        color: CupertinoColors.systemPurple,
-      ),
+      leading: const RowIcon(Icons.people_outline),
       title: const Text('Payees'),
       subtitle: const Text('Names, categories and leak types'),
       trailing: const Icon(Icons.chevron_right),
@@ -80,11 +69,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     final currency = ListTile(
       key: const Key('profile-base-currency'),
-      leading: const RowIcon(
-        Icons.currency_exchange,
-        cupertinoIcon: CupertinoIcons.money_dollar_circle_fill,
-        color: CupertinoColors.systemTeal,
-      ),
+      leading: const RowIcon(Icons.currency_exchange),
       title: const Text('Base currency'),
       subtitle: Text(ref.watch(baseCurrencyProvider)),
       trailing: const Icon(Icons.chevron_right),
@@ -92,11 +77,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     final timezone = ListTile(
       key: const Key('profile-timezone'),
-      leading: const RowIcon(
-        Icons.schedule,
-        cupertinoIcon: CupertinoIcons.clock_fill,
-        color: CupertinoColors.systemOrange,
-      ),
+      leading: const RowIcon(Icons.schedule),
       title: const Text('Timezone'),
       subtitle: Text(ref.watch(userTimeZoneProvider).displayName),
       trailing: const Icon(Icons.chevron_right),
@@ -104,11 +85,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     final subscriptionsRow = ListTile(
       key: const Key('profile-subscriptions'),
-      leading: const RowIcon(
-        Icons.autorenew,
-        cupertinoIcon: CupertinoIcons.arrow_2_squarepath,
-        color: CupertinoColors.systemPink,
-      ),
+      leading: const RowIcon(Icons.autorenew),
       title: const Text('Subscriptions'),
       subtitle: Text(
         subscriptions == null || subscriptions.lines.isEmpty
@@ -119,32 +96,20 @@ class ProfileScreen extends ConsumerWidget {
       onTap: () => context.go(AppRoutes.subscriptions),
     );
     final export = ListTile(
-      leading: const RowIcon(
-        Icons.file_download_outlined,
-        cupertinoIcon: CupertinoIcons.square_arrow_up,
-        color: CupertinoColors.systemGrey,
-      ),
+      leading: const RowIcon(Icons.file_download_outlined),
       title: const Text('Export data'),
       subtitle: const Text('CSV · Excel · PDF'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => showExportSheet(context, const FullWorkbookExport()),
     );
     final importRow = ListTile(
-      leading: const RowIcon(
-        Icons.description_outlined,
-        cupertinoIcon: CupertinoIcons.doc_text_fill,
-        color: CupertinoColors.systemBlue,
-      ),
+      leading: const RowIcon(Icons.description_outlined),
       title: const Text('Import a statement'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push(AppRoutes.importStatement),
     );
     final backup = ListTile(
-      leading: const RowIcon(
-        Icons.cloud_upload_outlined,
-        cupertinoIcon: CupertinoIcons.cloud_upload_fill,
-        color: CupertinoColors.systemIndigo,
-      ),
+      leading: const RowIcon(Icons.cloud_upload_outlined),
       title: const Text('Backup and restore'),
       subtitle: Text(
         lastBackup ?? 'Set up an encrypted backup',
@@ -157,21 +122,13 @@ class ProfileScreen extends ConsumerWidget {
       onTap: () => context.go(AppRoutes.backup),
     );
     final privacy = ListTile(
-      leading: const RowIcon(
-        Icons.lock_outline,
-        cupertinoIcon: CupertinoIcons.lock_fill,
-        color: CupertinoColors.systemGrey,
-      ),
+      leading: const RowIcon(Icons.lock_outline),
       title: const Text('Privacy'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.privacy),
     );
     final buildRow = ListTile(
-      leading: const RowIcon(
-        Icons.info_outline,
-        cupertinoIcon: CupertinoIcons.info_circle_fill,
-        color: CupertinoColors.systemGrey,
-      ),
+      leading: const RowIcon(Icons.info_outline),
       title: const Text('Build'),
       subtitle: Text(buildLabel(ref.watch(buildVersionProvider), flavor)),
     );
@@ -199,12 +156,7 @@ class ProfileScreen extends ConsumerWidget {
           const AccountCard(),
           const SizedBox(height: 16),
           const DeviceWarningCard(),
-          if (ios) ...[
-            GroupedSection(header: 'Money', children: money),
-            GroupedSection(header: 'Your data', children: data),
-            GroupedSection(header: 'About', children: about),
-          ] else
-            GroupedSection(children: [...money, ...data, ...about]),
+          GroupedSection(children: [...money, ...data, ...about]),
           const SizedBox(height: 4),
           const SecuritySettingsCard(),
           const SizedBox(height: 16),
