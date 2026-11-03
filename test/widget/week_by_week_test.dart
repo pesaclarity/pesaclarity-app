@@ -7,11 +7,11 @@ import 'package:pesaclarity/src/features/income/application/income_providers.dar
 import 'package:pesaclarity/src/features/income/presentation/week_by_week_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
-class _FakeKibubu extends KibubuController {
+class _FakeRainyDayFund extends RainyDayFundController {
   final moves = <int>[];
 
   @override
-  Future<Kibubu> build() async => const Kibubu();
+  Future<RainyDayFund> build() async => const RainyDayFund();
 
   @override
   Future<void> move(int amountMinor) async => moves.add(amountMinor);
@@ -25,13 +25,13 @@ void main() {
     outMinor: outKes * 100,
   );
 
-  Future<_FakeKibubu> open(WidgetTester tester, WeekByWeek plan) async {
-    final kibubu = _FakeKibubu();
+  Future<_FakeRainyDayFund> open(WidgetTester tester, WeekByWeek plan) async {
+    final fund = _FakeRainyDayFund();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           weekByWeekProvider.overrideWith((ref) async => plan),
-          kibubuProvider.overrideWith(() => kibubu),
+          rainyDayFundProvider.overrideWith(() => fund),
         ],
         child: MaterialApp(
           theme: AppTheme.light,
@@ -40,11 +40,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return kibubu;
+    return fund;
   }
 
-  testWidgets('a good week offers to fill the kibubu', (tester) async {
-    final kibubu = await open(
+  testWidgets('a good week offers to fill the rainy day fund', (tester) async {
+    final fund = await open(
       tester,
       WeekByWeek(
         weeks: [
@@ -53,8 +53,8 @@ void main() {
         ],
         usualInMinor: 450000,
         usualOutMinor: 420000,
-        kibubu: Kibubu([
-          KibubuMove(on: CalendarDate(2026, 10, 20), amountMinor: 320000),
+        fund: RainyDayFund([
+          RainyDayMove(on: CalendarDate(2026, 10, 20), amountMinor: 320000),
         ]),
         today: today,
       ),
@@ -66,20 +66,20 @@ void main() {
     expect(
       find.text(
         'A good week: 2,300 more than a usual one. '
-        'Put 1,000 in your kibubu?',
+        'Put 1,000 in your rainy day fund?',
       ),
       findsOneWidget,
     );
     expect(find.text('3,200 of 4,200'), findsOneWidget);
     expect(find.text('Last $weeksShown weeks'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('kibubu-add')));
+    await tester.tap(find.byKey(const Key('rainy-day-add')));
     await tester.pump();
-    expect(kibubu.moves, [100000]);
+    expect(fund.moves, [100000]);
   });
 
   testWidgets('a lean week offers to take from it', (tester) async {
-    final kibubu = await open(
+    final fund = await open(
       tester,
       WeekByWeek(
         weeks: [
@@ -88,16 +88,16 @@ void main() {
         ],
         usualInMinor: 450000,
         usualOutMinor: 420000,
-        kibubu: Kibubu([
-          KibubuMove(on: CalendarDate(2026, 10, 20), amountMinor: 200000),
+        fund: RainyDayFund([
+          RainyDayMove(on: CalendarDate(2026, 10, 20), amountMinor: 200000),
         ]),
         today: today,
       ),
     );
 
     expect(find.textContaining('A lean week so far'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('kibubu-take')));
+    await tester.tap(find.byKey(const Key('rainy-day-take')));
     await tester.pump();
-    expect(kibubu.moves, [-200000]);
+    expect(fund.moves, [-200000]);
   });
 }

@@ -62,7 +62,7 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'Name',
-                hintText: 'For example, Mama Mboga stall',
+                hintText: 'For example, Vegetable stall',
                 border: OutlineInputBorder(),
               ),
             ),

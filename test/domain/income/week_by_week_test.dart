@@ -67,48 +67,53 @@ void main() {
     expect(plan.suggestAddMinor, kes(1500));
     expect(plan.suggestTakeMinor, 0);
 
-    final added = Kibubu([KibubuMove(on: today, amountMinor: kes(1500))]);
+    final added = RainyDayFund([
+      RainyDayMove(on: today, amountMinor: kes(1500)),
+    ]);
     expect(
-      WeekByWeek.of(history, today: today, kibubu: added).suggestAddMinor,
+      WeekByWeek.of(history, today: today, fund: added).suggestAddMinor,
       0,
     );
 
-    final nearlyFull = Kibubu([
-      KibubuMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(2550)),
+    final nearlyFull = RainyDayFund([
+      RainyDayMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(2550)),
     ]);
     // Room for 450, rounded down to whole hundreds.
     expect(
-      WeekByWeek.of(history, today: today, kibubu: nearlyFull).suggestAddMinor,
+      WeekByWeek.of(history, today: today, fund: nearlyFull).suggestAddMinor,
       kes(400),
     );
   });
 
-  test('a lean week can take what it falls short, up to the kibubu', () {
-    final history = [...usualWeeks(), ...thisWeek(inKes: 1000, outKes: 2500)];
-    final pot = Kibubu([
-      KibubuMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(5000)),
-    ]);
-    final plan = WeekByWeek.of(history, today: today, kibubu: pot);
-    expect(plan.suggestAddMinor, 0);
-    expect(plan.suggestTakeMinor, kes(2000));
+  test(
+    'a lean week can take what it falls short, up to the rainy day fund',
+    () {
+      final history = [...usualWeeks(), ...thisWeek(inKes: 1000, outKes: 2500)];
+      final pot = RainyDayFund([
+        RainyDayMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(5000)),
+      ]);
+      final plan = WeekByWeek.of(history, today: today, fund: pot);
+      expect(plan.suggestAddMinor, 0);
+      expect(plan.suggestTakeMinor, kes(2000));
 
-    final small = Kibubu([
-      KibubuMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(800)),
-    ]);
-    expect(
-      WeekByWeek.of(history, today: today, kibubu: small).suggestTakeMinor,
-      kes(800),
-    );
-  });
+      final small = RainyDayFund([
+        RainyDayMove(on: CalendarDate(2026, 10, 20), amountMinor: kes(800)),
+      ]);
+      expect(
+        WeekByWeek.of(history, today: today, fund: small).suggestTakeMinor,
+        kes(800),
+      );
+    },
+  );
 
-  test('the kibubu keeps its moves and never goes below zero', () {
-    final pot = const Kibubu()
-        .withMove(KibubuMove(on: today, amountMinor: kes(1000)))
-        .withMove(KibubuMove(on: today, amountMinor: -kes(1500)));
+  test('the rainy day fund keeps its moves and never goes below zero', () {
+    final pot = const RainyDayFund()
+        .withMove(RainyDayMove(on: today, amountMinor: kes(1000)))
+        .withMove(RainyDayMove(on: today, amountMinor: -kes(1500)));
     expect(pot.balanceMinor, 0);
-    final back = Kibubu.fromJson(pot.toJson());
+    final back = RainyDayFund.fromJson(pot.toJson());
     expect(back.moves, hasLength(2));
     expect(back.moves.last.amountMinor, -kes(1500));
-    expect(Kibubu.fromJson(null).balanceMinor, 0);
+    expect(RainyDayFund.fromJson(null).balanceMinor, 0);
   });
 }

@@ -1,8 +1,8 @@
 /// How money usually comes to a person. Several can apply at once.
 enum IncomeSource {
   salary('Salary', 'Monthly, every two weeks or weekly'),
-  business('Business or hustle', 'Jua kali, a shop, a till, boda'),
-  gigs('Gigs and casual work', 'Freelance, mjengo, delivery'),
+  business('Business or hustle', 'A shop, a stall, a till, motorbike or taxi'),
+  gigs('Gigs and casual work', 'Freelance, building sites, delivery'),
   support('Family or sponsor support', 'Parents, relatives, a spouse'),
   allowance('Allowance, bursary or HELB', 'For students'),
   seasonal('Seasonal', 'Farming or harvest income'),

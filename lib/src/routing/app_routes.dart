@@ -22,7 +22,7 @@ abstract final class AppRoutes {
   /// Adding a space, such as a business.
   static const addSpace = '/home/spaces/add';
 
-  /// Business and gigs: this week against a usual one, and the kibubu.
+  /// Business and gigs: this week against a usual one, and the fund.
   static const weekByWeek = '/home/week';
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';

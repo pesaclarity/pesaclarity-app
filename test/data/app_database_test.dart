@@ -672,6 +672,24 @@ void main() {
       expect(payee.askPurpose, isFalse);
     });
 
+    test('migrates a version 16 database: plain English names', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        "UPDATE categories SET name = 'Church, giving and harambee' "
+        "WHERE key = 'giving'",
+      );
+      await old.customStatement('PRAGMA user_version = 16');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final giving = await (db.select(
+        db.categories,
+      )..where((c) => c.key.equals('giving'))).getSingle();
+      expect(giving.name, 'Church, giving and fundraisers');
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();
