@@ -33,6 +33,7 @@ import '../features/review/presentation/review_message_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
+import '../features/spaces/presentation/add_space_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
 import 'app_routes.dart';
@@ -130,6 +131,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'week',
                     builder: (context, state) => const WeekByWeekScreen(),
+                  ),
+                  GoRoute(
+                    path: 'spaces/add',
+                    builder: (context, state) => const AddSpaceScreen(),
                   ),
                   GoRoute(
                     path: 'profile',

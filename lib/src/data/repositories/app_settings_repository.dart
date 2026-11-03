@@ -41,6 +41,13 @@ class DriftAppSettingsRepository implements AppSettingsRepository {
       );
 }
 
+/// Settings kept with the open space.
 final appSettingsRepositoryProvider = Provider<AppSettingsRepository>(
   (ref) => DriftAppSettingsRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// Settings for the whole app, kept in Personal whichever space is open:
+/// timezone, consent and the list of spaces.
+final mainSettingsRepositoryProvider = Provider<AppSettingsRepository>(
+  (ref) => DriftAppSettingsRepository(ref.watch(mainDatabaseProvider)),
 );

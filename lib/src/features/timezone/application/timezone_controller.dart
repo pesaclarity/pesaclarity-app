@@ -124,7 +124,7 @@ class TimeZoneController extends AsyncNotifier<TimeZoneSettings> {
   static const settingsKey = 'timezone.settings';
 
   AppSettingsRepository get _settings =>
-      ref.read(appSettingsRepositoryProvider);
+      ref.read(mainSettingsRepositoryProvider);
 
   @override
   Future<TimeZoneSettings> build() async {

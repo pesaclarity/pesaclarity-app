@@ -28,6 +28,8 @@ import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
+import '../../spaces/application/spaces_providers.dart';
+import '../../spaces/presentation/spaces_sheet.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
@@ -248,21 +250,36 @@ Future<void> _showAddMenu(BuildContext context) async {
 
 enum _AddChoice { manual, import }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header({required this.today});
 
   final CalendarDate today;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    final space = ref.watch(activeSpaceProvider);
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ActionChip(
+                key: const Key('home-space'),
+                tooltip: 'Switch space',
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(space.name),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.expand_more, size: 18),
+                  ],
+                ),
+                onPressed: () => showSpaces(context),
+              ),
+              const SizedBox(height: 4),
               Text(
                 longDate(today),
                 style: theme.textTheme.bodyMedium!.copyWith(

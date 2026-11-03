@@ -41,5 +41,5 @@ class DriftOnboardingRepository implements OnboardingRepository {
 }
 
 final onboardingRepositoryProvider = Provider<OnboardingRepository>(
-  (ref) => DriftOnboardingRepository(ref.watch(appDatabaseProvider)),
+  (ref) => DriftOnboardingRepository(ref.watch(mainDatabaseProvider)),
 );
