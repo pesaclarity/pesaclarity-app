@@ -51,13 +51,15 @@ class BackupService {
     return dir.create(recursive: true);
   }
 
-  /// Writes an encrypted `.pcbackup` of the current data into [directory].
-  Future<File> createBackupFile(Directory directory) async {
+  /// Writes an encrypted `.pcbackup` of [space]'s data (the open space when
+  /// null) into [directory].
+  Future<File> createBackupFile(Directory directory, {String? space}) async {
     final secrets = await _settings.readSecrets();
     if (secrets == null) throw const BackupNotSetUpException();
     final now = _clock();
-    final output = File(p.join(directory.path, backupFileName(now)));
-    final snapshot = await _data.snapshot(directory);
+    final id = space ?? _data.openSpace;
+    final output = File(p.join(directory.path, backupFileName(now, id)));
+    final snapshot = await _data.snapshot(directory, space: id);
     try {
       final snapshotPath = snapshot.file.path;
       final keyHex = snapshot.keyHex;
@@ -88,28 +90,34 @@ class BackupService {
     return output;
   }
 
-  /// Backs up to every location in [locations] and records the time if at
-  /// least one succeeded.
+  /// Backs up every space to every location in [locations], and records
+  /// the time if at least one location took them all.
   Future<BackupRunReport> backUp(List<BackupLocation> locations) async {
     final dir = await _freshDirectory('outgoing');
-    final succeeded = <BackupLocationId>{};
     final failed = <BackupLocationId, String>{};
     try {
-      final file = await createBackupFile(dir);
-      final name = p.basename(file.path);
-      for (final location in locations) {
-        try {
-          await location.upload(file, name);
-          succeeded.add(location.id);
-        } on BackupLocationException catch (e) {
-          failed[location.id] = e.message;
-        } on IOException {
-          failed[location.id] = 'The copy could not be saved there.';
+      for (final space in await _data.spaces()) {
+        final file = await createBackupFile(dir, space: space);
+        final name = p.basename(file.path);
+        for (final location in locations) {
+          if (failed.containsKey(location.id)) continue;
+          try {
+            await location.upload(file, name);
+          } on BackupLocationException catch (e) {
+            failed[location.id] = e.message;
+          } on IOException {
+            failed[location.id] = 'The copy could not be saved there.';
+          }
         }
+        await file.delete();
       }
     } finally {
       await dir.delete(recursive: true);
     }
+    final succeeded = {
+      for (final l in locations)
+        if (!failed.containsKey(l.id)) l.id,
+    };
     if (succeeded.isNotEmpty) {
       final current = await _settings.load();
       await _settings.save(

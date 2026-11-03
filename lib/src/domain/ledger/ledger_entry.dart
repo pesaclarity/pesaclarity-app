@@ -19,6 +19,7 @@ class LedgerEntry {
     this.categoryType,
     this.isDailySpending = false,
     this.categoryIsAuto = false,
+    this.needsPurpose = false,
     this.transferPairId,
     this.payeeName,
     this.leakType = LeakType.none,
@@ -61,6 +62,10 @@ class LedgerEntry {
 
   /// Whether [categoryId] was auto-assigned by ML/rules prediction.
   final bool categoryIsAuto;
+
+  /// Money in from a payee whose money has meant different things, waiting
+  /// for the person to say what it was.
+  final bool needsPurpose;
 
   /// The other half of an own-account transfer.
   final int? transferPairId;
@@ -114,6 +119,8 @@ class LedgerEntry {
     categoryId: categoryId,
     categoryType: categoryType,
     isDailySpending: isDailySpending,
+    categoryIsAuto: categoryIsAuto,
+    needsPurpose: needsPurpose,
     transferPairId: transferPairId ?? this.transferPairId,
     payeeName: payeeName,
     leakType: leakType,

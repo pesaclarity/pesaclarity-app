@@ -9,6 +9,9 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_key_store.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../data/repositories/app_settings_repository.dart';
+import '../../../domain/spaces/space.dart';
+import '../../spaces/application/spaces_providers.dart';
 
 /// A consistent copy of the database, encrypted with its own random key.
 final class DatabaseSnapshot {
@@ -35,8 +38,15 @@ final class RestoredDataException implements Exception {
 
 /// The app's data as backups see it: snapshot it, or replace it.
 abstract interface class LocalDataStore {
-  /// Writes a snapshot of the current data into [directory].
-  Future<DatabaseSnapshot> snapshot(Directory directory);
+  /// The open space, which a share copy and a restore are for.
+  String get openSpace;
+
+  /// Every space on this phone, Personal first; each is backed up.
+  Future<List<String>> spaces();
+
+  /// Writes a snapshot of [space]'s data (the open space when null) into
+  /// [directory].
+  Future<DatabaseSnapshot> snapshot(Directory directory, {String? space});
 
   /// Checks [staged] (keyed with [stagedKeyHex]) and, only if it is sound,
   /// makes it the app's data. The current data stays in place if any step
@@ -158,15 +168,50 @@ class SqlCipherLocalDataStore implements LocalDataStore {
   final Ref _ref;
 
   @override
-  Future<DatabaseSnapshot> snapshot(Directory directory) async {
-    final db = _ref.read(appDatabaseProvider);
-    final file = File(p.join(directory.path, 'snapshot.sqlite'));
-    final key = await exportDatabase(db, file);
-    return DatabaseSnapshot(
-      file: file,
-      keyHex: key,
-      schemaVersion: db.schemaVersion,
-    );
+  String get openSpace => _ref.read(activeSpaceIdProvider);
+
+  @override
+  Future<List<String>> spaces() async => [
+    for (final s in spacesFromJson(
+      await _ref
+          .read(mainSettingsRepositoryProvider)
+          .readJson(SpacesController.settingsKey),
+    ))
+      s.id,
+  ];
+
+  @override
+  Future<DatabaseSnapshot> snapshot(
+    Directory directory, {
+    String? space,
+  }) async {
+    final id = space ?? openSpace;
+    final AppDatabase db;
+    var close = false;
+    if (id == openSpace) {
+      db = _ref.read(appDatabaseProvider);
+    } else if (id == personalSpaceId) {
+      db = _ref.read(personalDatabaseProvider);
+    } else {
+      // A space that is not open: open its file just for the copy.
+      db = openEncryptedDatabase(
+        _ref.read(databaseKeyStoreProvider),
+        beforeOpen: _ref.read(databaseFileLockProvider).waitUntilFree,
+        spaceId: id,
+      );
+      close = true;
+    }
+    try {
+      final file = File(p.join(directory.path, 'snapshot-$id.sqlite'));
+      final key = await exportDatabase(db, file);
+      return DatabaseSnapshot(
+        file: file,
+        keyHex: key,
+        schemaVersion: db.schemaVersion,
+      );
+    } finally {
+      if (close) await db.close();
+    }
   }
 
   @override
@@ -189,9 +234,17 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     final lock = _ref.read(databaseFileLockProvider);
     final release = lock.hold();
     try {
-      _ref.invalidate(appDatabaseProvider);
+      final spaceId = _ref.read(activeSpaceIdProvider);
+      _ref.invalidate(
+        spaceId == personalSpaceId
+            ? personalDatabaseProvider
+            : appDatabaseProvider,
+      );
       await lock.close(current);
-      await swapDatabaseFiles(live: await databaseFile(), staged: staged);
+      await swapDatabaseFiles(
+        live: await databaseFile(spaceId),
+        staged: staged,
+      );
     } finally {
       release();
     }

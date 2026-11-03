@@ -6,17 +6,27 @@ abstract final class AppRoutes {
 
   static const onboarding = '/onboarding';
   static const onboardingCurrency = '/onboarding/currency';
+  static const onboardingIncome = '/onboarding/income';
   static const onboardingAccounts = '/onboarding/accounts';
   static const onboardingScan = '/onboarding/accounts/scan';
   static const onboardingFirstInsight = '/onboarding/accounts/scan/insight';
 
   static const home = '/home';
 
+  /// "Which space?" after unlocking, when the app is set to ask.
+  static const chooseSpace = '/choose-space';
+
   /// Statement import, opened from the Home + button and from Profile.
   static const importStatement = '/home/import';
 
   /// Messages no parser rule read, and one of them by review item id.
   static const review = '/home/review';
+
+  /// Adding a space, such as a business.
+  static const addSpace = '/home/spaces/add';
+
+  /// Business and gigs: this week against a usual one, and the fund.
+  static const weekByWeek = '/home/week';
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
@@ -29,6 +39,7 @@ abstract final class AppRoutes {
   static const terms = '/home/profile/privacy/terms';
   static const payees = '/home/profile/payees';
   static const baseCurrency = '/home/profile/currency';
+  static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
 
   /// iPhone: the Shortcuts automation that passes messages.

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/backup/backup.dart';
 import '../../../core/time/clock.dart';
+import '../../../data/database/database_providers.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_labels.dart';
 import '../application/backup_providers.dart';
@@ -156,7 +157,13 @@ class _BackupListSheet extends ConsumerStatefulWidget {
 }
 
 class _BackupListSheetState extends ConsumerState<_BackupListSheet> {
-  late final Future<List<BackupEntry>> _entries = widget.location.list();
+  // Only this space's backups: a restore replaces the open space.
+  late final Future<List<BackupEntry>> _entries = widget.location.list().then(
+    (all) => [
+      for (final e in all)
+        if (e.space == ref.read(activeSpaceIdProvider)) e,
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {

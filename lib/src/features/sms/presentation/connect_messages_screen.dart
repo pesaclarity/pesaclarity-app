@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
+import '../../statements/data/pdf_text_extractor.dart';
 import '../data/sms_source.dart';
 
 /// The Shortcuts automation that passes messages to the app on iPhone.
@@ -75,6 +78,16 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
   }
 
   void _finish() => ref.read(onboardingControllerProvider.notifier).complete();
+
+  /// Ends setup and opens the statement import, so past months come in too:
+  /// Shortcuts only passes messages as they arrive.
+  Future<void> _importPastMonths() async {
+    final router = GoRouter.of(context);
+    await ref.read(onboardingControllerProvider.notifier).complete();
+    router
+      ..go(AppRoutes.home)
+      ..push(AppRoutes.importStatement).ignore();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +157,25 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
                 onPressed: ref.read(shortcutConnectionProvider).openShortcuts,
                 child: const Text('Open Shortcuts'),
               ),
+            if (widget.onboarding &&
+                ref.watch(statementImportAvailableProvider)) ...[
+              const SizedBox(height: 24),
+              GroupedSection(
+                header: 'Past months',
+                footer:
+                    'Shortcuts only passes new messages. A statement from the '
+                    'M-Pesa app or your bank brings in the months before.',
+                children: [
+                  ListTile(
+                    key: const Key('connect-import-past'),
+                    leading: const Icon(Icons.upload_file_outlined),
+                    title: const Text('Import a statement'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _importPastMonths,
+                  ),
+                ],
+              ),
+            ],
             if (widget.onboarding && !connected) ...[
               const SizedBox(height: 8),
               Semantics(

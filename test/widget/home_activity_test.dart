@@ -299,6 +299,7 @@ void main() {
     );
     await finishOnboarding(tester);
 
+    await scrollTo(tester, find.textContaining('At this pace'));
     expect(find.textContaining('At this pace'), findsOneWidget);
     await tapText(tester, 'Runway at this pace');
 

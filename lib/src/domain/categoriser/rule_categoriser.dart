@@ -81,6 +81,10 @@ const _outflowPayees = <(String, List<String>)>[
 
 const _inflowPayees = <(String, List<String>)>[
   ('salary', ['salary', 'payroll', 'wages']),
+  (
+    'allowance_bursary',
+    ['allowance', 'bursary', 'stipend', 'scholarship', 'helb'],
+  ),
 ];
 
 /// The fallback when no model is installed: built-in payee defaults and

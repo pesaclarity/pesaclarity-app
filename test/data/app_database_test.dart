@@ -626,6 +626,82 @@ void main() {
       expect(loan.name, 'Madeni');
     });
 
+    test('migrates a version 14 database: income categories v3', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        'DELETE FROM categories WHERE key IN '
+        "('support_received', 'allowance_bursary', 'gifts_received')",
+      );
+      await old.customStatement('PRAGMA user_version = 14');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final income = {
+        for (final c in await (db.select(
+          db.categories,
+        )..where((c) => c.type.equalsValue(CategoryType.income))).get())
+          c.key,
+      };
+      expect(
+        income,
+        containsAll([
+          'salary',
+          'money_received',
+          'support_received',
+          'allowance_bursary',
+          'gifts_received',
+        ]),
+      );
+    });
+
+    test('migrates a version 15 database: payees that ask', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('ALTER TABLE payees DROP COLUMN ask_purpose');
+      await old.customStatement(
+        "INSERT INTO payees (id, display_name) VALUES (1, 'Test Payee')",
+      );
+      await old.customStatement('PRAGMA user_version = 15');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final payee = await db.select(db.payees).getSingle();
+      expect(payee.askPurpose, isFalse);
+    });
+
+    test('migrates a version 16 database: plain English names', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        "UPDATE categories SET name = 'Church, giving and harambee' "
+        "WHERE key = 'giving'",
+      );
+      await old.customStatement('PRAGMA user_version = 16');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final giving = await (db.select(
+        db.categories,
+      )..where((c) => c.key.equals('giving'))).getSingle();
+      expect(giving.name, 'Church, giving and fundraisers');
+    });
+
+    test('migrates a version 17 database: moved transactions', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE moved_transactions');
+      await old.customStatement('PRAGMA user_version = 17');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.movedTransactions).get(), isEmpty);
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();

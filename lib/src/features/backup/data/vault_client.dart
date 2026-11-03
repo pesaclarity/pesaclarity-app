@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/integrity/integrity_attestor.dart';
 
+import '../../../domain/spaces/space.dart';
 import 'backup_location.dart';
 import 'backup_settings_repository.dart';
 
@@ -88,6 +89,7 @@ class VaultBackupLocation implements BackupLocation {
       ..headers.addAll(await _integrity?.headersForDigest(digest) ?? const {})
       ..headers['Content-Type'] = 'application/octet-stream'
       ..headers['X-Content-SHA256'] = _hex(digest)
+      ..headers['X-Backup-Space'] = backupSpaceFromName(fileName)
       ..contentLength = await file.length();
     final sending = _client.send(request);
     await request.sink.addStream(file.openRead());
@@ -110,6 +112,7 @@ class VaultBackupLocation implements BackupLocation {
           name: 'Vault backup',
           createdAt: DateTime.parse(row['created_at']! as String).toLocal(),
           sizeBytes: row['size_bytes'] as int?,
+          space: row['space'] as String? ?? personalSpaceId,
         ),
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }

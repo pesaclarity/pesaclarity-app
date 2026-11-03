@@ -8,6 +8,7 @@ import '../../../config/flavor.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
+import '../../../domain/income/income_sources.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -19,6 +20,7 @@ import '../../backup/application/backup_providers.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
+import '../../income/application/income_providers.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
@@ -66,6 +68,22 @@ class ProfileScreen extends ConsumerWidget {
       subtitle: const Text('Names, categories and leak types'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.payees),
+    );
+    final sources = ref.watch(incomeSourcesProvider).value;
+    final income = ListTile(
+      key: const Key('profile-income'),
+      leading: const RowIcon(Icons.payments_outlined),
+      title: const Text('How money comes in'),
+      subtitle: Text(
+        sources == null || !sources.answered
+            ? 'Salary, business, support and more'
+            : [
+                for (final s in IncomeSource.values)
+                  if (sources.picked.contains(s)) s.label,
+              ].join(', '),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go(AppRoutes.incomeSources),
     );
     final currency = ListTile(
       key: const Key('profile-base-currency'),
@@ -135,6 +153,7 @@ class ProfileScreen extends ConsumerWidget {
     final money = [
       myAccounts,
       if (ios) connect,
+      income,
       payees,
       currency,
       timezone,

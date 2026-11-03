@@ -26,7 +26,7 @@ const uncategorisedName = 'Uncategorised';
 /// The default Kenyan category set, seeded on first run.
 ///
 /// Keys mirror `src/akili/resources/categories.yaml`
-/// (version 2) in pesaclarity/pesaclarity-ml so the categoriser's outputs map
+/// (version 3) in pesaclarity/pesaclarity-ml so the categoriser's outputs map
 /// one to one.
 /// Change both together.
 const defaultCategories = <CategorySeed>[
@@ -41,6 +41,13 @@ const defaultCategories = <CategorySeed>[
     'Money received from people',
     CategoryType.income,
   ),
+  CategorySeed('support_received', 'Support from family', CategoryType.income),
+  CategorySeed(
+    'allowance_bursary',
+    'Allowance and bursary',
+    CategoryType.income,
+  ),
+  CategorySeed('gifts_received', 'Gifts received', CategoryType.income),
   CategorySeed(
     'groceries',
     'Groceries and household',
@@ -99,7 +106,11 @@ const defaultCategories = <CategorySeed>[
     isDailySpending: true,
   ),
   CategorySeed('shopping', 'Shopping and clothing', CategoryType.expense),
-  CategorySeed('giving', 'Church, giving and harambee', CategoryType.expense),
+  CategorySeed(
+    'giving',
+    'Church, giving and fundraisers',
+    CategoryType.expense,
+  ),
   CategorySeed('fees_charges', 'Fees and charges', CategoryType.expense),
   CategorySeed('loan_repayment', 'Loan repayment', CategoryType.debt),
   CategorySeed('fuliza_repayment', 'Fuliza repayment', CategoryType.debt),
@@ -118,7 +129,10 @@ typedef ExistingCategory = ({String? key, String name});
 /// The seeds not yet present in [existing], by key or by name (ignoring
 /// case), so seeding twice adds nothing and never clashes with a category
 /// the user made.
-List<CategorySeed> missingSeeds(Iterable<ExistingCategory> existing) {
+List<CategorySeed> missingSeeds(
+  Iterable<ExistingCategory> existing, [
+  List<CategorySeed> seeds = defaultCategories,
+]) {
   final keys = <String>{};
   final names = <String>{};
   for (final c in existing) {
@@ -126,7 +140,7 @@ List<CategorySeed> missingSeeds(Iterable<ExistingCategory> existing) {
     names.add(categoryNameKey(c.name));
   }
   return [
-    for (final seed in defaultCategories)
+    for (final seed in seeds)
       if (!keys.contains(seed.key) &&
           !names.contains(categoryNameKey(seed.name)))
         seed,

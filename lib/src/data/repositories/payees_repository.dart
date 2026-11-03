@@ -259,6 +259,7 @@ Future<PayeeDirectory> payeeDirectory(AppDatabase db) async {
         identifiers: identifiers[p.id] ?? const [],
         defaultCategoryId: p.defaultCategoryId,
         leakType: p.leakType,
+        askPurpose: p.askPurpose,
       ),
   ]);
 }

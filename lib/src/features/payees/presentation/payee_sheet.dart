@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/payees_repository.dart';
+import '../../../data/repositories/purpose_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/payees/payee_identifier.dart';
@@ -60,6 +61,7 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
   );
   late int? _categoryId = widget.payee?.defaultCategoryId;
   late LeakType _leakType = widget.payee?.leakType ?? LeakType.none;
+  late bool _askPurpose = widget.payee?.askPurpose ?? false;
   bool _saving = false;
 
   @override
@@ -94,6 +96,11 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
         defaultCategoryId: Value(_categoryId),
         leakType: _leakType,
       );
+      if (_askPurpose != existing.askPurpose) {
+        await ref
+            .read(purposeRepositoryProvider)
+            .setAskPurpose(existing.id, ask: _askPurpose);
+      }
       id = existing.id;
     } else {
       id = await repo.name(
@@ -162,6 +169,17 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
               trailing: const Icon(Icons.chevron_right),
               onTap: _pickCategory,
             ),
+            if (widget.payee != null)
+              SwitchListTile(
+                key: const Key('payee-ask-purpose'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Ask what money from them is for'),
+                subtitle: const Text(
+                  'For people whose money means different things',
+                ),
+                value: _askPurpose,
+                onChanged: (v) => setState(() => _askPurpose = v),
+              ),
             const SizedBox(height: 8),
             Text('Leak type', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),

@@ -59,6 +59,7 @@ class TransactionDetail {
     this.category,
     this.payeeCategory,
     this.isCategoryAuto = false,
+    this.needsPurpose = false,
   });
 
   final TransactionRecord record;
@@ -72,6 +73,10 @@ class TransactionDetail {
   final Category? payeeCategory;
 
   final bool isCategoryAuto;
+
+  /// Money in from a payee whose money has meant different things, waiting
+  /// for the person to say what it was.
+  final bool needsPurpose;
 
   bool get isCategoryOverridden => record.categoryOverrideId != null;
 
@@ -128,7 +133,22 @@ class DriftTransactionsRepository implements TransactionsRepository {
         return added;
       });
 
-  Future<bool> _hasDedupeKey(TransactionsCompanion transaction, String key) =>
+  Future<bool> _hasDedupeKey(
+    TransactionsCompanion transaction,
+    String key,
+  ) async =>
+      await _wasMoved(transaction.accountId.value, key) ||
+      await _isStored(transaction, key);
+
+  /// Moved to another space: it lives there now.
+  Future<bool> _wasMoved(int accountId, String key) async =>
+      await (_db.select(_db.movedTransactions)..where(
+            (m) => m.accountId.equals(accountId) & m.dedupeKey.equals(key),
+          ))
+          .getSingleOrNull() !=
+      null;
+
+  Future<bool> _isStored(TransactionsCompanion transaction, String key) =>
       (_db.selectOnly(_db.transactions)
             ..addColumns([_db.transactions.id])
             ..where(
@@ -239,7 +259,12 @@ class DriftTransactionsRepository implements TransactionsRepository {
             )..where((c) => c.id.equals(id))).getSingleOrNull();
       final payeeCategory = await category(payee?.defaultCategoryId);
       final isOverridden = record.categoryOverrideId != null;
-      final autoCategory = (!isOverridden && payeeCategory == null)
+      final needsPurpose =
+          !isOverridden &&
+          (payee?.askPurpose ?? false) &&
+          record.direction == TransactionDirection.inflow;
+      final autoCategory =
+          (!isOverridden && !needsPurpose && payeeCategory == null)
           ? await category(record.autoCategoryId)
           : null;
       return TransactionDetail(
@@ -249,9 +274,12 @@ class DriftTransactionsRepository implements TransactionsRepository {
         payeeCategory: payeeCategory,
         category: isOverridden
             ? await category(record.categoryOverrideId)
+            : needsPurpose
+            ? null
             : (payeeCategory ?? autoCategory),
         isCategoryAuto:
             !isOverridden && payeeCategory == null && autoCategory != null,
+        needsPurpose: needsPurpose,
       );
     });
   }
@@ -299,9 +327,11 @@ LedgerEntry _toLedgerEntry(
             displayName: payee.displayName,
             defaultCategoryId: payee.defaultCategoryId,
             leakType: payee.leakType,
+            askPurpose: payee.askPurpose,
           ),
     categoryOverrideId: record.categoryOverrideId,
     autoCategoryId: record.autoCategoryId,
+    isInflow: record.direction == TransactionDirection.inflow,
   );
   final categoryId = applied.categoryId;
   final category = categoryId == null ? null : categories[categoryId];
@@ -319,6 +349,7 @@ LedgerEntry _toLedgerEntry(
     categoryType: category?.type,
     isDailySpending: category?.isDailySpending ?? false,
     categoryIsAuto: applied.isCategoryAuto,
+    needsPurpose: applied.needsPurpose,
     transferPairId: record.transferPairId,
     payeeName: applied.displayName,
     leakType: applied.leakType,

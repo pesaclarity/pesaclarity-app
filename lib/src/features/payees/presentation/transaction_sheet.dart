@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/categories_repository.dart';
+import '../../../data/repositories/purpose_repository.dart';
+import '../../../data/repositories/space_move_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/export/export_tables.dart';
+import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../income/presentation/what_was_this_sheet.dart';
+import '../../spaces/application/spaces_providers.dart';
 import '../application/payee_providers.dart';
 import 'category_picker.dart';
 import 'payee_sheet.dart';
@@ -84,9 +90,18 @@ class _Body extends ConsumerWidget {
       case FollowPayeeCategory():
         await repo.setOverride(detail.record.id, null);
       case ChosenCategory(:final id):
-        // Choosing what the payee already gives keeps following the payee.
-        final followsPayee = payee != null && id == payee.defaultCategoryId;
+        // Choosing what the payee already gives keeps following the payee,
+        // unless money from them asks what it was.
+        final followsPayee =
+            payee != null &&
+            id == payee.defaultCategoryId &&
+            !detail.needsPurpose;
         await repo.setOverride(detail.record.id, followsPayee ? null : id);
+        if (id != null) {
+          await ref
+              .read(purposeRepositoryProvider)
+              .noteChoice(detail.record.id, id);
+        }
     }
   }
 
@@ -178,6 +193,30 @@ class _Body extends ConsumerWidget {
                 ),
               if (payee != null || counterparty != null)
                 const Divider(height: 1),
+              if (detail.needsPurpose && payee != null) ...[
+                ListTile(
+                  key: const Key('transaction-what-was-this'),
+                  title: const Text('What was this?'),
+                  subtitle: const Text(
+                    'Their money has meant different things',
+                  ),
+                  trailing: Text(
+                    'Answer',
+                    style: TextStyle(
+                      color: colors.link,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => showWhatWasThis(
+                    context,
+                    transactionId: r.id,
+                    payeeName: payee.displayName,
+                    amountMinor: r.amountMinor,
+                    currency: r.currency,
+                  ),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 title: const Text('Category'),
                 subtitle: Text(
@@ -194,11 +233,80 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         TransactionTagsEditor(transactionId: r.id),
+        _MoveToSpace(transactionId: r.id),
         if (r.receiptNo != null) ...[
           const SizedBox(height: 20),
           Text('Receipt ${r.receiptNo}', style: theme.textTheme.bodySmall),
         ],
       ],
+    );
+  }
+}
+
+/// Moves the transaction to another space, when there is one.
+class _MoveToSpace extends ConsumerWidget {
+  const _MoveToSpace({required this.transactionId});
+
+  final int transactionId;
+
+  Future<void> _move(
+    BuildContext context,
+    WidgetRef ref,
+    List<Space> others,
+  ) async {
+    final target = await showModalBottomSheet<Space>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Move to',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            for (final space in others)
+              ListTile(
+                key: Key('move-to-${space.id}'),
+                leading: CircleAvatar(child: Text(space.initial)),
+                title: Text(space.name),
+                subtitle: Text(space.kind.label),
+                onTap: () => Navigator.of(context).pop(space),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (target == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final navigator = Navigator.of(context);
+    await ref.read(spaceMoveRepositoryProvider).move(transactionId, target.id);
+    navigator.pop();
+    messenger?.showSnackBar(SnackBar(content: Text('Moved to ${target.name}')));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spaces = ref.watch(spacesProvider).value ?? const [];
+    final activeId = ref.watch(activeSpaceIdProvider);
+    final others = [
+      for (final s in spaces)
+        if (s.id != activeId) s,
+    ];
+    if (others.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: OutlinedButton.icon(
+        key: const Key('transaction-move-space'),
+        icon: const Icon(Icons.drive_file_move_outline),
+        label: const Text('Move to another space'),
+        onPressed: () => _move(context, ref, others),
+      ),
     );
   }
 }

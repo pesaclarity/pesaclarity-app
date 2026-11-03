@@ -24,6 +24,12 @@ tags:
 - tapOn:
     id: onboarding-currency-continue
 - assertVisible:
+    id: title-income-sources
+- tapOn:
+    text: "Salary"
+- tapOn:
+    id: onboarding-income-continue
+- assertVisible:
     id: title-my-accounts
 - assertVisible:
     id: institution-mpesa

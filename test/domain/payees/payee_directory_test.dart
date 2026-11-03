@@ -103,5 +103,50 @@ void main() {
       expect(applyPayee(null, categoryOverrideId: 7).categoryId, 7);
       expect(applyPayee(null).leakType, LeakType.none);
     });
+
+    test('money in from a payee who asks waits for an answer', () {
+      const asks = PayeeRule(
+        id: 9,
+        displayName: 'Mixed',
+        defaultCategoryId: 20,
+        askPurpose: true,
+      );
+      final inflow = applyPayee(asks, autoCategoryId: 5, isInflow: true);
+      expect(inflow.categoryId, isNull);
+      expect(inflow.needsPurpose, isTrue);
+      expect(inflow.isCategoryAuto, isFalse);
+
+      final answered = applyPayee(asks, categoryOverrideId: 7, isInflow: true);
+      expect(answered.categoryId, 7);
+      expect(answered.needsPurpose, isFalse);
+
+      final outflow = applyPayee(asks, autoCategoryId: 5);
+      expect(outflow.categoryId, 20);
+      expect(outflow.needsPurpose, isFalse);
+    });
+  });
+
+  group('isMixedSender', () {
+    test('a different answer from before is mixed', () {
+      expect(
+        isMixedSender(chosenId: 1, payeeCategoryId: 2, earlierIds: const []),
+        isTrue,
+      );
+      expect(
+        isMixedSender(chosenId: 1, payeeCategoryId: null, earlierIds: [1, 3]),
+        isTrue,
+      );
+    });
+
+    test('the same answer, or a first one, is not', () {
+      expect(
+        isMixedSender(chosenId: 1, payeeCategoryId: 1, earlierIds: [1]),
+        isFalse,
+      );
+      expect(
+        isMixedSender(chosenId: 1, payeeCategoryId: null, earlierIds: const []),
+        isFalse,
+      );
+    });
   });
 }

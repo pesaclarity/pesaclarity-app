@@ -113,8 +113,10 @@ class DriftCategoriesRepository implements CategoriesRepository {
   @override
   Stream<Map<int, int>> watchUsage() => _db
       .customSelect(
-        'SELECT COALESCE(t.category_override_id, p.default_category_id, '
-        't.auto_category_id) AS category, COUNT(*) AS uses '
+        'SELECT COALESCE(t.category_override_id, CASE WHEN p.ask_purpose '
+        "AND t.direction = 'inflow' THEN NULL ELSE COALESCE("
+        'p.default_category_id, t.auto_category_id) END) AS category, '
+        'COUNT(*) AS uses '
         'FROM transactions t LEFT JOIN payees p ON p.id = t.payee_id '
         'GROUP BY category',
         readsFrom: {_db.transactions, _db.payees},

@@ -13,6 +13,18 @@ void main() {
     const notDone = AsyncData(false);
     const done = AsyncData(true);
 
+    test('asks which space after unlocking when set to ask', () {
+      expect(
+        onboardingRedirect(done, AppRoutes.launch, askSpace: true),
+        AppRoutes.chooseSpace,
+      );
+      expect(onboardingRedirect(done, AppRoutes.launch), AppRoutes.home);
+      expect(
+        onboardingRedirect(done, AppRoutes.chooseSpace, askSpace: true),
+        isNull,
+      );
+    });
+
     test('waits on the launch screen while loading', () {
       expect(onboardingRedirect(loading, AppRoutes.launch), isNull);
       expect(onboardingRedirect(loading, AppRoutes.home), AppRoutes.launch);

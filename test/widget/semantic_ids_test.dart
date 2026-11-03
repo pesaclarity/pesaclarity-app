@@ -55,6 +55,14 @@ void main() {
     await tapId(tester, SemanticIds.onboardingGetStarted);
     expectId(SemanticIds.titleCurrency);
     await tapId(tester, SemanticIds.onboardingCurrencyContinue);
+    expectId(SemanticIds.titleIncomeSources);
+    await tester.tap(find.byKey(const Key('income-salary')));
+    await tester.pumpAndSettle();
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.onboardingIncomeContinue),
+    );
+    await tapId(tester, SemanticIds.onboardingIncomeContinue);
     expectId(SemanticIds.titleMyAccounts);
     expectId(SemanticIds.institution('im_bank'));
     expectId(SemanticIds.institution('kcb'));

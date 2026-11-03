@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/spaces/space.dart';
 import 'app_database.dart';
 import 'connection.dart';
 import 'database_key_store.dart';
@@ -29,11 +30,79 @@ final databaseFileLockProvider = Provider<DatabaseFileLock>(
   (ref) => DatabaseFileLock(),
 );
 
-/// The single open database. Override in tests with an in-memory database.
-///
-/// It opens on first use, which the router holds back until app lock has
-/// released the key.
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
+/// The space whose database is open. `main` starts it from the space open
+/// when the app last closed.
+class ActiveSpaceId extends Notifier<String> {
+  ActiveSpaceId([this._initial = personalSpaceId]);
+
+  final String _initial;
+
+  @override
+  String build() => _initial;
+
+  /// Opens [spaceId]'s database in place of the current one.
+  Future<void> switchTo(String spaceId) async {
+    if (spaceId == state) return;
+    await ref.read(activeSpaceStoreProvider).write(spaceId);
+    state = spaceId;
+  }
+}
+
+final activeSpaceIdProvider = NotifierProvider<ActiveSpaceId, String>(
+  ActiveSpaceId.new,
+);
+
+/// Remembers the open space between launches, and where to open.
+class ActiveSpaceStore {
+  const ActiveSpaceStore();
+
+  Future<void> write(String spaceId) => writeActiveSpaceId(spaceId);
+
+  Future<void> writeOpenChoice(String choice) => writeOpenSpaceChoice(choice);
+}
+
+/// Where the app opens: [openLastSpace], [askForSpace] or a space id.
+class OpenSpaceChoice extends Notifier<String> {
+  OpenSpaceChoice([this._initial = openLastSpace]);
+
+  final String _initial;
+
+  @override
+  String build() => _initial;
+
+  Future<void> choose(String choice) async {
+    await ref.read(activeSpaceStoreProvider).writeOpenChoice(choice);
+    state = choice;
+  }
+}
+
+final openSpaceChoiceProvider = NotifierProvider<OpenSpaceChoice, String>(
+  OpenSpaceChoice.new,
+);
+
+/// Whether "Which space?" still has to be asked on this launch.
+class SpaceQuestion extends Notifier<bool> {
+  SpaceQuestion([this._initial = false]);
+
+  final bool _initial;
+
+  @override
+  bool build() => _initial;
+
+  void answered() => state = false;
+}
+
+final spaceQuestionProvider = NotifierProvider<SpaceQuestion, bool>(
+  SpaceQuestion.new,
+);
+
+final activeSpaceStoreProvider = Provider<ActiveSpaceStore>(
+  (ref) => const ActiveSpaceStore(),
+);
+
+/// Personal's database, which also keeps app-wide settings and the list of
+/// spaces.
+final personalDatabaseProvider = Provider<AppDatabase>((ref) {
   final lock = ref.watch(databaseFileLockProvider);
   final db = openEncryptedDatabase(
     ref.watch(databaseKeyStoreProvider),
@@ -42,6 +111,30 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   ref.onDispose(() => unawaited(lock.close(db)));
   return db;
 });
+
+/// The open space's database. Override in tests with an in-memory database.
+///
+/// It opens on first use, which the router holds back until app lock has
+/// released the key.
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final spaceId = ref.watch(activeSpaceIdProvider);
+  if (spaceId == personalSpaceId) return ref.watch(personalDatabaseProvider);
+  final lock = ref.watch(databaseFileLockProvider);
+  final db = openEncryptedDatabase(
+    ref.watch(databaseKeyStoreProvider),
+    beforeOpen: lock.waitUntilFree,
+    spaceId: spaceId,
+  );
+  ref.onDispose(() => unawaited(lock.close(db)));
+  return db;
+});
+
+/// The database for app-wide settings: Personal's, whichever space is open.
+final mainDatabaseProvider = Provider<AppDatabase>(
+  (ref) => ref.watch(activeSpaceIdProvider) == personalSpaceId
+      ? ref.watch(appDatabaseProvider)
+      : ref.watch(personalDatabaseProvider),
+);
 
 /// Holds new database connections while the file is being swapped, and
 /// closes each connection exactly once.

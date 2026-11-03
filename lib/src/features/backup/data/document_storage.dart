@@ -186,6 +186,7 @@ class DeviceFolderLocation implements BackupLocation {
                 doc.modifiedAt ??
                 DateTime.fromMillisecondsSinceEpoch(0),
             sizeBytes: doc.sizeBytes,
+            space: backupSpaceFromName(doc.name),
           ),
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return entries;

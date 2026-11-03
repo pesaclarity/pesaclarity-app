@@ -16,6 +16,12 @@ appId: com.pesaclarity.app
 - hideKeyboard
 - tapOn:
     id: onboarding-currency-continue
+- assertVisible:
+    id: title-income-sources
+- tapOn:
+    text: "Salary"
+- tapOn:
+    id: onboarding-income-continue
 - extendedWaitUntil:
     visible:
       id: title-my-accounts
