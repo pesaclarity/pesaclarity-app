@@ -127,7 +127,11 @@ Future<void> getStarted(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.textContaining('Continue with'));
   await tester.pumpAndSettle();
-  // How money comes in: a salary keeps the monthly plan.
+  await pickSalaryIncome(tester);
+}
+
+/// The income step: a salary keeps the monthly plan.
+Future<void> pickSalaryIncome(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('income-salary')));
   await tester.pumpAndSettle();
   await scrollTo(tester, find.text('Continue'));
