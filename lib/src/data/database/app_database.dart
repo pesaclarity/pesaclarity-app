@@ -252,6 +252,10 @@ class AppDatabase extends _$AppDatabase {
 
   /// What kind of space this database holds; Personal when unset.
   Future<SpaceKind> spaceKind() async {
+    // Early upgrade steps run before the settings table exists.
+    if (!await _exists('table', appSettings.actualTableName)) {
+      return SpaceKind.personal;
+    }
     final row = await (select(
       appSettings,
     )..where((s) => s.key.equals(spaceKindKey))).getSingleOrNull();
