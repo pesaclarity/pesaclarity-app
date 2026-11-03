@@ -37,6 +37,27 @@ Future<String> readActiveSpaceId() async {
   }
 }
 
+const _openSpaceFileName = 'open-space';
+
+/// Which space the app opens in: [openLastSpace], [askForSpace] or a space
+/// id. Kept beside [readActiveSpaceId] for the same reason.
+Future<String> readOpenSpaceChoice() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final file = File(p.join(dir.path, _openSpaceFileName));
+    if (!await file.exists()) return openLastSpace;
+    final value = (await file.readAsString()).trim();
+    return RegExp(r'^[a-z0-9]{1,32}$').hasMatch(value) ? value : openLastSpace;
+  } on Exception {
+    return openLastSpace;
+  }
+}
+
+Future<void> writeOpenSpaceChoice(String choice) async {
+  final dir = await getApplicationSupportDirectory();
+  await File(p.join(dir.path, _openSpaceFileName)).writeAsString(choice);
+}
+
 Future<void> writeActiveSpaceId(String spaceId) async {
   final dir = await getApplicationSupportDirectory();
   await File(p.join(dir.path, _activeSpaceFileName)).writeAsString(spaceId);

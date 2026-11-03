@@ -52,12 +52,49 @@ final activeSpaceIdProvider = NotifierProvider<ActiveSpaceId, String>(
   ActiveSpaceId.new,
 );
 
-/// Remembers the open space between launches.
+/// Remembers the open space between launches, and where to open.
 class ActiveSpaceStore {
   const ActiveSpaceStore();
 
   Future<void> write(String spaceId) => writeActiveSpaceId(spaceId);
+
+  Future<void> writeOpenChoice(String choice) => writeOpenSpaceChoice(choice);
 }
+
+/// Where the app opens: [openLastSpace], [askForSpace] or a space id.
+class OpenSpaceChoice extends Notifier<String> {
+  OpenSpaceChoice([this._initial = openLastSpace]);
+
+  final String _initial;
+
+  @override
+  String build() => _initial;
+
+  Future<void> choose(String choice) async {
+    await ref.read(activeSpaceStoreProvider).writeOpenChoice(choice);
+    state = choice;
+  }
+}
+
+final openSpaceChoiceProvider = NotifierProvider<OpenSpaceChoice, String>(
+  OpenSpaceChoice.new,
+);
+
+/// Whether "Which space?" still has to be asked on this launch.
+class SpaceQuestion extends Notifier<bool> {
+  SpaceQuestion([this._initial = false]);
+
+  final bool _initial;
+
+  @override
+  bool build() => _initial;
+
+  void answered() => state = false;
+}
+
+final spaceQuestionProvider = NotifierProvider<SpaceQuestion, bool>(
+  SpaceQuestion.new,
+);
 
 final activeSpaceStoreProvider = Provider<ActiveSpaceStore>(
   (ref) => const ActiveSpaceStore(),

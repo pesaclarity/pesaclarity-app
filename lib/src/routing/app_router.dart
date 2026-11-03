@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/database/database_providers.dart';
 import '../domain/ledger/activity_feed.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
@@ -34,6 +35,7 @@ import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
 import '../features/spaces/presentation/add_space_screen.dart';
+import '../features/spaces/presentation/choose_space_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
 import 'app_routes.dart';
@@ -61,12 +63,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: AppRoutes.launch,
     refreshListenable: onboarded,
-    redirect: (context, state) =>
-        onboardingRedirect(onboarded.value, state.matchedLocation),
+    redirect: (context, state) => onboardingRedirect(
+      onboarded.value,
+      state.matchedLocation,
+      askSpace: ref.read(spaceQuestionProvider),
+    ),
     routes: [
       GoRoute(
         path: AppRoutes.launch,
         builder: (context, state) => const LaunchScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.chooseSpace,
+        builder: (context, state) => const ChooseSpaceScreen(),
       ),
       GoRoute(
         path: AppRoutes.onboarding,
@@ -277,13 +286,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 ///
 /// Waits on the launch screen while the state loads; a failed read shows
 /// onboarding rather than skipping it.
-String? onboardingRedirect(AsyncValue<bool> onboarded, String location) {
+String? onboardingRedirect(
+  AsyncValue<bool> onboarded,
+  String location, {
+  bool askSpace = false,
+}) {
   if (!onboarded.hasValue && !onboarded.hasError) {
     return location == AppRoutes.launch ? null : AppRoutes.launch;
   }
   final complete = onboarded.value ?? false;
   final inOnboarding = location.startsWith(AppRoutes.onboarding);
   if (!complete) return inOnboarding ? null : AppRoutes.onboarding;
-  if (inOnboarding || location == AppRoutes.launch) return AppRoutes.home;
+  if (inOnboarding || location == AppRoutes.launch) {
+    return askSpace ? AppRoutes.chooseSpace : AppRoutes.home;
+  }
   return null;
 }

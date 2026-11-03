@@ -13,6 +13,9 @@ abstract final class AppRoutes {
 
   static const home = '/home';
 
+  /// "Which space?" after unlocking, when the app is set to ask.
+  static const chooseSpace = '/choose-space';
+
   /// Statement import, opened from the Home + button and from Profile.
   static const importStatement = '/home/import';
 
