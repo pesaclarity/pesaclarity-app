@@ -212,3 +212,27 @@ jobs:
           FLAVOR: ${{ matrix.flavor }}
           VERSION: ${{ steps.version.outputs.version }}
         run: tool/publish_apk.sh release "$APK" "$FLAVOR" "$VERSION"
+
+  # Rebuilds pesaclarity.github.io once both APKs are on Releases, so the
+  # version under its download buttons is the one people get. Needs the
+  # WEB_DISPATCH_TOKEN secret: a fine-grained token for pesaclarity-web with
+  # Contents read and write (README, Website).
+  website:
+    name: Refresh the website
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the website to rebuild
+        env:
+          GH_TOKEN: ${{ secrets.WEB_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Website not refreshed; add the WEB_DISPATCH_TOKEN secret (README, Website)."
+            exit 0
+          fi
+          gh api repos/pesaclarity/pesaclarity-web/dispatches \
+            -f event_type=app-build \
+            -f "client_payload[ref]=$GITHUB_REF_NAME" \
+            -f "client_payload[sha]=$GITHUB_SHA"
