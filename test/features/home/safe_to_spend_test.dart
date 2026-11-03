@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
 import 'package:pesaclarity/src/domain/budget/until_next_money.dart';
 import 'package:pesaclarity/src/domain/income/income_sources.dart';
+import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
@@ -165,6 +166,20 @@ void main() {
           pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
           safeToSpendTodayProvider.overrideWith((ref) async => null),
           untilNextMoneyProvider.overrideWith((ref) async => until),
+          purposeQueueProvider.overrideWith(
+            (ref) async => [
+              LedgerEntry(
+                id: 8,
+                accountId: 1,
+                occurredAt: DateTime.utc(2026, 11, 13, 9),
+                amountMinor: 300000,
+                direction: TransactionDirection.inflow,
+                kind: TransactionKind.received,
+                payeeName: 'Test Wanjiku',
+                needsPurpose: true,
+              ),
+            ],
+          ),
           incomeSourcesProvider.overrideWith(
             () => _FixedSources({IncomeSource.support}),
           ),
@@ -189,6 +204,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('On hand'), findsOneWidget);
+    expect(find.byKey(const Key('home-what-was-this')), findsOneWidget);
+    expect(find.text('KES 3,000 from Test Wanjiku'), findsOneWidget);
   });
 }
 

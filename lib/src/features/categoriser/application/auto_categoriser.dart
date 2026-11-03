@@ -51,7 +51,12 @@ class AutoCategoriser {
           final tx = row.readTable(t);
           final payee = row.readTableOrNull(p);
 
-          if (payee?.defaultCategoryId != null) {
+          // The payee's category applies, or money from them asks what it
+          // was: either way no suggestion is kept.
+          final asksPurpose =
+              (payee?.askPurpose ?? false) &&
+              tx.direction == TransactionDirection.inflow;
+          if (payee?.defaultCategoryId != null || asksPurpose) {
             if (tx.autoCategoryId != null ||
                 tx.autoCategorySource != null ||
                 tx.autoCategoryConfidence != null) {

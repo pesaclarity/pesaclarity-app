@@ -52,6 +52,10 @@ class Payees extends Table {
       integer().nullable().references(Categories, #id)();
   TextColumn get leakType =>
       textEnum<LeakType>().withDefault(Constant(LeakType.none.name))();
+
+  /// Their money has meant different things, so money from them asks
+  /// "What was this?" instead of taking [defaultCategoryId].
+  BoolColumn get askPurpose => boolean().withDefault(const Constant(false))();
 }
 
 /// Raw identifiers that resolve to a payee, normalised by `PayeeIdentifier`.

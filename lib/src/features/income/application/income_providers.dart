@@ -10,6 +10,7 @@ import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../domain/income/income_pattern.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/ledger/balances.dart';
+import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/time/calendar.dart';
 
 /// How money usually comes to the person, as they answered at setup.
@@ -120,4 +121,21 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
     paceMinor: (pace.weekdayMinor * 5 + pace.weekendMinor * 2) ~/ 7,
     nextMoney: next,
   );
+});
+
+/// Money in from people whose money has meant different things, waiting to
+/// be told what it was: newest first, from the last [incomePatternDays].
+final purposeQueueProvider = FutureProvider<List<LedgerEntry>>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(
+        from: today.addDays(-incomePatternDays).startInstant,
+        to: today.addDays(1).startInstant,
+      );
+  return [
+    for (final e in entries)
+      if (e.needsPurpose) e,
+  ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 });

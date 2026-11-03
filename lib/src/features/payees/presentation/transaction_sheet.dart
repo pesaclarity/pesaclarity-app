@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../data/repositories/categories_repository.dart';
+import '../../../data/repositories/purpose_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
@@ -11,6 +12,7 @@ import '../../../domain/export/export_tables.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../income/presentation/what_was_this_sheet.dart';
 import '../application/payee_providers.dart';
 import 'category_picker.dart';
 import 'payee_sheet.dart';
@@ -84,9 +86,18 @@ class _Body extends ConsumerWidget {
       case FollowPayeeCategory():
         await repo.setOverride(detail.record.id, null);
       case ChosenCategory(:final id):
-        // Choosing what the payee already gives keeps following the payee.
-        final followsPayee = payee != null && id == payee.defaultCategoryId;
+        // Choosing what the payee already gives keeps following the payee,
+        // unless money from them asks what it was.
+        final followsPayee =
+            payee != null &&
+            id == payee.defaultCategoryId &&
+            !detail.needsPurpose;
         await repo.setOverride(detail.record.id, followsPayee ? null : id);
+        if (id != null) {
+          await ref
+              .read(purposeRepositoryProvider)
+              .noteChoice(detail.record.id, id);
+        }
     }
   }
 
@@ -178,6 +189,30 @@ class _Body extends ConsumerWidget {
                 ),
               if (payee != null || counterparty != null)
                 const Divider(height: 1),
+              if (detail.needsPurpose && payee != null) ...[
+                ListTile(
+                  key: const Key('transaction-what-was-this'),
+                  title: const Text('What was this?'),
+                  subtitle: const Text(
+                    'Their money has meant different things',
+                  ),
+                  trailing: Text(
+                    'Answer',
+                    style: TextStyle(
+                      color: colors.link,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => showWhatWasThis(
+                    context,
+                    transactionId: r.id,
+                    payeeName: payee.displayName,
+                    amountMinor: r.amountMinor,
+                    currency: r.currency,
+                  ),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 title: const Text('Category'),
                 subtitle: Text(
