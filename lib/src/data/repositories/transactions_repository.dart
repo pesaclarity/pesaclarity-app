@@ -133,7 +133,22 @@ class DriftTransactionsRepository implements TransactionsRepository {
         return added;
       });
 
-  Future<bool> _hasDedupeKey(TransactionsCompanion transaction, String key) =>
+  Future<bool> _hasDedupeKey(
+    TransactionsCompanion transaction,
+    String key,
+  ) async =>
+      await _wasMoved(transaction.accountId.value, key) ||
+      await _isStored(transaction, key);
+
+  /// Moved to another space: it lives there now.
+  Future<bool> _wasMoved(int accountId, String key) async =>
+      await (_db.select(_db.movedTransactions)..where(
+            (m) => m.accountId.equals(accountId) & m.dedupeKey.equals(key),
+          ))
+          .getSingleOrNull() !=
+      null;
+
+  Future<bool> _isStored(TransactionsCompanion transaction, String key) =>
       (_db.selectOnly(_db.transactions)
             ..addColumns([_db.transactions.id])
             ..where(

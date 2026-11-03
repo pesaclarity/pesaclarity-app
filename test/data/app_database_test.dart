@@ -690,6 +690,18 @@ void main() {
       expect(giving.name, 'Church, giving and fundraisers');
     });
 
+    test('migrates a version 17 database: moved transactions', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE moved_transactions');
+      await old.customStatement('PRAGMA user_version = 17');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.movedTransactions).get(), isEmpty);
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();
