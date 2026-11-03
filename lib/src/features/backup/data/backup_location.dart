@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../../domain/spaces/space.dart';
 import 'backup_settings_repository.dart';
 
 /// One backup file at a location, as listed for restore.
@@ -9,6 +10,7 @@ final class BackupEntry {
     required this.name,
     required this.createdAt,
     this.sizeBytes,
+    this.space = personalSpaceId,
   });
 
   /// The location's own handle: a vault id, Drive file id or document URI.
@@ -16,6 +18,9 @@ final class BackupEntry {
   final String name;
   final DateTime createdAt;
   final int? sizeBytes;
+
+  /// Which space this is a copy of.
+  final String space;
 }
 
 /// Somewhere encrypted backup files can be stored and fetched back from.
@@ -44,18 +49,29 @@ final class BackupLocationException implements Exception {
 }
 
 /// The file name every backup is written under, such as
-/// `pesaclarity-2026-10-26-0610.pcbackup`.
-String backupFileName(DateTime at) {
+/// `pesaclarity-2026-10-26-0610.pcbackup` for Personal, or
+/// `pesaclarity-abc123-2026-10-26-0610.pcbackup` for another space.
+String backupFileName(DateTime at, [String space = personalSpaceId]) {
   String two(int n) => n.toString().padLeft(2, '0');
-  return 'pesaclarity-${at.year}-${two(at.month)}-${two(at.day)}-'
+  final prefix = space == personalSpaceId ? '' : '$space-';
+  return 'pesaclarity-$prefix${at.year}-${two(at.month)}-${two(at.day)}-'
       '${two(at.hour)}${two(at.minute)}.pcbackup';
 }
 
+final _backupName = RegExp(
+  r'pesaclarity-(?:([a-z0-9]{1,32})-)?(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})'
+  r'\.pcbackup',
+);
+
 /// Reads the time back out of a name made by [backupFileName].
 DateTime? backupTimeFromName(String name) {
-  final match = RegExp(r'pesaclarity-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})')
-      .firstMatch(name);
+  final match = _backupName.firstMatch(name);
   if (match == null) return null;
-  final parts = [for (var i = 1; i <= 5; i++) int.parse(match.group(i)!)];
+  final parts = [for (var i = 2; i <= 6; i++) int.parse(match.group(i)!)];
   return DateTime(parts[0], parts[1], parts[2], parts[3], parts[4]);
 }
+
+/// Reads the space back out of a name made by [backupFileName]; Personal for
+/// names without one, and for any other file.
+String backupSpaceFromName(String name) =>
+    _backupName.firstMatch(name)?.group(1) ?? personalSpaceId;
