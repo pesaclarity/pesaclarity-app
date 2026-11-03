@@ -26,6 +26,7 @@ part 'app_database.g.dart';
     LentLoans,
     LoanPayments,
     Transactions,
+    MovedTransactions,
     TransactionTags,
     Recurring,
     BudgetItems,
@@ -45,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -159,6 +160,10 @@ class AppDatabase extends _$AppDatabase {
       }
       // Categories version 3: support, allowance and gifts as income.
       if (from < 15) await seedDefaultCategories();
+      if (from < 18 &&
+          !await _exists('table', movedTransactions.actualTableName)) {
+        await m.createTable(movedTransactions);
+      }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(

@@ -413,6 +413,19 @@ class SelectedInstitutions extends Table {
 }
 
 /// Small app-level settings, such as onboarding completion.
+/// Transactions moved to another space, by account and dedupe key, so
+/// reading the same message again does not bring them back here.
+@DataClassName('MovedTransaction')
+class MovedTransactions extends Table {
+  IntColumn get accountId =>
+      integer().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  TextColumn get dedupeKey => text()();
+  TextColumn get spaceId => text()();
+
+  @override
+  Set<Column> get primaryKey => {accountId, dedupeKey};
+}
+
 class AppSettings extends Table {
   TextColumn get key => text().withLength(min: 1, max: 80)();
   TextColumn get value => text()();
