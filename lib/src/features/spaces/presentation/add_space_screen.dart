@@ -69,21 +69,32 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
             const SizedBox(height: 8),
             Text('Kind', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            SegmentedButton<SpaceKind>(
-              segments: [
-                for (final kind in SpaceKind.values)
-                  ButtonSegment(value: kind, label: Text(kind.label)),
-              ],
-              selected: {_kind},
-              onSelectionChanged: (v) => setState(() => _kind = v.single),
+            Card(
+              child: RadioGroup<SpaceKind>(
+                groupValue: _kind,
+                onChanged: (v) => setState(() => _kind = v ?? _kind),
+                child: Column(
+                  children: [
+                    for (final (i, kind) in SpaceKind.values.indexed) ...[
+                      if (i > 0) const Divider(height: 1),
+                      RadioListTile<SpaceKind>(
+                        key: Key('space-kind-${kind.name}'),
+                        value: kind,
+                        title: Text(kind.label),
+                        subtitle: Text(kind.hint),
+                        controlAffinity: ListTileControlAffinity.trailing,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             Text('Which money goes here?', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
               'Next, pick the accounts this space reads, such as a bank used '
-              'only for the business. Any transaction can also be moved '
-              'here by hand.',
+              'only for it. Any transaction can also be moved here by hand.',
               style: theme.textTheme.bodyMedium!.copyWith(
                 color: colors.textMuted,
               ),

@@ -2,11 +2,18 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/income/income_sources.dart';
+import '../../../domain/ledger/balances.dart';
 import '../../../domain/spaces/space.dart';
+import '../../../domain/spaces/space_summary.dart';
+import '../../../domain/time/calendar.dart';
 import '../../income/application/income_providers.dart';
+import '../../payees/application/payee_providers.dart';
 
 /// Every space on this phone, Personal first, kept in Personal's database.
 class SpacesController extends AsyncNotifier<List<Space>> {
@@ -26,11 +33,16 @@ class SpacesController extends AsyncNotifier<List<Space>> {
     final next = [...current, Space(id: id, name: clean, kind: kind)];
     await _save(next);
     await ref.read(activeSpaceIdProvider.notifier).switchTo(id);
-    // A business plans week by week from its first day.
-    if (kind == SpaceKind.business) {
-      await ref.read(incomeSourcesProvider.notifier).choose({
-        IncomeSource.business,
-      });
+    await ref.read(appDatabaseProvider).becomeSpace(kind);
+    // How money comes in, so a business plans week by week and a farm by
+    // how long the money lasts, from the first day.
+    final sources = switch (kind) {
+      SpaceKind.business => {IncomeSource.business},
+      SpaceKind.farm => {IncomeSource.seasonal},
+      _ => null,
+    };
+    if (sources != null) {
+      await ref.read(incomeSourcesProvider.notifier).choose(sources);
     }
     return id;
   }
@@ -72,4 +84,39 @@ final activeSpaceProvider = Provider<Space>((ref) {
   final id = ref.watch(activeSpaceIdProvider);
   final spaces = ref.watch(spacesProvider).value ?? const [Space.personal];
   return spaces.firstWhere((s) => s.id == id, orElse: () => Space.personal);
+});
+
+/// What Home shows first for a space that is not Personal; null for
+/// Personal.
+final spaceSummaryProvider = FutureProvider<SpaceSummary?>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final space = ref.watch(activeSpaceProvider);
+  if (space.kind == SpaceKind.personal) return null;
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final accounts = await ref.watch(accountsRepositoryProvider).openings();
+  var from = today.addDays(-31 * farmSeasonMonths).startInstant;
+  for (final a in accounts) {
+    if (a.openingDate.isBefore(from)) from = a.openingDate;
+  }
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(from: from, to: today.addDays(1).startInstant);
+  final categories = await ref.watch(categoriesProvider.future);
+  return SpaceSummary.of(
+    space.kind,
+    entries,
+    today: today,
+    categories: {
+      for (final c in categories)
+        c.id: (key: c.key, name: c.name, type: c.type),
+    },
+    balanceMinor: accounts.isEmpty
+        ? 0
+        : totalBalanceAt(
+            accounts,
+            entries,
+            at: today.addDays(1).startInstant,
+            where: (_) => true,
+          ),
+  );
 });
