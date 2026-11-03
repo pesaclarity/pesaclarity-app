@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -149,6 +149,8 @@ class AppDatabase extends _$AppDatabase {
           !await _exists('table', readerTemplates.actualTableName)) {
         await m.createTable(readerTemplates);
       }
+      // Categories version 3: support, allowance and gifts as income.
+      if (from < 15) await seedDefaultCategories();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

@@ -26,7 +26,7 @@ const uncategorisedName = 'Uncategorised';
 /// The default Kenyan category set, seeded on first run.
 ///
 /// Keys mirror `src/akili/resources/categories.yaml`
-/// (version 2) in pesaclarity/pesaclarity-ml so the categoriser's outputs map
+/// (version 3) in pesaclarity/pesaclarity-ml so the categoriser's outputs map
 /// one to one.
 /// Change both together.
 const defaultCategories = <CategorySeed>[
@@ -41,6 +41,13 @@ const defaultCategories = <CategorySeed>[
     'Money received from people',
     CategoryType.income,
   ),
+  CategorySeed('support_received', 'Support from family', CategoryType.income),
+  CategorySeed(
+    'allowance_bursary',
+    'Allowance and bursary',
+    CategoryType.income,
+  ),
+  CategorySeed('gifts_received', 'Gifts received', CategoryType.income),
   CategorySeed(
     'groceries',
     'Groceries and household',
