@@ -16,6 +16,9 @@ class _MemoryStore implements ActiveSpaceStore {
 
   @override
   Future<void> write(String spaceId) async => written.add(spaceId);
+
+  @override
+  Future<void> writeOpenChoice(String choice) async => written.add(choice);
 }
 
 void main() {
@@ -35,6 +38,13 @@ void main() {
       final back = spacesFromJson(spacesToJson(spaces));
       expect(back.map((s) => s.name), ['Personal', 'Mama Mboga stall']);
     });
+  });
+
+  test('the app opens in the last space unless one is chosen', () {
+    expect(spaceToOpen(openLastSpace, 'abc123'), 'abc123');
+    expect(spaceToOpen(askForSpace, 'abc123'), 'abc123');
+    expect(spaceToOpen(personalSpaceId, 'abc123'), personalSpaceId);
+    expect(spaceToOpen('def456', personalSpaceId), 'def456');
   });
 
   group('SpacesController', () {
@@ -132,6 +142,30 @@ void main() {
     });
   });
 
+  testWidgets('Open the app in saves the choice', (tester) async {
+    final store = _MemoryStore();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          spacesProvider.overrideWith(_TwoSpaces.new),
+          activeSpaceProvider.overrideWithValue(Space.personal),
+          openSpaceChoiceProvider.overrideWith(() => _Choice(store)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const Scaffold(body: OpenSpaceSheet()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('The last space you used'), findsOneWidget);
+    expect(find.text('Personal right now'), findsOneWidget);
+    expect(find.text('Ask each time'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('open-in-abc123')));
+    await tester.pumpAndSettle();
+    expect(store.written, ['abc123']);
+  });
+
   testWidgets('the sheet lists spaces and opens one', (tester) async {
     final personal = AppDatabase(NativeDatabase.memory());
     final store = _MemoryStore();
@@ -164,4 +198,14 @@ class _TwoSpaces extends SpacesController {
     Space.personal,
     Space(id: 'abc123', name: 'Mama Mboga stall', kind: SpaceKind.business),
   ];
+}
+
+class _Choice extends OpenSpaceChoice {
+  _Choice(this.store);
+  final _MemoryStore store;
+  @override
+  Future<void> choose(String choice) async {
+    store.written.add(choice);
+    state = choice;
+  }
 }

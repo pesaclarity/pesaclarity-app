@@ -82,6 +82,20 @@ class SpacesSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
+            if (spaces.length > 1) ...[
+              Card(
+                child: ListTile(
+                  key: const Key('spaces-open-in'),
+                  title: const Text('Open the app in'),
+                  subtitle: Text(
+                    openChoiceLabel(ref.watch(openSpaceChoiceProvider), spaces),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showOpenSpaceChoice(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             OutlinedButton(
               key: const Key('spaces-add'),
               onPressed: () {
@@ -89,6 +103,87 @@ class SpacesSheet extends ConsumerWidget {
                 context.push(AppRoutes.addSpace);
               },
               child: const Text('Add a space'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// How [choice] reads: `The last space you used`, `Ask each time` or a
+/// space's name.
+String openChoiceLabel(String choice, List<Space> spaces) => switch (choice) {
+  openLastSpace => 'The last space you used',
+  askForSpace => 'Ask each time',
+  _ =>
+    spaces.where((s) => s.id == choice).map((s) => s.name).firstOrNull ??
+        'The last space you used',
+};
+
+/// Which space the app opens in after unlocking.
+Future<void> showOpenSpaceChoice(BuildContext context) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const OpenSpaceSheet(),
+    );
+
+class OpenSpaceSheet extends ConsumerWidget {
+  const OpenSpaceSheet({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final spaces = ref.watch(spacesProvider).value ?? const [Space.personal];
+    final choice = ref.watch(openSpaceChoiceProvider);
+    final lastName = ref.watch(activeSpaceProvider).name;
+    final options = <(String, String, String?)>[
+      (openLastSpace, 'The last space you used', '$lastName right now'),
+      for (final s in spaces) (s.id, s.name, null),
+      (askForSpace, 'Ask each time', 'Choose a space when the app opens'),
+    ];
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Open the app in', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Which space you see first after unlocking.',
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: RadioGroup<String>(
+                groupValue: choice,
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await ref.read(openSpaceChoiceProvider.notifier).choose(v);
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                child: Column(
+                  children: [
+                    for (final (i, (value, title, hint))
+                        in options.indexed) ...[
+                      if (i > 0) const Divider(height: 1),
+                      RadioListTile<String>(
+                        key: Key('open-in-$value'),
+                        value: value,
+                        title: Text(title),
+                        subtitle: hint == null ? null : Text(hint),
+                        controlAffinity: ListTileControlAffinity.trailing,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ],
         ),

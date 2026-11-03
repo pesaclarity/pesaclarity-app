@@ -2,6 +2,17 @@
 /// and it also keeps app-wide settings and the list of spaces.
 const personalSpaceId = 'personal';
 
+/// Open the app in the space used last. The default.
+const openLastSpace = 'last';
+
+/// Ask which space each time the app opens.
+const askForSpace = 'ask';
+
+/// The space to open with, given the [choice] of where to open and the
+/// space used [last].
+String spaceToOpen(String choice, String last) =>
+    choice == openLastSpace || choice == askForSpace ? last : choice;
+
 /// What a space is for.
 enum SpaceKind {
   personal('Personal', 'Your own money and plan'),
