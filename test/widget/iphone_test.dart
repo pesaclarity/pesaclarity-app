@@ -8,6 +8,8 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/features/activity/presentation/add_transaction_sheet.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 import 'package:pesaclarity/src/features/sms/presentation/connect_messages_screen.dart';
+import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
+import 'package:pesaclarity/src/features/statements/presentation/statement_import_screen.dart';
 import 'package:pesaclarity/src/routing/app_shell.dart';
 import 'package:pesaclarity/src/shared/adaptive/adaptive.dart';
 import 'package:pesaclarity/src/shared/widgets/selector_field.dart';
@@ -73,7 +75,10 @@ void main() {
       tester,
       db: db,
       flavor: AppFlavor.appstore,
-      overrides: [shortcutConnectionProvider.overrideWithValue(shortcuts)],
+      overrides: [
+        shortcutConnectionProvider.overrideWithValue(shortcuts),
+        statementImportAvailableProvider.overrideWithValue(true),
+      ],
     );
 
     Future<void> toConnectStep(WidgetTester tester) async {
@@ -115,6 +120,17 @@ void main() {
 
       await tapText(tester, 'Do this later');
       expect(find.byType(PillNavigationBar), findsOneWidget);
+    });
+
+    testOnIPhone('setup offers a statement for the months before', (
+      tester,
+    ) async {
+      await toConnectStep(tester);
+      await scrollTo(tester, find.byKey(const Key('connect-import-past')));
+      expect(find.text('Past months'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('connect-import-past')));
+      await tester.pumpAndSettle();
+      expect(find.byType(StatementImportScreen), findsOneWidget);
     });
 
     testOnIPhone('once a message arrives, onboarding can continue', (
