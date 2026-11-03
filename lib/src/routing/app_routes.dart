@@ -18,6 +18,9 @@ abstract final class AppRoutes {
 
   /// Messages no parser rule read, and one of them by review item id.
   static const review = '/home/review';
+
+  /// Business and gigs: this week against a usual one, and the kibubu.
+  static const weekByWeek = '/home/week';
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';

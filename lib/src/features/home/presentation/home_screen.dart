@@ -108,6 +108,8 @@ class HomeScreen extends ConsumerWidget {
               if (safeToSpend == null && untilNext != null)
                 _UntilNextMoneyCard(
                   untilNext,
+                  kibubuMinor:
+                      ref.watch(kibubuProvider).value?.balanceMinor ?? 0,
                   onTap: () => openActivity(
                     ActivityFilter(
                       type: ActivityType.spending,
@@ -136,6 +138,7 @@ class HomeScreen extends ConsumerWidget {
               const _ReviewCard(),
               const _WhatWasThisCard(),
               if (untilNext != null) _MoneyInCard(untilNext, today: today),
+              if (untilNext != null && sources.irregular) const _WeekCard(),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -396,9 +399,16 @@ class _SafeToSpendCard extends StatelessWidget {
 /// Safe to spend for people without a payday: what is on hand, spread
 /// until the next money.
 class _UntilNextMoneyCard extends StatelessWidget {
-  const _UntilNextMoneyCard(this.result, {required this.onTap});
+  const _UntilNextMoneyCard(
+    this.result, {
+    required this.onTap,
+    this.kibubuMinor = 0,
+  });
 
   final UntilNextMoney result;
+
+  /// Set aside in the kibubu, already out of [UntilNextMoney.onHandMinor].
+  final int kibubuMinor;
   final VoidCallback onTap;
 
   @override
@@ -421,9 +431,11 @@ class _UntilNextMoneyCard extends StatelessWidget {
       when = 'For the next $rollingPlanDays days';
     }
     final onHand = '${_plain(context, result.onHandMinor)} on hand';
-    final setAside = result.billsMinor > 0
-        ? ' · ${_plain(context, result.billsMinor)} set aside for bills'
-        : '';
+    final setAside = [
+      if (result.billsMinor > 0)
+        ' · ${_plain(context, result.billsMinor)} set aside for bills',
+      if (kibubuMinor > 0) ' · ${_plain(context, kibubuMinor)} in kibubu',
+    ].join();
 
     return Card(
       key: const Key('until-next-money'),
@@ -902,6 +914,42 @@ class _MoneyInCard extends ConsumerWidget {
             from: from ?? 'someone',
             plan: plan,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Business and gigs: this week so far, opening week by week.
+class _WeekCard extends ConsumerWidget {
+  const _WeekCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(weekByWeekProvider).value;
+    if (plan == null) return const SizedBox.shrink();
+    final colors = PesaColors.of(context);
+    final week = plan.thisWeek;
+    final add = plan.suggestAddMinor;
+    final take = plan.suggestTakeMinor;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: ListTile(
+          key: const Key('home-week'),
+          title: Text(
+            'This week · in ${_plain(context, week.inMinor)} · '
+            'out ${_plain(context, week.outMinor)}',
+          ),
+          subtitle: Text(
+            add > 0
+                ? 'A good week. Put ${_plain(context, add)} in your kibubu?'
+                : take > 0
+                ? 'Your kibubu can cover up to ${_plain(context, take)}'
+                : 'Week by week and your kibubu',
+          ),
+          trailing: Icon(Icons.chevron_right, color: colors.textMuted),
+          onTap: () => context.push(AppRoutes.weekByWeek),
         ),
       ),
     );

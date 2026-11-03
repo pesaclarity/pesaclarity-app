@@ -10,6 +10,7 @@ import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../domain/income/income_pattern.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
+import '../../../domain/income/week_by_week.dart';
 import '../../../domain/ledger/balances.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
@@ -49,6 +50,51 @@ class MakeItLastController extends AsyncNotifier<MakeItLastPin?> {
     state = AsyncData(pin);
   }
 }
+
+/// The kibubu: money set aside in good weeks for lean ones.
+class KibubuController extends AsyncNotifier<Kibubu> {
+  static const settingsKey = 'income.kibubu';
+
+  @override
+  Future<Kibubu> build() async => Kibubu.fromJson(
+    await ref.watch(appSettingsRepositoryProvider).readJson(settingsKey),
+  );
+
+  /// Puts [amountMinor] in (positive) or takes it out (negative) today.
+  Future<void> move(int amountMinor) async {
+    final today = CalendarDate.local(ref.read(clockProvider)());
+    final current = await future;
+    final next = current.withMove(
+      KibubuMove(on: today, amountMinor: amountMinor),
+    );
+    await ref
+        .read(appSettingsRepositoryProvider)
+        .writeJson(settingsKey, next.toJson());
+    state = AsyncData(next);
+  }
+}
+
+final kibubuProvider = AsyncNotifierProvider<KibubuController, Kibubu>(
+  KibubuController.new,
+);
+
+/// This week against a usual one, with the kibubu.
+final weekByWeekProvider = FutureProvider<WeekByWeek>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final from = weekStartOf(today).addDays(-7 * usualWeeksCount);
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(
+        from: from.addDays(-incomePatternDays).startInstant,
+        to: today.addDays(1).startInstant,
+      );
+  return WeekByWeek.of(
+    entries,
+    today: today,
+    kibubu: await ref.watch(kibubuProvider.future),
+  );
+});
 
 final makeItLastProvider =
     AsyncNotifierProvider<MakeItLastController, MakeItLastPin?>(
@@ -148,6 +194,7 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
         BillDue(name: f.name, due: f.date, amountMinor: f.amountMinor),
   ]..sort((a, b) => a.due.compareTo(b.due));
   final pin = await ref.watch(makeItLastProvider.future);
+  final kibubu = await ref.watch(kibubuProvider.future);
   final latest = await ref.watch(latestArrivalProvider.future);
   final spentToday = entries
       .where((e) => e.date == today)
@@ -162,12 +209,15 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   return UntilNextMoney.calculate(
     today: today,
     basis: basis,
-    onHandAtStartMinor: totalBalanceAt(
-      accounts,
-      entries,
-      at: today.startInstant,
-      where: (_) => true,
-    ),
+    // Money in the kibubu stays in the accounts but is not for spending.
+    onHandAtStartMinor:
+        totalBalanceAt(
+          accounts,
+          entries,
+          at: today.startInstant,
+          where: (_) => true,
+        ) -
+        kibubu.balanceMinor,
     billsMinor: bills.fold(0, (sum, b) => sum + b.amountMinor),
     bills: bills,
     spentTodayMinor: spentToday,

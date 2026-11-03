@@ -15,6 +15,7 @@ import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
+import '../features/income/presentation/week_by_week_screen.dart';
 import '../features/insights/presentation/insights_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
@@ -125,6 +126,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'import',
                     builder: (context, state) => const StatementImportScreen(),
+                  ),
+                  GoRoute(
+                    path: 'week',
+                    builder: (context, state) => const WeekByWeekScreen(),
                   ),
                   GoRoute(
                     path: 'profile',
