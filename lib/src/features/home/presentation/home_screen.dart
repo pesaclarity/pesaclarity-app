@@ -11,6 +11,7 @@ import '../../../domain/budget/safe_to_spend.dart';
 import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../domain/income/income_sources.dart';
+import '../../../domain/income/make_it_last.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/plan/upcoming_bills.dart';
 import '../../../domain/time/calendar.dart';
@@ -23,6 +24,7 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../income/application/income_providers.dart';
+import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
@@ -133,6 +135,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               const _ReviewCard(),
               const _WhatWasThisCard(),
+              if (untilNext != null) _MoneyInCard(untilNext, today: today),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -437,7 +440,7 @@ class _UntilNextMoneyCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Safe to spend today',
+                result.pinned ? 'Your plan for today' : 'Safe to spend today',
                 style: textTheme.labelLarge!.copyWith(color: scheme.onPrimary),
               ),
               const SizedBox(height: 10),
@@ -851,6 +854,53 @@ class _WhatWasThisCard extends ConsumerWidget {
             payeeName: from,
             amountMinor: first.amountMinor,
             currency: first.currency,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Money that just arrived, with a plan to make it last.
+class _MoneyInCard extends ConsumerWidget {
+  const _MoneyInCard(this.plan, {required this.today});
+
+  final UntilNextMoney plan;
+  final CalendarDate today;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final arrival = ref.watch(latestArrivalProvider).value;
+    final pin = ref.watch(makeItLastProvider).value;
+    if (arrival == null ||
+        today.daysUntil(arrival.date) < -makeItLastOfferDays ||
+        (pin != null && pin.arrivalId == arrival.id)) {
+      return const SizedBox.shrink();
+    }
+    final colors = PesaColors.of(context);
+    final from = arrival.payeeName ?? arrival.counterpartyName;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: ListTile(
+          key: const Key('home-money-in'),
+          title: Text(
+            [
+              'Money in · ${_kes(context, arrival.amountMinor)}',
+              if (from != null) 'from $from',
+            ].join(' '),
+          ),
+          subtitle: Text('Make it last until ${_dayLabel(plan.lastDay)}'),
+          trailing: Text(
+            'Plan',
+            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
+          ),
+          onTap: () => showMakeItLast(
+            context,
+            arrivalId: arrival.id,
+            arrivalMinor: arrival.amountMinor,
+            from: from ?? 'someone',
+            plan: plan,
           ),
         ),
       ),

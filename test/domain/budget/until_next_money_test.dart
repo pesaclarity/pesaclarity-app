@@ -54,4 +54,51 @@ void main() {
     expect(r.dailyMinor, 0);
     expect(r.days, 1);
   });
+
+  group('make it last', () {
+    // 5,000 from support every 14 days; rent share due on the 20th.
+    UntilNextMoney plan({int pace = 30000, int? pinned}) =>
+        UntilNextMoney.calculate(
+          today: today,
+          basis: NextMoneyBasis.rhythm,
+          onHandAtStartMinor: kes(5000),
+          billsMinor: kes(1500),
+          bills: [
+            BillDue(
+              name: 'Rent share',
+              due: CalendarDate(2026, 11, 20),
+              amountMinor: kes(1500),
+            ),
+          ],
+          spentTodayMinor: 0,
+          paceMinor: pace,
+          nextMoney: today.addDays(14),
+          pinnedDailyMinor: pinned,
+        );
+
+    test('bills, a buffer, then a daily amount to the last day', () {
+      final r = plan();
+      expect(r.bills.single.name, 'Rent share');
+      expect(r.bufferMinor, kes(500));
+      expect(r.dailyMinor, kes(3000) ~/ 14);
+      expect(r.lastDay, today.addDays(13));
+      expect(r.pinned, isFalse);
+    });
+
+    test('warns early when the usual pace uses it up first', () {
+      // 3,500 after bills at 500 a day lasts 7 days of 14.
+      final r = plan(pace: kes(500));
+      expect(r.runsOutEarly, isTrue);
+      expect(r.lastsUntil, today.addDays(7));
+      expect(plan(pace: kes(100)).runsOutEarly, isFalse);
+    });
+
+    test('a chosen daily amount is kept, and what it leaves is spare', () {
+      final r = plan(pinned: kes(150));
+      expect(r.pinned, isTrue);
+      expect(r.dailyMinor, kes(150));
+      // 5,000 − 1,500 − 500 − 14 × 150.
+      expect(r.spareMinor, kes(900));
+    });
+  });
 }
