@@ -14,6 +14,7 @@ import '../features/currency/presentation/setup_currency_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/income/presentation/income_sources_screen.dart';
 import '../features/insights/presentation/insights_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
@@ -72,6 +73,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'currency',
             builder: (context, state) => const SetupCurrencyScreen(),
+          ),
+          GoRoute(
+            path: 'income',
+            builder: (context, state) =>
+                const IncomeSourcesScreen(onboarding: true),
           ),
           GoRoute(
             path: 'accounts',
@@ -166,6 +172,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'currency',
                         builder: (context, state) => const BaseCurrencyScreen(),
+                      ),
+                      GoRoute(
+                        path: 'income',
+                        builder: (context, state) =>
+                            const IncomeSourcesScreen(),
                       ),
                       GoRoute(
                         path: 'subscriptions',

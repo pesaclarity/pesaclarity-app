@@ -26,7 +26,7 @@ class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
   Future<void> _continue(String code) async {
     setState(() => _saving = true);
     await ref.read(currencyControllerProvider.notifier).choose(code);
-    if (mounted) context.go(AppRoutes.onboardingAccounts);
+    if (mounted) context.go(AppRoutes.onboardingIncome);
   }
 
   @override

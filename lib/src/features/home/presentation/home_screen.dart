@@ -8,7 +8,9 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/budget/safe_to_spend.dart';
+import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
+import '../../../domain/income/income_sources.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/plan/upcoming_bills.dart';
 import '../../../domain/time/calendar.dart';
@@ -20,6 +22,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
+import '../../income/application/income_providers.dart';
 import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../statements/data/pdf_text_extractor.dart';
@@ -61,7 +64,19 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    final safeToSpend = ref.watch(safeToSpendTodayProvider).value;
+    final monthlySafe = ref.watch(safeToSpendTodayProvider).value;
+    final sources =
+        ref.watch(incomeSourcesProvider).value ?? const IncomeSources({});
+    // A salary alone keeps the monthly figure; everyone else plans until
+    // the next money.
+    final safeToSpend =
+        monthlySafe != null &&
+            monthlyPlanFits(sources, hasBudget: monthlySafe.budgetMinor > 0)
+        ? monthlySafe
+        : null;
+    final untilNext = safeToSpend == null
+        ? ref.watch(untilNextMoneyProvider).value
+        : null;
     final health = ref.watch(healthIndexProvider).value;
     final forecast = ref.watch(cashFlowForecastProvider).value;
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
@@ -87,7 +102,18 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _Header(today: today),
               const SizedBox(height: 20),
-              if (safeToSpend == null)
+              if (safeToSpend == null && untilNext != null)
+                _UntilNextMoneyCard(
+                  untilNext,
+                  onTap: () => openActivity(
+                    ActivityFilter(
+                      type: ActivityType.spending,
+                      from: today,
+                      to: today,
+                    ),
+                  ),
+                )
+              else if (safeToSpend == null)
                 HeroFigureCard(
                   label: 'Safe to spend today',
                   figure: '${BaseCurrency.code} —',
@@ -111,8 +137,12 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: _StatTile(
-                        label: 'Left this month',
-                        value: safeToSpend == null
+                        label: untilNext != null
+                            ? 'On hand'
+                            : 'Left this month',
+                        value: untilNext != null
+                            ? _plain(context, untilNext.onHandMinor)
+                            : safeToSpend == null
                             ? '—'
                             : _plain(context, safeToSpend.leftThisMonthMinor),
                         onTap: safeToSpend == null
@@ -357,6 +387,77 @@ class _SafeToSpendCard extends StatelessWidget {
     );
   }
 }
+
+/// Safe to spend for people without a payday: what is on hand, spread
+/// until the next money.
+class _UntilNextMoneyCard extends StatelessWidget {
+  const _UntilNextMoneyCard(this.result, {required this.onTap});
+
+  final UntilNextMoney result;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final onBrand = textTheme.bodyMedium!.copyWith(color: scheme.onPrimary);
+    final next = result.nextMoney;
+    final lasts = result.lastsUntil;
+    final String when;
+    if (result.overTodayMinor > 0) {
+      when = "${_kes(context, result.overTodayMinor)} over today's amount";
+    } else if (result.basis == NextMoneyBasis.rhythm && next != null) {
+      when = 'Until about ${_dayLabel(next)}, when money usually comes';
+    } else if (result.basis == NextMoneyBasis.noDate) {
+      when = lasts == null
+          ? 'Spread over what you have'
+          : 'Lasts until about ${_dayLabel(lasts)} at this pace';
+    } else {
+      when = 'For the next $rollingPlanDays days';
+    }
+    final onHand = '${_plain(context, result.onHandMinor)} on hand';
+    final setAside = result.billsMinor > 0
+        ? ' · ${_plain(context, result.billsMinor)} set aside for bills'
+        : '';
+
+    return Card(
+      key: const Key('until-next-money'),
+      color: scheme.primary,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Safe to spend today',
+                style: textTheme.labelLarge!.copyWith(color: scheme.onPrimary),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _kes(context, result.leftTodayMinor),
+                style: AppTypography.amount(size: 44, color: scheme.onPrimary),
+              ),
+              const SizedBox(height: 10),
+              Text(when, style: onBrand),
+              const SizedBox(height: 10),
+              Text('$onHand$setAside', style: onBrand),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// `Fri 14 Nov`.
+String _dayLabel(CalendarDate date) =>
+    '${weekdayName(date).substring(0, 3)} ${shortDate(date)}';
 
 String _daysTo(int days) => switch (days) {
   <= 0 => '0 days',

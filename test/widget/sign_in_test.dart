@@ -37,6 +37,7 @@ Future<void> _finishMyAccounts(WidgetTester tester) async {
   if (find.textContaining('Continue with').evaluate().isNotEmpty) {
     await tester.tap(find.textContaining('Continue with'));
     await tester.pumpAndSettle();
+    await pickSalaryIncome(tester);
   }
   await tester.tap(find.text('M-Pesa'));
   await tester.pumpAndSettle();

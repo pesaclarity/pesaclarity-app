@@ -120,11 +120,22 @@ Future<void> tapText(WidgetTester tester, String text) async {
   await tester.pumpAndSettle();
 }
 
-/// From the welcome screen to My accounts, keeping the suggested currency.
+/// From the welcome screen to My accounts, keeping the suggested currency
+/// and answering Salary for how money comes in.
 Future<void> getStarted(WidgetTester tester) async {
   await tester.tap(find.text('Get started'));
   await tester.pumpAndSettle();
   await tester.tap(find.textContaining('Continue with'));
+  await tester.pumpAndSettle();
+  await pickSalaryIncome(tester);
+}
+
+/// The income step: a salary keeps the monthly plan.
+Future<void> pickSalaryIncome(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('income-salary')));
+  await tester.pumpAndSettle();
+  await scrollTo(tester, find.text('Continue'));
+  await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
 }
 

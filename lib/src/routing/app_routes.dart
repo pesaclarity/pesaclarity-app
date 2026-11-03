@@ -6,6 +6,7 @@ abstract final class AppRoutes {
 
   static const onboarding = '/onboarding';
   static const onboardingCurrency = '/onboarding/currency';
+  static const onboardingIncome = '/onboarding/income';
   static const onboardingAccounts = '/onboarding/accounts';
   static const onboardingScan = '/onboarding/accounts/scan';
   static const onboardingFirstInsight = '/onboarding/accounts/scan/insight';
@@ -29,6 +30,7 @@ abstract final class AppRoutes {
   static const terms = '/home/profile/privacy/terms';
   static const payees = '/home/profile/payees';
   static const baseCurrency = '/home/profile/currency';
+  static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
 
   /// iPhone: the Shortcuts automation that passes messages.

@@ -49,6 +49,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue with KES'));
     await tester.pumpAndSettle();
+    await pickSalaryIncome(tester);
 
     expect(find.text('Which accounts do you use?'), findsOneWidget);
     final saved = await tester.runAsync(
