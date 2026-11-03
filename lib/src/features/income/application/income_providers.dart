@@ -9,8 +9,10 @@ import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../domain/income/income_pattern.dart';
 import '../../../domain/income/income_sources.dart';
+import '../../../domain/income/make_it_last.dart';
 import '../../../domain/ledger/balances.dart';
 import '../../../domain/ledger/ledger_entry.dart';
+import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/time/calendar.dart';
 
 /// How money usually comes to the person, as they answered at setup.
@@ -30,6 +32,52 @@ class IncomeSourcesController extends AsyncNotifier<IncomeSources> {
     state = AsyncData(sources);
   }
 }
+
+/// The daily amount chosen to make the latest money last.
+class MakeItLastController extends AsyncNotifier<MakeItLastPin?> {
+  static const settingsKey = 'income.makeItLast';
+
+  @override
+  Future<MakeItLastPin?> build() async => MakeItLastPin.fromJson(
+    await ref.watch(appSettingsRepositoryProvider).readJson(settingsKey),
+  );
+
+  Future<void> use(MakeItLastPin pin) async {
+    await ref
+        .read(appSettingsRepositoryProvider)
+        .writeJson(settingsKey, pin.toJson());
+    state = AsyncData(pin);
+  }
+}
+
+final makeItLastProvider =
+    AsyncNotifierProvider<MakeItLastController, MakeItLastPin?>(
+      MakeItLastController.new,
+    );
+
+/// The newest money that arrived as income, from the last
+/// [incomePatternDays].
+final latestArrivalProvider = FutureProvider<LedgerEntry?>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final entries = await ref
+      .watch(transactionsRepositoryProvider)
+      .ledgerEntries(
+        from: today.addDays(-incomePatternDays).startInstant,
+        to: today.addDays(1).startInstant,
+      );
+  LedgerEntry? latest;
+  for (final e in entries) {
+    final role = roleOf(e);
+    if (role != LedgerRole.income && role != LedgerRole.awaitingPayee) {
+      continue;
+    }
+    if (latest == null || !e.occurredAt.isBefore(latest.occurredAt)) {
+      latest = e;
+    }
+  }
+  return latest;
+});
 
 final incomeSourcesProvider =
     AsyncNotifierProvider<IncomeSourcesController, IncomeSources>(
@@ -94,9 +142,13 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   final horizon = basis == NextMoneyBasis.rhythm && next != null
       ? next
       : today.addDays(rollingPlanDays);
-  final bills = scheduledFlows(plan, entries, today: today)
-      .where((f) => !f.isIncome && f.date.isBefore(horizon))
-      .fold(0, (sum, f) => sum + f.amountMinor);
+  final bills = [
+    for (final f in scheduledFlows(plan, entries, today: today))
+      if (!f.isIncome && f.date.isBefore(horizon))
+        BillDue(name: f.name, due: f.date, amountMinor: f.amountMinor),
+  ]..sort((a, b) => a.due.compareTo(b.due));
+  final pin = await ref.watch(makeItLastProvider.future);
+  final latest = await ref.watch(latestArrivalProvider.future);
   final spentToday = entries
       .where((e) => e.date == today)
       .fold(0, (sum, e) => sum + paceSpendOf(e, scheduledIds));
@@ -116,10 +168,15 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
       at: today.startInstant,
       where: (_) => true,
     ),
-    billsMinor: bills,
+    billsMinor: bills.fold(0, (sum, b) => sum + b.amountMinor),
+    bills: bills,
     spentTodayMinor: spentToday,
     paceMinor: (pace.weekdayMinor * 5 + pace.weekendMinor * 2) ~/ 7,
     nextMoney: next,
+    pinnedDailyMinor:
+        pin != null && pin.appliesOn(today, latestArrivalId: latest?.id)
+        ? pin.dailyMinor
+        : null,
   );
 });
 

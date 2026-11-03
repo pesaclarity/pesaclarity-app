@@ -18,6 +18,19 @@ enum NextMoneyBasis {
   noDate,
 }
 
+/// A bill set aside before the next money.
+class BillDue {
+  const BillDue({
+    required this.name,
+    required this.due,
+    required this.amountMinor,
+  });
+
+  final String name;
+  final CalendarDate due;
+  final int amountMinor;
+}
+
 /// Safe to spend for people without a payday: what is on hand now, less
 /// bills due before the next money and a small buffer, spread over the days
 /// until the next money.
@@ -33,6 +46,8 @@ class UntilNextMoney {
     required this.spentTodayMinor,
     this.nextMoney,
     this.lastsUntil,
+    this.bills = const [],
+    this.pinned = false,
   });
 
   /// Works out today's amount.
@@ -41,7 +56,9 @@ class UntilNextMoney {
   /// so spending during the day lowers [leftTodayMinor] but not the daily
   /// amount. [billsMinor] are bills due before the next money (or within
   /// the plan's days). [paceMinor] is the usual daily spending, used to say
-  /// how long the money lasts.
+  /// how long the money lasts. [bills] itemise [billsMinor]. A
+  /// [pinnedDailyMinor] is the daily amount the person chose to make it
+  /// last, used instead of the worked-out one.
   factory UntilNextMoney.calculate({
     required CalendarDate today,
     required NextMoneyBasis basis,
@@ -50,6 +67,8 @@ class UntilNextMoney {
     required int spentTodayMinor,
     required int paceMinor,
     CalendarDate? nextMoney,
+    List<BillDue> bills = const [],
+    int? pinnedDailyMinor,
   }) {
     final onHand = onHandAtStartMinor < 0 ? 0 : onHandAtStartMinor;
     final buffer = onHand * nextMoneyBufferPercent ~/ 100;
@@ -62,7 +81,8 @@ class UntilNextMoney {
       ),
       _ => rollingPlanDays,
     };
-    final daily = usable <= 0 ? 0 : usable ~/ days;
+    final worked = usable <= 0 ? 0 : usable ~/ days;
+    final daily = pinnedDailyMinor ?? worked;
     final lastsDays = paceMinor <= 0
         ? null
         : (onHand - billsMinor) ~/ paceMinor;
@@ -79,6 +99,8 @@ class UntilNextMoney {
       lastsUntil: lastsDays == null
           ? null
           : today.addDays(lastsDays < 0 ? 0 : lastsDays),
+      bills: bills,
+      pinned: pinnedDailyMinor != null,
     );
   }
 
@@ -104,6 +126,27 @@ class UntilNextMoney {
 
   /// The day the money on hand runs out at the usual pace.
   final CalendarDate? lastsUntil;
+
+  /// The bills in [billsMinor], soonest first.
+  final List<BillDue> bills;
+
+  /// Whether [dailyMinor] is the amount the person chose.
+  final bool pinned;
+
+  /// The last day the daily amount covers.
+  CalendarDate get lastDay => today.addDays(days - 1);
+
+  /// Whether the usual pace would use the money up before [lastDay].
+  bool get runsOutEarly =>
+      basis != NextMoneyBasis.noDate &&
+      lastsUntil != null &&
+      lastsUntil!.isBefore(lastDay);
+
+  /// What is left once bills, the buffer and the daily amounts are covered.
+  int get spareMinor {
+    final spare = onHandMinor - billsMinor - bufferMinor - dailyMinor * days;
+    return spare < 0 ? 0 : spare;
+  }
 
   /// Today's amount, less what has been spent today; never below zero.
   int get leftTodayMinor {

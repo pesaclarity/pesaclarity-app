@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
 import 'package:pesaclarity/src/domain/budget/until_next_money.dart';
 import 'package:pesaclarity/src/domain/income/income_sources.dart';
+import 'package:pesaclarity/src/domain/income/make_it_last.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
@@ -166,6 +167,18 @@ void main() {
           pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
           safeToSpendTodayProvider.overrideWith((ref) async => null),
           untilNextMoneyProvider.overrideWith((ref) async => until),
+          latestArrivalProvider.overrideWith(
+            (ref) async => LedgerEntry(
+              id: 3,
+              accountId: 1,
+              occurredAt: DateTime.utc(2026, 11, 13, 9),
+              amountMinor: 500000,
+              direction: TransactionDirection.inflow,
+              kind: TransactionKind.received,
+              payeeName: 'Test Mum',
+            ),
+          ),
+          makeItLastProvider.overrideWith(_NoPin.new),
           purposeQueueProvider.overrideWith(
             (ref) async => [
               LedgerEntry(
@@ -205,6 +218,8 @@ void main() {
     );
     expect(find.text('On hand'), findsOneWidget);
     expect(find.byKey(const Key('home-what-was-this')), findsOneWidget);
+    expect(find.text('Money in · KES 5,000 from Test Mum'), findsOneWidget);
+    expect(find.text('Make it last until Mon 23 Nov'), findsOneWidget);
     expect(find.text('KES 3,000 from Test Wanjiku'), findsOneWidget);
   });
 }
@@ -216,4 +231,9 @@ class _FixedSources extends IncomeSourcesController {
 
   @override
   Future<IncomeSources> build() async => IncomeSources(picked);
+}
+
+class _NoPin extends MakeItLastController {
+  @override
+  Future<MakeItLastPin?> build() async => null;
 }
