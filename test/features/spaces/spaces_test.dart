@@ -94,6 +94,18 @@ void main() {
         isEmpty,
       );
 
+      // The business gets its own categories; Personal keeps its own.
+      expect(await business.spaceKind(), SpaceKind.business);
+      final businessKeys = {
+        for (final c in await business.select(business.categories).get()) c.key,
+      };
+      expect(businessKeys, containsAll(['sales', 'stock', 'owner_pay']));
+      expect(businessKeys, isNot(contains('betting')));
+      expect(
+        (await personal.select(personal.categories).get()).map((c) => c.key),
+        contains('betting'),
+      );
+
       // A business plans week by week from the start.
       final sources = await container.read(incomeSourcesProvider.future);
       expect(sources.picked, {IncomeSource.business});

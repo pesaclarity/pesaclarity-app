@@ -4,12 +4,22 @@ const personalSpaceId = 'personal';
 
 /// What a space is for.
 enum SpaceKind {
-  personal('Personal'),
-  business('Business');
+  personal('Personal', 'Your own money and plan'),
+  business('Business', 'Sales, stock, wages and profit'),
+  household('Household', 'Shared home costs with family'),
+  savingsGroup('Savings group', 'Contributions, payouts and loans'),
+  rentalProperty('Rental property', 'Rent in, repairs and profit'),
+  farm('Farm', 'Inputs, labour and harvest sales'),
+  other('Something else', 'A project or anything to keep apart');
 
-  const SpaceKind(this.label);
+  const SpaceKind(this.label, this.hint);
 
   final String label;
+  final String hint;
+
+  /// Kinds that earn and spend to make a profit.
+  bool get makesProfit =>
+      this == business || this == rentalProperty || this == farm;
 }
 
 /// One set of money kept apart: its own encrypted database with accounts,

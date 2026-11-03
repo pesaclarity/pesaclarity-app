@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
+import '../../domain/spaces/space.dart';
+import '../../domain/spaces/space_categories.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
@@ -243,11 +247,52 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// The setting that says what kind of space this database holds.
+  static const spaceKindKey = 'space.kind';
+
+  /// What kind of space this database holds; Personal when unset.
+  Future<SpaceKind> spaceKind() async {
+    final row = await (select(
+      appSettings,
+    )..where((s) => s.key.equals(spaceKindKey))).getSingleOrNull();
+    if (row == null) return SpaceKind.personal;
+    try {
+      final name = jsonDecode(row.value);
+      return SpaceKind.values.asNameMap()[name] ?? SpaceKind.personal;
+    } on FormatException {
+      return SpaceKind.personal;
+    }
+  }
+
+  /// Makes this new database a space of [kind]: records the kind and swaps
+  /// the personal categories for the kind's own set. Categories already in
+  /// use stay.
+  Future<void> becomeSpace(SpaceKind kind) => transaction(() async {
+    await into(appSettings).insertOnConflictUpdate(
+      AppSettingsCompanion.insert(
+        key: spaceKindKey,
+        value: jsonEncode(kind.name),
+      ),
+    );
+    final keep = {for (final s in categorySeedsFor(kind)) s.key};
+    await customStatement(
+      'DELETE FROM categories WHERE key IS NOT NULL '
+      'AND key NOT IN (${List.filled(keep.length, '?').join(', ')}) '
+      'AND id NOT IN (SELECT category_override_id FROM transactions '
+      'WHERE category_override_id IS NOT NULL) '
+      'AND id NOT IN (SELECT default_category_id FROM payees '
+      'WHERE default_category_id IS NOT NULL)',
+      [...keep],
+    );
+    await seedDefaultCategories();
+  });
+
   Future<void> seedDefaultCategories() async {
     final existing = await select(categories).get();
+    final seeds = categorySeedsFor(await spaceKind());
     for (final seed in missingSeeds([
       for (final c in existing) (key: c.key, name: c.name),
-    ])) {
+    ], seeds)) {
       await into(categories).insert(
         CategoriesCompanion.insert(
           key: Value(seed.key),

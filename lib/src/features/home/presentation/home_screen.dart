@@ -14,6 +14,8 @@ import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/plan/upcoming_bills.dart';
+import '../../../domain/spaces/space.dart';
+import '../../../domain/spaces/space_summary.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
@@ -86,6 +88,7 @@ class HomeScreen extends ConsumerWidget {
     final forecast = ref.watch(cashFlowForecastProvider).value;
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
     final canImport = ref.watch(statementImportAvailableProvider);
+    final space = ref.watch(activeSpaceProvider);
 
     void openActivity(ActivityFilter filter) =>
         context.go(AppRoutes.activityWith(filter));
@@ -107,87 +110,107 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _Header(today: today),
               const SizedBox(height: 20),
-              if (safeToSpend == null && untilNext != null)
-                _UntilNextMoneyCard(
-                  untilNext,
-                  rainyDayMinor:
-                      ref.watch(rainyDayFundProvider).value?.balanceMinor ?? 0,
-                  onTap: () => openActivity(
-                    ActivityFilter(
-                      type: ActivityType.spending,
-                      from: today,
-                      to: today,
-                    ),
-                  ),
-                )
-              else if (safeToSpend == null)
-                HeroFigureCard(
-                  label: 'Safe to spend today',
-                  figure: '${BaseCurrency.code} —',
-                  caption:
-                      'Shows once your messages have been read and Plan has '
-                      'a day-to-day budget.',
-                )
-              else
-                _SafeToSpendCard(
-                  safeToSpend,
-                  nextIncome: forecast?.nextIncome,
-                  onTap: () => openActivity(
-                    thisMonth.copyWith(type: ActivityType.dayToDay),
-                  ),
+              if (space.kind != SpaceKind.personal) ...[
+                _SpaceSummaryCard(
+                  ref.watch(spaceSummaryProvider).value,
+                  kind: space.kind,
+                  onTap: () => openActivity(thisMonth),
                 ),
-              const SizedBox(height: 12),
-              const _ReviewCard(),
-              const _WhatWasThisCard(),
-              if (untilNext != null) _MoneyInCard(untilNext, today: today),
-              if (untilNext != null && sources.irregular) const _WeekCard(),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _StatTile(
-                        label: untilNext != null
-                            ? 'On hand'
-                            : 'Left this month',
-                        value: untilNext != null
-                            ? _plain(context, untilNext.onHandMinor)
-                            : safeToSpend == null
-                            ? '—'
-                            : _plain(context, safeToSpend.leftThisMonthMinor),
-                        onTap: safeToSpend == null
-                            ? null
-                            : () => openActivity(
-                                thisMonth.copyWith(type: ActivityType.dayToDay),
-                              ),
+                const SizedBox(height: 12),
+                const _ReviewCard(),
+                const _WhatWasThisCard(),
+                if (sources.irregular) const _WeekCard(),
+                const SizedBox(height: 12),
+                _ComingUp(bills: bills, today: today),
+              ] else ...[
+                if (safeToSpend == null && untilNext != null)
+                  _UntilNextMoneyCard(
+                    untilNext,
+                    rainyDayMinor:
+                        ref.watch(rainyDayFundProvider).value?.balanceMinor ??
+                        0,
+                    onTap: () => openActivity(
+                      ActivityFilter(
+                        type: ActivityType.spending,
+                        from: today,
+                        to: today,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Runway at this pace',
-                        value: _runwayLabel(forecast),
-                        onTap: forecast == null
-                            ? null
-                            : () => openActivity(paceWindow),
-                      ),
+                  )
+                else if (safeToSpend == null)
+                  HeroFigureCard(
+                    label: 'Safe to spend today',
+                    figure: '${BaseCurrency.code} —',
+                    caption:
+                        'Shows once your messages have been read and Plan has '
+                        'a day-to-day budget.',
+                  )
+                else
+                  _SafeToSpendCard(
+                    safeToSpend,
+                    nextIncome: forecast?.nextIncome,
+                    onTap: () => openActivity(
+                      thisMonth.copyWith(type: ActivityType.dayToDay),
                     ),
-                  ],
-                ),
-              ),
-              if (forecast != null) ...[
+                  ),
                 const SizedBox(height: 12),
-                _ForecastCard(forecast, onTap: () => openActivity(paceWindow)),
-              ],
-              if (health != null) ...[
-                const SizedBox(height: 12),
-                _HealthIndexCard(
-                  health,
-                  onTap: () => context.go(AppRoutes.insights),
+                const _ReviewCard(),
+                const _WhatWasThisCard(),
+                if (untilNext != null) _MoneyInCard(untilNext, today: today),
+                if (untilNext != null && sources.irregular) const _WeekCard(),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          label: untilNext != null
+                              ? 'On hand'
+                              : 'Left this month',
+                          value: untilNext != null
+                              ? _plain(context, untilNext.onHandMinor)
+                              : safeToSpend == null
+                              ? '—'
+                              : _plain(context, safeToSpend.leftThisMonthMinor),
+                          onTap: safeToSpend == null
+                              ? null
+                              : () => openActivity(
+                                  thisMonth.copyWith(
+                                    type: ActivityType.dayToDay,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatTile(
+                          label: 'Runway at this pace',
+                          value: _runwayLabel(forecast),
+                          onTap: forecast == null
+                              ? null
+                              : () => openActivity(paceWindow),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                if (forecast != null) ...[
+                  const SizedBox(height: 12),
+                  _ForecastCard(
+                    forecast,
+                    onTap: () => openActivity(paceWindow),
+                  ),
+                ],
+                if (health != null) ...[
+                  const SizedBox(height: 12),
+                  _HealthIndexCard(
+                    health,
+                    onTap: () => context.go(AppRoutes.insights),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                _ComingUp(bills: bills, today: today),
               ],
-              const SizedBox(height: 24),
-              _ComingUp(bills: bills, today: today),
             ],
           ),
         ),
@@ -970,6 +993,150 @@ class _WeekCard extends ConsumerWidget {
           onTap: () => context.push(AppRoutes.weekByWeek),
         ),
       ),
+    );
+  }
+}
+
+/// The top of Home for a space that is not Personal: profit for a business,
+/// rental or farm, what is left for a household, a savings group's pot.
+class _SpaceSummaryCard extends StatelessWidget {
+  const _SpaceSummaryCard(
+    this.summary, {
+    required this.kind,
+    required this.onTap,
+  });
+
+  final SpaceSummary? summary;
+  final SpaceKind kind;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = this.summary;
+    if (summary == null) {
+      return HeroFigureCard(
+        label: kind.label,
+        figure: '${BaseCurrency.code} —',
+        caption: 'Shows once this space has transactions.',
+      );
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final colors = PesaColors.of(context);
+    final onBrand = textTheme.bodyMedium!.copyWith(color: scheme.onPrimary);
+    final inLabel = switch (kind) {
+      SpaceKind.business || SpaceKind.farm => 'Sales',
+      SpaceKind.rentalProperty => 'Rent',
+      _ => 'In',
+    };
+    final detail = switch (kind) {
+      SpaceKind.business || SpaceKind.rentalProperty || SpaceKind.farm =>
+        '$inLabel ${_plain(context, summary.inMinor)} · costs '
+            '${_plain(context, summary.outMinor)}',
+      SpaceKind.household =>
+        'In ${_plain(context, summary.inMinor)} · out '
+            '${_plain(context, summary.outMinor)}'
+            '${summary.payersCount > 1 ? ' · ${summary.payersCount} people '
+                      'add money' : ''}',
+      SpaceKind.savingsGroup => [
+        summary.payersCount == 1
+            ? '1 member paid in this month'
+            : '${summary.payersCount} members paid in this month',
+        if (summary.loansOutCount > 0)
+          summary.loansOutCount == 1
+              ? '1 loan out'
+              : '${summary.loansOutCount} loans out',
+      ].join(' · '),
+      SpaceKind.personal || SpaceKind.other =>
+        'In ${_plain(context, summary.inMinor)} · out '
+            '${_plain(context, summary.outMinor)} this month',
+    };
+    final since = kind == SpaceKind.farm
+        ? 'Since ${shortDate(summary.from)}'
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          key: const Key('space-summary'),
+          color: scheme.primary,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    summary.headline,
+                    style: textTheme.labelLarge!.copyWith(
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _kes(context, summary.figureMinor),
+                    style: AppTypography.amount(
+                      size: 44,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(detail, style: onBrand),
+                  if (since != null) ...[
+                    const SizedBox(height: 6),
+                    Text(since, style: onBrand),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (kind.makesProfit && summary.rows.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Column(
+              children: [
+                for (final (i, row) in summary.rows.indexed) ...[
+                  if (i > 0) const Divider(height: 1),
+                  ListTile(
+                    title: Text(row.name),
+                    trailing: Text(
+                      _plain(context, row.amountMinor),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: row.isIncome ? colors.successText : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (kind.makesProfit && summary.paidYourselfMinor > 0) ...[
+          const SizedBox(height: 12),
+          Card(
+            key: const Key('space-paid-yourself'),
+            child: ListTile(
+              title: const Text('Paid yourself'),
+              subtitle: const Text(
+                'Moved to Personal. It counts as income there, not as a '
+                'cost here.',
+              ),
+              trailing: Text(
+                _plain(context, summary.paidYourselfMinor),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

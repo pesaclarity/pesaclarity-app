@@ -129,7 +129,10 @@ typedef ExistingCategory = ({String? key, String name});
 /// The seeds not yet present in [existing], by key or by name (ignoring
 /// case), so seeding twice adds nothing and never clashes with a category
 /// the user made.
-List<CategorySeed> missingSeeds(Iterable<ExistingCategory> existing) {
+List<CategorySeed> missingSeeds(
+  Iterable<ExistingCategory> existing, [
+  List<CategorySeed> seeds = defaultCategories,
+]) {
   final keys = <String>{};
   final names = <String>{};
   for (final c in existing) {
@@ -137,7 +140,7 @@ List<CategorySeed> missingSeeds(Iterable<ExistingCategory> existing) {
     names.add(categoryNameKey(c.name));
   }
   return [
-    for (final seed in defaultCategories)
+    for (final seed in seeds)
       if (!keys.contains(seed.key) &&
           !names.contains(categoryNameKey(seed.name)))
         seed,
