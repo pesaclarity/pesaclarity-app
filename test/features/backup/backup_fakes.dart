@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
+import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_location.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_settings_repository.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_sharing.dart';
@@ -13,14 +14,32 @@ const fakeSnapshotKey =
 
 /// Snapshots a fixed byte string and records what a restore would install.
 class FakeLocalDataStore implements LocalDataStore {
-  FakeLocalDataStore(this.contents);
+  FakeLocalDataStore(
+    this.contents, {
+    this.spaceIds = const [personalSpaceId],
+    this.openSpace = personalSpaceId,
+  });
 
   List<int> contents;
   int replacements = 0;
   Object? failReplaceWith;
 
+  /// The spaces a backup covers.
+  final List<String> spaceIds;
+  final snapshotted = <String>[];
+
   @override
-  Future<DatabaseSnapshot> snapshot(Directory directory) async {
+  final String openSpace;
+
+  @override
+  Future<List<String>> spaces() async => spaceIds;
+
+  @override
+  Future<DatabaseSnapshot> snapshot(
+    Directory directory, {
+    String? space,
+  }) async {
+    snapshotted.add(space ?? openSpace);
     final file = File(p.join(directory.path, 'snapshot.sqlite'))
       ..writeAsBytesSync(contents);
     return DatabaseSnapshot(
@@ -62,6 +81,7 @@ class MemoryLocation implements BackupLocation {
         name: name,
         createdAt: backupTimeFromName(name)!,
         sizeBytes: files[name]!.length,
+        space: backupSpaceFromName(name),
       ),
   ];
 

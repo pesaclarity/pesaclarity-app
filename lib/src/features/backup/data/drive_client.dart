@@ -179,6 +179,7 @@ class DriveBackupLocation implements BackupLocation {
             name: row['name']! as String,
             createdAt: DateTime.parse(row['createdTime']! as String).toLocal(),
             sizeBytes: int.tryParse('${row['size']}'),
+            space: backupSpaceFromName(row['name']! as String),
           ),
     ];
   }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
+import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/backup/application/backup_service.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_settings_repository.dart';
 import 'package:pesaclarity/src/features/backup/data/key_value_store.dart';
@@ -40,6 +41,32 @@ void main() {
     );
   });
   tearDown(() => work.delete(recursive: true));
+
+  test('backs up every space, each under its own name', () async {
+    data = FakeLocalDataStore(
+      List.generate(3000, (i) => i % 200),
+      spaceIds: [personalSpaceId, 'abc123'],
+    );
+    service = BackupService(
+      data: data,
+      settings: settings,
+      workDirectory: () async => work,
+      clock: () => now,
+      kdfParams: _fastKdf,
+      runner: _inline,
+    );
+    final vault = MemoryLocation(BackupLocationId.vault);
+    final report = await service.backUp([vault]);
+
+    expect(report.succeeded, {BackupLocationId.vault});
+    expect(data.snapshotted, [personalSpaceId, 'abc123']);
+    expect(vault.files.keys, [
+      'pesaclarity-2026-10-26-0610.pcbackup',
+      'pesaclarity-abc123-2026-10-26-0610.pcbackup',
+    ]);
+    final listed = await vault.list();
+    expect(listed.map((e) => e.space), [personalSpaceId, 'abc123']);
+  });
 
   test('backs up to every location and records the time', () async {
     final vault = MemoryLocation(BackupLocationId.vault);

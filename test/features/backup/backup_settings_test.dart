@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
+import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/backup/application/backup_labels.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_location.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_settings_repository.dart';
@@ -85,6 +86,16 @@ void main() {
       expect(backupFileName(at), 'pesaclarity-2026-03-04-0506.pcbackup');
       expect(backupTimeFromName(backupFileName(at)), at);
       expect(backupTimeFromName('holiday.jpg'), isNull);
+    });
+
+    test('file names carry the space, Personal without one', () {
+      final at = DateTime(2026, 3, 4, 5, 6);
+      final stall = backupFileName(at, 'abc123');
+      expect(stall, 'pesaclarity-abc123-2026-03-04-0506.pcbackup');
+      expect(backupTimeFromName(stall), at);
+      expect(backupSpaceFromName(stall), 'abc123');
+      expect(backupSpaceFromName(backupFileName(at)), personalSpaceId);
+      expect(backupSpaceFromName('holiday.jpg'), personalSpaceId);
     });
   });
 }
