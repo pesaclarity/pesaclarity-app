@@ -248,6 +248,9 @@ void main() {
       expect(keys('FULIZA M-PESA'), ['fuliza_repayment']);
       expect(keys('SAMPLE MOBILE LOAN'), ['loan_repayment']);
       expect(keys('DEMO EMPLOYER LTD SALARY', inflow: true), ['salary']);
+      expect(keys('SAMPLE COUNTY BURSARY FUND', inflow: true), [
+        'allowance_bursary',
+      ]);
       expect(keys('John', inflow: true, kind: TransactionKind.received), [
         'money_received',
       ]);

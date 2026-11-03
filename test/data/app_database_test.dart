@@ -626,6 +626,36 @@ void main() {
       expect(loan.name, 'Madeni');
     });
 
+    test('migrates a version 14 database: income categories v3', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        'DELETE FROM categories WHERE key IN '
+        "('support_received', 'allowance_bursary', 'gifts_received')",
+      );
+      await old.customStatement('PRAGMA user_version = 14');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final income = {
+        for (final c in await (db.select(
+          db.categories,
+        )..where((c) => c.type.equalsValue(CategoryType.income))).get())
+          c.key,
+      };
+      expect(
+        income,
+        containsAll([
+          'salary',
+          'money_received',
+          'support_received',
+          'allowance_bursary',
+          'gifts_received',
+        ]),
+      );
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();
