@@ -656,6 +656,22 @@ void main() {
       );
     });
 
+    test('migrates a version 15 database: payees that ask', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('ALTER TABLE payees DROP COLUMN ask_purpose');
+      await old.customStatement(
+        "INSERT INTO payees (id, display_name) VALUES (1, 'Test Payee')",
+      );
+      await old.customStatement('PRAGMA user_version = 15');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final payee = await db.select(db.payees).getSingle();
+      expect(payee.askPurpose, isFalse);
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();

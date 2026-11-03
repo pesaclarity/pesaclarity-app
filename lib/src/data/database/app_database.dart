@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +50,10 @@ class AppDatabase extends _$AppDatabase {
       await seedDefaultCategories();
     },
     onUpgrade: (m, from, to) async {
+      // Earlier steps read payees with every column, so this one goes first.
+      if (from < 16 && await _exists('table', payees.actualTableName)) {
+        await _addColumnIfMissing(m, payees, payees.askPurpose);
+      }
       if (from < 2) {
         await m.addColumn(transactions, transactions.kind);
         await m.addColumn(transactions, transactions.feeMinor);

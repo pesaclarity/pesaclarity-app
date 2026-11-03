@@ -23,6 +23,7 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../income/application/income_providers.dart';
+import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../statements/data/pdf_text_extractor.dart';
@@ -131,6 +132,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               const SizedBox(height: 12),
               const _ReviewCard(),
+              const _WhatWasThisCard(),
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -805,6 +807,51 @@ class _ReviewCard extends ConsumerWidget {
             style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
           ),
           onTap: () => context.push(AppRoutes.review),
+        ),
+      ),
+    );
+  }
+}
+
+/// Money in from people whose money has meant different things.
+class _WhatWasThisCard extends ConsumerWidget {
+  const _WhatWasThisCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(purposeQueueProvider).value ?? const [];
+    if (queue.isEmpty) return const SizedBox.shrink();
+    final colors = PesaColors.of(context);
+    final first = queue.first;
+    final from = first.payeeName ?? first.counterpartyName ?? 'someone';
+    final amount = formatMoney(
+      Money(first.amountMinor, currency: first.currency),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: ListTile(
+          key: const Key('home-what-was-this'),
+          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          minLeadingWidth: 10,
+          title: const Text('What was this?'),
+          subtitle: Text(
+            [
+              '$amount from $from',
+              if (queue.length > 1) '${queue.length - 1} more',
+            ].join(' · '),
+          ),
+          trailing: Text(
+            'Answer',
+            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
+          ),
+          onTap: () => showWhatWasThis(
+            context,
+            transactionId: first.id,
+            payeeName: from,
+            amountMinor: first.amountMinor,
+            currency: first.currency,
+          ),
         ),
       ),
     );

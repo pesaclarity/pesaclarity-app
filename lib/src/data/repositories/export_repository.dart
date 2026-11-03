@@ -86,7 +86,11 @@ class DriftExportRepository implements ExportRepository {
         () {
           final r = row.readTable(t);
           final payee = row.readTableOrNull(_db.payees);
-          final categoryId = r.categoryOverrideId ?? payee?.defaultCategoryId;
+          final asks =
+              (payee?.askPurpose ?? false) &&
+              r.direction == TransactionDirection.inflow;
+          final categoryId =
+              r.categoryOverrideId ?? (asks ? null : payee?.defaultCategoryId);
           final kind = r.counterpartyKind;
           final value = r.counterpartyValue;
           return ExportTransaction(
