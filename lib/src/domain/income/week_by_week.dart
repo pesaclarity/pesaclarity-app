@@ -8,12 +8,12 @@ const usualWeeksCount = 8;
 /// Weeks the chart shows, this one included.
 const weeksShown = 5;
 
-/// The share of a good week's extra money suggested for the kibubu, in
+/// The share of a good week's extra money suggested for the fund, in
 /// percent.
-const kibubuSharePercent = 50;
+const rainyDaySharePercent = 50;
 
-/// Suggested kibubu amounts are rounded down to this many minor units.
-const kibubuStepMinor = 10000;
+/// Suggested rainy day fund amounts are rounded down to this many minor units.
+const rainyDayStepMinor = 10000;
 
 /// The Monday that starts [date]'s week.
 CalendarDate weekStartOf(CalendarDate date) => date.addDays(1 - date.weekday);
@@ -40,11 +40,11 @@ class WeekFlow {
 
 /// Money set aside in good weeks for lean ones. It stays in the person's
 /// accounts; the app keeps it out of what is safe to spend.
-class Kibubu {
-  const Kibubu([this.moves = const []]);
+class RainyDayFund {
+  const RainyDayFund([this.moves = const []]);
 
   /// Adds (positive) and takes (negative), oldest first.
-  final List<KibubuMove> moves;
+  final List<RainyDayMove> moves;
 
   int get balanceMinor {
     final total = moves.fold(0, (sum, m) => sum + m.amountMinor);
@@ -59,12 +59,12 @@ class Kibubu {
         !m.on.isAfter(weekStart.addDays(6)),
   );
 
-  Kibubu withMove(KibubuMove move) => Kibubu([...moves, move]);
+  RainyDayFund withMove(RainyDayMove move) => RainyDayFund([...moves, move]);
 
-  static Kibubu fromJson(Map<String, Object?>? json) {
+  static RainyDayFund fromJson(Map<String, Object?>? json) {
     final raw = json?['moves'];
-    if (raw is! List) return const Kibubu();
-    final moves = <KibubuMove>[];
+    if (raw is! List) return const RainyDayFund();
+    final moves = <RainyDayMove>[];
     for (final m in raw) {
       if (m is! Map) continue;
       final on = m['on'];
@@ -73,13 +73,13 @@ class Kibubu {
       final parts = on.split('-').map(int.tryParse).toList();
       if (parts.length != 3 || parts.contains(null)) continue;
       moves.add(
-        KibubuMove(
+        RainyDayMove(
           on: CalendarDate(parts[0]!, parts[1]!, parts[2]!),
           amountMinor: amount,
         ),
       );
     }
-    return Kibubu(moves);
+    return RainyDayFund(moves);
   }
 
   Map<String, Object?> toJson() => {
@@ -90,21 +90,21 @@ class Kibubu {
   };
 }
 
-class KibubuMove {
-  const KibubuMove({required this.on, required this.amountMinor});
+class RainyDayMove {
+  const RainyDayMove({required this.on, required this.amountMinor});
 
   final CalendarDate on;
   final int amountMinor;
 }
 
 /// The week-by-week plan for business and gigs: this week against a usual
-/// one, and what to put in or take from the kibubu.
+/// one, and what to put in or take from the fund.
 class WeekByWeek {
   const WeekByWeek({
     required this.weeks,
     required this.usualInMinor,
     required this.usualOutMinor,
-    required this.kibubu,
+    required this.fund,
     required this.today,
   });
 
@@ -112,7 +112,7 @@ class WeekByWeek {
   factory WeekByWeek.of(
     Iterable<LedgerEntry> history, {
     required CalendarDate today,
-    Kibubu kibubu = const Kibubu(),
+    RainyDayFund fund = const RainyDayFund(),
   }) {
     final thisWeek = weekStartOf(today);
     final weeks = <WeekFlow>[];
@@ -140,7 +140,7 @@ class WeekByWeek {
       weeks: weeks,
       usualInMinor: _median([for (final w in past) w.inMinor]),
       usualOutMinor: _median([for (final w in past) w.outMinor]),
-      kibubu: kibubu,
+      fund: fund,
       today: today,
     );
   }
@@ -148,7 +148,7 @@ class WeekByWeek {
   final List<WeekFlow> weeks;
   final int usualInMinor;
   final int usualOutMinor;
-  final Kibubu kibubu;
+  final RainyDayFund fund;
   final CalendarDate today;
 
   WeekFlow get thisWeek => weeks.last;
@@ -156,7 +156,7 @@ class WeekByWeek {
   /// The weeks the chart shows, oldest first.
   List<WeekFlow> get shown => weeks.sublist(weeks.length - weeksShown);
 
-  /// The kibubu aims at one usual week's spending, enough to cover a week
+  /// The rainy day fund aims at one usual week's spending, enough to cover a week
   /// when little comes in.
   int get targetMinor => usualOutMinor;
 
@@ -166,18 +166,18 @@ class WeekByWeek {
     return extra < 0 ? 0 : extra;
   }
 
-  /// What to put in the kibubu this week: a share of the extra, up to the
+  /// What to put in the rainy day fund this week: a share of the extra, up to the
   /// target, once a week.
   int get suggestAddMinor {
-    if (kibubu.addedInWeek(thisWeek.start)) return 0;
-    final room = targetMinor - kibubu.balanceMinor;
+    if (fund.addedInWeek(thisWeek.start)) return 0;
+    final room = targetMinor - fund.balanceMinor;
     if (room <= 0) return 0;
-    var share = extraMinor * kibubuSharePercent ~/ 100;
+    var share = extraMinor * rainyDaySharePercent ~/ 100;
     if (share > room) share = room;
-    return share ~/ kibubuStepMinor * kibubuStepMinor;
+    return share ~/ rainyDayStepMinor * rainyDayStepMinor;
   }
 
-  /// What may come out of the kibubu in a lean week: what this week's money
+  /// What may come out of the rainy day fund in a lean week: what this week's money
   /// in falls short of usual spending, up to what is there.
   int get suggestTakeMinor {
     final week = thisWeek;
@@ -185,7 +185,7 @@ class WeekByWeek {
       return 0;
     }
     var need = usualOutMinor - week.inMinor;
-    if (need > kibubu.balanceMinor) need = kibubu.balanceMinor;
+    if (need > fund.balanceMinor) need = fund.balanceMinor;
     return need < 0 ? 0 : need;
   }
 }

@@ -10,7 +10,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/income_providers.dart';
 
-/// For business and gigs: this week against a usual one, and the kibubu
+/// For business and gigs: this week against a usual one, and the rainy day fund
 /// that smooths good weeks into lean ones.
 class WeekByWeekScreen extends ConsumerWidget {
   const WeekByWeekScreen({super.key});
@@ -41,7 +41,7 @@ class _Body extends ConsumerWidget {
     final week = plan.thisWeek;
     final add = plan.suggestAddMinor;
     final take = plan.suggestTakeMinor;
-    final kibubu = plan.kibubu.balanceMinor;
+    final fund = plan.fund.balanceMinor;
     final target = plan.targetMinor;
     String day(CalendarDate d) =>
         '${weekdayName(d).substring(0, 3)} ${shortDate(d)}';
@@ -50,11 +50,11 @@ class _Body extends ConsumerWidget {
     if (add > 0) {
       advice =
           'A good week: ${_plain(plan.extraMinor)} more than a usual one. '
-          'Put ${_plain(add)} in your kibubu?';
+          'Put ${_plain(add)} in your rainy day fund?';
     } else if (take > 0) {
       advice =
           'A lean week so far. You can take up to ${_plain(take)} from your '
-          'kibubu to reach your usual spending.';
+          'rainy day fund to reach your usual spending.';
     } else {
       advice = null;
     }
@@ -93,18 +93,20 @@ class _Body extends ConsumerWidget {
                 if (add > 0) ...[
                   const SizedBox(height: 12),
                   FilledButton(
-                    key: const Key('kibubu-add'),
+                    key: const Key('rainy-day-add'),
                     onPressed: () =>
-                        ref.read(kibubuProvider.notifier).move(add),
-                    child: Text('Add ${_plain(add)} to kibubu'),
+                        ref.read(rainyDayFundProvider.notifier).move(add),
+                    child: Text('Add ${_plain(add)} to your rainy day fund'),
                   ),
                 ] else if (take > 0) ...[
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    key: const Key('kibubu-take'),
+                    key: const Key('rainy-day-take'),
                     onPressed: () =>
-                        ref.read(kibubuProvider.notifier).move(-take),
-                    child: Text('Take ${_plain(take)} from kibubu'),
+                        ref.read(rainyDayFundProvider.notifier).move(-take),
+                    child: Text(
+                      'Take ${_plain(take)} from your rainy day fund',
+                    ),
                   ),
                 ],
               ],
@@ -113,7 +115,7 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Card(
-          key: const Key('kibubu'),
+          key: const Key('rainy-day-fund'),
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -122,12 +124,15 @@ class _Body extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('Kibubu', style: theme.textTheme.titleMedium),
+                      child: Text(
+                        'Rainy day fund',
+                        style: theme.textTheme.titleMedium,
+                      ),
                     ),
                     Text(
                       target > 0
-                          ? '${_plain(kibubu)} of ${_plain(target)}'
-                          : _plain(kibubu),
+                          ? '${_plain(fund)} of ${_plain(target)}'
+                          : _plain(fund),
                       style: theme.textTheme.titleMedium,
                     ),
                   ],
@@ -137,7 +142,7 @@ class _Body extends ConsumerWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: (kibubu / target).clamp(0, 1).toDouble(),
+                      value: (fund / target).clamp(0, 1).toDouble(),
                       minHeight: 8,
                       color: theme.colorScheme.primary,
                       backgroundColor: colors.border,

@@ -106,7 +106,11 @@ const defaultCategories = <CategorySeed>[
     isDailySpending: true,
   ),
   CategorySeed('shopping', 'Shopping and clothing', CategoryType.expense),
-  CategorySeed('giving', 'Church, giving and harambee', CategoryType.expense),
+  CategorySeed(
+    'giving',
+    'Church, giving and fundraisers',
+    CategoryType.expense,
+  ),
   CategorySeed('fees_charges', 'Fees and charges', CategoryType.expense),
   CategorySeed('loan_repayment', 'Loan repayment', CategoryType.debt),
   CategorySeed('fuliza_repayment', 'Fuliza repayment', CategoryType.debt),

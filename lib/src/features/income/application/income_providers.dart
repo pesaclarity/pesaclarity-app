@@ -51,12 +51,12 @@ class MakeItLastController extends AsyncNotifier<MakeItLastPin?> {
   }
 }
 
-/// The kibubu: money set aside in good weeks for lean ones.
-class KibubuController extends AsyncNotifier<Kibubu> {
-  static const settingsKey = 'income.kibubu';
+/// The fund: money set aside in good weeks for lean ones.
+class RainyDayFundController extends AsyncNotifier<RainyDayFund> {
+  static const settingsKey = 'income.rainyDayFund';
 
   @override
-  Future<Kibubu> build() async => Kibubu.fromJson(
+  Future<RainyDayFund> build() async => RainyDayFund.fromJson(
     await ref.watch(appSettingsRepositoryProvider).readJson(settingsKey),
   );
 
@@ -65,7 +65,7 @@ class KibubuController extends AsyncNotifier<Kibubu> {
     final today = CalendarDate.local(ref.read(clockProvider)());
     final current = await future;
     final next = current.withMove(
-      KibubuMove(on: today, amountMinor: amountMinor),
+      RainyDayMove(on: today, amountMinor: amountMinor),
     );
     await ref
         .read(appSettingsRepositoryProvider)
@@ -74,11 +74,12 @@ class KibubuController extends AsyncNotifier<Kibubu> {
   }
 }
 
-final kibubuProvider = AsyncNotifierProvider<KibubuController, Kibubu>(
-  KibubuController.new,
-);
+final rainyDayFundProvider =
+    AsyncNotifierProvider<RainyDayFundController, RainyDayFund>(
+      RainyDayFundController.new,
+    );
 
-/// This week against a usual one, with the kibubu.
+/// This week against a usual one, with the fund.
 final weekByWeekProvider = FutureProvider<WeekByWeek>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
@@ -92,7 +93,7 @@ final weekByWeekProvider = FutureProvider<WeekByWeek>((ref) async {
   return WeekByWeek.of(
     entries,
     today: today,
-    kibubu: await ref.watch(kibubuProvider.future),
+    fund: await ref.watch(rainyDayFundProvider.future),
   );
 });
 
@@ -194,7 +195,7 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
         BillDue(name: f.name, due: f.date, amountMinor: f.amountMinor),
   ]..sort((a, b) => a.due.compareTo(b.due));
   final pin = await ref.watch(makeItLastProvider.future);
-  final kibubu = await ref.watch(kibubuProvider.future);
+  final fund = await ref.watch(rainyDayFundProvider.future);
   final latest = await ref.watch(latestArrivalProvider.future);
   final spentToday = entries
       .where((e) => e.date == today)
@@ -209,7 +210,7 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   return UntilNextMoney.calculate(
     today: today,
     basis: basis,
-    // Money in the kibubu stays in the accounts but is not for spending.
+    // Money in the rainy day fund stays in the accounts but is not for spending.
     onHandAtStartMinor:
         totalBalanceAt(
           accounts,
@@ -217,7 +218,7 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
           at: today.startInstant,
           where: (_) => true,
         ) -
-        kibubu.balanceMinor,
+        fund.balanceMinor,
     billsMinor: bills.fold(0, (sum, b) => sum + b.amountMinor),
     bills: bills,
     spentTodayMinor: spentToday,

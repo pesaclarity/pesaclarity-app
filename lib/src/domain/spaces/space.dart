@@ -27,7 +27,7 @@ class Space {
   final String name;
   final SpaceKind kind;
 
-  /// Letters for the space's badge: `Mama Mboga stall` is `M`.
+  /// Letters for the space's badge: `Vegetable stall` is `V`.
   String get initial =>
       name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
 

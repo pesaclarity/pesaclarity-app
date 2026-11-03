@@ -110,8 +110,8 @@ class HomeScreen extends ConsumerWidget {
               if (safeToSpend == null && untilNext != null)
                 _UntilNextMoneyCard(
                   untilNext,
-                  kibubuMinor:
-                      ref.watch(kibubuProvider).value?.balanceMinor ?? 0,
+                  rainyDayMinor:
+                      ref.watch(rainyDayFundProvider).value?.balanceMinor ?? 0,
                   onTap: () => openActivity(
                     ActivityFilter(
                       type: ActivityType.spending,
@@ -419,13 +419,13 @@ class _UntilNextMoneyCard extends StatelessWidget {
   const _UntilNextMoneyCard(
     this.result, {
     required this.onTap,
-    this.kibubuMinor = 0,
+    this.rainyDayMinor = 0,
   });
 
   final UntilNextMoney result;
 
-  /// Set aside in the kibubu, already out of [UntilNextMoney.onHandMinor].
-  final int kibubuMinor;
+  /// Set aside in the fund, already out of [UntilNextMoney.onHandMinor].
+  final int rainyDayMinor;
   final VoidCallback onTap;
 
   @override
@@ -451,7 +451,8 @@ class _UntilNextMoneyCard extends StatelessWidget {
     final setAside = [
       if (result.billsMinor > 0)
         ' · ${_plain(context, result.billsMinor)} set aside for bills',
-      if (kibubuMinor > 0) ' · ${_plain(context, kibubuMinor)} in kibubu',
+      if (rainyDayMinor > 0)
+        ' · ${_plain(context, rainyDayMinor)} in your rainy day fund',
     ].join();
 
     return Card(
@@ -960,10 +961,10 @@ class _WeekCard extends ConsumerWidget {
           ),
           subtitle: Text(
             add > 0
-                ? 'A good week. Put ${_plain(context, add)} in your kibubu?'
+                ? 'A good week. Put ${_plain(context, add)} in your rainy day fund?'
                 : take > 0
-                ? 'Your kibubu can cover up to ${_plain(context, take)}'
-                : 'Week by week and your kibubu',
+                ? 'Your rainy day fund can cover up to ${_plain(context, take)}'
+                : 'Week by week and your rainy day fund',
           ),
           trailing: Icon(Icons.chevron_right, color: colors.textMuted),
           onTap: () => context.push(AppRoutes.weekByWeek),
