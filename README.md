@@ -1,10 +1,36 @@
 # Pesa Clarity app
 
+[![Stars](https://img.shields.io/github/stars/pesaclarity/pesaclarity-app?style=social)](https://github.com/pesaclarity/pesaclarity-app/stargazers)
+[![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue)](LICENSE)
+[![Test build](https://img.shields.io/badge/download-test%20build-C8102E)](https://github.com/pesaclarity/pesaclarity-app/releases/tag/test-build)
+
 Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
 **Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
 
 **Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`) or the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services). The privacy policy and terms ship in `assets/policy/` and match the website.
+
+<p align="center">
+  <img src="docs/media/demo.gif" width="300" alt="Pesa Clarity: Home, Insights, one category's transactions, a health pillar, Plan and Debts">
+</p>
+
+| Home | Insights | One category |
+| :---: | :---: | :---: |
+| <img src="docs/media/home.png" width="220" alt="Home: safe to spend today, money left this month, runway, health score and bills coming up"> | <img src="docs/media/insights.png" width="220" alt="Insights: what changed this month, spending by category and spending so far against last month"> | <img src="docs/media/activity-category.png" width="220" alt="Activity filtered to Food this month"> |
+| **Health score** | **Plan** | **Debts** |
+| <img src="docs/media/health-pillar.png" width="220" alt="The Spend pillar of the health score, with what helps each indicator"> | <img src="docs/media/plan.png" width="220" alt="Plan: planned income by debt, tax, living and school, and spending by category"> | <img src="docs/media/debts.png" width="220" alt="Debts: payoff strategy, this payday's split, the Fuliza tracker and a what-if slider"> |
+
+Screens from the app's design, with made-up example data.
+
+## Get involved
+
+Pesa Clarity is built in the open, for people who live on M-Pesa and bank SMS.
+
+- **Star this repo** so more people find a private money app that runs on their phone.
+- **Add your bank or Sacco.** Each one is a small YAML pack with synthetic sample messages in [ujumbe-parsers](https://github.com/pesaclarity/ujumbe-parsers); no Flutter needed.
+- **Pick a first issue:** [good first issues](https://github.com/search?q=org%3Apesaclarity+label%3A%22good+first+issue%22+is%3Aopen&type=issues) and [help wanted](https://github.com/search?q=org%3Apesaclarity+label%3A%22help+wanted%22+is%3Aopen&type=issues) across the project.
+- **Report what reads wrongly** with a [new issue](https://github.com/pesaclarity/pesaclarity-app/issues/new/choose); leave out real names, numbers and messages.
+- **Read [CONTRIBUTING.md](CONTRIBUTING.md)** before your first pull request.
 
 The product spec, brand guide and design tokens live in [pesaclarity/docs](https://github.com/pesaclarity/docs).
 
