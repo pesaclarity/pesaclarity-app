@@ -7,12 +7,15 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
+import 'package:pesaclarity/src/domain/budget/until_next_money.dart';
+import 'package:pesaclarity/src/domain/income/income_sources.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -144,4 +147,56 @@ void main() {
     expect(find.text("81% of this month's spending plan used"), findsOneWidget);
     expect(find.text('5,600'), findsOneWidget);
   });
+
+  testWidgets('Home plans until the next money for a student', (tester) async {
+    final until = UntilNextMoney.calculate(
+      today: CalendarDate(2026, 11, 14),
+      basis: NextMoneyBasis.rhythm,
+      onHandAtStartMinor: 500000,
+      billsMinor: 150000,
+      spentTodayMinor: 0,
+      paceMinor: 40000,
+      nextMoney: CalendarDate(2026, 11, 24),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          clockProvider.overrideWithValue(() => DateTime.utc(2026, 11, 14, 6)),
+          pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
+          safeToSpendTodayProvider.overrideWith((ref) async => null),
+          untilNextMoneyProvider.overrideWith((ref) async => until),
+          incomeSourcesProvider.overrideWith(
+            () => _FixedSources({IncomeSource.support}),
+          ),
+          cashFlowForecastProvider.overrideWith((ref) async => null),
+          healthIndexProvider.overrideWith((ref) async => null),
+          upcomingBillsProvider.overrideWith((ref) async => []),
+        ],
+        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('until-next-money')), findsOneWidget);
+    // 5,000 less a 500 buffer and 1,500 of rent, over 10 days.
+    expect(find.text('KES 300'), findsOneWidget);
+    expect(
+      find.text('Until about Tue 24 Nov, when money usually comes'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('5,000 on hand · 1,500 set aside for bills'),
+      findsOneWidget,
+    );
+    expect(find.text('On hand'), findsOneWidget);
+  });
+}
+
+class _FixedSources extends IncomeSourcesController {
+  _FixedSources(this.picked);
+
+  final Set<IncomeSource> picked;
+
+  @override
+  Future<IncomeSources> build() async => IncomeSources(picked);
 }

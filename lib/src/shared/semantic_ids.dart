@@ -11,6 +11,7 @@ abstract final class SemanticIds {
 
   static const onboardingGetStarted = 'onboarding-get-started';
   static const onboardingCurrencyContinue = 'onboarding-currency-continue';
+  static const onboardingIncomeContinue = 'onboarding-income-continue';
   static const onboardingScanMessages = 'onboarding-scan-messages';
   static const smsScanNotNow = 'sms-scan-not-now';
 
@@ -23,6 +24,7 @@ abstract final class SemanticIds {
 
   static const titleWelcome = 'title-welcome';
   static const titleCurrency = 'title-currency';
+  static const titleIncomeSources = 'title-income-sources';
   static const titleMyAccounts = 'title-my-accounts';
   static const titleSmsScan = 'title-sms-scan';
   static const titleConnectMessages = 'title-connect-messages';
