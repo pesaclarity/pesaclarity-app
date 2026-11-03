@@ -10,7 +10,7 @@ final deviceIntegrityCheckerProvider = Provider<DeviceIntegrityChecker>(
 );
 
 final deviceWarningRepositoryProvider = Provider<DeviceWarningRepository>(
-  (ref) => DriftDeviceWarningRepository(ref.watch(appDatabaseProvider)),
+  (ref) => DriftDeviceWarningRepository(ref.watch(mainDatabaseProvider)),
 );
 
 /// The integrity check result, run once per app session.

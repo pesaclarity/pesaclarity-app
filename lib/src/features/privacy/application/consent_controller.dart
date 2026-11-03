@@ -14,7 +14,7 @@ class ConsentController extends AsyncNotifier<ConsentRecord> {
   @override
   Future<ConsentRecord> build() async {
     final json = await ref
-        .read(appSettingsRepositoryProvider)
+        .read(mainSettingsRepositoryProvider)
         .readJson(recordKey);
     return json == null ? const ConsentRecord() : ConsentRecord.fromJson(json);
   }
@@ -51,7 +51,7 @@ class ConsentController extends AsyncNotifier<ConsentRecord> {
 
   Future<void> _save(ConsentRecord record) async {
     await ref
-        .read(appSettingsRepositoryProvider)
+        .read(mainSettingsRepositoryProvider)
         .writeJson(recordKey, record.toJson());
     state = AsyncData(record);
   }

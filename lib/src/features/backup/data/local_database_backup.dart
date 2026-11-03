@@ -9,6 +9,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_key_store.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../domain/spaces/space.dart';
 
 /// A consistent copy of the database, encrypted with its own random key.
 final class DatabaseSnapshot {
@@ -189,9 +190,17 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     final lock = _ref.read(databaseFileLockProvider);
     final release = lock.hold();
     try {
-      _ref.invalidate(appDatabaseProvider);
+      final spaceId = _ref.read(activeSpaceIdProvider);
+      _ref.invalidate(
+        spaceId == personalSpaceId
+            ? personalDatabaseProvider
+            : appDatabaseProvider,
+      );
       await lock.close(current);
-      await swapDatabaseFiles(live: await databaseFile(), staged: staged);
+      await swapDatabaseFiles(
+        live: await databaseFile(spaceId),
+        staged: staged,
+      );
     } finally {
       release();
     }

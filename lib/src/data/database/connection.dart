@@ -6,15 +6,40 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../../domain/spaces/space.dart';
 import 'app_database.dart';
 import 'database_key_store.dart';
 
 const _fileName = 'pesaclarity.sqlite';
+const _activeSpaceFileName = 'active-space';
 
-/// The database file on this phone.
-Future<File> databaseFile() async {
+/// The database file for [spaceId] on this phone. Personal keeps the
+/// original file name.
+Future<File> databaseFile([String spaceId = personalSpaceId]) async {
   final dir = await getApplicationSupportDirectory();
-  return File(p.join(dir.path, _fileName));
+  final name = spaceId == personalSpaceId
+      ? _fileName
+      : 'pesaclarity-space-$spaceId.sqlite';
+  return File(p.join(dir.path, name));
+}
+
+/// The space open when the app last closed. Only its id is kept here, so it
+/// can be read before the database key is released.
+Future<String> readActiveSpaceId() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final file = File(p.join(dir.path, _activeSpaceFileName));
+    if (!await file.exists()) return personalSpaceId;
+    final id = (await file.readAsString()).trim();
+    return RegExp(r'^[a-z0-9]{1,32}$').hasMatch(id) ? id : personalSpaceId;
+  } on Exception {
+    return personalSpaceId;
+  }
+}
+
+Future<void> writeActiveSpaceId(String spaceId) async {
+  final dir = await getApplicationSupportDirectory();
+  await File(p.join(dir.path, _activeSpaceFileName)).writeAsString(spaceId);
 }
 
 /// Opens the SQLCipher-encrypted database in a background isolate.
@@ -24,11 +49,12 @@ Future<File> databaseFile() async {
 AppDatabase openEncryptedDatabase(
   DatabaseKeyStore keyStore, {
   Future<void> Function()? beforeOpen,
+  String spaceId = personalSpaceId,
 }) {
   return AppDatabase(
     LazyDatabase(() async {
       await beforeOpen?.call();
-      final file = await databaseFile();
+      final file = await databaseFile(spaceId);
       final key = await keyStore.readOrCreateKey();
       return NativeDatabase.createInBackground(
         file,
