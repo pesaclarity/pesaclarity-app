@@ -1,15 +1,26 @@
 import Flutter
 import UIKit
 
-/// `com.pesaclarity.app/device`: the name shown in the signed-in phones list.
+/// `com.pesaclarity.app/device`: the name shown in the signed-in phones list,
+/// and whether the iPhone is charging, so on-phone learning runs only then.
 final class DeviceChannel {
   private let methods: FlutterMethodChannel
 
   init(messenger: FlutterBinaryMessenger) {
     methods = FlutterMethodChannel(name: "com.pesaclarity.app/device", binaryMessenger: messenger)
     methods.setMethodCallHandler { call, result in
-      // Since iOS 16 this is the model, such as "iPhone", not the owner's name.
-      call.method == "name" ? result(UIDevice.current.name) : result(FlutterMethodNotImplemented)
+      switch call.method {
+      case "name":
+        // Since iOS 16 this is the model, such as "iPhone", not the owner's name.
+        result(UIDevice.current.name)
+      case "charging":
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
+        let state = device.batteryState
+        result(state == .charging || state == .full)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 }
