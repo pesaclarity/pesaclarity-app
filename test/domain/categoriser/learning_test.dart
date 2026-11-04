@@ -9,8 +9,10 @@ class _Log
   void Function()? onCompute;
 
   @override
-  Future<void> fineTune(List<TrainingExample> examples) async =>
-      calls.add('fineTune ${examples.length}');
+  Future<bool> fineTune(List<TrainingExample> examples) async {
+    calls.add('fineTune ${examples.length}');
+    return true;
+  }
 
   @override
   Future<ModelUpdate> computeUpdate(List<TrainingExample> examples) async {

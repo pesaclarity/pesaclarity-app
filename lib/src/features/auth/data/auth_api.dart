@@ -39,6 +39,14 @@ abstract interface class AuthApi {
   /// `DELETE /v1/account`: erases the account, its devices, sign-in history
   /// and every vault backup.
   Future<void> deleteAccount(String accessToken);
+
+  /// Has the server email [policy] (the bundled Markdown) to [email], as
+  /// text and a PDF. The address is used for this send only.
+  Future<void> emailPolicyCopy(
+    String accessToken, {
+    required String email,
+    required String policy,
+  });
 }
 
 /// Stands in for the server when the build has no server URL.
@@ -81,4 +89,11 @@ class UnconfiguredAuthApi implements AuthApi {
 
   @override
   Future<void> deleteAccount(String accessToken) async => _fail();
+
+  @override
+  Future<void> emailPolicyCopy(
+    String accessToken, {
+    required String email,
+    required String policy,
+  }) async => _fail();
 }

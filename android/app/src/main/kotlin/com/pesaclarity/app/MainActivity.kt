@@ -33,7 +33,7 @@ class MainActivity : FlutterFragmentActivity() {
         sms = SmsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         documents = DocumentsChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         share = ShareChannel(this, flutterEngine.dartExecutor.binaryMessenger)
-        DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger)
+        DeviceChannel.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         deviceIntegrity = DeviceIntegrityChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         // Per flavour: Credential Manager on play, a stand-in on foss.
         googleSignIn = GoogleSignInChannel(this, flutterEngine.dartExecutor.binaryMessenger)
