@@ -19,7 +19,8 @@ class TrainingExample {
 /// Fine-tunes the installed model on the person's confirmations, on the
 /// phone. Nothing leaves the phone.
 abstract interface class OnDeviceTrainer {
-  Future<void> fineTune(List<TrainingExample> examples);
+  /// Whether it trained; false when there were too few usable examples.
+  Future<bool> fineTune(List<TrainingExample> examples);
 }
 
 /// A clipped, noised weight delta for federated averaging.
@@ -50,7 +51,7 @@ enum LearningOutcome {
   /// No trainer is available in this build.
   unavailable,
 
-  /// Opted in, but there are no confirmations to learn from yet.
+  /// Opted in, but there are not enough confirmations to learn from yet.
   noExamples,
 
   /// The model was fine-tuned on the phone; nothing was sent.
@@ -88,8 +89,10 @@ class CategoriserLearning {
     if (batch.isEmpty) return LearningOutcome.noExamples;
     if (!optedIn()) return LearningOutcome.notOptedIn;
 
-    await trainer?.fineTune(batch);
-    if (!canUpload) return LearningOutcome.fineTuned;
+    final trained = await trainer?.fineTune(batch) ?? false;
+    if (!canUpload) {
+      return trained ? LearningOutcome.fineTuned : LearningOutcome.noExamples;
+    }
 
     final update = await federated!.computeUpdate(batch);
     if (!optedIn()) return LearningOutcome.notOptedIn;
