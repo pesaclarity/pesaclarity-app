@@ -161,6 +161,14 @@ class AuthController extends AsyncNotifier<AccountSession?> {
     await _endLocally();
   }
 
+  /// Has the server email a copy of [policy] (bundled Markdown) to [email].
+  Future<void> emailPolicyCopy({
+    required String email,
+    required String policy,
+  }) => _authorised(
+    (api, token) => api.emailPolicyCopy(token, email: email, policy: policy),
+  );
+
   /// Phones signed in to this account, this one included.
   Future<List<SignedInDevice>> devices() =>
       _authorised((api, token) => api.listDevices(token));

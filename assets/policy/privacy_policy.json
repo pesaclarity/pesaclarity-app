@@ -1,7 +1,14 @@
 {
-  "version": "1.4",
-  "updated": "2026-10-30",
+  "version": "1.5",
+  "updated": "2026-11-04",
   "changes": [
+    {
+      "version": "1.5",
+      "date": "2026-11-04",
+      "items": [
+        "If you ask us to email you a copy of this policy, Brevo sends it once to the address you give."
+      ]
+    },
     {
       "version": "1.4",
       "date": "2026-10-30",

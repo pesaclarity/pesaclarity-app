@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/consent.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../auth/application/auth_controller.dart';
+import '../../auth/domain/auth_models.dart';
 import '../data/policy_source.dart';
+import 'email_policy_sheet.dart';
 
 /// A small capitalised label above a group of cards, such as `YOUR CHOICES`.
 class PrivacySectionLabel extends StatelessWidget {
@@ -134,11 +137,22 @@ Future<void> emailPolicyCopy(BuildContext context, WidgetRef ref) async {
   } on Exception {
     opened = false;
   }
-  if (!opened) {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Set up an email app on this phone to send a copy.'),
-      ),
+  if (opened) return;
+  // No email app: a signed-in person can have the server send it.
+  final session = ref.read(authControllerProvider).value;
+  if (session != null && context.mounted) {
+    await showEmailPolicySheet(
+      context,
+      policy,
+      suggestedEmail: session.method == SignInMethod.email
+          ? session.contact
+          : null,
     );
+    return;
   }
+  messenger.showSnackBar(
+    const SnackBar(
+      content: Text('Set up an email app on this phone to send a copy.'),
+    ),
+  );
 }

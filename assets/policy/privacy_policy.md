@@ -53,6 +53,9 @@ These services run it for us and process data only on our instructions:
 - Cloudflare R2 stores encrypted backups.
 - Brevo sends sign-in codes by email.
 
+If you ask us to email you a copy of this policy, Brevo sends it to the
+address you give. We use that address once and do not keep it.
+
 Some of them store data outside Kenya. We use them under their data
 processing terms, as the Kenya Data Protection Act 2019 requires for
 transfers abroad.
