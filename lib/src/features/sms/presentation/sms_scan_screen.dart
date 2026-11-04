@@ -104,12 +104,17 @@ class SmsScanScreen extends ConsumerWidget {
               ),
             ],
             SmsScanStage.blocked => [
-              const _Heading('Messages are switched off'),
+              const _Heading('Allow messages in Settings'),
               const SizedBox(height: 8),
               const _Body(
-                'Android will not ask again. To let Pesa Clarity read your '
-                'account messages, open settings, choose Permissions, then '
-                'SMS, and allow it.',
+                'Android needs you to switch this on yourself. It takes a '
+                'minute:',
+              ),
+              const SizedBox(height: 12),
+              const _Steps(blockedSteps),
+              const SizedBox(height: 8),
+              const _Body(
+                'On some phones the ⋮ menu is at the bottom of App info.',
               ),
               const SizedBox(height: 24),
               FilledButton(
@@ -241,4 +246,52 @@ class _Body extends StatelessWidget {
     style: Theme.of(context).textTheme.bodyLarge!
         .copyWith(color: PesaColors.of(context).textMuted),
   );
+}
+
+/// How to allow SMS once Android has stopped asking, including the
+/// restricted setting Android puts on apps installed from a file.
+const blockedSteps = [
+  'Tap Open settings below. It opens App info for Pesa Clarity.',
+  'If SMS says "Restricted setting", tap ⋮ at the top right, then Allow '
+      'restricted settings, and confirm with your PIN.',
+  'Open Permissions, then SMS, and choose Allow.',
+  'Come back here and tap I have allowed it.',
+];
+
+class _Steps extends StatelessWidget {
+  const _Steps(this.steps);
+
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (i, step) in steps.indexed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  child: Text(
+                    '${i + 1}',
+                    style: theme.textTheme.labelMedium!.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(step, style: theme.textTheme.bodyLarge)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }

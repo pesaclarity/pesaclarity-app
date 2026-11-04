@@ -87,7 +87,8 @@ void main() {
     await toScan(tester);
 
     await tapText(tester, 'Allow access to messages');
-    expect(find.text('Messages are switched off'), findsOneWidget);
+    expect(find.text('Allow messages in Settings'), findsOneWidget);
+    expect(find.textContaining('Allow restricted settings'), findsOneWidget);
     await tapText(tester, 'Open settings');
     expect(sms.settingsOpened, 1);
 
