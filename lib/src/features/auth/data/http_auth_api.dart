@@ -197,4 +197,24 @@ class HttpAuthApi implements AuthApi {
     final response = await _send('DELETE', '/v1/account', bearer: accessToken);
     if (response.statusCode != 204) _fail(response);
   }
+
+  @override
+  Future<void> emailPolicyCopy(
+    String accessToken, {
+    required String email,
+    required String policy,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/v1/privacy/copy',
+      body: {'email': email, 'policy': policy},
+      bearer: accessToken,
+    );
+    if (response.statusCode != 202) {
+      _fail(response, const {
+        422: AuthFailureKind.invalidEmail,
+        503: AuthFailureKind.unavailable,
+      });
+    }
+  }
 }

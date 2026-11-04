@@ -222,4 +222,21 @@ class FakeAuthApi implements AuthApi {
     _deviceFor(accessToken);
     accountDeleted = true;
   }
+
+  /// Policy copies the server was asked to email, as (address, policy).
+  final policyCopies = <(String, String)>[];
+
+  @override
+  Future<void> emailPolicyCopy(
+    String accessToken, {
+    required String email,
+    required String policy,
+  }) async {
+    _check('policyCopy');
+    _deviceFor(accessToken);
+    if (!email.contains('@')) {
+      throw const AuthFailure(AuthFailureKind.invalidEmail);
+    }
+    policyCopies.add((email, policy));
+  }
 }

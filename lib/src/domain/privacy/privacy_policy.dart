@@ -86,6 +86,7 @@ class PrivacyPolicy {
     required this.updated,
     required this.blocks,
     this.changes = const [],
+    this.source = '',
   });
 
   /// Builds the policy from the bundled files: [metadata] (decoded JSON with
@@ -150,6 +151,7 @@ class PrivacyPolicy {
       updated: _parseDate(metadata['updated'] as String),
       blocks: List.unmodifiable(blocks),
       changes: List.unmodifiable(changes),
+      source: markdown,
     );
   }
 
@@ -160,6 +162,10 @@ class PrivacyPolicy {
 
   /// Newest first.
   final List<PolicyChange> changes;
+
+  /// The bundled Markdown, exactly as shipped; the server checks its digest
+  /// before emailing a copy.
+  final String source;
 
   /// Changes made after [accepted], newest first.
   List<PolicyChange> changesSince(PolicyVersion accepted) => [
