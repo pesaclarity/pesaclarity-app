@@ -8,6 +8,7 @@ import '../features/currency/application/currency_controller.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
+import '../features/sales/application/pay_yourself.dart';
 import '../features/sales/application/sales_providers.dart';
 import '../features/sms/application/sms_capture_providers.dart';
 import '../features/spaces/application/business_setup_providers.dart';
@@ -142,6 +143,7 @@ class AppShell extends ConsumerWidget {
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(ratesRefreshProvider, (_, _) {});
     ref.listen(saleMatcherProvider, (_, _) {});
+    ref.listen(personalPayMatcherProvider, (_, _) {});
     ref.listen(policyReviewProvider, (_, next) {
       // While reloading, value still holds the previous changes.
       if (next case AsyncData(value: final changes?)) {

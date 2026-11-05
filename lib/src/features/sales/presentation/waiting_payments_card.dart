@@ -7,6 +7,7 @@ import '../../../domain/sales/sale_matching.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/sales_providers.dart';
+import 'choose_payments_sheet.dart';
 import 'pay_sheet.dart';
 
 /// Sales on Today whose M-Pesa or bank payment has not come in yet. Each
@@ -49,6 +50,10 @@ class WaitingPaymentsCard extends ConsumerWidget {
             for (final w in waiting)
               ListTile(
                 key: Key('waiting-${w.kind.name}-${w.id}'),
+                // A sale can be paid by payments of other amounts.
+                onTap: w.kind == WaitingKind.sale
+                    ? () => showChoosePaymentsSheet(context, w)
+                    : null,
                 title: Text(waitingTitle(w)),
                 subtitle: Text(
                   [
@@ -57,6 +62,9 @@ class WaitingPaymentsCard extends ConsumerWidget {
                       WaitingKind.bought => w.note ?? 'Bought',
                       WaitingKind.gotPaid => 'What they owe',
                       WaitingKind.paid => 'What you owe',
+                      WaitingKind.paidYourself => 'Pay yourself',
+                      WaitingKind.payFromBusiness => 'From your business',
+                      WaitingKind.change => 'Change',
                     },
                     formatTime(w.at),
                   ].join(' · '),
@@ -129,5 +137,9 @@ String waitingTitle(WaitingPayment w) {
       who == null ? '$amount bought by $how' : '$amount to $who by $how',
     WaitingKind.gotPaid => '${who ?? 'A customer'} paid $amount by $how',
     WaitingKind.paid => 'Paid ${who ?? 'a supplier'} $amount by $how',
+    WaitingKind.paidYourself => 'Paid yourself $amount by $how',
+    WaitingKind.payFromBusiness => '$amount from your business by $how',
+    WaitingKind.change =>
+      '$amount change${who == null ? '' : ' to $who'} by $how',
   };
 }

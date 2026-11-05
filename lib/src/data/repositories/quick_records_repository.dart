@@ -52,6 +52,27 @@ abstract interface class QuickRecordsRepository {
     required int cashAccountId,
   });
 
+  /// The owner took [amountMinor] out for themselves, filed under
+  /// [categoryId] (paid yourself).
+  Future<int> paidYourself({
+    required DateTime at,
+    required int amountMinor,
+    required SalePaymentMethod method,
+    required int categoryId,
+    required int cashAccountId,
+  });
+
+  /// Change of [amountMinor] given back to a customer who paid too much,
+  /// filed under [salesCategoryId] as money back on a sale.
+  Future<int> change({
+    required DateTime at,
+    required int amountMinor,
+    required SalePaymentMethod method,
+    required int salesCategoryId,
+    required int cashAccountId,
+    String? customer,
+  });
+
   /// Records still waiting for their M-Pesa or bank message, oldest first.
   Future<List<WaitingPayment>> waiting();
 
@@ -231,6 +252,57 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
     return id;
   });
 
+  @override
+  Future<int> paidYourself({
+    required DateTime at,
+    required int amountMinor,
+    required SalePaymentMethod method,
+    required int categoryId,
+    required int cashAccountId,
+  }) => _db.transaction(() async {
+    final id = await _insert(
+      QuickRecordsCompanion.insert(
+        kind: QuickRecordKind.paidYourself,
+        at: at,
+        amountMinor: amountMinor,
+        currency: Value(BaseCurrency.code),
+        method: method,
+        categoryId: Value(categoryId),
+      ),
+    );
+    if (method == SalePaymentMethod.cash) {
+      await _payInCash(id, at: at, cashAccountId: cashAccountId);
+    }
+    return id;
+  });
+
+  @override
+  Future<int> change({
+    required DateTime at,
+    required int amountMinor,
+    required SalePaymentMethod method,
+    required int salesCategoryId,
+    required int cashAccountId,
+    String? customer,
+  }) => _db.transaction(() async {
+    final id = await _insert(
+      QuickRecordsCompanion.insert(
+        kind: QuickRecordKind.change,
+        at: at,
+        amountMinor: amountMinor,
+        currency: Value(BaseCurrency.code),
+        method: method,
+        categoryId: Value(salesCategoryId),
+        party: Value(customer),
+        note: const Value('Change'),
+      ),
+    );
+    if (method == SalePaymentMethod.cash) {
+      await _payInCash(id, at: at, cashAccountId: cashAccountId);
+    }
+    return id;
+  });
+
   Future<QuickRecord?> _record(int id) => (_db.select(
     _db.quickRecords,
   )..where((r) => r.id.equals(id))).getSingleOrNull();
@@ -275,6 +347,10 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
         categoryOverrideId: Value(r.categoryId),
         debtId: r.kind == QuickRecordKind.paid
             ? Value(r.debtId)
+            : const Value.absent(),
+        // Change given back takes money off the sale, not a cost.
+        kind: r.kind == QuickRecordKind.change
+            ? const Value(TransactionKind.reversal)
             : const Value.absent(),
       ),
     );
@@ -341,6 +417,8 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
           QuickRecordKind.bought => WaitingKind.bought,
           QuickRecordKind.gotPaid => WaitingKind.gotPaid,
           QuickRecordKind.paid => WaitingKind.paid,
+          QuickRecordKind.paidYourself => WaitingKind.paidYourself,
+          QuickRecordKind.change => WaitingKind.change,
         },
         method: r.method,
         amountMinor: r.amountMinor,

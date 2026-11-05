@@ -15,6 +15,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../people/application/people_providers.dart';
 import '../application/sales_providers.dart';
+import 'choose_payments_sheet.dart';
 
 /// How a sale is paid, as Pay offers it.
 enum PayWay {
@@ -139,7 +140,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
     ];
   }
 
-  Future<void> _done() async {
+  Future<void> _done({bool choose = false}) async {
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     final today = CalendarDate.local(ref.read(clockProvider)());
@@ -160,6 +161,11 @@ class _PaySheetState extends ConsumerState<PaySheet> {
                 : null,
           );
       navigator.pop(true);
+      final waiting = outcome.waiting.firstOrNull;
+      if (choose && waiting != null && navigator.mounted) {
+        await showChoosePaymentsSheet(navigator.context, waiting);
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(content: Text(_savedMessage(parts, outcome))),
       );
@@ -284,6 +290,16 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         'Waiting for the ${methodName(_way.method!)} message for '
         '${_kes(widget.totalMinor)}. It will match this sale on its own, '
         'or tap Done now.',
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          key: const Key('pay-choose'),
+          onPressed: _saving ? null : () => _done(choose: true),
+          child: const Text(
+            'Paid another amount, or in parts? Choose payments',
+          ),
+        ),
       ),
     ],
     PayWay.credit => _credit(context, today, customers),

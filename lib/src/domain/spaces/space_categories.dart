@@ -53,6 +53,14 @@ const stockSeed = CategorySeed(
   CategoryType.expense,
 );
 
+/// Personal's income from the owner's own business, as Pay yourself files
+/// it: as pay, or as other business income.
+const payFromBusinessSeed = CategorySeed(
+  'pay_from_business',
+  'Salary from my business',
+  CategoryType.income,
+);
+
 /// Customers paying what they owe for sales on credit: not a new sale.
 const customerPaymentsKey = 'customer_payments';
 
@@ -75,7 +83,7 @@ const supplierPaymentsSeed = CategorySeed(
 /// Personal, not a cost.
 const ownerPayKey = 'owner_pay';
 
-const _ownerPay = CategorySeed(
+const ownerPaySeed = CategorySeed(
   ownerPayKey,
   'Paid yourself',
   CategoryType.transfer,
@@ -92,7 +100,7 @@ const _added = <SpaceKind, List<CategorySeed>>{
     CategorySeed('wages', 'Wages', CategoryType.expense),
     CategorySeed('premises', 'Rent and premises', CategoryType.expense),
     CategorySeed('equipment', 'Tools and equipment', CategoryType.expense),
-    _ownerPay,
+    ownerPaySeed,
   ],
   SpaceKind.household: [
     CategorySeed(
@@ -127,7 +135,7 @@ const _added = <SpaceKind, List<CategorySeed>>{
       'Land rates and service charge',
       CategoryType.expense,
     ),
-    _ownerPay,
+    ownerPaySeed,
   ],
   SpaceKind.farm: [
     CategorySeed('harvest_sales', 'Harvest sales', CategoryType.income),
@@ -136,7 +144,7 @@ const _added = <SpaceKind, List<CategorySeed>>{
     CategorySeed('farm_labour', 'Labour', CategoryType.expense),
     CategorySeed('feed_vet', 'Animal feed and vet', CategoryType.expense),
     CategorySeed('farm_equipment', 'Tools and equipment', CategoryType.expense),
-    _ownerPay,
+    ownerPaySeed,
   ],
 };
 

@@ -18,9 +18,20 @@ enum WaitingKind {
   gotPaid,
 
   /// Paying a supplier: money out.
-  paid;
+  paid,
 
-  bool get isInflow => this == sale || this == gotPaid;
+  /// The owner paying themselves into Personal: money out.
+  paidYourself,
+
+  /// Personal's side of Pay yourself: money in.
+  payFromBusiness,
+
+  /// Change sent back by M-Pesa or bank to a customer who paid too much:
+  /// money out, taken off the sale.
+  change;
+
+  bool get isInflow =>
+      this == sale || this == gotPaid || this == payFromBusiness;
 }
 
 /// An M-Pesa or bank payment recorded on the phone, waiting for its
@@ -122,4 +133,28 @@ Map<WaitingPayment, int> matchWaitingPayments(
     }
   }
   return out;
+}
+
+/// What happened to the rest when payments came to less than the sale.
+enum ShortBy {
+  /// The customer owes it.
+  theyOweIt,
+
+  /// The rest was paid in cash.
+  restInCash,
+
+  /// Another payment is still to come.
+  anotherPayment,
+
+  /// The owner gave a discount, so the sale is smaller.
+  discount,
+}
+
+/// What happened to the extra when payments came to more than the sale.
+enum OverBy {
+  changeInCash,
+  changeByMpesa,
+
+  /// The sale counts what was paid.
+  keepWithSale,
 }

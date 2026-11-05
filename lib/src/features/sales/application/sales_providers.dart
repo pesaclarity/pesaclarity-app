@@ -22,12 +22,19 @@ import '../../spaces/application/spaces_providers.dart';
 
 /// What happened to a sale just recorded.
 class SaleOutcome {
-  const SaleOutcome({required this.saleId, this.matched = const []});
+  const SaleOutcome({
+    required this.saleId,
+    this.matched = const [],
+    this.waiting = const [],
+  });
 
   final int saleId;
 
   /// Payment messages that had already come in and now pay for it.
   final List<LedgerEntry> matched;
+
+  /// Its parts still waiting for a message.
+  final List<WaitingPayment> waiting;
 }
 
 /// Records a business's sales, purchases and payments, and matches their
@@ -78,6 +85,10 @@ class SalesController {
       matched: [
         for (final MapEntry(:key, :value) in matched.entries)
           if (mine.contains(key)) value,
+      ],
+      waiting: [
+        for (final w in mine)
+          if (!matched.containsKey(w)) w,
       ],
     );
   }
@@ -194,6 +205,78 @@ class SalesController {
     return {
       for (final MapEntry(:key, :value) in matches.entries) key: ?byId[value],
     };
+  }
+
+  /// Payment messages that could pay for waiting sale part [w]: money in on
+  /// M-Pesa or bank around its time, not paying for anything else yet,
+  /// newest first.
+  Future<List<LedgerEntry>> candidatesFor(WaitingPayment w) async {
+    final entries = await _ref
+        .read(transactionsRepositoryProvider)
+        .ledgerEntries(
+          from: w.at.subtract(saleMatchWindow),
+          to: w.at.add(saleMatchWindow),
+        );
+    final types = {
+      for (final a in await _ref.read(accountsRepositoryProvider).openings())
+        a.id: a.type,
+    };
+    final linked = {
+      ...await _sales.linkedTransactions(),
+      ...await _records.linkedTransactions(),
+    };
+    final out = [
+      for (final e in entries)
+        if (e.isInflow &&
+            e.transferPairId == null &&
+            !linked.contains(e.id) &&
+            (types[e.accountId] == AccountType.mpesa ||
+                types[e.accountId] == AccountType.bank) &&
+            (e.categoryId == null ||
+                e.categoryIsAuto ||
+                e.categoryId == w.categoryId))
+          e,
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return out;
+  }
+
+  /// Pays waiting sale part [w] with [chosen] messages. Short of it, the
+  /// rest goes as [short] says; over it, the extra as [over] says.
+  Future<void> settle(
+    WaitingPayment w,
+    List<LedgerEntry> chosen, {
+    ShortBy? short,
+    OverBy? over,
+    CreditTerms? credit,
+  }) async {
+    final paid = chosen.fold(0, (sum, e) => sum + e.amountMinor);
+    final cash = await _cashAccount();
+    await _sales.settle(
+      w.id,
+      [for (final e in chosen) (id: e.id, amountMinor: e.amountMinor)],
+      salesCategoryId: w.categoryId,
+      cashAccountId: cash,
+      at: _now(),
+      short: short,
+      credit: credit,
+      keepExtra: over == OverBy.keepWithSale,
+    );
+    final extra = paid - w.amountMinor;
+    if (extra > 0 &&
+        (over == OverBy.changeInCash || over == OverBy.changeByMpesa)) {
+      final who = chosen.first.payeeName ?? chosen.first.counterpartyName;
+      await _records.change(
+        at: _now(),
+        amountMinor: extra,
+        method: over == OverBy.changeInCash
+            ? SalePaymentMethod.cash
+            : SalePaymentMethod.mpesa,
+        salesCategoryId: w.categoryId,
+        cashAccountId: cash,
+        customer: who,
+      );
+      await matchWaiting();
+    }
   }
 
   /// A waiting record was paid in cash after all.
