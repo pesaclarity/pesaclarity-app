@@ -218,6 +218,29 @@ void main() {
     expect(String.fromCharCodes(pdf.take(4)), '%PDF');
   });
 
+  test('totals only: the cash book by day, and people as totals', () async {
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    await seed(c);
+    final doc = await c
+        .read(reportMakerProvider)
+        .make(
+          period: periodFor(ReportRange.thisMonth, CalendarDate(2026, 11, 5)),
+          sections: ReportSection.values.toSet(),
+          detail: ReportDetail.totals,
+        );
+    final tables = doc.blocks.whereType<ReportTable>().toList();
+    final book = tables.firstWhere((t) => t.title == 'Cash book by day');
+    expect(book.total, ['Total', 600000, 200000]);
+    final customers = tables.firstWhere(
+      (t) => t.title == 'Customers who owe you',
+    );
+    expect(customers.rows.single.first, '1 customer');
+    expect(customers.rows.single.last, 120000);
+    final pdf = await renderBusinessReport(doc);
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+  });
+
   testAppWidgets('Insights shows profit, how people pay and best sellers', (
     tester,
   ) async {
@@ -280,8 +303,20 @@ void main() {
           .value,
       isFalse,
     );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const Key('detail-totals')))
+          .selected,
+      isTrue,
+    );
     await tester.tap(find.byKey(const Key('audience-accountant')));
     await tester.pump();
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const Key('detail-everyEntry')))
+          .selected,
+      isTrue,
+    );
     expect(
       tester
           .widget<CheckboxListTile>(find.byKey(const Key('section-cashBook')))
@@ -306,6 +341,7 @@ void main() {
       () => c.read(reportSettingsProvider.future),
     );
     expect(settings!.saved.single.audience, ReportAudience.accountant);
+    expect(settings.saved.single.detail, ReportDetail.everyEntry);
     expect(
       find.byKey(const Key('saved-Monthly report for the accountant')),
       findsOneWidget,

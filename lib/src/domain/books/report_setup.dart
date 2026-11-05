@@ -12,6 +12,11 @@ enum ReportAudience {
 
   final String label;
 
+  /// An accountant gets every entry; the others, totals.
+  ReportDetail get detail => this == ReportAudience.accountant
+      ? ReportDetail.everyEntry
+      : ReportDetail.totals;
+
   Set<ReportSection> get sections => switch (this) {
     ReportAudience.sacco => const {
       ReportSection.profitAndLoss,
@@ -30,6 +35,16 @@ enum ReportAudience {
   };
 }
 
+/// How much a report shows: totals only, or every entry.
+enum ReportDetail {
+  totals('Totals only'),
+  everyEntry('Every entry');
+
+  const ReportDetail(this.label);
+
+  final String label;
+}
+
 /// What a report can hold, in the order it prints.
 enum ReportSection {
   profitAndLoss('Profit and loss'),
@@ -39,7 +54,7 @@ enum ReportSection {
   balance('Balance summary'),
   bestSellers('Best sellers'),
   stock('Stock'),
-  cashBook('Cash book, every entry'),
+  cashBook('Cash book'),
   tax('Tax estimate'),
   insights('Insights');
 
@@ -97,11 +112,13 @@ class ReportSetup {
     this.range = ReportRange.lastMonth,
     this.from,
     this.to,
+    this.detail = ReportDetail.totals,
   });
 
   final String name;
   final ReportAudience audience;
   final Set<ReportSection> sections;
+  final ReportDetail detail;
 
   /// Null when the report has its own dates, [from] up to [to].
   final ReportRange? range;
@@ -128,6 +145,7 @@ class ReportSetup {
         if (sections.contains(s)) s.name,
     ],
     'range': ?range?.name,
+    'detail': detail.name,
     if (range == null)
       'from': ?(from == null ? null : formatCalendarDate(from!)),
     if (range == null) 'to': ?(to == null ? null : formatCalendarDate(to!)),
@@ -167,6 +185,11 @@ class ReportSetup {
           : range ?? ReportRange.lastMonth,
       from: range == null ? from : null,
       to: range == null ? to : null,
+      detail:
+          ReportDetail.values
+              .where((d) => d.name == json['detail'])
+              .firstOrNull ??
+          (audience ?? ReportAudience.sacco).detail,
     );
   }
 }
