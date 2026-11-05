@@ -31,6 +31,7 @@ import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../../spaces/presentation/business_setup_card.dart';
 import '../../spaces/presentation/shared_line_card.dart';
 import '../../spaces/presentation/spaces_sheet.dart';
 import '../../statements/data/pdf_text_extractor.dart';
@@ -118,6 +119,7 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () => openActivity(thisMonth),
                 ),
                 const SizedBox(height: 12),
+                if (space.kind == SpaceKind.business) const BusinessSetupCard(),
                 const SharedLineCard(),
                 const _ReviewCard(),
                 const _WhatWasThisCard(),

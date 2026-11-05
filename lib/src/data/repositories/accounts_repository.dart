@@ -24,6 +24,16 @@ abstract interface class AccountsRepository {
 
   /// Every account's opening balance, for working out balances.
   Future<List<AccountOpening>> openings();
+
+  /// Starts [accountId]'s records at [date] with [balanceMinor], in the
+  /// account's own currency.
+  Future<void> setOpening(int accountId, int balanceMinor, DateTime date);
+
+  /// The id of the cash account (the drawer), creating it the first time.
+  Future<int> cashAccount({
+    required String name,
+    required DateTime openingDate,
+  });
 }
 
 class DriftAccountsRepository implements AccountsRepository {
@@ -61,6 +71,35 @@ class DriftAccountsRepository implements AccountsRepository {
         type: type,
         openingDate: openingDate,
         institutionId: Value(institutionId),
+      ),
+    );
+  });
+
+  @override
+  Future<void> setOpening(int accountId, int balanceMinor, DateTime date) =>
+      (_db.update(_db.accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(
+          openingBalanceMinor: Value(balanceMinor),
+          openingDate: Value(date),
+        ),
+      );
+
+  @override
+  Future<int> cashAccount({
+    required String name,
+    required DateTime openingDate,
+  }) => _db.transaction(() async {
+    final existing =
+        await (_db.select(_db.accounts)
+              ..where((a) => a.type.equalsValue(AccountType.cash))
+              ..orderBy([(a) => OrderingTerm(expression: a.id)]))
+            .get();
+    if (existing.isNotEmpty) return existing.first.id;
+    return add(
+      AccountsCompanion.insert(
+        name: name,
+        type: AccountType.cash,
+        openingDate: openingDate,
       ),
     );
   });

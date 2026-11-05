@@ -25,6 +25,12 @@ abstract final class AppRoutes {
   /// Adding a space, such as a business.
   static const addSpace = '/home/spaces/add';
 
+  /// A business: products, services or both.
+  static const whatYouSell = '/home/spaces/sells';
+
+  /// A business: opening balances.
+  static const startRecords = '/home/spaces/start';
+
   /// A business: which accounts are business, personal or both.
   static const businessOrPersonal = '/home/spaces/routing';
 
