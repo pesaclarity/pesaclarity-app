@@ -20,6 +20,13 @@ import '../../spaces/application/spaces_providers.dart';
 
 String _date(CalendarDate d) => periodText(ReportPeriod(d, d.addDays(1), ''));
 
+/// The line at the foot of each statement page, naming the app only when
+/// [settings] keeps its branding.
+String statementFooter(DocumentSettings settings, CalendarDate today) =>
+    settings.branding
+    ? 'Made on this phone with Pesa Clarity on ${_date(today)}.'
+    : 'Made on ${_date(today)}.';
+
 /// A customer's statement as an A4 PDF: what they owe, and every credit
 /// sale and payment with the balance after each, oldest first.
 Future<Uint8List> renderStatementPdf({
@@ -88,7 +95,7 @@ Future<Uint8List> renderStatementPdf({
             children: [
               pw.Expanded(
                 child: pw.Text(
-                  'Made on this phone with Pesa Clarity on ${_date(today)}.',
+                  statementFooter(settings, today),
                   style: pw.TextStyle(fontSize: 8, color: muted),
                 ),
               ),
