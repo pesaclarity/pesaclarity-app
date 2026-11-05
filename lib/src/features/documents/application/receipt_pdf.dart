@@ -24,11 +24,23 @@ Future<Uint8List> renderReceiptPdf(
   required String initials,
   Uint8List? logo,
 }) {
-  final brand = PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final text = PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final success = PdfColor.fromInt(BrandTokens.success.toARGB32());
+  // Black and white prints cleanly on a thermal till printer.
+  final mono = r.blackAndWhite;
+  final brand = mono
+      ? PdfColors.black
+      : PdfColor.fromInt(BrandTokens.brand.toARGB32());
+  final text = mono
+      ? PdfColors.black
+      : PdfColor.fromInt(BrandTokens.text.toARGB32());
+  final muted = mono
+      ? PdfColors.black
+      : PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
+  final border = mono
+      ? PdfColors.black
+      : PdfColor.fromInt(BrandTokens.border.toARGB32());
+  final success = mono
+      ? PdfColors.black
+      : PdfColor.fromInt(BrandTokens.success.toARGB32());
   String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
   final theme = pw.ThemeData.base();
 
@@ -154,7 +166,10 @@ Future<Uint8List> renderReceiptPdf(
           pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3),
             decoration: pw.BoxDecoration(
-              color: PdfColor(success.red, success.green, success.blue, 0.12),
+              color: mono
+                  ? null
+                  : PdfColor(success.red, success.green, success.blue, 0.12),
+              border: mono ? pw.Border.all(width: 0.6) : null,
               borderRadius: pw.BorderRadius.circular(3),
             ),
             child: pw.Text(

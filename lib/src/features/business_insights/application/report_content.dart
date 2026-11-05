@@ -48,6 +48,23 @@ class ReportNotes extends ReportBlock {
   final List<String> lines;
 }
 
+/// One bar of a chart: a label and an amount in minor units.
+class ReportPoint {
+  const ReportPoint(this.label, this.valueMinor);
+
+  final String label;
+  final int valueMinor;
+}
+
+/// A chart: bars across the page for [columns] false, such as how people
+/// paid, or upright columns in order, such as sales by day.
+class ReportChart extends ReportBlock {
+  const ReportChart(super.title, {required this.points, this.columns = false});
+
+  final List<ReportPoint> points;
+  final bool columns;
+}
+
 /// A finished report, ready to print as a PDF or write as CSV.
 class ReportDocument {
   const ReportDocument({
@@ -59,6 +76,8 @@ class ReportDocument {
     required this.currency,
     required this.blocks,
     this.logo,
+    this.style = const ReportStyle(),
+    this.coverNotes = const [],
   });
 
   final String title;
@@ -71,6 +90,12 @@ class ReportDocument {
 
   /// The business's logo for the cover, when it has one.
   final Uint8List? logo;
+
+  /// How it prints.
+  final ReportStyle style;
+
+  /// Extra lines for the cover, such as the KRA PIN.
+  final List<String> coverNotes;
 
   String get periodLine => periodText(period);
 
@@ -99,32 +124,45 @@ ReportDocument reportDocument({
   Uint8List? logo,
   Map<int, String> accountNames = const {},
   Map<int, String> categoryNames = const {},
+  ReportStyle style = const ReportStyle(),
+  List<ReportPoint> profitTrend = const [],
+  List<String> coverNotes = const [],
 }) {
   final period = report.period;
   final endsBefore = period.lastDay.isBefore(today);
   final asOfToday = endsBefore ? 'As they stand on ${_day(today)}.' : null;
+  final words = _Words(style.wording);
+  String head(ReportSection s) => words.section(s);
+  if (style.length == ReportLength.summary) {
+    return ReportDocument(
+      title: title,
+      business: business,
+      coverLine: coverLine,
+      period: period,
+      made: today,
+      currency: BaseCurrency.code,
+      blocks: _summary(report, sections, tax, words, style),
+      logo: logo,
+      style: style,
+      coverNotes: coverNotes,
+    );
+  }
   final blocks = <ReportBlock>[];
   for (final section in ReportSection.values) {
     if (!sections.contains(section)) continue;
     switch (section) {
       case ReportSection.profitAndLoss:
-        final pnl = report.pnl;
-        blocks.add(
-          ReportTable(
-            section.label,
-            columns: const ['', 'Amount'],
-            rows: [
-              for (final l in pnl.income) [l.name, l.amountMinor],
-              for (final l in pnl.costs) [l.name, -l.amountMinor],
-            ],
-            total: ['Profit', pnl.profitMinor],
-          ),
-        );
+        blocks.add(_pnlTable(report, head(section), words, style.compare));
+        if (style.charts && profitTrend.isNotEmpty) {
+          blocks.add(
+            ReportChart(words.trend, points: profitTrend, columns: true),
+          );
+        }
       case ReportSection.byWay:
         final total = report.salesMinor;
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['How', 'Share', 'Amount'],
             rows: [
               for (final MapEntry(:key, :value) in report.byWay.entries)
@@ -133,11 +171,33 @@ ReportDocument reportDocument({
             total: ['Total sales', total > 0 ? '100%' : null, total],
           ),
         );
+        if (style.charts && total > 0) {
+          blocks
+            ..add(
+              ReportChart(
+                'How people paid',
+                points: [
+                  for (final MapEntry(:key, :value) in report.byWay.entries)
+                    ReportPoint(methodLabel(key), value),
+                ],
+              ),
+            )
+            ..add(
+              ReportChart(
+                'Sales by day',
+                columns: true,
+                points: [
+                  for (final (i, v) in report.byDay.indexed)
+                    ReportPoint('${period.from.addDays(i).day}', v),
+                ],
+              ),
+            );
+        }
       case ReportSection.customers when detail == ReportDetail.totals:
         final owing = report.customers;
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['', 'Over two weeks', 'Owed'],
             rows: [
               [
@@ -152,7 +212,7 @@ ReportDocument reportDocument({
       case ReportSection.customers:
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['Customer', 'Over two weeks', 'Owed'],
             rows: [
               for (final c in report.customers)
@@ -177,7 +237,7 @@ ReportDocument reportDocument({
         ];
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['', 'Owed'],
             rows: [
               [
@@ -195,7 +255,7 @@ ReportDocument reportDocument({
         ];
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['Supplier', 'Due', 'Owed'],
             rows: [
               for (final s in owed)
@@ -217,15 +277,15 @@ ReportDocument reportDocument({
         final b = report.balance;
         blocks.add(
           ReportTable(
-            '${section.label} on ${_day(period.lastDay)}',
+            '${head(section)} on ${_day(period.lastDay)}',
             columns: const ['', 'Amount'],
             rows: [
-              ['Cash, M-Pesa and bank', b.moneyMinor],
-              ['Customers owe you', b.owedToYouMinor],
-              if (b.stockMinor != 0) ['Stock', b.stockMinor],
-              ['You owe suppliers', -b.owedToSuppliersMinor],
+              [words.money, b.moneyMinor],
+              [words.owedToYou, b.owedToYouMinor],
+              if (b.stockMinor != 0) [words.stock, b.stockMinor],
+              [words.owedToSuppliers, -b.owedToSuppliersMinor],
             ],
-            total: ['What the business is worth', b.netMinor],
+            total: [words.worth, b.netMinor],
             note: b.paidYourselfMinor > 0
                 ? 'Paid yourself in this period, moved to Personal: '
                       '${_plain(b.paidYourselfMinor)}.'
@@ -235,7 +295,7 @@ ReportDocument reportDocument({
       case ReportSection.bestSellers:
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['Item', 'Sold', 'Profit', 'Sales'],
             rows: [
               for (final s in report.bestSellers)
@@ -255,7 +315,7 @@ ReportDocument reportDocument({
         ];
         blocks.add(
           ReportTable(
-            section.label,
+            head(section),
             columns: const ['Item', 'In stock', 'Average cost', 'Value'],
             rows: [
               for (final i in products)
@@ -316,10 +376,10 @@ ReportDocument reportDocument({
           ),
         );
       case ReportSection.tax:
-        if (tax != null) blocks.add(_taxTable(tax, section.label));
+        if (tax != null) blocks.add(_taxTable(tax, head(section)));
       case ReportSection.insights:
         if (report.insights.isNotEmpty) {
-          blocks.add(ReportNotes(section.label, report.insights));
+          blocks.add(ReportNotes(head(section), report.insights));
         }
     }
   }
@@ -332,7 +392,153 @@ ReportDocument reportDocument({
     currency: BaseCurrency.code,
     blocks: blocks,
     logo: logo,
+    style: style,
+    coverNotes: coverNotes,
   );
+}
+
+/// Profit and loss, with the period before next to it when [compare].
+ReportTable _pnlTable(
+  BusinessReport report,
+  String title,
+  _Words words,
+  bool compare,
+) {
+  final pnl = report.pnl;
+  if (!compare) {
+    return ReportTable(
+      title,
+      columns: const ['', 'Amount'],
+      rows: [
+        for (final l in pnl.income) [l.name, l.amountMinor],
+        for (final l in pnl.costs) [l.name, -l.amountMinor],
+      ],
+      total: [words.profit, pnl.profitMinor],
+    );
+  }
+  final before = report.previousPnl;
+  List<List<Object?>> lines(List<PnlLine> now, List<PnlLine> was, int sign) {
+    final names = [
+      for (final l in now) l.name,
+      for (final l in was)
+        if (!now.any((n) => n.name == l.name)) l.name,
+    ];
+    int amount(List<PnlLine> ls, String name) =>
+        ls.where((l) => l.name == name).fold(0, (a, l) => a + l.amountMinor);
+    return [
+      for (final n in names) [n, sign * amount(was, n), sign * amount(now, n)],
+    ];
+  }
+
+  return ReportTable(
+    title,
+    columns: ['', _capital(report.previousLabel), 'This period'],
+    rows: [
+      ...lines(pnl.income, before.income, 1),
+      ...lines(pnl.costs, before.costs, -1),
+    ],
+    total: [words.profit, before.profitMinor, pnl.profitMinor],
+  );
+}
+
+/// The one-page summary: headline figures from the chosen [sections].
+List<ReportBlock> _summary(
+  BusinessReport report,
+  Set<ReportSection> sections,
+  TaxView? tax,
+  _Words words,
+  ReportStyle style,
+) {
+  final compare = style.compare;
+  final before = report.previousPnl;
+  List<Object?> row(String name, int now, [int? was]) => [
+    name,
+    if (compare) was,
+    now,
+  ];
+  final pnl = report.pnl;
+  final b = report.balance;
+  final rows = <List<Object?>>[
+    if (sections.contains(ReportSection.profitAndLoss) ||
+        sections.contains(ReportSection.byWay)) ...[
+      row(words.sales, pnl.incomeMinor, before.incomeMinor),
+      row(words.costs, -pnl.costsMinor, -before.costsMinor),
+      row(words.profit, pnl.profitMinor, before.profitMinor),
+    ],
+    if (sections.contains(ReportSection.balance)) ...[
+      row(words.money, b.moneyMinor),
+      row(words.owedToYou, b.owedToYouMinor),
+      if (b.stockMinor != 0) row(words.stock, b.stockMinor),
+      row(words.owedToSuppliers, -b.owedToSuppliersMinor),
+      row(words.worth, b.netMinor),
+    ] else ...[
+      if (sections.contains(ReportSection.customers))
+        row(
+          words.owedToYou,
+          report.customers.fold(0, (sum, c) => sum + c.owedMinor),
+        ),
+      if (sections.contains(ReportSection.suppliers))
+        row(
+          words.owedToSuppliers,
+          -report.suppliers.fold(0, (sum, s) => sum + s.owedMinor),
+        ),
+    ],
+    if (sections.contains(ReportSection.tax) && tax != null)
+      row('Tax that may be owed', tax.owedMinor),
+  ];
+  return [
+    ReportTable(
+      'Summary',
+      columns: [
+        '',
+        if (compare) _capital(report.previousLabel),
+        compare ? 'This period' : 'Amount',
+      ],
+      rows: rows,
+    ),
+    if (sections.contains(ReportSection.insights) && report.insights.isNotEmpty)
+      ReportNotes(words.section(ReportSection.insights), [
+        ...report.insights.take(3),
+      ]),
+  ];
+}
+
+String _capital(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+/// Headings and totals in everyday words or accounting terms.
+class _Words {
+  const _Words(this.wording);
+
+  final ReportWording wording;
+
+  bool get _formal => wording == ReportWording.formal;
+
+  String section(ReportSection s) => !_formal
+      ? s.label
+      : switch (s) {
+          ReportSection.profitAndLoss => 'Income statement',
+          ReportSection.byWay => 'Sales by payment method',
+          ReportSection.customers => 'Accounts receivable',
+          ReportSection.suppliers => 'Accounts payable',
+          ReportSection.balance => 'Balance sheet',
+          ReportSection.bestSellers => 'Top products and services',
+          ReportSection.stock => 'Inventory',
+          ReportSection.cashBook => 'Cash book',
+          ReportSection.tax => 'Tax estimate',
+          ReportSection.insights => 'Notes',
+        };
+
+  String get sales => _formal ? 'Revenue' : 'Sales';
+  String get costs => _formal ? 'Expenses' : 'Costs';
+  String get profit => _formal ? 'Net profit' : 'Profit';
+  String get money => _formal ? 'Cash and bank' : 'Cash, M-Pesa and bank';
+  String get owedToYou => _formal ? 'Accounts receivable' : 'Customers owe you';
+  String get stock => _formal ? 'Inventory' : 'Stock';
+  String get owedToSuppliers =>
+      _formal ? 'Accounts payable' : 'You owe suppliers';
+  String get worth => _formal ? 'Net assets' : 'What the business is worth';
+  String get trend => _formal ? 'Net profit by month' : 'Profit by month';
 }
 
 List<Object?>? _cashRow(
@@ -471,6 +677,9 @@ String reportCsv(ReportDocument doc) {
 
   row([doc.title]);
   row([doc.coverLine]);
+  for (final n in doc.coverNotes) {
+    row([n]);
+  }
   row([doc.periodLine]);
   row(['Amounts in ${doc.currency}']);
   for (final block in doc.blocks) {
@@ -490,6 +699,10 @@ String reportCsv(ReportDocument doc) {
       case ReportNotes():
         for (final l in block.lines) {
           row([l]);
+        }
+      case ReportChart():
+        for (final p in block.points) {
+          row([p.label, p.valueMinor]);
         }
     }
   }

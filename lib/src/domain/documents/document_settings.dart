@@ -10,6 +10,26 @@ enum ReceiptFormat {
   final String label;
 }
 
+/// How receipts print: in colour, or black and white for a thermal printer.
+enum ReceiptColour {
+  colour('Colour'),
+  blackAndWhite('Black and white');
+
+  const ReceiptColour(this.label);
+
+  final String label;
+}
+
+/// The top of an invoice: a thin strip of colour, or a full band.
+enum InvoiceHeader {
+  strip('Thin strip'),
+  band('Full band');
+
+  const InvoiceHeader(this.label);
+
+  final String label;
+}
+
 /// The business's details and choices for its receipts and invoices.
 class DocumentSettings {
   const DocumentSettings({
@@ -27,6 +47,10 @@ class DocumentSettings {
     this.footer = 'Thank you, come again!',
     this.offerReceipt = true,
     this.sendAs = ReceiptFormat.picture,
+    this.receiptColour = ReceiptColour.colour,
+    this.invoiceHeader = InvoiceHeader.strip,
+    this.branding = true,
+    this.signature = false,
   });
 
   /// Defaults to the space's name.
@@ -50,6 +74,14 @@ class DocumentSettings {
   final String footer;
   final bool offerReceipt;
   final ReceiptFormat sendAs;
+  final ReceiptColour receiptColour;
+  final InvoiceHeader invoiceHeader;
+
+  /// "Made with Pesa Clarity" on invoices and statements.
+  final bool branding;
+
+  /// Space to sign and stamp at the end of an invoice.
+  final bool signature;
 
   /// The business's name: its own, else [space].
   String nameOr(String space) => business ?? space;
@@ -98,6 +130,10 @@ class DocumentSettings {
     String? footer,
     bool? offerReceipt,
     ReceiptFormat? sendAs,
+    ReceiptColour? receiptColour,
+    InvoiceHeader? invoiceHeader,
+    bool? branding,
+    bool? signature,
   }) => DocumentSettings(
     business: business == null ? this.business : business(),
     place: place == null ? this.place : place(),
@@ -113,6 +149,10 @@ class DocumentSettings {
     footer: footer ?? this.footer,
     offerReceipt: offerReceipt ?? this.offerReceipt,
     sendAs: sendAs ?? this.sendAs,
+    receiptColour: receiptColour ?? this.receiptColour,
+    invoiceHeader: invoiceHeader ?? this.invoiceHeader,
+    branding: branding ?? this.branding,
+    signature: signature ?? this.signature,
   );
 
   Map<String, Object?> toJson() => {
@@ -130,6 +170,10 @@ class DocumentSettings {
     'footer': footer,
     'offerReceipt': offerReceipt,
     'sendAs': sendAs.name,
+    'receiptColour': receiptColour.name,
+    'invoiceHeader': invoiceHeader.name,
+    'branding': branding,
+    'signature': signature,
   };
 
   static DocumentSettings fromJson(Map<String, Object?>? json) {
@@ -164,6 +208,18 @@ class DocumentSettings {
               .where((f) => f.name == json['sendAs'])
               .firstOrNull ??
           ReceiptFormat.picture,
+      receiptColour:
+          ReceiptColour.values
+              .where((c) => c.name == json['receiptColour'])
+              .firstOrNull ??
+          ReceiptColour.colour,
+      invoiceHeader:
+          InvoiceHeader.values
+              .where((h) => h.name == json['invoiceHeader'])
+              .firstOrNull ??
+          InvoiceHeader.strip,
+      branding: json['branding'] != false,
+      signature: json['signature'] == true,
     );
   }
 }

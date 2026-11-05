@@ -315,6 +315,31 @@ List<int> salesByWeekday(
   return out;
 }
 
+/// Sales on each day of [period], first day first, filed under
+/// [salesCategoryId].
+List<int> salesByDay(
+  Books books,
+  ReportPeriod period, {
+  required int salesCategoryId,
+  required String currency,
+}) {
+  final sales = BookAccount.category(salesCategoryId, income: true);
+  final from = period.from.startInstant;
+  final to = period.to.startInstant;
+  final out = List.filled(period.days < 0 ? 0 : period.days, 0);
+  for (final e in books.entries) {
+    if (e.currency != currency || e.at.isBefore(from) || !e.at.isBefore(to)) {
+      continue;
+    }
+    final day = period.from.daysUntil(CalendarDate.local(e.at));
+    if (day < 0 || day >= out.length) continue;
+    for (final l in e.lines) {
+      if (l.account == sales) out[day] -= l.amountMinor;
+    }
+  }
+  return out;
+}
+
 /// Sales by how people paid in [period].
 Map<SalePaymentMethod, int> salesByWay(
   Books books,

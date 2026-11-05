@@ -208,6 +208,7 @@ class ReceiptMaker {
       currency: sale.currency,
       footer: settings.footer,
       customer: sale.customer,
+      blackAndWhite: settings.receiptColour == ReceiptColour.blackAndWhite,
     );
   }
 

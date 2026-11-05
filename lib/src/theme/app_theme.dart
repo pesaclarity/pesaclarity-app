@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../domain/look/look_settings.dart';
 import 'app_typography.dart';
 import 'brand_tokens.dart';
 import 'pesa_colors.dart';
@@ -65,6 +66,28 @@ abstract final class AppTheme {
     background: BrandTokens.darkBackground,
     colors: PesaColors.dark,
   );
+
+  /// [base] with text fields drawn as [style]: underlined, as the theme
+  /// draws them, or boxed.
+  static ThemeData withFields(ThemeData base, FieldStyle style) {
+    if (style == FieldStyle.underlined) return base;
+    final colors = base.extension<PesaColors>()!;
+    OutlineInputBorder box(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(BrandTokens.fieldRadius),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    return base.copyWith(
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        border: box(colors.border),
+        enabledBorder: box(colors.border),
+        disabledBorder: box(colors.border.withValues(alpha: 0.5)),
+        focusedBorder: box(base.colorScheme.primary, 2),
+        errorBorder: box(base.colorScheme.error),
+        focusedErrorBorder: box(base.colorScheme.error, 2),
+      ),
+    );
+  }
 
   static ThemeData _build({
     required Brightness brightness,
