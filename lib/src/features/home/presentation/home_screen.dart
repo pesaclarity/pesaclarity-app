@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
+import '../../../domain/books/business_report.dart';
 import '../../../domain/budget/safe_to_spend.dart';
 import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
@@ -26,6 +27,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
+import '../../business_insights/application/business_report_providers.dart';
 import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
@@ -132,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
                   const WaitingPaymentsCard(),
                 ],
                 _SpaceSummaryCard(
-                  ref.watch(spaceSummaryProvider).value,
+                  _summaryFor(ref, isBusiness: isBusiness, today: today),
                   kind: space.kind,
                   compact: sellsProducts,
                   onTap: () => openActivity(thisMonth),
@@ -1224,6 +1226,23 @@ String _compared(BuildContext context, int today, int usual, String weekday) {
   if (percent == 0) return 'About the same as a usual $weekday';
   if (percent > 0) return 'Up $percent% on a usual $weekday';
   return 'A usual $weekday is ${_plain(context, usual)}';
+}
+
+/// The space's summary; a business takes this month's money in and costs
+/// from its books, so Today and Insights show the same profit.
+SpaceSummary? _summaryFor(
+  WidgetRef ref, {
+  required bool isBusiness,
+  required CalendarDate today,
+}) {
+  final summary = ref.watch(spaceSummaryProvider).value;
+  if (!isBusiness || summary == null) return summary;
+  final pnl = ref
+      .watch(businessProfitProvider(ReportPeriod.thisMonth(today)))
+      .value;
+  return pnl == null
+      ? null
+      : summary.withTotals(inMinor: pnl.incomeMinor, outMinor: pnl.costsMinor);
 }
 
 /// The top of Home for a space that is not Personal: profit for a business,

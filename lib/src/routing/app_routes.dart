@@ -70,6 +70,12 @@ abstract final class AppRoutes {
   static const lending = '/goals/lending';
   static const insights = '/insights';
 
+  /// A business's profit and loss, cash book, customers and suppliers.
+  static const fullRecords = '/insights/records';
+
+  /// A business report to share as a PDF or CSV.
+  static const makeReport = '/insights/report';
+
   /// A business's cash book.
   static const money = '/money';
 

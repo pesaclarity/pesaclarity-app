@@ -11,6 +11,9 @@ import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/backup/presentation/backup_setup_screen.dart';
 import '../features/books/presentation/money_screen.dart';
+import '../features/business_insights/presentation/full_records_screen.dart';
+import '../features/business_insights/presentation/insights_tab.dart';
+import '../features/business_insights/presentation/make_report_screen.dart';
 import '../features/close/presentation/close_day_screen.dart';
 import '../features/currency/presentation/base_currency_screen.dart';
 import '../features/currency/presentation/setup_currency_screen.dart';
@@ -19,7 +22,6 @@ import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
 import '../features/income/presentation/week_by_week_screen.dart';
-import '../features/insights/presentation/insights_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/first_insight_screen.dart';
@@ -300,7 +302,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.insights,
-                builder: (context, state) => const InsightsScreen(),
+                builder: (context, state) => const InsightsTab(),
+                routes: [
+                  GoRoute(
+                    path: 'records',
+                    builder: (context, state) => const FullRecordsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'report',
+                    builder: (context, state) => const MakeReportScreen(),
+                  ),
+                ],
               ),
             ],
           ),
