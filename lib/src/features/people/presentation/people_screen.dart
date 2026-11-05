@@ -56,6 +56,14 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                   ),
                 ),
                 TextButton(
+                  key: const Key('people-invoices'),
+                  onPressed: () => context.push(AppRoutes.invoices),
+                  child: Text(
+                    'Invoices',
+                    style: TextStyle(color: PesaColors.of(context).link),
+                  ),
+                ),
+                TextButton(
                   key: const Key('reminder-messages'),
                   onPressed: () => context.push(AppRoutes.reminderMessages),
                   child: Text(

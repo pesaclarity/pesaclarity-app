@@ -307,6 +307,8 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.saleLines,
       _db.withheldTaxes,
       _db.hourEntries,
+      _db.invoices,
+      _db.invoiceLines,
     ]),
   );
 

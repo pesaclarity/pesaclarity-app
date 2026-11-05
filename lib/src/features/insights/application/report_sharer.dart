@@ -21,7 +21,13 @@ abstract interface class ReportSharer {
     required String mimeType,
     required String subject,
   });
+
+  /// Several files in one share.
+  Future<void> shareFiles(List<SharedFile> files, {required String subject});
 }
+
+/// A file to share: its bytes, name and type.
+typedef SharedFile = ({Uint8List bytes, String fileName, String mimeType});
 
 /// Writes the PDF to the app's cache, then opens Android's share sheet.
 class SharePlusReportSharer implements ReportSharer {
@@ -45,16 +51,23 @@ class SharePlusReportSharer implements ReportSharer {
     required String fileName,
     required String mimeType,
     required String subject,
+  }) => shareFiles([
+    (bytes: bytes, fileName: fileName, mimeType: mimeType),
+  ], subject: subject);
+
+  @override
+  Future<void> shareFiles(
+    List<SharedFile> files, {
+    required String subject,
   }) async {
     final dir = await getTemporaryDirectory();
-    final file = File(p.join(dir.path, fileName));
-    await file.writeAsBytes(bytes, flush: true);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path, mimeType: mimeType)],
-        subject: subject,
-      ),
-    );
+    final out = <XFile>[];
+    for (final f in files) {
+      final file = File(p.join(dir.path, f.fileName));
+      await file.writeAsBytes(f.bytes, flush: true);
+      out.add(XFile(file.path, mimeType: f.mimeType));
+    }
+    await SharePlus.instance.share(ShareParams(files: out, subject: subject));
   }
 }
 

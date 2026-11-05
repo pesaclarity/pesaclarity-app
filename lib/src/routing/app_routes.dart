@@ -95,6 +95,15 @@ abstract final class AppRoutes {
   /// The business's reminder messages, app, till and daily nudge.
   static const reminderMessages = '/people/messages';
 
+  /// The business's invoices and their status.
+  static const invoices = '/people/invoices';
+
+  /// A new invoice, for [client] when known.
+  static String newInvoice({String? client}) => Uri(
+    path: '/people/invoices/new',
+    queryParameters: client == null ? null : {'client': client},
+  ).toString();
+
   /// What the business owes one supplier, and has paid.
   static String supplierStatement(int debtId) => '/people/supplier/$debtId';
 
@@ -120,5 +129,5 @@ abstract final class AppRoutes {
   static const sell = '/sell';
 
   /// A services business: work done, billed to pay later.
-  static const billed = '/sell?for=billed';
+  static const billed = '/people/invoices/new';
 }

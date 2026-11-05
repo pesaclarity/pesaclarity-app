@@ -73,6 +73,10 @@ class DocumentSettings {
   String numberLabel(String space, int number) =>
       '${prefixFor(space)}${number.toString().padLeft(6, '0')}';
 
+  /// `AC-INV-0018`.
+  String invoiceLabel(String space, int number) =>
+      '${prefixFor(space)}INV-${number.toString().padLeft(4, '0')}';
+
   /// How to pay, on one line: `Till 000000 · Equity Bank`.
   String? get payLine {
     final parts = [?till, ?bank].where((s) => s.trim().isNotEmpty).toList();
