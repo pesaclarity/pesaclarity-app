@@ -3,13 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart';
+import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/category_seeds.dart';
+import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/sales/sale_matching.dart';
 import '../../../domain/sales/sales_summary.dart';
 import '../../../domain/spaces/space.dart';
+import '../../../domain/spaces/space_categories.dart';
 import '../../../domain/time/calendar.dart';
 import '../../books/application/books_providers.dart';
 import '../../spaces/application/business_setup_providers.dart';
@@ -25,14 +30,17 @@ class SaleOutcome {
   final List<LedgerEntry> matched;
 }
 
-/// Records sales and matches their M-Pesa and bank parts to payment
-/// messages.
+/// Records a business's sales, purchases and payments, and matches their
+/// M-Pesa and bank parts to payment messages.
 class SalesController {
   SalesController(this._ref);
 
   final Ref _ref;
 
   SalesRepository get _sales => _ref.read(salesRepositoryProvider);
+  QuickRecordsRepository get _records =>
+      _ref.read(quickRecordsRepositoryProvider);
+  AppDatabase get _db => _ref.read(appDatabaseProvider);
 
   Future<int> _cashAccount() => _ref
       .read(accountsRepositoryProvider)
@@ -50,31 +58,103 @@ class SalesController {
     String? note,
     CreditTerms? credit,
   }) async {
-    final now = _now();
     final category = await _sales.salesCategoryId();
+    final before = {...await _sales.waiting(salesCategoryId: category)};
     final saleId = await _sales.record(
-      at: now,
+      at: _now(),
       parts: parts,
       salesCategoryId: category,
       cashAccountId: await _cashAccount(),
       credit: credit,
       note: note,
     );
+    final mine = {
+      for (final w in await _sales.waiting(salesCategoryId: category))
+        if (!before.contains(w)) w,
+    };
     final matched = await matchWaiting();
     return SaleOutcome(
       saleId: saleId,
       matched: [
-        for (final e in matched.entries)
-          if (e.key.saleId == saleId) e.value,
+        for (final MapEntry(:key, :value) in matched.entries)
+          if (mine.contains(key)) value,
       ],
     );
   }
 
+  /// Stock or a cost bought now; with credit, [supplier] is owed it.
+  Future<void> bought({
+    required int amountMinor,
+    required SalePaymentMethod method,
+    required int categoryId,
+    String? supplier,
+    CalendarDate? dueDate,
+    String? note,
+  }) async {
+    await _records.bought(
+      at: _now(),
+      amountMinor: amountMinor,
+      method: method,
+      categoryId: categoryId,
+      cashAccountId: await _cashAccount(),
+      supplier: supplier,
+      dueDate: dueDate,
+      note: note,
+    );
+    await matchWaiting();
+  }
+
+  /// [customer] paid [amountMinor] of what they owe.
+  Future<void> gotPaid({
+    required String customer,
+    required int amountMinor,
+    required SalePaymentMethod method,
+  }) async {
+    await _records.gotPaid(
+      at: _now(),
+      amountMinor: amountMinor,
+      method: method,
+      customer: customer,
+      categoryId: await ensureCategory(_db, customerPaymentsSeed),
+      cashAccountId: await _cashAccount(),
+    );
+    await matchWaiting();
+  }
+
+  /// The business paid [amountMinor] of what it owes [supplier] on
+  /// [debtId].
+  Future<void> paid({
+    required int debtId,
+    required String supplier,
+    required int amountMinor,
+    required SalePaymentMethod method,
+  }) async {
+    await _records.paid(
+      at: _now(),
+      amountMinor: amountMinor,
+      method: method,
+      debtId: debtId,
+      supplier: supplier,
+      categoryId: await ensureCategory(_db, supplierPaymentsSeed),
+      cashAccountId: await _cashAccount(),
+    );
+    await matchWaiting();
+  }
+
+  /// Everything waiting for an M-Pesa or bank message, oldest first.
+  Future<List<WaitingPayment>> waiting() async {
+    final category = await _sales.salesCategoryId();
+    return [
+      ...await _sales.waiting(salesCategoryId: category),
+      ...await _records.waiting(),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+  }
+
   Future<Object?> _matching = Future.value();
 
-  /// Matches waiting parts with payment messages around their time, and
+  /// Matches waiting records with payment messages around their time, and
   /// returns each match. Runs one at a time, so a payment is never matched
-  /// twice when messages and sales arrive together.
+  /// twice when messages and records arrive together.
   Future<Map<WaitingPayment, LedgerEntry>> matchWaiting() {
     final run = _matching.then((_) => _match());
     _matching = run.then<Object?>((_) => null, onError: (_) => null);
@@ -82,48 +162,68 @@ class SalesController {
   }
 
   Future<Map<WaitingPayment, LedgerEntry>> _match() async {
-    final waiting = await _sales.waiting();
+    final waiting = await this.waiting();
     if (waiting.isEmpty) return const {};
-    final from = waiting.first.soldAt.subtract(saleMatchWindow);
-    final to = waiting
-        .map((w) => w.soldAt)
-        .reduce((a, b) => a.isAfter(b) ? a : b)
-        .add(saleMatchWindow);
+    final from = waiting.first.at.subtract(saleMatchWindow);
+    final to = waiting.last.at.add(saleMatchWindow);
     final entries = await _ref
         .read(transactionsRepositoryProvider)
         .ledgerEntries(from: from, to: to);
-    final category = await _sales.salesCategoryId();
-    final byPayment = {for (final w in waiting) w.paymentId: w};
-    final byId = {for (final e in entries) e.id: e};
-    final matches = await _sales.matchWaiting(
+    final accounts = {
+      for (final a in await _ref.read(accountsRepositoryProvider).openings())
+        a.id: a.type,
+    };
+    final matches = matchWaitingPayments(
+      waiting,
       entries,
-      salesCategoryId: category,
+      accountTypes: accounts,
+      linked: {
+        ...await _sales.linkedTransactions(),
+        ...await _records.linkedTransactions(),
+      },
     );
+    if (matches.isEmpty) return const {};
+    final byId = {for (final e in entries) e.id: e};
+    for (final MapEntry(key: w, value: transactionId) in matches.entries) {
+      if (w.kind == WaitingKind.sale) {
+        await _sales.link(w.id, transactionId, salesCategoryId: w.categoryId);
+      } else {
+        await _records.link(w.id, transactionId);
+      }
+    }
     return {
-      for (final MapEntry(:key, :value) in matches.entries)
-        byPayment[key]!: ?byId[value],
+      for (final MapEntry(:key, :value) in matches.entries) key: ?byId[value],
     };
   }
 
-  /// A waiting part was paid in cash after all.
-  Future<void> paidInCash(WaitingPayment payment) async => _sales.paidInCash(
-    payment.paymentId,
-    at: _now(),
-    salesCategoryId: await _sales.salesCategoryId(),
-    cashAccountId: await _cashAccount(),
-  );
+  /// A waiting record was paid in cash after all.
+  Future<void> paidInCash(WaitingPayment payment) async {
+    final cash = await _cashAccount();
+    if (payment.kind == WaitingKind.sale) {
+      await _sales.paidInCash(
+        payment.id,
+        at: _now(),
+        salesCategoryId: payment.categoryId,
+        cashAccountId: cash,
+      );
+    } else {
+      await _records.paidInCash(payment.id, at: _now(), cashAccountId: cash);
+    }
+  }
 
-  /// Drops a waiting part that will not be paid.
+  /// Drops a waiting record that will not be paid.
   Future<void> removeWaiting(WaitingPayment payment) =>
-      _sales.removeWaiting(payment.paymentId);
+      payment.kind == WaitingKind.sale
+      ? _sales.removeWaiting(payment.id)
+      : _records.remove(payment.id);
 }
 
 final salesControllerProvider = Provider<SalesController>(SalesController.new);
 
-/// M-Pesa and bank parts of sales still waiting for their message.
+/// Sales, purchases and payments waiting for their M-Pesa or bank message.
 final waitingPaymentsProvider = FutureProvider<List<WaitingPayment>>((ref) {
   ref.watch(ledgerChangesProvider);
-  return ref.watch(salesRepositoryProvider).waiting();
+  return ref.watch(salesControllerProvider).waiting();
 });
 
 /// Keeps matching waiting sales to payment messages as they come in, while

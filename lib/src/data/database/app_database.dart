@@ -42,13 +42,14 @@ part 'app_database.g.dart';
     Subscriptions,
     Sales,
     SalePayments,
+    QuickRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -170,6 +171,10 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(sales);
         await m.createTable(salePayments);
         await m.create(salePaymentsTransaction);
+      }
+      if (from < 20 && !await _exists('table', quickRecords.actualTableName)) {
+        await m.createTable(quickRecords);
+        await m.create(quickRecordsTransaction);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

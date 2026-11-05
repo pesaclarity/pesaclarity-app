@@ -59,6 +59,9 @@ enum DebtType {
   mobileLoan,
   saccoLoan,
   family,
+
+  /// A business's supplier, for stock or costs bought to pay later.
+  supplier,
 }
 
 enum GoalStatus { active, paused, achieved }
@@ -95,3 +98,7 @@ enum SalePaymentMethod {
   /// The customer pays later.
   credit,
 }
+
+/// A record made from a business's Today: stock or a cost bought, a
+/// customer paying what they owe, or paying a supplier.
+enum QuickRecordKind { bought, gotPaid, paid }

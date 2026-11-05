@@ -10,7 +10,10 @@ import 'pay_sheet.dart';
 /// Sell: the amount of a sale typed on a number pad, then Pay. Items join
 /// with stock.
 class SellScreen extends StatefulWidget {
-  const SellScreen({super.key});
+  const SellScreen({this.billed = false, super.key});
+
+  /// Work done for a client to pay later: Billed, with credit to start.
+  final bool billed;
 
   /// The most whole shillings a sale can be keyed in as.
   static const maxDigits = 9;
@@ -31,6 +34,8 @@ class _SellScreenState extends State<SellScreen> {
 
   int get _minor => _digits.isEmpty ? 0 : int.parse(_digits) * 100;
 
+  String get _what => widget.billed ? 'Work done' : 'Other sale';
+
   void _press(String key) => setState(() {
     if (key == '⌫') {
       if (_digits.isNotEmpty) {
@@ -48,6 +53,7 @@ class _SellScreenState extends State<SellScreen> {
       context,
       totalMinor: _minor,
       note: note.isEmpty ? null : note,
+      initialWay: widget.billed ? PayWay.credit : PayWay.cash,
     );
     if (saved == true && mounted) Navigator.of(context).pop();
   }
@@ -59,14 +65,14 @@ class _SellScreenState extends State<SellScreen> {
     final amount = formatMoney(Money(_minor));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sell')),
+      appBar: AppBar(title: Text(widget.billed ? 'Billed' : 'Sell')),
       body: SafeArea(
         bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             Text(
-              'Other sale',
+              _what,
               style: theme.textTheme.bodyLarge!.copyWith(
                 color: colors.textMuted,
               ),
@@ -99,7 +105,11 @@ class _SellScreenState extends State<SellScreen> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-        child: _PayBar(amount: amount, onPay: _minor > 0 ? _pay : null),
+        child: _PayBar(
+          what: _what,
+          amount: amount,
+          onPay: _minor > 0 ? _pay : null,
+        ),
       ),
     );
   }
@@ -161,8 +171,13 @@ class _Keypad extends StatelessWidget {
 
 /// The total where the tab bar was: the same pill, in the brand colour.
 class _PayBar extends StatelessWidget {
-  const _PayBar({required this.amount, required this.onPay});
+  const _PayBar({
+    required this.what,
+    required this.amount,
+    required this.onPay,
+  });
 
+  final String what;
   final String amount;
   final VoidCallback? onPay;
 
@@ -191,7 +206,7 @@ class _PayBar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Other sale',
+                        what,
                         style: textTheme.bodySmall!.copyWith(color: fg),
                       ),
                       Text(

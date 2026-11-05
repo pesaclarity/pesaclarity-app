@@ -80,7 +80,7 @@ void main() {
       expect(t.amountMinor, 35000);
       expect(t.direction, TransactionDirection.inflow);
       expect(t.categoryOverrideId, await salesId());
-      expect(await c.read(salesRepositoryProvider).waiting(), isEmpty);
+      expect(await c.read(salesControllerProvider).waiting(), isEmpty);
     });
 
     test('M-Pesa waits, then matches the message when it comes', () async {
@@ -90,7 +90,7 @@ void main() {
         const SalePart(SalePaymentMethod.mpesa, 18000),
       ]);
       expect(outcome.matched, isEmpty);
-      expect(await c.read(salesRepositoryProvider).waiting(), hasLength(1));
+      expect(await c.read(salesControllerProvider).waiting(), hasLength(1));
 
       final id = await received(
         account,
@@ -99,7 +99,7 @@ void main() {
       );
       final matched = await c.read(salesControllerProvider).matchWaiting();
       expect(matched.values.single.id, id);
-      expect(await c.read(salesRepositoryProvider).waiting(), isEmpty);
+      expect(await c.read(salesControllerProvider).waiting(), isEmpty);
       final t = (await transactions()).single;
       expect(t.categoryOverrideId, await salesId());
     });
@@ -147,13 +147,12 @@ void main() {
       final controller = c.read(salesControllerProvider);
       await controller.sell([const SalePart(SalePaymentMethod.mpesa, 18000)]);
       await controller.sell([const SalePart(SalePaymentMethod.bank, 5000)]);
-      final repo = c.read(salesRepositoryProvider);
-      final [first, second] = await repo.waiting();
+      final [first, second] = await controller.waiting();
 
       await controller.paidInCash(first);
       expect((await transactions()).single.amountMinor, 18000);
       await controller.removeWaiting(second);
-      expect(await repo.waiting(), isEmpty);
+      expect(await controller.waiting(), isEmpty);
       expect(await db.select(db.sales).get(), hasLength(1));
     });
   });

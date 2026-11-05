@@ -48,13 +48,18 @@ class WaitingPaymentsCard extends ConsumerWidget {
             ),
             for (final w in waiting)
               ListTile(
-                key: Key('waiting-${w.paymentId}'),
-                title: Text(
-                  '${formatMoney(Money(w.amountMinor, currency: w.currency))}'
-                  ' by ${methodName(w.method)}',
-                ),
+                key: Key('waiting-${w.kind.name}-${w.id}'),
+                title: Text(waitingTitle(w)),
                 subtitle: Text(
-                  '${w.note ?? 'Other sale'} · ${formatTime(w.soldAt)}',
+                  [
+                    switch (w.kind) {
+                      WaitingKind.sale => w.note ?? 'Other sale',
+                      WaitingKind.bought => w.note ?? 'Bought',
+                      WaitingKind.gotPaid => 'What they owe',
+                      WaitingKind.paid => 'What you owe',
+                    },
+                    formatTime(w.at),
+                  ].join(' · '),
                 ),
                 trailing: PopupMenuButton<_Choice>(
                   tooltip: 'More',
@@ -69,7 +74,7 @@ class WaitingPaymentsCard extends ConsumerWidget {
                     ),
                     PopupMenuItem(
                       value: _Choice.remove,
-                      child: Text('Remove this sale'),
+                      child: Text('Remove it'),
                     ),
                   ],
                 ),
@@ -88,8 +93,12 @@ class WaitingPaymentsCard extends ConsumerWidget {
     final remove = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove this sale?'),
-        content: const Text("It comes off today's sales."),
+        title: const Text('Remove this?'),
+        content: Text(
+          payment.kind == WaitingKind.sale
+              ? "It comes off today's sales."
+              : 'It comes off your records.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -107,3 +116,18 @@ class WaitingPaymentsCard extends ConsumerWidget {
 }
 
 enum _Choice { cash, remove }
+
+/// What a waiting payment is, in a line: `KES 180 sale by M-Pesa`,
+/// `Otieno paid KES 1,200 by M-Pesa`.
+String waitingTitle(WaitingPayment w) {
+  final amount = formatMoney(Money(w.amountMinor, currency: w.currency));
+  final how = methodName(w.method);
+  final who = w.party;
+  return switch (w.kind) {
+    WaitingKind.sale => '$amount sale by $how',
+    WaitingKind.bought =>
+      who == null ? '$amount bought by $how' : '$amount to $who by $how',
+    WaitingKind.gotPaid => '${who ?? 'A customer'} paid $amount by $how',
+    WaitingKind.paid => 'Paid ${who ?? 'a supplier'} $amount by $how',
+  };
+}

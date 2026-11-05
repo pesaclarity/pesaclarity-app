@@ -518,3 +518,45 @@ class SalePayments extends Table {
     onDelete: KeyAction.setNull,
   )();
 }
+
+/// Bought, Got paid and Paid from a business's Today: how much, how the
+/// money moved, and the cash entry made or the payment message matched.
+@DataClassName('QuickRecord')
+@TableIndex(name: 'quick_records_transaction', columns: {#transactionId})
+class QuickRecords extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => textEnum<QuickRecordKind>()();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+
+  /// Cash, M-Pesa or bank; credit for stock or a cost bought to pay later.
+  TextColumn get method => textEnum<SalePaymentMethod>()();
+
+  /// What was bought, for [QuickRecordKind.bought].
+  IntColumn get categoryId => integer().nullable().references(
+    Categories,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// The supplier or customer, as named.
+  TextColumn get party => text().nullable()();
+  TextColumn get note => text().nullable()();
+
+  /// The supplier owed: made by a purchase on credit, or paid by Paid.
+  IntColumn get debtId => integer().nullable().references(
+    Debts,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// The cash entry made, or the payment message matched. Null while an
+  /// M-Pesa or bank record waits for its message, and for credit.
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+}

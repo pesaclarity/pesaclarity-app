@@ -103,6 +103,9 @@ void main() {
     tester,
   ) async {
     await pumpBusiness(tester, BusinessSells.services);
+    for (final quick in ['Got paid', 'Spent', 'Billed', 'Other record']) {
+      expect(find.text(quick), findsOneWidget);
+    }
 
     expect(find.text('Vegetable stall'), findsOneWidget);
     expect(find.text('Profit this month'), findsOneWidget);
@@ -132,5 +135,8 @@ void main() {
     expect(find.text('Profit this month'), findsOneWidget);
     expect(find.text('8,300'), findsOneWidget);
     expect(find.byTooltip('Sell'), findsOneWidget);
+    for (final quick in ['Bought', 'Got paid', 'Paid', 'Other record']) {
+      expect(find.text(quick), findsOneWidget);
+    }
   });
 }

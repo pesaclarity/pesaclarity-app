@@ -3,6 +3,7 @@ import '../ledger/balances.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
+import '../spaces/space_categories.dart';
 import 'book_account.dart';
 
 /// What a journal entry was made from.
@@ -21,6 +22,10 @@ enum JournalSource {
   /// The part of a sale a customer pays later: [JournalEntry.sourceId] is
   /// the sale payment's id.
   creditSale,
+
+  /// Stock or a cost bought to pay later: [JournalEntry.sourceId] is the
+  /// record's id.
+  creditPurchase,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -78,6 +83,25 @@ class CreditSale {
   final int salesCategoryId;
 }
 
+/// Stock or a cost bought to pay later, as the books need it.
+class CreditPurchase {
+  const CreditPurchase({
+    required this.recordId,
+    required this.at,
+    required this.amountMinor,
+    required this.currency,
+    required this.categoryId,
+  });
+
+  final int recordId;
+  final DateTime at;
+  final int amountMinor;
+  final String currency;
+
+  /// The cost category it counts under.
+  final int categoryId;
+}
+
 /// Category key whose outflows are the owner taking money out.
 const ownerPayCategoryKey = 'owner_pay';
 
@@ -88,7 +112,8 @@ const ownerPayCategoryKey = 'owner_pay';
 /// totals the rest of the app shows. Where a reported balance differs from
 /// what the records add up to, a balance difference entry keeps each money
 /// account equal to [balanceAt]. A sale on credit counts as a sale when it
-/// is made, against what the customer owes.
+/// is made, against what the customer owes, and their payment later clears
+/// it; stock or a cost bought on credit works the same way with suppliers.
 class Books {
   Books._(this.entries);
 
@@ -97,6 +122,7 @@ class Books {
     required Iterable<AccountOpening> accounts,
     required Map<int, BookCategory> categories,
     Iterable<CreditSale> credits = const [],
+    Iterable<CreditPurchase> purchases = const [],
   }) {
     final all = history.toList();
     final fuliza = FulizaLedger.of(all);
@@ -128,9 +154,28 @@ class Books {
     // difference last, after the transaction that reported the balance.
     int rank(JournalSource s) => switch (s) {
       JournalSource.opening => 0,
-      JournalSource.transaction || JournalSource.creditSale => 1,
+      JournalSource.transaction ||
+      JournalSource.creditSale ||
+      JournalSource.creditPurchase => 1,
       JournalSource.balanceDifference => 2,
     };
+    for (final p in purchases) {
+      out.add(
+        JournalEntry(
+          source: JournalSource.creditPurchase,
+          sourceId: p.recordId,
+          at: p.at,
+          currency: p.currency,
+          lines: [
+            JournalLine(
+              BookAccount.category(p.categoryId, income: false),
+              p.amountMinor,
+            ),
+            JournalLine(BookAccount.owedToSuppliers, -p.amountMinor),
+          ],
+        ),
+      );
+    }
     out.sort((a, b) {
       final byTime = a.at.compareTo(b.at);
       return byTime != 0 ? byTime : rank(a.source).compareTo(rank(b.source));
@@ -247,7 +292,13 @@ JournalEntry postEntry(
       : BookAccount.uncategorisedSpending;
 
   final ownerPay = category?.key == ownerPayCategoryKey;
+  final fromCustomer = category?.key == customerPaymentsKey;
+  final toSupplier = category?.key == supplierPaymentsKey;
   switch (roleOf(e)) {
+    case LedgerRole.income when fromCustomer:
+      e.isInflow
+          ? inFrom(BookAccount.owedToYou, amount)
+          : outTo(BookAccount.owedToYou, amount);
     case LedgerRole.income:
       e.isInflow
           ? inFrom(incomeAccount(), amount)
@@ -266,6 +317,10 @@ JournalEntry postEntry(
       e.isInflow
           ? inFrom(BookAccount.borrowed, amount)
           : outTo(BookAccount.borrowed, amount);
+    case LedgerRole.debtRepayment when toSupplier:
+      e.isOutflow
+          ? outTo(BookAccount.owedToSuppliers, amount)
+          : inFrom(BookAccount.owedToSuppliers, amount);
     case LedgerRole.debtRepayment:
       if (e.isInflow) {
         // Not seen in real messages, but kept balanced: money back from a

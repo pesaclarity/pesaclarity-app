@@ -39,6 +39,38 @@ const salesCategoryKey = 'sales';
 /// The Sales category's name as seeded.
 const salesCategoryName = 'Sales';
 
+/// A business's sales.
+const salesSeed = CategorySeed(
+  salesCategoryKey,
+  salesCategoryName,
+  CategoryType.income,
+);
+
+/// Stock bought to sell, the default for Bought.
+const stockSeed = CategorySeed(
+  'stock',
+  'Stock and supplies',
+  CategoryType.expense,
+);
+
+/// Customers paying what they owe for sales on credit: not a new sale.
+const customerPaymentsKey = 'customer_payments';
+
+const customerPaymentsSeed = CategorySeed(
+  customerPaymentsKey,
+  'Payments from customers',
+  CategoryType.income,
+);
+
+/// Paying suppliers what the business owes them: not a new cost.
+const supplierPaymentsKey = 'supplier_payments';
+
+const supplierPaymentsSeed = CategorySeed(
+  supplierPaymentsKey,
+  'Payments to suppliers',
+  CategoryType.debt,
+);
+
 /// Paying yourself from a business, rental or farm: money moved to
 /// Personal, not a cost.
 const ownerPayKey = 'owner_pay';
@@ -52,9 +84,11 @@ const _ownerPay = CategorySeed(
 /// Categories added for each kind.
 const _added = <SpaceKind, List<CategorySeed>>{
   SpaceKind.business: [
-    CategorySeed(salesCategoryKey, salesCategoryName, CategoryType.income),
+    salesSeed,
     CategorySeed('other_business_income', 'Other income', CategoryType.income),
-    CategorySeed('stock', 'Stock and supplies', CategoryType.expense),
+    stockSeed,
+    customerPaymentsSeed,
+    supplierPaymentsSeed,
     CategorySeed('wages', 'Wages', CategoryType.expense),
     CategorySeed('premises', 'Rent and premises', CategoryType.expense),
     CategorySeed('equipment', 'Tools and equipment', CategoryType.expense),

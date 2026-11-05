@@ -32,6 +32,7 @@ import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
+import '../../sales/presentation/records_sheets.dart';
 import '../../sales/presentation/waiting_payments_card.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
@@ -126,6 +127,8 @@ class HomeScreen extends ConsumerWidget {
                 if (sellsProducts) ...[
                   const _SalesTodayCard(),
                   const SizedBox(height: 12),
+                  const _QuickButtons(services: false),
+                  const SizedBox(height: 12),
                   const WaitingPaymentsCard(),
                 ],
                 _SpaceSummaryCard(
@@ -135,8 +138,11 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () => openActivity(thisMonth),
                 ),
                 const SizedBox(height: 12),
-                if (space.kind == SpaceKind.business && !sellsProducts)
+                if (isBusiness && !sellsProducts) ...[
+                  const _QuickButtons(services: true),
+                  const SizedBox(height: 12),
                   const WaitingPaymentsCard(),
+                ],
                 if (space.kind == SpaceKind.business) const BusinessSetupCard(),
                 const SharedLineCard(),
                 const _ReviewCard(),
@@ -1024,6 +1030,116 @@ class _WeekCard extends ConsumerWidget {
           ),
           trailing: Icon(Icons.chevron_right, color: colors.textMuted),
           onTap: () => context.push(AppRoutes.weekByWeek),
+        ),
+      ),
+    );
+  }
+}
+
+/// A business's quick records on Today, two by two. Products: Bought, Got
+/// paid, Paid. Services: Got paid, Spent, Billed. Both end with Other
+/// record, for cash in or out and statements.
+class _QuickButtons extends StatelessWidget {
+  const _QuickButtons({required this.services});
+
+  final bool services;
+
+  @override
+  Widget build(BuildContext context) {
+    void other() => _showAddMenu(context);
+    final buttons = services
+        ? [
+            _QuickButton(
+              'Got paid',
+              'A client pays what they owe',
+              () => showGotPaidSheet(context),
+            ),
+            _QuickButton(
+              'Spent',
+              'A business cost',
+              () => showBoughtSheet(context, costOnly: true),
+            ),
+            _QuickButton(
+              'Billed',
+              'Work done, pay later',
+              () => context.push(AppRoutes.billed),
+            ),
+            _QuickButton('Other record', 'Cash in or out, a statement', other),
+          ]
+        : [
+            _QuickButton(
+              'Bought',
+              'Stock or a cost',
+              () => showBoughtSheet(context),
+            ),
+            _QuickButton(
+              'Got paid',
+              'A customer pays you',
+              () => showGotPaidSheet(context),
+            ),
+            _QuickButton(
+              'Paid',
+              'You pay a supplier',
+              () => showPaidSheet(context),
+            ),
+            _QuickButton('Other record', 'Cash in or out, a statement', other),
+          ];
+    return Column(
+      children: [
+        for (var i = 0; i < buttons.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: buttons[i]),
+                const SizedBox(width: 10),
+                Expanded(child: buttons[i + 1]),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _QuickButton extends StatelessWidget {
+  const _QuickButton(this.title, this.subtitle, this.onTap);
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    return Card(
+      key: Key('quick-${title.toLowerCase().replaceAll(' ', '-')}'),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+        side: BorderSide(color: colors.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

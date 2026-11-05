@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/money.dart';
 import '../../domain/books/books.dart';
-import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/sales/sale_matching.dart';
 import '../../domain/spaces/space_categories.dart';
 import '../../domain/time/calendar.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
+import 'category_seeds.dart';
 
 /// One way a new sale is paid, and how much.
 class SalePart {
@@ -33,7 +33,7 @@ abstract interface class SalesRepository {
   ///
   /// Cash goes into [cashAccountId] as a sale. A credit part adds what
   /// [credit]'s customer owes. M-Pesa and bank parts wait for their payment
-  /// messages, which [matchWaiting] finds. [salesCategoryId] is the
+  /// messages, filed as sales by [link] once matched. [salesCategoryId] is the
   /// category sales are filed under.
   Future<int> record({
     required DateTime at,
@@ -45,14 +45,18 @@ abstract interface class SalesRepository {
     String? currency,
   });
 
-  /// M-Pesa and bank parts still waiting for their message, oldest first.
-  Future<List<WaitingPayment>> waiting();
+  /// M-Pesa and bank parts still waiting for their message, oldest first,
+  /// to be filed under [salesCategoryId] once matched.
+  Future<List<WaitingPayment>> waiting({required int salesCategoryId});
 
-  /// Pairs waiting parts with payment messages in [entries] (see
-  /// [matchWaitingPayments]), files each match as a sale and returns the
-  /// transaction each part matched, by payment id.
-  Future<Map<int, int>> matchWaiting(
-    Iterable<LedgerEntry> entries, {
+  /// Transactions already paying for a sale.
+  Future<Set<int>> linkedTransactions();
+
+  /// Links a waiting part to the message [transactionId] that paid it, and
+  /// files that message as a sale.
+  Future<void> link(
+    int paymentId,
+    int transactionId, {
     required int salesCategoryId,
   });
 
@@ -174,7 +178,7 @@ class DriftSalesRepository implements SalesRepository {
       );
 
   @override
-  Future<List<WaitingPayment>> waiting() async {
+  Future<List<WaitingPayment>> waiting({required int salesCategoryId}) async {
     final query =
         _db.select(_db.salePayments).join([
             innerJoin(
@@ -192,59 +196,41 @@ class DriftSalesRepository implements SalesRepository {
           ..orderBy([OrderingTerm(expression: _db.sales.soldAt)]);
     return [
       for (final row in await query.get())
-        _waiting(row.readTable(_db.salePayments), row.readTable(_db.sales)),
+        WaitingPayment(
+          id: row.readTable(_db.salePayments).id,
+          kind: WaitingKind.sale,
+          method: row.readTable(_db.salePayments).method,
+          amountMinor: row.readTable(_db.salePayments).amountMinor,
+          currency: row.readTable(_db.sales).currency,
+          at: row.readTable(_db.sales).soldAt,
+          categoryId: salesCategoryId,
+          note: row.readTable(_db.sales).note,
+        ),
     ];
   }
 
-  WaitingPayment _waiting(SalePaymentRecord p, SaleRecord s) => WaitingPayment(
-    paymentId: p.id,
-    saleId: s.id,
-    method: p.method,
-    amountMinor: p.amountMinor,
-    currency: s.currency,
-    soldAt: s.soldAt,
-    note: s.note,
-  );
+  @override
+  Future<Set<int>> linkedTransactions() async => {
+    for (final p in await (_db.select(
+      _db.salePayments,
+    )..where((p) => p.transactionId.isNotNull())).get())
+      p.transactionId!,
+  };
 
   @override
-  Future<Map<int, int>> matchWaiting(
-    Iterable<LedgerEntry> entries, {
+  Future<void> link(
+    int paymentId,
+    int transactionId, {
     required int salesCategoryId,
-  }) async {
-    final waiting = await this.waiting();
-    if (waiting.isEmpty) return const {};
-    final linked = {
-      for (final p in await (_db.select(
-        _db.salePayments,
-      )..where((p) => p.transactionId.isNotNull())).get())
-        p.transactionId!,
-    };
-    final accounts = {
-      for (final a in await _db.select(_db.accounts).get()) a.id: a.type,
-    };
-    final matches = matchWaitingPayments(
-      waiting,
-      entries,
-      accountTypes: accounts,
-      linked: linked,
-      salesCategoryId: salesCategoryId,
+  }) => _db.transaction(() async {
+    await (_db.update(_db.salePayments)..where((p) => p.id.equals(paymentId)))
+        .write(SalePaymentsCompanion(transactionId: Value(transactionId)));
+    await (_db.update(
+      _db.transactions,
+    )..where((t) => t.id.equals(transactionId))).write(
+      TransactionsCompanion(categoryOverrideId: Value(salesCategoryId)),
     );
-    if (matches.isEmpty) return const {};
-    await _db.transaction(() async {
-      for (final MapEntry(key: paymentId, value: transactionId)
-          in matches.entries) {
-        await (_db.update(_db.salePayments)
-              ..where((p) => p.id.equals(paymentId)))
-            .write(SalePaymentsCompanion(transactionId: Value(transactionId)));
-        await (_db.update(
-          _db.transactions,
-        )..where((t) => t.id.equals(transactionId))).write(
-          TransactionsCompanion(categoryOverrideId: Value(salesCategoryId)),
-        );
-      }
-    });
-    return matches;
-  }
+  });
 
   @override
   Future<void> paidInCash(
@@ -307,34 +293,8 @@ class DriftSalesRepository implements SalesRepository {
     return (row.readTable(_db.salePayments), row.readTable(_db.sales));
   }
 
-  Future<int?> _byName(String name) async =>
-      (await (_db.select(_db.categories)
-                ..where((c) => c.name.lower().equals(name.toLowerCase())))
-              .getSingleOrNull())
-          ?.id;
-
   @override
-  Future<int> salesCategoryId() => _db.transaction(() async {
-    final keyed = await (_db.select(
-      _db.categories,
-    )..where((c) => c.key.equals(salesCategoryKey))).getSingleOrNull();
-    if (keyed != null) return keyed.id;
-    final named = await _byName(salesCategoryName);
-    if (named != null) {
-      await (_db.update(_db.categories)..where((c) => c.id.equals(named)))
-          .write(const CategoriesCompanion(key: Value(salesCategoryKey)));
-      return named;
-    }
-    return _db
-        .into(_db.categories)
-        .insert(
-          CategoriesCompanion.insert(
-            key: const Value(salesCategoryKey),
-            name: salesCategoryName,
-            type: CategoryType.income,
-          ),
-        );
-  });
+  Future<int> salesCategoryId() => ensureCategory(_db, salesSeed);
 
   @override
   Future<List<CreditSale>> creditSales({required int salesCategoryId}) async {

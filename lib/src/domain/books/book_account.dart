@@ -59,6 +59,9 @@ enum BookAccountKind {
   /// What customers owe for sales on credit.
   owedToYou(BookAccountClass.asset),
 
+  /// What the business owes suppliers for stock or costs bought on credit.
+  owedToSuppliers(BookAccountClass.liability),
+
   /// Money the owner took out of a business ("Paid yourself").
   ownerPay(BookAccountClass.equity),
 
@@ -111,6 +114,9 @@ class BookAccount {
   static const awaitingPayee = BookAccount.fixed(BookAccountKind.awaitingPayee);
   static const ownTransfers = BookAccount.fixed(BookAccountKind.ownTransfers);
   static const owedToYou = BookAccount.fixed(BookAccountKind.owedToYou);
+  static const owedToSuppliers = BookAccount.fixed(
+    BookAccountKind.owedToSuppliers,
+  );
   static const ownerPay = BookAccount.fixed(BookAccountKind.ownerPay);
   static const openingBalances = BookAccount.fixed(
     BookAccountKind.openingBalances,
