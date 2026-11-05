@@ -184,7 +184,7 @@ jobs:
       # People on slow or costly data download these, so keep each one small.
       - name: Check the APK sizes
         env:
-          LIMIT_MB: 50
+          LIMIT_MB: 25
           DIR: ${{ steps.build.outputs.dir }}
         run: |
           limit=$((LIMIT_MB * 1000 * 1000))
