@@ -7,7 +7,6 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/ledger/activity_lines.dart';
-import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
@@ -148,7 +147,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                         for (final (i, line) in day.lines.indexed) ...[
                           if (i > 0)
                             const Divider(height: 1, indent: 16, endIndent: 16),
-                          _CashBookRow(
+                          CashBookRow(
                             line: line,
                             accounts: accounts,
                             categories: categories,
@@ -233,12 +232,14 @@ class _BalanceChip extends StatelessWidget {
 
 /// One cash book line: what it was, the account it moved through and when,
 /// and the amount in or out.
-class _CashBookRow extends StatelessWidget {
-  const _CashBookRow({
+/// One cash book line: what it was, the account, the time, and the amount.
+class CashBookRow extends StatelessWidget {
+  const CashBookRow({
     required this.line,
     required this.accounts,
     required this.categories,
     required this.plain,
+    super.key,
   });
 
   final ActivityLine line;
@@ -372,13 +373,4 @@ class _CashBookRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A cash book line's title: what it was for, then who with, such as
-/// `Sale · Grace W.`; without a category, who with or what kind it was.
-String cashBookTitle(LedgerEntry entry, {String? categoryName}) {
-  final party = entry.payeeName ?? entry.counterpartyName ?? entry.note;
-  final parts = [?categoryName, ?party];
-  if (parts.isNotEmpty) return parts.join(' · ');
-  return entry.counterpartyValue ?? kindLabel(entry.kind);
 }

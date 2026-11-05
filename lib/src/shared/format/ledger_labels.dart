@@ -1,5 +1,6 @@
 import '../../domain/enums.dart';
 import '../../domain/ledger/activity_lines.dart';
+import '../../domain/ledger/ledger_entry.dart';
 
 /// A plain name for an entry of [kind], for when nothing better is known.
 String kindLabel(TransactionKind kind) => switch (kind) {
@@ -26,3 +27,12 @@ String noiseTitle(NoiseGroup group) => switch (group) {
   NoiseGroup.charges => 'Charges',
   NoiseGroup.airtime => 'Airtime',
 };
+
+/// A cash book line's title: what it was for, then who with, such as
+/// `Sale · Grace W.`; without a category, who with or what kind it was.
+String cashBookTitle(LedgerEntry entry, {String? categoryName}) {
+  final party = entry.payeeName ?? entry.counterpartyName ?? entry.note;
+  final parts = [?categoryName, ?party];
+  if (parts.isNotEmpty) return parts.join(' · ');
+  return entry.counterpartyValue ?? kindLabel(entry.kind);
+}

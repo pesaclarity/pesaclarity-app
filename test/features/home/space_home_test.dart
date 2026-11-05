@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
+import 'package:pesaclarity/src/domain/books/business_report.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/income/income_sources.dart';
 import 'package:pesaclarity/src/domain/sales/sales_summary.dart';
@@ -9,6 +10,7 @@ import 'package:pesaclarity/src/domain/spaces/business_setup.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/spaces/space_summary.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
+import 'package:pesaclarity/src/features/business_insights/application/business_report_providers.dart';
 import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_provider.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
@@ -81,6 +83,13 @@ void main() {
                 ),
               ],
               paidYourselfMinor: 600000,
+            ),
+          ),
+          // Today's profit comes from the books in a business.
+          businessProfitProvider.overrideWith(
+            (ref, period) async => const ProfitAndLoss(
+              income: [PnlLine('Sales', 2450000)],
+              costs: [PnlLine('Stock and supplies', 1620000)],
             ),
           ),
           incomeSourcesProvider.overrideWith(_Sources.new),

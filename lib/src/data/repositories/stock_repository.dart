@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/books/books.dart';
+import '../../domain/books/business_report.dart';
 import '../../domain/stock/stock.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
@@ -92,6 +93,12 @@ abstract interface class StockRepository {
 
   /// Every stock move, for the books.
   Future<List<StockEntry>> stockEntries();
+
+  /// What sold in `[from, to)`, line by line, with what the stock cost.
+  Future<List<SoldLine>> soldLines({
+    required DateTime from,
+    required DateTime to,
+  });
 }
 
 class DriftStockRepository implements StockRepository {
@@ -339,6 +346,55 @@ class DriftStockRepository implements StockRepository {
           reason: m.reason,
         ),
   ];
+
+  @override
+  Future<List<SoldLine>> soldLines({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final query =
+        _db.select(_db.saleLines).join([
+          innerJoin(_db.sales, _db.sales.id.equalsExp(_db.saleLines.saleId)),
+          leftOuterJoin(
+            _db.items,
+            _db.items.id.equalsExp(_db.saleLines.itemId),
+          ),
+        ])..where(
+          _db.sales.soldAt.isBiggerOrEqualValue(from) &
+              _db.sales.soldAt.isSmallerThanValue(to),
+        );
+    final rows = await query.get();
+    final costs = <(int, int), int>{};
+    for (final m
+        in await (_db.select(_db.stockMoves)..where(
+              (m) =>
+                  m.kind.equalsValue(StockMoveKind.sold) &
+                  m.at.isBiggerOrEqualValue(from) &
+                  m.at.isSmallerThanValue(to),
+            ))
+            .get()) {
+      final key = (m.saleId ?? 0, m.itemId);
+      costs[key] = (costs[key] ?? 0) + m.costMinor;
+    }
+    return [
+      for (final row in rows)
+        () {
+          final line = row.readTable(_db.saleLines);
+          final item = row.readTableOrNull(_db.items);
+          return SoldLine(
+            itemId: line.itemId,
+            name: item?.name ?? line.name,
+            unit: item?.unit,
+            service: item?.kind == ItemKind.service,
+            quantityMilli: line.quantityMilli,
+            amountMinor: line.totalMinor,
+            costMinor: line.itemId == null
+                ? 0
+                : costs.remove((line.saleId, line.itemId!)) ?? 0,
+          );
+        }(),
+    ];
+  }
 }
 
 final stockRepositoryProvider = Provider<StockRepository>(
