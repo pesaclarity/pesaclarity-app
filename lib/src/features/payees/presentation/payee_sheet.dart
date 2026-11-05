@@ -8,6 +8,7 @@ import '../../../data/repositories/purpose_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/payees/payee_identifier.dart';
+import '../../../shared/names.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/payee_providers.dart';
 import 'category_picker.dart';
@@ -57,7 +58,7 @@ class PayeeSheet extends ConsumerStatefulWidget {
 
 class _PayeeSheetState extends ConsumerState<PayeeSheet> {
   late final _name = TextEditingController(
-    text: widget.payee?.displayName ?? _titleCase(widget.suggestedName),
+    text: widget.payee?.displayName ?? titleCase(widget.suggestedName),
   );
   late int? _categoryId = widget.payee?.defaultCategoryId;
   late LeakType _leakType = widget.payee?.leakType ?? LeakType.none;
@@ -210,18 +211,4 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
       ),
     );
   }
-}
-
-/// `NAIVAS JUJA` from a message becomes `Naivas Juja`.
-String _titleCase(String? raw) {
-  if (raw == null) return '';
-  return raw
-      .trim()
-      .split(RegExp(r'\s+'))
-      .map(
-        (w) => w.isEmpty
-            ? w
-            : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
-      )
-      .join(' ');
 }

@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/income/income_sources.dart';
+import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -24,6 +25,7 @@ import '../../income/application/income_providers.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
+import '../../spaces/application/spaces_providers.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../../subscriptions/application/subscriptions_providers.dart';
 import '../../timezone/application/timezone_controller.dart';
@@ -150,8 +152,18 @@ class ProfileScreen extends ConsumerWidget {
       title: const Text('Build'),
       subtitle: Text(buildLabel(ref.watch(buildVersionProvider), flavor)),
     );
+    final businessRouting = ListTile(
+      key: const Key('profile-business-or-personal'),
+      leading: const RowIcon(Icons.call_split_outlined),
+      title: const Text('Business or personal'),
+      subtitle: const Text("Where each account's money goes"),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(AppRoutes.businessOrPersonal),
+    );
     final money = [
       myAccounts,
+      if (ref.watch(activeSpaceProvider).kind == SpaceKind.business)
+        businessRouting,
       if (ios) connect,
       income,
       payees,
