@@ -4,11 +4,13 @@ import 'package:drift/drift.dart';
 
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
+import '../../domain/people/reminder_text.dart';
 import '../../domain/spaces/space.dart';
 import '../../domain/spaces/space_categories.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
+export '../../domain/people/reminder_text.dart' show SendWith;
 
 part 'app_database.g.dart';
 
@@ -46,13 +48,14 @@ part 'app_database.g.dart';
     Items,
     StockMoves,
     SaleLines,
+    Contacts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -184,6 +187,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(items);
         await m.createTable(stockMoves);
         await m.createTable(saleLines);
+      }
+      if (from < 22 && !await _exists('table', contacts.actualTableName)) {
+        await m.createTable(contacts);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

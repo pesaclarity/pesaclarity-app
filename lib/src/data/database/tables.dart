@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/enums.dart';
+import '../../domain/people/reminder_text.dart';
 
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.
@@ -641,4 +642,19 @@ class SaleLines extends Table {
   TextColumn get name => text()();
   IntColumn get quantityMilli => integer()();
   IntColumn get totalMinor => integer()();
+}
+
+/// A customer's or supplier's phone and how to remind them, by name, as
+/// the People tab groups them.
+@DataClassName('ContactRecord')
+class Contacts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Lowercased and trimmed, to find them by name.
+  TextColumn get nameKey => text().unique()();
+  TextColumn get name => text()();
+
+  /// In full international form, such as +254712345678.
+  TextColumn get phone => text().nullable()();
+  TextColumn get sendWith => textEnum<SendWith>().nullable()();
 }

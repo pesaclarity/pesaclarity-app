@@ -1,3 +1,4 @@
+import ContactsUI
 import Flutter
 import UIKit
 
@@ -77,24 +78,55 @@ final class DeviceIntegrityChannel {
   }
 }
 
-/// `com.pesaclarity.app/share`: the share sheet, for loan reminders.
-final class ShareChannel {
+/// `com.pesaclarity.app/share`: the share sheet, for reminders, and the
+/// system contact picker for one phone number. The picker needs no contacts
+/// permission and hands back only the contact chosen.
+final class ShareChannel: NSObject, CNContactPickerDelegate {
   private let methods: FlutterMethodChannel
+  private var pendingPick: FlutterResult?
 
   init(messenger: FlutterBinaryMessenger) {
     methods = FlutterMethodChannel(name: "com.pesaclarity.app/share", binaryMessenger: messenger)
-    methods.setMethodCallHandler { call, result in
-      guard call.method == "shareText" else { return result(FlutterMethodNotImplemented) }
-      guard let text = (call.arguments as? [String: Any])?["text"] as? String else {
-        return result(FlutterError(code: "argument", message: "text is required", details: nil))
+    super.init()
+    methods.setMethodCallHandler { [weak self] call, result in
+      switch call.method {
+      case "shareText":
+        guard let text = (call.arguments as? [String: Any])?["text"] as? String else {
+          return result(FlutterError(code: "argument", message: "text is required", details: nil))
+        }
+        guard let top = topViewController() else {
+          return result(FlutterError(code: "unavailable", message: "Nothing to share from", details: nil))
+        }
+        let sheet = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = top.view
+        top.present(sheet, animated: true)
+        result(nil)
+      case "pickPhone":
+        guard let self, let top = topViewController() else {
+          return result(FlutterError(code: "unavailable", message: "No contact picker", details: nil))
+        }
+        self.pendingPick?(nil)
+        self.pendingPick = result
+        let picker = CNContactPickerViewController()
+        picker.delegate = self
+        picker.displayedPropertyKeys = [CNContactPhoneNumbersKey]
+        picker.predicateForSelectionOfProperty = NSPredicate(format: "key == 'phoneNumbers'")
+        top.present(picker, animated: true)
+      default:
+        result(FlutterMethodNotImplemented)
       }
-      guard let top = topViewController() else {
-        return result(FlutterError(code: "unavailable", message: "Nothing to share from", details: nil))
-      }
-      let sheet = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-      sheet.popoverPresentationController?.sourceView = top.view
-      top.present(sheet, animated: true)
-      result(nil)
     }
+  }
+
+  func contactPicker(_ picker: CNContactPickerViewController, didSelect property: CNContactProperty) {
+    let number = (property.value as? CNPhoneNumber)?.stringValue
+    let name = CNContactFormatter.string(from: property.contact, style: .fullName)
+    pendingPick?(number == nil ? nil : ["number": number!, "name": name ?? ""])
+    pendingPick = nil
+  }
+
+  func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+    pendingPick?(nil)
+    pendingPick = nil
   }
 }
