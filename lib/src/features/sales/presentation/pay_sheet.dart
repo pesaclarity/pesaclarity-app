@@ -6,7 +6,9 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/sales_repository.dart';
+import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/people/people.dart';
+import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -61,13 +63,19 @@ Future<bool?> showPaySheet(
   required int totalMinor,
   String? note,
   PayWay initialWay = PayWay.cash,
+  List<SaleLine> lines = const [],
 }) => showModalBottomSheet<bool>(
   context: context,
   isScrollControlled: true,
   showDragHandle: true,
   builder: (context) => Padding(
     padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: PaySheet(totalMinor: totalMinor, note: note, initialWay: initialWay),
+    child: PaySheet(
+      totalMinor: totalMinor,
+      note: note,
+      initialWay: initialWay,
+      lines: lines,
+    ),
   ),
 );
 
@@ -76,11 +84,15 @@ class PaySheet extends ConsumerStatefulWidget {
     required this.totalMinor,
     this.note,
     this.initialWay = PayWay.cash,
+    this.lines = const [],
     super.key,
   });
 
   final int totalMinor;
   final String? note;
+
+  /// What is being sold, item by item; empty for a typed amount.
+  final List<SaleLine> lines;
 
   /// Credit for work billed to pay later.
   final PayWay initialWay;
@@ -98,6 +110,26 @@ const _customerSuggestions = 5;
 class _PaySheetState extends ConsumerState<PaySheet> {
   final _form = GlobalKey<FormState>();
   late var _way = widget.initialWay;
+  late final _lines = [...widget.lines];
+
+  /// The total: the lines as they stand, or the amount typed.
+  int get _total => _lines.isEmpty
+      ? widget.totalMinor
+      : _lines.fold(0, (sum, l) => sum + l.totalMinor);
+
+  /// [line] with [quantityMilli] of it, at its unit price.
+  SaleLine _withQuantity(SaleLine line, int quantityMilli) {
+    final unitPrice = line.quantityMilli == 0
+        ? 0
+        : (line.totalMinor * milli / line.quantityMilli).round();
+    return SaleLine(
+      itemId: line.itemId,
+      name: line.name,
+      quantityMilli: quantityMilli,
+      totalMinor: costOf(quantityMilli, unitPrice),
+    );
+  }
+
   final _given = TextEditingController();
   final _customer = TextEditingController();
   final _now = TextEditingController();
@@ -131,13 +163,10 @@ class _PaySheetState extends ConsumerState<PaySheet> {
 
   List<SalePart> _parts() {
     if (_way case PayWay(:final method?)) {
-      return [SalePart(method, widget.totalMinor)];
+      return [SalePart(method, _total)];
     }
     final now = _nowMinor;
-    return [
-      SalePart(_nowWay, now),
-      SalePart(_restWay, widget.totalMinor - now),
-    ];
+    return [SalePart(_nowWay, now), SalePart(_restWay, _total - now)];
   }
 
   Future<void> _done({bool choose = false}) async {
@@ -153,6 +182,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
           .sell(
             parts,
             note: widget.note,
+            lines: _lines,
             credit: _needsCustomer
                 ? CreditTerms(
                     customer: _customer.text.trim(),
@@ -216,25 +246,38 @@ class _PaySheetState extends ConsumerState<PaySheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Pay ${_kes(widget.totalMinor)}',
-                style: theme.textTheme.headlineSmall,
-              ),
+              Text('Pay ${_kes(_total)}', style: theme.textTheme.headlineSmall),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.note ?? 'Other sale',
+              if (_lines.isEmpty)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.note ?? 'Other sale',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ),
+                    Text(
+                      formatMoney(Money(_total), withCurrency: false),
                       style: theme.textTheme.bodyLarge,
                     ),
+                  ],
+                )
+              else
+                for (final (i, line) in _lines.indexed)
+                  _LineRow(
+                    key: Key('pay-line-$i'),
+                    line: line,
+                    onChanged: line.itemId == null
+                        ? null
+                        : (q) => setState(() {
+                            if (q <= 0) {
+                              _lines.removeAt(i);
+                            } else {
+                              _lines[i] = _withQuantity(line, q);
+                            }
+                          }),
                   ),
-                  Text(
-                    formatMoney(Money(widget.totalMinor), withCurrency: false),
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                ],
-              ),
               const Divider(height: 28),
               Text(
                 'How are they paying?',
@@ -283,12 +326,12 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         label: 'Cash given (optional)',
         allowZero: true,
       ),
-      _Change(controller: _given, totalMinor: widget.totalMinor),
+      _Change(controller: _given, totalMinor: _total),
     ],
     PayWay.mpesa || PayWay.bank => [
       InfoNote(
         'Waiting for the ${methodName(_way.method!)} message for '
-        '${_kes(widget.totalMinor)}. It will match this sale on its own, '
+        '${_kes(_total)}. It will match this sale on its own, '
         'or tap Done now.',
       ),
       Align(
@@ -308,7 +351,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         key: const Key('pay-now'),
         controller: _now,
         label: 'Paid now',
-        maxMinor: widget.totalMinor - 100,
+        maxMinor: _total - 100,
       ),
       const SizedBox(height: 8),
       MethodChips(
@@ -332,11 +375,9 @@ class _PaySheetState extends ConsumerState<PaySheet> {
       ListenableBuilder(
         listenable: _now,
         builder: (context, _) {
-          final rest = widget.totalMinor - _nowMinor;
+          final rest = _total - _nowMinor;
           return Text(
-            rest > 0 && rest < widget.totalMinor
-                ? 'The rest, ${_kes(rest)}'
-                : 'The rest',
+            rest > 0 && rest < _total ? 'The rest, ${_kes(rest)}' : 'The rest',
             style: Theme.of(context).textTheme.bodyMedium!
                 .copyWith(color: PesaColors.of(context).textMuted),
           );
@@ -516,5 +557,94 @@ class InfoNote extends StatelessWidget {
       ),
       child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
     );
+  }
+}
+
+/// One line on Pay: the item, − and + (a tap on the amount types it), and
+/// the line's total.
+class _LineRow extends StatelessWidget {
+  const _LineRow({required this.line, required this.onChanged, super.key});
+
+  final SaleLine line;
+
+  /// Null for a typed amount, which has no quantity to change.
+  final ValueChanged<int>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final change = onChanged;
+    Widget step(IconData icon, String label, int by) => IconButton(
+      tooltip: label,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(icon, size: 18),
+      style: IconButton.styleFrom(
+        shape: const CircleBorder(),
+        side: BorderSide(color: PesaColors.of(context).border),
+      ),
+      onPressed: change == null ? null : () => change(line.quantityMilli + by),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(line.name, style: theme.textTheme.bodyLarge)),
+          if (change != null) ...[
+            step(Icons.remove, 'One less', -milli),
+            InkWell(
+              onTap: () async {
+                final text = await _askQuantity(context, line);
+                final q = text == null ? null : quantityFrom(text);
+                if (q != null) change(q);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  quantityText(line.quantityMilli),
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ),
+            step(Icons.add, 'One more', milli),
+          ],
+          SizedBox(
+            width: 72,
+            child: Text(
+              formatMoney(Money(line.totalMinor), withCurrency: false),
+              textAlign: TextAlign.end,
+              style: theme.textTheme.bodyLarge,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<String?> _askQuantity(BuildContext context, SaleLine line) {
+    final controller = TextEditingController(
+      text: quantityText(line.quantityMilli),
+    );
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(line.name),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'How much, such as 0.5'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
   }
 }

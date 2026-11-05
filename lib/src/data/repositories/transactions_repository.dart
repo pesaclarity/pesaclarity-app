@@ -302,6 +302,9 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.quickRecords,
       _db.debts,
       _db.debtInstalments,
+      _db.items,
+      _db.stockMoves,
+      _db.saleLines,
     ]),
   );
 

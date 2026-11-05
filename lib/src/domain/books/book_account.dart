@@ -62,6 +62,15 @@ enum BookAccountKind {
   /// What the business owes suppliers for stock or costs bought on credit.
   owedToSuppliers(BookAccountClass.liability),
 
+  /// Stock on hand, at what it cost: owned until it sells.
+  stock(BookAccountClass.asset),
+
+  /// What sold stock cost, at the average cost.
+  costOfSales(BookAccountClass.expense),
+
+  /// Stock spoiled, used or lost, at the average cost.
+  stockLosses(BookAccountClass.expense),
+
   /// Money the owner took out of a business ("Paid yourself").
   ownerPay(BookAccountClass.equity),
 
@@ -117,6 +126,9 @@ class BookAccount {
   static const owedToSuppliers = BookAccount.fixed(
     BookAccountKind.owedToSuppliers,
   );
+  static const stock = BookAccount.fixed(BookAccountKind.stock);
+  static const costOfSales = BookAccount.fixed(BookAccountKind.costOfSales);
+  static const stockLosses = BookAccount.fixed(BookAccountKind.stockLosses);
   static const ownerPay = BookAccount.fixed(BookAccountKind.ownerPay);
   static const openingBalances = BookAccount.fixed(
     BookAccountKind.openingBalances,

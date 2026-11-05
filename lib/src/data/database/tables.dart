@@ -552,6 +552,10 @@ class QuickRecords extends Table {
     onDelete: KeyAction.setNull,
   )();
 
+  /// The item restocked, for stock bought; its quantity is in
+  /// [StockMoves].
+  IntColumn get itemId => integer().nullable()();
+
   /// The cash entry made, or the payment message matched. Null while an
   /// M-Pesa or bank record waits for its message, and for credit.
   IntColumn get transactionId => integer().nullable().references(
@@ -559,4 +563,82 @@ class QuickRecords extends Table {
     #id,
     onDelete: KeyAction.setNull,
   )();
+}
+
+/// What a business sells: products with stock, and services. Quantities
+/// are in thousandths of the unit, so 0.5 kg is 500.
+@DataClassName('ItemRecord')
+class Items extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => textEnum<ItemKind>()();
+  TextColumn get name => text().withLength(min: 1, max: 80)();
+
+  /// Such as kg, bunch or piece; null sells each.
+  TextColumn get unit => text().nullable()();
+
+  /// The selling price per unit; null when the price varies.
+  IntColumn get priceMinor => integer().nullable()();
+
+  /// Stock on hand in thousandths of [unit]; products only.
+  IntColumn get stockMilli => integer().withDefault(const Constant(0))();
+
+  /// The average cost of one unit, recalculated at each restock.
+  IntColumn get averageCostMinor => integer().withDefault(const Constant(0))();
+
+  /// "Warn me below", in thousandths of [unit].
+  IntColumn get warnBelowMilli => integer().nullable()();
+
+  /// A group for the Sell chips, such as Vegetables.
+  TextColumn get grouping => text().nullable()();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+}
+
+/// Every change to an item's stock: opening, sold, restocked or counted.
+@DataClassName('StockMoveRecord')
+class StockMoves extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get itemId =>
+      integer().references(Items, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get at => dateTime()();
+  TextColumn get kind => textEnum<StockMoveKind>()();
+
+  /// Thousandths of the unit: up for opening and restock, down when sold.
+  IntColumn get quantityMilli => integer()();
+
+  /// What the move is worth at cost: what was paid for a restock, the
+  /// average cost for a sale or count.
+  IntColumn get costMinor => integer()();
+
+  /// The sale it was part of.
+  IntColumn get saleId => integer().nullable().references(
+    Sales,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// The Bought record it came from.
+  IntColumn get recordId => integer().nullable().references(
+    QuickRecords,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get reason => textEnum<CountReason>().nullable()();
+}
+
+/// What a sale was made of: items, or an amount typed in.
+@DataClassName('SaleLineRecord')
+class SaleLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get saleId =>
+      integer().references(Sales, #id, onDelete: KeyAction.cascade)();
+
+  /// Null for an "Other sale" amount.
+  IntColumn get itemId => integer().nullable().references(
+    Items,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get name => text()();
+  IntColumn get quantityMilli => integer()();
+  IntColumn get totalMinor => integer()();
 }

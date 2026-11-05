@@ -145,12 +145,14 @@ void main() {
       'Today',
       'Money',
       'People',
+      'Stock',
       'Insights',
     ]);
     expect(tabsFor(SpaceKind.business, services: true).map((t) => t.label), [
       'Today',
       'Money',
       'Clients',
+      'Services',
       'Insights',
     ]);
   });

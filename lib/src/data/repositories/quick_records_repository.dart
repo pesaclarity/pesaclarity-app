@@ -27,7 +27,11 @@ abstract interface class QuickRecordsRepository {
     String? supplier,
     CalendarDate? dueDate,
     String? note,
+    int? itemId,
   });
+
+  /// Transactions that paid for stock bought to sell.
+  Future<Set<int>> restockTransactions();
 
   /// [customer] paid [amountMinor] of what they owe, filed under
   /// [categoryId] (payments from customers).
@@ -151,6 +155,7 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
     String? supplier,
     CalendarDate? dueDate,
     String? note,
+    int? itemId,
   }) => _db.transaction(() async {
     int? debtId;
     if (method == SalePaymentMethod.credit) {
@@ -190,6 +195,7 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
         party: Value(supplier),
         note: Value(note),
         debtId: Value(debtId),
+        itemId: Value(itemId),
       ),
     );
     if (method == SalePaymentMethod.cash) {
@@ -197,6 +203,19 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
     }
     return id;
   });
+
+  @override
+  Future<Set<int>> restockTransactions() async => {
+    for (final r
+        in await (_db.select(_db.quickRecords)..where(
+              (r) =>
+                  r.kind.equalsValue(QuickRecordKind.bought) &
+                  r.itemId.isNotNull() &
+                  r.transactionId.isNotNull(),
+            ))
+            .get())
+      r.transactionId!,
+  };
 
   @override
   Future<int> gotPaid({

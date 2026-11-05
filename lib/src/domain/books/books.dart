@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/balances.dart';
 import '../ledger/fuliza.dart';
@@ -30,6 +31,10 @@ enum JournalSource {
   /// What a customer owed, or the business owed a supplier, before its
   /// records: [JournalEntry.sourceId] is the loan's or debt's id.
   owedBefore,
+
+  /// Stock in at the start, sold, or counted: [JournalEntry.sourceId] is
+  /// the stock move's id.
+  stock,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -95,6 +100,7 @@ class CreditPurchase {
     required this.amountMinor,
     required this.currency,
     required this.categoryId,
+    this.toStock = false,
   });
 
   final int recordId;
@@ -104,6 +110,9 @@ class CreditPurchase {
 
   /// The cost category it counts under.
   final int categoryId;
+
+  /// Stock to sell, owned until it sells, rather than a cost.
+  final bool toStock;
 }
 
 /// Money owed from before the records: by a customer to the business
@@ -122,6 +131,30 @@ class OwedBefore {
   final int amountMinor;
   final String currency;
   final bool toYou;
+}
+
+/// A stock move the books post: stock there at the start, sold at the
+/// average cost, or a count's difference.
+class StockEntry {
+  const StockEntry({
+    required this.moveId,
+    required this.at,
+    required this.kind,
+    required this.costMinor,
+    required this.up,
+    this.reason,
+  });
+
+  final int moveId;
+  final DateTime at;
+  final StockMoveKind kind;
+
+  /// Always positive.
+  final int costMinor;
+
+  /// Whether stock went up.
+  final bool up;
+  final CountReason? reason;
 }
 
 /// Category key whose outflows are the owner taking money out.
@@ -146,12 +179,24 @@ class Books {
     Iterable<CreditSale> credits = const [],
     Iterable<CreditPurchase> purchases = const [],
     Iterable<OwedBefore> owedBefore = const [],
+    Iterable<StockEntry> stock = const [],
+    Set<int> restocks = const {},
   }) {
     final all = history.toList();
     final fuliza = FulizaLedger.of(all);
     final out = <JournalEntry>[];
     for (final e in all) {
-      out.add(postEntry(e, categories: categories, fulizaFee: fuliza.feeOf(e)));
+      out.add(
+        postEntry(
+          e,
+          categories: categories,
+          fulizaFee: fuliza.feeOf(e),
+          toStock: restocks.contains(e.id),
+        ),
+      );
+    }
+    for (final m in stock) {
+      out.add(_stockEntry(m));
     }
     for (final account in accounts) {
       out.addAll(_openingAndDifferences(account, all));
@@ -176,7 +221,9 @@ class Books {
     // By time; at the same instant an opening comes first and a balance
     // difference last, after the transaction that reported the balance.
     int rank(JournalSource s) => switch (s) {
-      JournalSource.opening || JournalSource.owedBefore => 0,
+      JournalSource.opening ||
+      JournalSource.owedBefore ||
+      JournalSource.stock => 0,
       JournalSource.transaction ||
       JournalSource.creditSale ||
       JournalSource.creditPurchase => 1,
@@ -191,7 +238,9 @@ class Books {
           currency: p.currency,
           lines: [
             JournalLine(
-              BookAccount.category(p.categoryId, income: false),
+              p.toStock
+                  ? BookAccount.stock
+                  : BookAccount.category(p.categoryId, income: false),
               p.amountMinor,
             ),
             JournalLine(BookAccount.owedToSuppliers, -p.amountMinor),
@@ -299,12 +348,33 @@ class Books {
       totalOf(BookAccountClass.expense, currency: currency, from: from, to: to);
 }
 
+/// Posts one stock move.
+JournalEntry _stockEntry(StockEntry m) {
+  final other = switch (m.kind) {
+    StockMoveKind.opening => BookAccount.openingBalances,
+    StockMoveKind.sold => BookAccount.costOfSales,
+    StockMoveKind.counted when m.reason == CountReason.miscounted =>
+      BookAccount.balanceDifferences,
+    StockMoveKind.counted || StockMoveKind.restocked => BookAccount.stockLosses,
+  };
+  final cost = m.up ? m.costMinor : -m.costMinor;
+  return JournalEntry(
+    source: JournalSource.stock,
+    sourceId: m.moveId,
+    at: m.at,
+    currency: BaseCurrency.code,
+    lines: [JournalLine(BookAccount.stock, cost), JournalLine(other, -cost)],
+  );
+}
+
 /// Posts one transaction. [fulizaFee] is the fee share of a Fuliza
-/// repayment, from [FulizaLedger].
+/// repayment, from [FulizaLedger]. With [toStock], spending is stock bought
+/// to sell, owned until it sells.
 JournalEntry postEntry(
   LedgerEntry e, {
   required Map<int, BookCategory> categories,
   int fulizaFee = 0,
+  bool toStock = false,
 }) {
   final money = BookAccount.money(e.accountId);
   final amount = e.amountMinor;
@@ -344,6 +414,10 @@ JournalEntry postEntry(
       e.isInflow
           ? inFrom(incomeAccount(), amount)
           : outTo(incomeAccount(), amount);
+    case LedgerRole.spending when toStock:
+      e.isOutflow
+          ? outTo(BookAccount.stock, amount)
+          : inFrom(BookAccount.stock, amount);
     case LedgerRole.spending:
       e.isOutflow
           ? outTo(spendingAccount(), amount)

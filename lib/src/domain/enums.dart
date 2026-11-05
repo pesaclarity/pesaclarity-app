@@ -103,3 +103,31 @@ enum SalePaymentMethod {
 /// customer paying what they owe, paying a supplier, the owner paying
 /// themselves, or change sent back to a customer who paid too much.
 enum QuickRecordKind { bought, gotPaid, paid, paidYourself, change }
+
+/// What a business sells: something kept in stock, or its time or skill.
+enum ItemKind { product, service }
+
+/// Why an item's stock changed.
+enum StockMoveKind {
+  /// What was there when the item was added.
+  opening,
+
+  /// Sold: stock down at the average cost.
+  sold,
+
+  /// Bought to sell: stock up at what was paid.
+  restocked,
+
+  /// Counted: the difference from what the records said.
+  counted,
+}
+
+/// Why a count came out different from the records.
+enum CountReason {
+  spoiled,
+  used,
+  lost,
+
+  /// The records were wrong; not a cost.
+  miscounted,
+}

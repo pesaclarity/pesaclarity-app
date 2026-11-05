@@ -4,6 +4,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
+import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/books/books.dart';
 import '../../../domain/ledger/balances.dart';
@@ -45,6 +46,10 @@ final booksProvider = FutureProvider<Books>((ref) async {
               .watch(quickRecordsRepositoryProvider)
               .owedBefore(suppliersAt: _booksStart(accounts))
         : const [],
+    stock: await ref.watch(stockRepositoryProvider).stockEntries(),
+    restocks: await ref
+        .watch(quickRecordsRepositoryProvider)
+        .restockTransactions(),
   );
 });
 
