@@ -88,6 +88,13 @@ class _Picker implements DocumentPicker {
   );
 
   @override
+  Future<PickedDocument?> takePhoto() async => PickedDocument(
+    name: 'Receipt photo.jpg',
+    mimeType: 'image/jpeg',
+    bytes: Uint8List.fromList(const [1, 2, 3]),
+  );
+
+  @override
   Future<List<PickedDocument>> pickDocuments() async => const [];
 }
 

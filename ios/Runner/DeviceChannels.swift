@@ -81,9 +81,12 @@ final class DeviceIntegrityChannel {
 /// `com.pesaclarity.app/share`: the share sheet, for reminders, and the
 /// system contact picker for one phone number. The picker needs no contacts
 /// permission and hands back only the contact chosen.
-final class ShareChannel: NSObject, CNContactPickerDelegate {
+final class ShareChannel: NSObject, CNContactPickerDelegate,
+  UIImagePickerControllerDelegate, UINavigationControllerDelegate
+{
   private let methods: FlutterMethodChannel
   private var pendingPick: FlutterResult?
+  private var pendingPhoto: FlutterResult?
 
   init(messenger: FlutterBinaryMessenger) {
     methods = FlutterMethodChannel(name: "com.pesaclarity.app/share", binaryMessenger: messenger)
@@ -112,6 +115,20 @@ final class ShareChannel: NSObject, CNContactPickerDelegate {
         picker.displayedPropertyKeys = [CNContactPhoneNumbersKey]
         picker.predicateForSelectionOfProperty = NSPredicate(format: "key == 'phoneNumbers'")
         top.present(picker, animated: true)
+      case "takePhoto":
+        // The system camera, for a photo of a paper receipt. It asks for the
+        // camera itself, with the reason in Info.plist.
+        guard let self, let top = topViewController(),
+          UIImagePickerController.isSourceTypeAvailable(.camera)
+        else {
+          return result(FlutterError(code: "unavailable", message: "No camera", details: nil))
+        }
+        self.pendingPhoto?(nil)
+        self.pendingPhoto = result
+        let camera = UIImagePickerController()
+        camera.sourceType = .camera
+        camera.delegate = self
+        top.present(camera, animated: true)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -128,5 +145,34 @@ final class ShareChannel: NSObject, CNContactPickerDelegate {
   func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
     pendingPick?(nil)
     pendingPick = nil
+  }
+
+  func imagePickerController(
+    _ picker: UIImagePickerController,
+    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+  ) {
+    picker.dismiss(animated: true)
+    guard let image = info[.originalImage] as? UIImage,
+      let data = image.jpegData(compressionQuality: 0.8)
+    else {
+      pendingPhoto?(nil)
+      pendingPhoto = nil
+      return
+    }
+    let file = FileManager.default.temporaryDirectory
+      .appendingPathComponent("receipt-\(Int(Date().timeIntervalSince1970)).jpg")
+    do {
+      try data.write(to: file)
+      pendingPhoto?(file.path)
+    } catch {
+      pendingPhoto?(nil)
+    }
+    pendingPhoto = nil
+  }
+
+  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    picker.dismiss(animated: true)
+    pendingPhoto?(nil)
+    pendingPhoto = nil
   }
 }

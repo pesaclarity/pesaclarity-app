@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,9 +66,15 @@ abstract interface class DocumentPicker {
 
   /// PDFs or pictures, in the order picked; empty if backed out.
   Future<List<PickedDocument>> pickDocuments();
+
+  /// A photo from the phone's camera, such as a paper receipt; null if
+  /// backed out.
+  Future<PickedDocument?> takePhoto();
 }
 
 class SystemDocumentPicker implements DocumentPicker {
+  static const _channel = MethodChannel('com.pesaclarity.app/share');
+
   static const _images = XTypeGroup(
     label: 'Pictures',
     extensions: ['png', 'jpg', 'jpeg'],
@@ -98,6 +106,22 @@ class SystemDocumentPicker implements DocumentPicker {
       mimeType: _mime(f),
       bytes: await f.readAsBytes(),
     );
+  }
+
+  @override
+  Future<PickedDocument?> takePhoto() async {
+    final path = await _channel.invokeMethod<String>('takePhoto');
+    if (path == null) return null;
+    final file = File(path);
+    try {
+      final bytes = await file.readAsBytes();
+      final name =
+          'Receipt photo ${DateTime.now().toIso8601String().substring(0, 10)}.jpg';
+      return PickedDocument(name: name, mimeType: 'image/jpeg', bytes: bytes);
+    } finally {
+      // The photo is kept in the database from here; the copy goes.
+      if (file.existsSync()) await file.delete();
+    }
   }
 
   @override
