@@ -85,3 +85,13 @@ enum StatementImportResult {
   /// The ledger is off from the statement's closing balance by some amount.
   gap,
 }
+
+/// How part of a sale was paid.
+enum SalePaymentMethod {
+  cash,
+  mpesa,
+  bank,
+
+  /// The customer pays later.
+  credit,
+}

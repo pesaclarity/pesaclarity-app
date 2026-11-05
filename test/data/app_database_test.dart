@@ -702,6 +702,20 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 18 database: sales', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE sale_payments');
+      await old.customStatement('DROP TABLE sales');
+      await old.customStatement('PRAGMA user_version = 18');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.sales).get(), isEmpty);
+      expect(await db.select(db.salePayments).get(), isEmpty);
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();

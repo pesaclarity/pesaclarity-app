@@ -72,4 +72,7 @@ abstract final class AppRoutes {
 
   /// A business's cash book.
   static const money = '/money';
+
+  /// A business: sell, then pay. Full screen, over the tabs.
+  static const sell = '/sell';
 }
