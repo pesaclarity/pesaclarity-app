@@ -1,7 +1,15 @@
 {
-  "version": "1.5",
-  "updated": "2026-11-04",
+  "version": "1.6",
+  "updated": "2026-11-05",
   "changes": [
+    {
+      "version": "1.6",
+      "date": "2026-11-05",
+      "items": [
+        "A business's customers, suppliers, contact numbers and the documents kept for receipts and invoices stay on your phone.",
+        "Receipts, invoices and reports leave your phone only when you share them."
+      ]
+    },
     {
       "version": "1.5",
       "date": "2026-11-04",
