@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -299,6 +300,101 @@ class SalesController {
       );
       await matchWaiting();
     }
+  }
+
+  /// Money in that has no record yet: on M-Pesa or bank on [day], not
+  /// matched to a sale or payment, and not filed by the owner.
+  Future<List<LedgerEntry>> unmatchedOn(CalendarDate day) async {
+    final entries = await _ref
+        .read(transactionsRepositoryProvider)
+        .ledgerEntries(from: day.startInstant, to: day.addDays(1).startInstant);
+    final types = {
+      for (final a in await _ref.read(accountsRepositoryProvider).openings())
+        a.id: a.type,
+    };
+    final linked = {
+      ...await _sales.linkedTransactions(),
+      ...await _records.linkedTransactions(),
+    };
+    return [
+      for (final e in entries)
+        if (e.isInflow &&
+            e.transferPairId == null &&
+            !linked.contains(e.id) &&
+            (types[e.accountId] == AccountType.mpesa ||
+                types[e.accountId] == AccountType.bank) &&
+            (e.categoryId == null || e.categoryIsAuto))
+          e,
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  }
+
+  SalePaymentMethod _methodFor(LedgerEntry e, Map<int, AccountType> types) =>
+      types[e.accountId] == AccountType.bank
+      ? SalePaymentMethod.bank
+      : SalePaymentMethod.mpesa;
+
+  /// [e] was a sale: it becomes one, paid by that message.
+  Future<void> saleFromPayment(LedgerEntry e) async {
+    final types = {
+      for (final a in await _ref.read(accountsRepositoryProvider).openings())
+        a.id: a.type,
+    };
+    await _sales.recordPaid(
+      at: e.occurredAt,
+      method: _methodFor(e, types),
+      amountMinor: e.amountMinor,
+      transactionId: e.id,
+      salesCategoryId: await _sales.salesCategoryId(),
+      currency: e.currency,
+    );
+  }
+
+  /// [e] was [customer] paying some of what they owe.
+  Future<void> customerPaidBy(LedgerEntry e, String customer) async {
+    final types = {
+      for (final a in await _ref.read(accountsRepositoryProvider).openings())
+        a.id: a.type,
+    };
+    final id = await _records.gotPaid(
+      at: e.occurredAt,
+      amountMinor: e.amountMinor,
+      method: _methodFor(e, types),
+      customer: customer,
+      categoryId: await ensureCategory(_db, customerPaymentsSeed),
+      cashAccountId: await _cashAccount(),
+    );
+    await _records.link(id, e.id);
+  }
+
+  /// [e] is other income, neither a sale nor a customer paying.
+  Future<void> otherIncome(LedgerEntry e) async {
+    final category = await ensureCategory(_db, otherBusinessIncomeSeed);
+    await (_db.update(_db.transactions)..where((t) => t.id.equals(e.id))).write(
+      TransactionsCompanion(categoryOverrideId: Value(category)),
+    );
+  }
+
+  /// Books a drawer difference at Close the day: cash up for more than the
+  /// records, down for less.
+  Future<void> bookCashDifference(int differenceMinor) async {
+    if (differenceMinor == 0) return;
+    await _db
+        .into(_db.transactions)
+        .insert(
+          TransactionsCompanion.insert(
+            accountId: await _cashAccount(),
+            occurredAt: _now(),
+            amountMinor: differenceMinor.abs(),
+            direction: differenceMinor > 0
+                ? TransactionDirection.inflow
+                : TransactionDirection.outflow,
+            source: TransactionSource.manual,
+            item: const Value('Close the day'),
+            categoryOverrideId: Value(
+              await ensureCategory(_db, cashDifferenceSeed),
+            ),
+          ),
+        );
   }
 
   /// A waiting record was paid in cash after all.

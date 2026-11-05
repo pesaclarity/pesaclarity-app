@@ -135,8 +135,9 @@ void main() {
     expect(find.text('Profit this month'), findsOneWidget);
     expect(find.text('8,300'), findsOneWidget);
     expect(find.byTooltip('Sell'), findsOneWidget);
-    for (final quick in ['Bought', 'Got paid', 'Paid', 'Other record']) {
+    for (final quick in ['Bought', 'Got paid', 'Paid', 'Close the day']) {
       expect(find.text(quick), findsOneWidget);
     }
+    expect(find.byKey(const Key('quick-more')), findsOneWidget);
   });
 }

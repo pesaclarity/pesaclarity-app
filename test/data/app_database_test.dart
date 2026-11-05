@@ -702,6 +702,18 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 22 database: day closes', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE day_closes');
+      await old.customStatement('PRAGMA user_version = 22');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.dayCloses).get(), isEmpty);
+    });
+
     test('migrates a version 21 database: contacts', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE contacts');

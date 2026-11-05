@@ -1054,8 +1054,9 @@ class _WeekCard extends ConsumerWidget {
 }
 
 /// A business's quick records on Today, two by two. Products: Bought, Got
-/// paid, Paid. Services: Got paid, Spent, Billed. Both end with Other
-/// record, for cash in or out and statements.
+/// paid, Paid, Close the day, with More below for cash in or out, pay
+/// yourself and statements. Services: Got paid, Spent, Billed, Other
+/// record.
 class _QuickButtons extends StatelessWidget {
   const _QuickButtons({required this.services});
 
@@ -1099,9 +1100,14 @@ class _QuickButtons extends StatelessWidget {
               'You pay a supplier',
               () => showPaidSheet(context),
             ),
-            _QuickButton('Other record', 'Cash in or out, a statement', other),
+            _QuickButton(
+              'Close the day',
+              'Count your cash',
+              () => context.push(AppRoutes.closeDay),
+            ),
           ];
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < buttons.length; i += 2) ...[
           if (i > 0) const SizedBox(height: 10),
@@ -1116,6 +1122,18 @@ class _QuickButtons extends StatelessWidget {
             ),
           ),
         ],
+        if (!services)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('quick-more'),
+              onPressed: other,
+              child: Text(
+                'More: cash in or out, pay yourself, a statement',
+                style: TextStyle(color: PesaColors.of(context).link),
+              ),
+            ),
+          ),
       ],
     );
   }
