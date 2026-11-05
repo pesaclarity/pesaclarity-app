@@ -65,6 +65,14 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                     ),
                   ),
                 ),
+                TextButton(
+                  key: const Key('money-close-day'),
+                  onPressed: () => context.push(AppRoutes.closeDay),
+                  child: Text(
+                    'Close the day',
+                    style: TextStyle(color: colors.link),
+                  ),
+                ),
                 IconButton(
                   key: const Key('money-search'),
                   tooltip: 'Search all records',

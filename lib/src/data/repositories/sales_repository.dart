@@ -45,6 +45,17 @@ abstract interface class SalesRepository {
     String? currency,
   });
 
+  /// A sale paid in full by the message [transactionId], made from it at
+  /// [at]; the message is filed as a sale.
+  Future<int> recordPaid({
+    required DateTime at,
+    required SalePaymentMethod method,
+    required int amountMinor,
+    required int transactionId,
+    required int salesCategoryId,
+    String? currency,
+  });
+
   /// M-Pesa and bank parts still waiting for their message, oldest first,
   /// to be filed under [salesCategoryId] once matched.
   Future<List<WaitingPayment>> waiting({required int salesCategoryId});
@@ -190,6 +201,42 @@ class DriftSalesRepository implements SalesRepository {
           item: Value(note),
         ),
       );
+
+  @override
+  Future<int> recordPaid({
+    required DateTime at,
+    required SalePaymentMethod method,
+    required int amountMinor,
+    required int transactionId,
+    required int salesCategoryId,
+    String? currency,
+  }) => _db.transaction(() async {
+    final saleId = await _db
+        .into(_db.sales)
+        .insert(
+          SalesCompanion.insert(
+            soldAt: at,
+            totalMinor: amountMinor,
+            currency: Value(currency ?? BaseCurrency.code),
+          ),
+        );
+    await _db
+        .into(_db.salePayments)
+        .insert(
+          SalePaymentsCompanion.insert(
+            saleId: saleId,
+            method: method,
+            amountMinor: amountMinor,
+            transactionId: Value(transactionId),
+          ),
+        );
+    await (_db.update(
+      _db.transactions,
+    )..where((t) => t.id.equals(transactionId))).write(
+      TransactionsCompanion(categoryOverrideId: Value(salesCategoryId)),
+    );
+    return saleId;
+  });
 
   @override
   Future<List<WaitingPayment>> waiting({required int salesCategoryId}) async {

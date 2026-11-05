@@ -658,3 +658,17 @@ class Contacts extends Table {
   TextColumn get phone => text().nullable()();
   TextColumn get sendWith => textEnum<SendWith>().nullable()();
 }
+
+/// A business's day closes: what the drawer should hold, what was counted,
+/// and a note on any difference.
+@DataClassName('DayCloseRecord')
+class DayCloses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The start of the day closed, one close per day.
+  DateTimeColumn get day => dateTime().unique()();
+  IntColumn get expectedMinor => integer()();
+  IntColumn get countedMinor => integer()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get closedAt => dateTime()();
+}

@@ -61,6 +61,22 @@ const payFromBusinessSeed = CategorySeed(
   CategoryType.income,
 );
 
+/// Money in from a customer that was neither a sale nor a payment of what
+/// they owe.
+const otherBusinessIncomeSeed = CategorySeed(
+  'other_business_income',
+  'Other income',
+  CategoryType.income,
+);
+
+/// The drawer counted more or less than the records, when the owner books
+/// it at Close the day.
+const cashDifferenceSeed = CategorySeed(
+  'cash_difference',
+  'Cash difference',
+  CategoryType.expense,
+);
+
 /// Customers paying what they owe for sales on credit: not a new sale.
 const customerPaymentsKey = 'customer_payments';
 
@@ -93,7 +109,7 @@ const ownerPaySeed = CategorySeed(
 const _added = <SpaceKind, List<CategorySeed>>{
   SpaceKind.business: [
     salesSeed,
-    CategorySeed('other_business_income', 'Other income', CategoryType.income),
+    otherBusinessIncomeSeed,
     stockSeed,
     customerPaymentsSeed,
     supplierPaymentsSeed,

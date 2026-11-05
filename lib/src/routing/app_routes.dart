@@ -95,6 +95,9 @@ abstract final class AppRoutes {
   /// Count stock against the records.
   static const countStock = '/stock/count';
 
+  /// A business: count the drawer and match the day's payments.
+  static const closeDay = '/close-day';
+
   /// A business: sell, then pay. Full screen, over the tabs.
   static const sell = '/sell';
 
