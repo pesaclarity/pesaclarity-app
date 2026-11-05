@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/data/repositories/sales_repository.dart';
 import 'package:pesaclarity/src/data/repositories/stock_repository.dart';
 import 'package:pesaclarity/src/domain/books/business_report.dart';
 import 'package:pesaclarity/src/domain/books/report_setup.dart';
+import 'package:pesaclarity/src/domain/documents/document_settings.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/business_insights/application/business_report_pdf.dart';
 import 'package:pesaclarity/src/features/business_insights/application/report_content.dart';
@@ -18,6 +19,7 @@ import 'package:pesaclarity/src/features/business_insights/application/report_ma
 import 'package:pesaclarity/src/features/business_insights/presentation/business_insights_screen.dart';
 import 'package:pesaclarity/src/features/business_insights/presentation/full_records_screen.dart';
 import 'package:pesaclarity/src/features/business_insights/presentation/make_report_screen.dart';
+import 'package:pesaclarity/src/features/documents/application/document_providers.dart';
 import 'package:pesaclarity/src/features/insights/application/report_sharer.dart';
 import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
@@ -242,6 +244,108 @@ void main() {
     expect(String.fromCharCodes(pdf.take(4)), '%PDF');
   });
 
+  test('a styled report: compared, in accounting terms, with charts', () async {
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    await seed(c);
+    await c
+        .read(documentSettingsProvider.notifier)
+        .save(const DocumentSettings(kraPin: 'P000000000A', showKraPin: true));
+    await c
+        .read(reportSettingsProvider.notifier)
+        .save(const ReportSettings(cover: ReportCover(permit: 'BP-0001')));
+    const style = ReportStyle(
+      compare: true,
+      wording: ReportWording.formal,
+      charts: true,
+      kraPin: true,
+      permit: true,
+      signature: true,
+    );
+    final doc = await c
+        .read(reportMakerProvider)
+        .make(
+          period: periodFor(ReportRange.thisMonth, CalendarDate(2026, 11, 5)),
+          sections: ReportSection.values.toSet(),
+          style: style,
+        );
+    final tables = doc.blocks.whereType<ReportTable>().toList();
+    final pnl = tables.first;
+    expect(pnl.title, 'Income statement');
+    expect(pnl.columns, ['', 'October', 'This period']);
+    expect(pnl.total, ['Net profit', 0, 370000]);
+    expect(
+      tables.map((t) => t.title),
+      containsAll(['Accounts receivable', 'Accounts payable']),
+    );
+    final balance = tables.firstWhere((t) => t.title.startsWith('Balance'));
+    expect(balance.title, startsWith('Balance sheet on'));
+    expect(balance.total!.first, 'Net assets');
+
+    final charts = doc.blocks.whereType<ReportChart>().toList();
+    expect(charts.map((c) => c.title), [
+      'Net profit by month',
+      'How people paid',
+      'Sales by day',
+    ]);
+    expect(charts.first.points.map((p) => p.label), [
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+    ]);
+    expect(charts.first.points.last.valueMinor, 370000);
+    final days = charts.last.points;
+    expect(days.map((p) => p.label), ['1', '2', '3', '4', '5']);
+    expect(days.fold(0, (sum, p) => sum + p.valueMinor), 720000);
+    expect(doc.coverNotes, ['KRA PIN P000000000A', 'Business permit BP-0001']);
+    expect(reportCsv(doc), contains('KRA PIN P000000000A'));
+
+    for (final cover in ReportCoverStyle.values) {
+      for (final colour in ReportColour.values) {
+        final styled = ReportDocument(
+          title: doc.title,
+          business: doc.business,
+          coverLine: doc.coverLine,
+          period: doc.period,
+          made: doc.made,
+          currency: doc.currency,
+          blocks: doc.blocks,
+          coverNotes: doc.coverNotes,
+          style: style.copyWith(cover: cover, colour: colour, branding: false),
+        );
+        final pdf = await renderBusinessReport(styled);
+        expect(String.fromCharCodes(pdf.take(4)), '%PDF', reason: '$cover');
+      }
+    }
+  });
+
+  test('a one-page summary of the chosen parts', () async {
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    await seed(c);
+    final doc = await c
+        .read(reportMakerProvider)
+        .make(
+          period: periodFor(ReportRange.thisMonth, CalendarDate(2026, 11, 5)),
+          sections: ReportAudience.sacco.sections,
+          style: const ReportStyle(length: ReportLength.summary),
+        );
+    final summary = doc.blocks.single as ReportTable;
+    expect(summary.title, 'Summary');
+    expect(summary.columns, ['', 'Amount']);
+    expect(summary.rows.take(3), [
+      ['Sales', 720000],
+      ['Costs', -350000],
+      ['Profit', 370000],
+    ]);
+    expect(summary.rows.last.first, 'What the business is worth');
+    final pdf = await renderBusinessReport(doc);
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+  });
+
   testAppWidgets('Insights shows profit, how people pay and best sellers', (
     tester,
   ) async {
@@ -358,5 +462,46 @@ void main() {
     await tester.tap(find.byKey(const Key('report-csv')));
     await settleFrames(tester);
     expect(sharer.files.single.fileName, endsWith('.csv'));
+  });
+
+  testAppWidgets('Make a report: choose a style and keep it with the report', (
+    tester,
+  ) async {
+    final c = await pump(tester, path: AppRoutes.makeReport);
+    expect(find.text('The usual look'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('report-style')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('style-cover-band')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('style-words-formal')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('style-compare')));
+    await tester.tap(find.byKey(const Key('style-compare')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('style-done')));
+    await tester.tap(find.byKey(const Key('style-done')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Full band · Accounting terms · Compared'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('report-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('report-name-save')));
+    await settleFrames(tester);
+    final settings = await tester.runAsync(
+      () => c.read(reportSettingsProvider.future),
+    );
+    final saved = settings!.saved.single.style;
+    expect(saved.cover, ReportCoverStyle.band);
+    expect(saved.wording, ReportWording.formal);
+    expect(saved.compare, isTrue);
+
+    await tester.tap(find.byKey(const Key('report-preview')));
+    await settleFrames(tester);
+    final doc = previewed.single;
+    expect(doc.style, saved);
+    expect(doc.blocks.first.title, 'Income statement');
   });
 }

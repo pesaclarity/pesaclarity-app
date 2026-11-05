@@ -332,15 +332,25 @@ class ReceiptCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Container(
+            key: const Key('receipt-card-paid'),
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: colors.success.withValues(alpha: 0.12),
+              color: r.blackAndWhite
+                  ? null
+                  : colors.success.withValues(alpha: 0.12),
+              border: r.blackAndWhite
+                  ? Border.all(color: theme.colorScheme.onSurface)
+                  : null,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               receiptPaidLine(r, methodLabel, plain),
-              style: small.copyWith(color: colors.successText),
+              style: small.copyWith(
+                color: r.blackAndWhite
+                    ? theme.colorScheme.onSurface
+                    : colors.successText,
+              ),
             ),
           ),
         ],

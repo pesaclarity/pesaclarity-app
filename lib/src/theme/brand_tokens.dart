@@ -37,6 +37,9 @@ abstract final class BrandTokens {
 
   static const cardRadius = 24.0;
 
+  /// Corner of a boxed text field.
+  static const fieldRadius = 12.0;
+
   static const pillRadius = 999.0;
   static const touchTarget = 44.0;
 

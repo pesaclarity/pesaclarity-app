@@ -9,7 +9,8 @@ import '../../spaces/application/spaces_providers.dart';
 import '../application/document_providers.dart';
 
 /// Receipts and invoices: the logo, business details, how to pay, the
-/// M-PESA QR, KRA PIN, numbering, the receipt footer and how receipts go.
+/// M-PESA QR, KRA PIN, numbering, the receipt footer, how receipts go, and
+/// how receipts and invoices look.
 class DocumentSettingsScreen extends ConsumerWidget {
   const DocumentSettingsScreen({super.key});
 
@@ -346,6 +347,57 @@ class DocumentSettingsScreen extends ConsumerWidget {
             ),
           ]),
           const SizedBox(height: 12),
+          card([
+            ListTile(
+              key: const Key('documents-receipt-colour'),
+              title: const Text('Receipt colour'),
+              subtitle: Text(
+                'Black and white suits a till printer',
+                style: muted,
+              ),
+              trailing: action(s.receiptColour.label),
+              onTap: () async {
+                final c = await _choose(
+                  context,
+                  ReceiptColour.values,
+                  s.receiptColour,
+                  (c) => c.label,
+                  'receipt-colour',
+                );
+                if (c != null) await _save(ref, s.copyWith(receiptColour: c));
+              },
+            ),
+            ListTile(
+              key: const Key('documents-invoice-header'),
+              title: const Text('Invoice header'),
+              subtitle: Text('Across the top of the first page', style: muted),
+              trailing: action(s.invoiceHeader.label),
+              onTap: () async {
+                final h = await _choose(
+                  context,
+                  InvoiceHeader.values,
+                  s.invoiceHeader,
+                  (h) => h.label,
+                  'invoice-header',
+                );
+                if (h != null) await _save(ref, s.copyWith(invoiceHeader: h));
+              },
+            ),
+            SwitchListTile(
+              key: const Key('documents-signature'),
+              title: const Text('Space to sign and stamp invoices'),
+              value: s.signature,
+              onChanged: (on) => _save(ref, s.copyWith(signature: on)),
+            ),
+            SwitchListTile(
+              key: const Key('documents-branding'),
+              title: const Text('Made with Pesa Clarity, at the foot'),
+              subtitle: Text('On invoices and statements', style: muted),
+              value: s.branding,
+              onChanged: (on) => _save(ref, s.copyWith(branding: on)),
+            ),
+          ]),
+          const SizedBox(height: 12),
           Text(
             'Receipts and invoices are made on this phone and never sent to '
             'us. They are business documents, not eTIMS tax invoices.',
@@ -358,6 +410,33 @@ class DocumentSettingsScreen extends ConsumerWidget {
 }
 
 String? _orNull(String v) => v.trim().isEmpty ? null : v.trim();
+
+/// One of [values], picked from a sheet with [current] ticked.
+Future<T?> _choose<T extends Enum>(
+  BuildContext context,
+  List<T> values,
+  T current,
+  String Function(T) label,
+  String key,
+) => showModalBottomSheet<T>(
+  context: context,
+  showDragHandle: true,
+  builder: (context) => SafeArea(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final v in values)
+          ListTile(
+            key: Key('$key-${v.name}'),
+            title: Text(label(v)),
+            trailing: v == current ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(context, v),
+          ),
+        const SizedBox(height: 8),
+      ],
+    ),
+  ),
+);
 
 class _Field {
   const _Field(this.label, this.initial, {this.hint, this.keyboard});

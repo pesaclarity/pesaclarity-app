@@ -10,8 +10,8 @@ import '../../spaces/application/spaces_providers.dart';
 import '../application/report_maker.dart';
 import 'business_insights_screen.dart';
 
-/// Make a report: who it is for, the period, what goes in, the cover, and a
-/// name to make it again in one tap. The look is fixed.
+/// Make a report: who it is for, the period, what goes in, the cover, its
+/// style, and a name to make it again in one tap.
 class MakeReportScreen extends ConsumerStatefulWidget {
   const MakeReportScreen({super.key});
 
@@ -25,6 +25,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   ReportPeriod? _dates;
   late Set<ReportSection> _sections = {..._audience.sections};
   late ReportDetail _detail = _audience.detail;
+  var _style = const ReportStyle();
   String? _name;
   var _busy = false;
 
@@ -37,6 +38,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
     _audience = s.audience;
     _sections = {...s.sections};
     _detail = s.detail;
+    _style = s.style;
     _range = s.range;
     _dates = s.range == null ? s.periodOn(_today) : null;
     _name = s.name;
@@ -90,6 +92,16 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
         .save(settings.copyWith(cover: cover));
   }
 
+  Future<void> _editStyle() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => _StyleSheet(
+      style: _style,
+      onChanged: (s) => setState(() => _style = s),
+    ),
+  );
+
   Future<void> _save(ReportSettings settings) async {
     final name = await showDialog<String>(
       context: context,
@@ -109,6 +121,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
               from: dates?.from,
               to: dates?.to,
               detail: _detail,
+              style: _style,
             ),
           ),
         );
@@ -153,6 +166,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
         sections: _sections,
         title: _name ?? 'Business report',
         detail: _detail,
+        style: _style,
       );
       if (csv) {
         await maker.shareCsv(doc);
@@ -294,6 +308,17 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                       ),
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       ListTile(
+                        key: const Key('report-style'),
+                        title: const Text('Style'),
+                        subtitle: Text(_style.summary),
+                        trailing: Text(
+                          'Change',
+                          style: TextStyle(color: colors.link),
+                        ),
+                        onTap: _editStyle,
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      ListTile(
                         key: const Key('report-save'),
                         title: const Text('Saved as'),
                         subtitle: Text(
@@ -353,10 +378,11 @@ class _CoverDialogState extends State<_CoverDialog> {
   late final _owner = TextEditingController(text: widget.cover.owner ?? '');
   late final _phone = TextEditingController(text: widget.cover.phone ?? '');
   late final _place = TextEditingController(text: widget.cover.place ?? '');
+  late final _permit = TextEditingController(text: widget.cover.permit ?? '');
 
   @override
   void dispose() {
-    for (final c in [_business, _owner, _phone, _place]) {
+    for (final c in [_business, _owner, _phone, _place, _permit]) {
       c.dispose();
     }
     super.dispose();
@@ -396,6 +422,14 @@ class _CoverDialogState extends State<_CoverDialog> {
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(labelText: 'Place'),
           ),
+          TextField(
+            key: const Key('cover-permit'),
+            controller: _permit,
+            decoration: const InputDecoration(
+              labelText: 'Business permit number',
+              helperText: 'Shows when the style asks for it',
+            ),
+          ),
         ],
       ),
     ),
@@ -414,6 +448,7 @@ class _CoverDialogState extends State<_CoverDialog> {
             owner: _text(_owner),
             phone: _text(_phone),
             place: _text(_place),
+            permit: _text(_permit),
           ),
         ),
         child: const Text('Save'),
@@ -462,4 +497,167 @@ class _NameDialogState extends State<_NameDialog> {
       ),
     ],
   );
+}
+
+/// How the report looks: cover, colour, length, words and what else goes
+/// on it. Each change shows at once.
+class _StyleSheet extends StatefulWidget {
+  const _StyleSheet({required this.style, required this.onChanged});
+
+  final ReportStyle style;
+  final ValueChanged<ReportStyle> onChanged;
+
+  @override
+  State<_StyleSheet> createState() => _StyleSheetState();
+}
+
+class _StyleSheetState extends State<_StyleSheet> {
+  late var _style = widget.style;
+
+  void _set(ReportStyle s) {
+    setState(() => _style = s);
+    widget.onChanged(s);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    Widget chips<T extends Enum>(
+      String title,
+      List<T> values,
+      T selected,
+      String Function(T) name,
+      ReportStyle Function(T) pick,
+    ) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: label),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final v in values)
+                ChoiceChip(
+                  key: Key('style-${title.toLowerCase()}-${v.name}'),
+                  label: Text(name(v)),
+                  selected: v == selected,
+                  onSelected: (_) => _set(pick(v)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+    Widget toggle(
+      String key,
+      String title,
+      bool value,
+      ReportStyle Function(bool) pick, {
+      String? subtitle,
+    }) => SwitchListTile(
+      key: Key('style-$key'),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      value: value,
+      onChanged: (on) => _set(pick(on)),
+    );
+
+    final s = _style;
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text('Style', style: theme.textTheme.titleLarge),
+            ),
+            chips(
+              'Cover',
+              ReportCoverStyle.values,
+              s.cover,
+              (v) => v.label,
+              (v) => s.copyWith(cover: v),
+            ),
+            chips(
+              'Colour',
+              ReportColour.values,
+              s.colour,
+              (v) => v.label,
+              (v) => s.copyWith(colour: v),
+            ),
+            chips(
+              'Length',
+              ReportLength.values,
+              s.length,
+              (v) => v.label,
+              (v) => s.copyWith(length: v),
+            ),
+            chips(
+              'Words',
+              ReportWording.values,
+              s.wording,
+              (v) => v.label,
+              (v) => s.copyWith(wording: v),
+            ),
+            toggle(
+              'compare',
+              'Compare with the period before',
+              s.compare,
+              (on) => s.copyWith(compare: on),
+            ),
+            toggle(
+              'charts',
+              'Add charts',
+              s.charts,
+              (on) => s.copyWith(charts: on),
+              subtitle: 'How people paid, sales by day and profit by month',
+            ),
+            toggle(
+              'signature',
+              'A line to sign',
+              s.signature,
+              (on) => s.copyWith(signature: on),
+            ),
+            toggle(
+              'kraPin',
+              'KRA PIN on the cover',
+              s.kraPin,
+              (on) => s.copyWith(kraPin: on),
+              subtitle: 'From Receipts and invoices',
+            ),
+            toggle(
+              'permit',
+              'Business permit on the cover',
+              s.permit,
+              (on) => s.copyWith(permit: on),
+              subtitle: 'Add the number under On the cover',
+            ),
+            toggle(
+              'branding',
+              'Made with Pesa Clarity, at the foot',
+              s.branding,
+              (on) => s.copyWith(branding: on),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: FilledButton(
+                key: const Key('style-done'),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

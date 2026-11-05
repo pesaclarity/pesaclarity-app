@@ -69,6 +69,12 @@ class InvoiceDoc {
 
 String _date(CalendarDate d) => periodText(ReportPeriod(d, d.addDays(1), ''));
 
+/// The line at the foot of each invoice page. It always says it is not an
+/// eTIMS tax invoice, and names the app only when [s] keeps its branding.
+String invoiceFooter(DocumentSettings s) => s.branding
+    ? 'Made on this phone with Pesa Clarity. This is not an eTIMS tax invoice.'
+    : 'This is not an eTIMS tax invoice.';
+
 /// The invoice as an A4 PDF, in the app's report style, with the timesheet
 /// as its own page when [withTimesheet] and the invoice asks for it.
 Future<Uint8List> renderInvoicePdf(
@@ -102,8 +108,7 @@ Future<Uint8List> renderInvoicePdf(
         children: [
           pw.Expanded(
             child: pw.Text(
-              'Made on this phone with Pesa Clarity. This is not an eTIMS tax '
-              'invoice.',
+              invoiceFooter(s),
               style: pw.TextStyle(fontSize: 8, color: muted),
             ),
           ),
@@ -122,6 +127,37 @@ Future<Uint8List> renderInvoicePdf(
       pw.SizedBox(height: 24),
     ],
   );
+
+  // A full band of colour across the top of the invoice's first page.
+  final band = s.invoiceHeader == InvoiceHeader.band;
+  const bandHeight = 64.0;
+  pw.Widget bandTop(pw.Context context) => context.pageNumber != 1
+      ? strip(context)
+      : pw.Column(
+          children: [
+            pw.Container(
+              height: bandHeight,
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'INVOICE',
+                style: const pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+          ],
+        );
+  pw.Widget bandBackground(pw.Context context) => context.pageNumber != 1
+      ? pw.SizedBox()
+      : pw.FullPage(
+          ignoreMargins: true,
+          child: pw.Column(
+            children: [pw.Container(height: bandHeight, color: brand)],
+          ),
+        );
 
   pw.Widget mark() => doc.logo != null
       ? pw.Image(pw.MemoryImage(doc.logo!), height: 40)
@@ -198,15 +234,18 @@ Future<Uint8List> renderInvoicePdf(
   if (withInvoice) {
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 28),
-        theme: theme.copyWith(
-          defaultTextStyle: theme.defaultTextStyle.copyWith(
-            color: text,
-            fontSize: 10,
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 28),
+          theme: theme.copyWith(
+            defaultTextStyle: theme.defaultTextStyle.copyWith(
+              color: text,
+              fontSize: 10,
+            ),
           ),
+          buildBackground: band ? bandBackground : null,
         ),
-        header: strip,
+        header: band ? bandTop : strip,
         footer: footer,
         build: (context) => [
           pw.Stack(
@@ -244,14 +283,15 @@ Future<Uint8List> renderInvoicePdf(
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text(
-                        'INVOICE',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: brand,
+                      if (!band)
+                        pw.Text(
+                          'INVOICE',
+                          style: pw.TextStyle(
+                            fontSize: 18,
+                            fontWeight: pw.FontWeight.bold,
+                            color: brand,
+                          ),
                         ),
-                      ),
                       pw.Text(_latin1(i.number)),
                       pw.Text(
                         _latin1('Issued ${_date(i.issuedOn)}'),
@@ -440,6 +480,45 @@ Future<Uint8List> renderInvoicePdf(
             pw.SizedBox(height: 12),
             pw.Text(_latin1(notes), style: pw.TextStyle(color: muted)),
           ],
+          if (s.signature)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 28),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Container(height: 0.6, color: text),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'Signed for ${_latin1(doc.business)}',
+                          style: pw.TextStyle(fontSize: 8, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 24),
+                  pw.Container(
+                    width: 120,
+                    height: 70,
+                    alignment: pw.Alignment.center,
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(
+                        color: border,
+                        style: pw.BorderStyle.dashed,
+                      ),
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Text(
+                      'Stamp',
+                      style: pw.TextStyle(fontSize: 8, color: muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/books/business_report.dart';
 import 'package:pesaclarity/src/domain/books/report_setup.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
+import 'package:pesaclarity/src/features/business_insights/application/business_report_pdf.dart';
 import 'package:pesaclarity/src/features/business_insights/application/report_content.dart';
 
 void main() {
@@ -121,6 +122,59 @@ void main() {
       );
       final s = const ReportSettings().withSaved(a).withSaved(b);
       expect(s.saved.single.audience, ReportAudience.accountant);
+    });
+
+    test('keep their style; older reports load with the usual look', () {
+      const style = ReportStyle(
+        cover: ReportCoverStyle.band,
+        colour: ReportColour.formal,
+        length: ReportLength.summary,
+        wording: ReportWording.formal,
+        branding: false,
+        compare: true,
+        charts: true,
+        signature: true,
+        kraPin: true,
+        permit: true,
+      );
+      final s = ReportSetup.fromJson(
+        const ReportSetup(
+          name: 'For the bank',
+          audience: ReportAudience.sacco,
+          sections: {ReportSection.balance},
+          style: style,
+        ).toJson(),
+      )!;
+      expect(s.style, style);
+      final old = const ReportSetup(
+        name: 'Old',
+        audience: ReportAudience.me,
+        sections: {ReportSection.insights},
+      ).toJson()..remove('style');
+      expect(ReportSetup.fromJson(old)!.style, const ReportStyle());
+      expect(const ReportStyle().summary, 'The usual look');
+      expect(
+        style.summary,
+        'Full band · Grey and black · One-page summary · Accounting terms · '
+        'Compared · Charts',
+      );
+      expect(
+        ReportCover.fromJson(const ReportCover(permit: 'BP-0001').toJson())
+            .permit,
+        'BP-0001',
+      );
+    });
+
+    test('the foot of each page names the app only with branding on', () {
+      expect(
+        reportFooter(const ReportStyle(), '5 November'),
+        'Made on this phone by Pesa Clarity on 5 November, from the '
+        "business's own records.",
+      );
+      expect(
+        reportFooter(const ReportStyle(branding: false), '5 November'),
+        "Made on 5 November from the business's own records.",
+      );
     });
 
     test('an accountant gets every section', () {

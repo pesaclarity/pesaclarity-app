@@ -57,6 +57,7 @@ class Receipt {
     this.kraPin,
     this.footer,
     this.customer,
+    this.blackAndWhite = false,
   });
 
   final String number;
@@ -76,6 +77,9 @@ class Receipt {
 
   /// Who bought, when known.
   final String? customer;
+
+  /// Printed without colour, for a thermal printer.
+  final bool blackAndWhite;
 
   int get owedMinor => payments
       .where((p) => p.method == SalePaymentMethod.credit)
