@@ -105,8 +105,7 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showTimeZoneSheet(context, ref),
     );
-    final lookNow =
-        ref.watch(lookSettingsProvider).value ?? const LookSettings();
+    final lookNow = ref.watch(currentLookProvider);
     final look = ListTile(
       key: const Key('profile-look'),
       leading: const RowIcon(Icons.palette_outlined),
@@ -232,8 +231,7 @@ class ProfileScreen extends ConsumerWidget {
       isScrollControlled: true,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
-          final look =
-              ref.watch(lookSettingsProvider).value ?? const LookSettings();
+          final look = ref.watch(currentLookProvider);
           final theme = Theme.of(context);
           Widget heading(String title, String note) => Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'domain/look/look_settings.dart';
 import 'features/categoriser/presentation/learn_when_due.dart';
 import 'features/look/application/look_providers.dart';
 import 'features/look/presentation/field_style_theme.dart';
@@ -15,12 +14,9 @@ class PesaClarityApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The chosen theme is read once the app is unlocked and set up; until
-    // then, and by default, it follows the phone.
-    final open = ref.watch(launchGateProvider).value ?? false;
-    final theme = open
-        ? ref.watch(lookSettingsProvider).value?.theme ?? ThemeChoice.system
-        : ThemeChoice.system;
+    // From the first frame: the copy read at startup until the saved look
+    // is read after unlock. The usual is to follow the phone.
+    final theme = ref.watch(currentLookProvider).theme;
     return MaterialApp.router(
       title: 'Pesa Clarity',
       debugShowCheckedModeBanner: false,
@@ -28,8 +24,8 @@ class PesaClarityApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeModeFor(theme),
       routerConfig: ref.watch(appRouterProvider),
-      builder: (context, child) => AppLockGate(
-        child: LearnWhenDue(child: FieldStyleTheme(child: child!)),
+      builder: (context, child) => FieldStyleTheme(
+        child: AppLockGate(child: LearnWhenDue(child: child!)),
       ),
     );
   }
