@@ -225,6 +225,14 @@ Every date, day start, month and export timestamp uses one timezone: the one pic
 - **When it runs.** `LearnWhenDue` checks on open and on return to the app; `LearningSchedule` runs only with "Help improve the app" on, while charging (`charging` on the `com.pesaclarity.app/device` channel), and no more often than `fine_tune.min_hours_between_runs`.
 - **Federated updates** are not built yet (step 2 of the federated learning spec); the interfaces are in `learning.dart`.
 
+## Books
+
+Each space keeps double-entry books (`lib/src/domain/books/`), the base for the business features in [docs/spec/business-money.md](https://github.com/pesaclarity/docs/blob/main/spec/business-money.md). They are worked out from the space's transactions and accounts every time (`booksProvider`), never stored, so they always follow the records:
+
+- Every transaction posts a balanced journal entry by its ledger role: money accounts against income or spending categories, fees, tax, savings, borrowing, own transfers or "Paid yourself".
+- Each account opens with its opening balance. Where a message reports a balance the records do not reach (a missing message, say), a balance difference entry keeps the account equal to the balance the app already shows.
+- Tests check that every entry balances, that the trial balance is zero, and that profit and balances agree with the rest of the app, including on random histories.
+
 ## Testing
 
 ```sh
