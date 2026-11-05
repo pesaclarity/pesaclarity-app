@@ -83,6 +83,15 @@ abstract final class AppRoutes {
   /// What the business owes one supplier, and has paid.
   static String supplierStatement(int debtId) => '/people/supplier/$debtId';
 
+  /// What a business sells, and its stock.
+  static const stock = '/stock';
+
+  /// One item: stock, price, cost and history.
+  static String item(int id) => '/stock/item/$id';
+
+  /// Count stock against the records.
+  static const countStock = '/stock/count';
+
   /// A business: sell, then pay. Full screen, over the tabs.
   static const sell = '/sell';
 

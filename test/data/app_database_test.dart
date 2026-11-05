@@ -702,6 +702,24 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 20 database: stock', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE sale_lines');
+      await old.customStatement('DROP TABLE stock_moves');
+      await old.customStatement('DROP TABLE items');
+      await old.customStatement(
+        'ALTER TABLE quick_records DROP COLUMN item_id',
+      );
+      await old.customStatement('PRAGMA user_version = 20');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.items).get(), isEmpty);
+      expect(await db.select(db.quickRecords).get(), isEmpty);
+    });
+
     test('migrates a version 19 database: quick records', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE quick_records');

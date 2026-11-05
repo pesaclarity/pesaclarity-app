@@ -10,6 +10,7 @@ abstract final class SemanticIds {
   static const navInsights = 'nav-insights';
   static const navMoney = 'nav-money';
   static const navPeople = 'nav-people';
+  static const navStock = 'nav-stock';
 
   static const onboardingGetStarted = 'onboarding-get-started';
   static const onboardingCurrencyContinue = 'onboarding-currency-continue';

@@ -17,7 +17,7 @@ import '../shared/semantic_ids.dart';
 import '../theme/pesa_colors.dart';
 
 /// The shell's branches, in the order the router lists them.
-enum ShellBranch { home, activity, plan, goals, insights, money, people }
+enum ShellBranch { home, activity, plan, goals, insights, money, people, stock }
 
 /// Personal's tabs, and those of every space without its own.
 const personalTabs = [
@@ -58,7 +58,7 @@ const personalTabs = [
   ),
 ];
 
-/// A business's tabs. Stock joins as it is built.
+/// A business's tabs.
 const businessTabs = [
   PillDestination(
     id: SemanticIds.navHome,
@@ -82,6 +82,13 @@ const businessTabs = [
     label: 'People',
   ),
   PillDestination(
+    id: SemanticIds.navStock,
+    branch: ShellBranch.stock,
+    icon: Icons.inventory_2_outlined,
+    selectedIcon: Icons.inventory_2,
+    label: 'Stock',
+  ),
+  PillDestination(
     id: SemanticIds.navInsights,
     branch: ShellBranch.insights,
     icon: Icons.insights_outlined,
@@ -90,18 +97,27 @@ const businessTabs = [
   ),
 ];
 
-/// A services business's tabs: its customers are clients.
+/// A services business's tabs: its customers are clients, and what it
+/// sells is services.
 final serviceTabs = [
   for (final t in businessTabs)
-    t.branch == ShellBranch.people
-        ? PillDestination(
-            id: t.id,
-            branch: t.branch,
-            icon: t.icon,
-            selectedIcon: t.selectedIcon,
-            label: 'Clients',
-          )
-        : t,
+    switch (t.branch) {
+      ShellBranch.people => PillDestination(
+        id: t.id,
+        branch: t.branch,
+        icon: t.icon,
+        selectedIcon: t.selectedIcon,
+        label: 'Clients',
+      ),
+      ShellBranch.stock => PillDestination(
+        id: t.id,
+        branch: t.branch,
+        icon: Icons.work_outline,
+        selectedIcon: Icons.work,
+        label: 'Services',
+      ),
+      _ => t,
+    },
 ];
 
 /// The tabs for a space of [kind]; a business that sells only [services]

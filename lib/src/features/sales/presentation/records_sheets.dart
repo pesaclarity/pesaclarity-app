@@ -10,6 +10,7 @@ import '../../../data/repositories/category_seeds.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/people/people.dart';
 import '../../../domain/spaces/space_categories.dart';
+import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -18,6 +19,8 @@ import '../../../theme/pesa_colors.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../../people/application/people_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../../stock/application/stock_providers.dart';
+import '../../stock/presentation/item_sheet.dart';
 import '../application/pay_yourself.dart';
 import '../application/sales_providers.dart';
 import 'pay_sheet.dart';
@@ -53,7 +56,11 @@ Future<bool?> showBoughtSheet(
   BuildContext context, {
   bool costOnly = false,
   bool payLater = false,
-}) => _sheet(context, _BoughtSheet(costOnly: costOnly, payLater: payLater));
+  int? itemId,
+}) => _sheet(
+  context,
+  _BoughtSheet(costOnly: costOnly, payLater: payLater, itemId: itemId),
+);
 
 /// Got paid: a customer pays some or all of what they owe.
 Future<bool?> showGotPaidSheet(BuildContext context, {String? customer}) =>
@@ -110,10 +117,17 @@ Widget _waitNote(SalePaymentMethod method, int amountMinor) => switch (method) {
 };
 
 class _BoughtSheet extends ConsumerStatefulWidget {
-  const _BoughtSheet({required this.costOnly, required this.payLater});
+  const _BoughtSheet({
+    required this.costOnly,
+    required this.payLater,
+    this.itemId,
+  });
 
   final bool costOnly;
   final bool payLater;
+
+  /// The product to restock, to start with.
+  final int? itemId;
 
   @override
   ConsumerState<_BoughtSheet> createState() => _BoughtSheetState();
@@ -124,7 +138,9 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
   final _supplier = TextEditingController();
+  final _quantity = TextEditingController();
   late var _stock = !widget.costOnly;
+  late int? _itemId = widget.itemId;
   int? _costId;
   late var _method = widget.payLater
       ? SalePaymentMethod.credit
@@ -137,6 +153,7 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
     _amount.dispose();
     _note.dispose();
     _supplier.dispose();
+    _quantity.dispose();
     super.dispose();
   }
 
@@ -160,6 +177,10 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             supplier: supplier.isEmpty ? null : supplier,
             dueDate: _method == SalePaymentMethod.credit ? _due : null,
             note: note.isEmpty ? null : note,
+            itemId: _stock ? _itemId : null,
+            quantityMilli: _stock && _itemId != null
+                ? quantityFrom(_quantity.text)
+                : null,
           );
       _saved(navigator, messenger, method: _method, what: 'Bought');
     } finally {
@@ -172,6 +193,13 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
     final theme = Theme.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final later = _method == SalePaymentMethod.credit;
+    final products = [
+      for (final i in ref.watch(itemsProvider).value ?? const <Item>[])
+        if (i.isProduct) i,
+    ];
+    final item = _stock
+        ? products.where((p) => p.id == _itemId).firstOrNull
+        : null;
     return Form(
       key: _form,
       child: Column(
@@ -228,11 +256,69 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             ),
             const SizedBox(height: 12),
           ],
+          if (_stock && products.isNotEmpty) ...[
+            _label(context, 'Item'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final p in products)
+                  ChoiceChip(
+                    key: Key('bought-item-${p.id}'),
+                    label: Text(p.name),
+                    selected: _itemId == p.id,
+                    onSelected: (on) =>
+                        setState(() => _itemId = on ? p.id : null),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (item != null) ...[
+              QuantityField(
+                key: const Key('bought-quantity'),
+                controller: _quantity,
+                label: item.unit == null
+                    ? 'How many'
+                    : 'How much (${item.unit})',
+              ),
+              const SizedBox(height: 12),
+            ],
+          ],
           AmountField(
             key: const Key('bought-amount'),
             controller: _amount,
-            label: 'Amount',
+            label: item == null ? 'Amount' : 'You paid',
           ),
+          if (item != null)
+            ListenableBuilder(
+              listenable: Listenable.merge([_amount, _quantity]),
+              builder: (context, _) {
+                final q = quantityFrom(_quantity.text);
+                final paid = AmountField.amountFrom(_amount.text);
+                if (q == null || q <= 0 || paid == null || paid <= 0) {
+                  return const SizedBox.shrink();
+                }
+                final after = item.stockMilli + q;
+                final average = newAverageCost(
+                  stockMilli: item.stockMilli,
+                  averageMinor: item.averageCostMinor,
+                  quantityMilli: q,
+                  paidMinor: paid,
+                );
+                final unit = item.unit;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: InfoNote(
+                    key: const Key('bought-average'),
+                    'Stock goes to ${quantityText(after)}'
+                    '${unit == null ? '' : ' ${unitFor(unit, after)}'}. '
+                    '${item.name} now costs you '
+                    '${formatMoney(Money(average), withCurrency: false)}'
+                    '${unit == null ? ' each' : ' per $unit'} on average.',
+                  ),
+                );
+              },
+            ),
           const SizedBox(height: 12),
           TextField(
             key: const Key('bought-note'),

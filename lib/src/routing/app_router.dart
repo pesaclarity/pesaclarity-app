@@ -43,6 +43,9 @@ import '../features/spaces/presentation/business_or_personal_screen.dart';
 import '../features/spaces/presentation/business_setup_screens.dart';
 import '../features/spaces/presentation/choose_space_screen.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
+import '../features/stock/presentation/count_stock_screen.dart';
+import '../features/stock/presentation/item_screen.dart';
+import '../features/stock/presentation/stock_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
@@ -320,6 +323,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => SupplierStatementScreen(
                       debtId: int.parse(state.pathParameters['id']!),
                     ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.stock,
+                builder: (context, state) => const StockScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'item/:id',
+                    builder: (context, state) => ItemScreen(
+                      itemId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'count',
+                    builder: (context, state) => const CountStockScreen(),
                   ),
                 ],
               ),

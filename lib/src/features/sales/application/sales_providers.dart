@@ -9,6 +9,7 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/category_seeds.dart';
 import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
+import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/sales/sale_matching.dart';
@@ -64,17 +65,22 @@ class SalesController {
     List<SalePart> parts, {
     String? note,
     CreditTerms? credit,
+    List<SaleLine> lines = const [],
   }) async {
     final category = await _sales.salesCategoryId();
     final before = {...await _sales.waiting(salesCategoryId: category)};
+    final at = _now();
     final saleId = await _sales.record(
-      at: _now(),
+      at: at,
       parts: parts,
       salesCategoryId: category,
       cashAccountId: await _cashAccount(),
       credit: credit,
       note: note,
     );
+    if (lines.isNotEmpty) {
+      await _ref.read(stockRepositoryProvider).sold(saleId, lines, at: at);
+    }
     final mine = {
       for (final w in await _sales.waiting(salesCategoryId: category))
         if (!before.contains(w)) w,
@@ -93,7 +99,8 @@ class SalesController {
     );
   }
 
-  /// Stock or a cost bought now; with credit, [supplier] is owed it.
+  /// Stock or a cost bought now; with credit, [supplier] is owed it. With
+  /// [itemId], [quantityMilli] of it goes into stock at what was paid.
   Future<void> bought({
     required int amountMinor,
     required SalePaymentMethod method,
@@ -101,9 +108,12 @@ class SalesController {
     String? supplier,
     CalendarDate? dueDate,
     String? note,
+    int? itemId,
+    int? quantityMilli,
   }) async {
-    await _records.bought(
-      at: _now(),
+    final at = _now();
+    final recordId = await _records.bought(
+      at: at,
       amountMinor: amountMinor,
       method: method,
       categoryId: categoryId,
@@ -111,7 +121,19 @@ class SalesController {
       supplier: supplier,
       dueDate: dueDate,
       note: note,
+      itemId: itemId,
     );
+    if (itemId != null && quantityMilli != null && quantityMilli > 0) {
+      await _ref
+          .read(stockRepositoryProvider)
+          .restock(
+            itemId,
+            quantityMilli: quantityMilli,
+            paidMinor: amountMinor,
+            at: at,
+            recordId: recordId,
+          );
+    }
     await matchWaiting();
   }
 
