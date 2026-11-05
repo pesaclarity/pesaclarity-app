@@ -57,9 +57,17 @@ Future<bool?> showBoughtSheet(
   bool costOnly = false,
   bool payLater = false,
   int? itemId,
+  int? amountMinor,
+  String? note,
 }) => _sheet(
   context,
-  _BoughtSheet(costOnly: costOnly, payLater: payLater, itemId: itemId),
+  _BoughtSheet(
+    costOnly: costOnly,
+    payLater: payLater,
+    itemId: itemId,
+    amountMinor: amountMinor,
+    note: note,
+  ),
 );
 
 /// Got paid: a customer pays some or all of what they owe.
@@ -121,6 +129,8 @@ class _BoughtSheet extends ConsumerStatefulWidget {
     required this.costOnly,
     required this.payLater,
     this.itemId,
+    this.amountMinor,
+    this.note,
   });
 
   final bool costOnly;
@@ -129,14 +139,21 @@ class _BoughtSheet extends ConsumerStatefulWidget {
   /// The product to restock, to start with.
   final int? itemId;
 
+  /// The amount and what it was for, to start with, such as from an
+  /// attached receipt.
+  final int? amountMinor;
+  final String? note;
+
   @override
   ConsumerState<_BoughtSheet> createState() => _BoughtSheetState();
 }
 
 class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
   final _form = GlobalKey<FormState>();
-  final _amount = TextEditingController();
-  final _note = TextEditingController();
+  late final _amount = TextEditingController(
+    text: widget.amountMinor == null ? '' : '${widget.amountMinor! ~/ 100}',
+  );
+  late final _note = TextEditingController(text: widget.note);
   final _supplier = TextEditingController();
   final _quantity = TextEditingController();
   late var _stock = !widget.costOnly;

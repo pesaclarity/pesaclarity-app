@@ -23,7 +23,9 @@ const taxPackAsset = 'assets/tax/tax_pack.json';
 
 /// The tax pack shipped with this app version.
 final taxPackProvider = FutureProvider<TaxPack>((ref) async {
-  final text = await rootBundle.loadString(taxPackAsset);
+  // Read fresh each time: the pack is small, and a cached load would be
+  // shared across separate app containers.
+  final text = await rootBundle.loadString(taxPackAsset, cache: false);
   return TaxPack.fromJson((jsonDecode(text) as Map).cast<String, Object?>());
 });
 
@@ -144,12 +146,37 @@ class TaxView {
     required this.income,
     required this.withheld,
     this.services = false,
+    this.months = const [],
+    this.costsCount = 0,
+    this.etimsCount = 0,
   });
 
   final TaxPack pack;
 
   /// Paid for services, so fees rather than sales.
   final bool services;
+
+  /// The last months, oldest first: estimated against paid.
+  final List<MonthTax> months;
+
+  /// Business costs this year, and how many have an eTIMS invoice.
+  final int costsCount;
+  final int etimsCount;
+
+  /// What the set-aside share of money in this year comes to; null when
+  /// it is off.
+  int? get setAsideMinor => switch (settings.setAside) {
+    null => null,
+    final rate => applyRate(income.figures.incomeMinor, rate),
+  };
+
+  /// The share to suggest for setting aside.
+  BasisPoints get suggestedShare => suggestedSetAside(
+    kind: kind,
+    pack: pack,
+    taxMinor: income.taxMinor,
+    incomeMinor: income.figures.incomeMinor,
+  );
   final TaxSettings settings;
   final TaxKind kind;
   final CalendarDate today;
@@ -220,7 +247,66 @@ final taxViewProvider = FutureProvider<TaxView>((ref) async {
     for (final w in await ref.watch(taxRepositoryProvider).withheld())
       if (w.at.year == today.year) w,
   ];
+  // Month by month: Turnover Tax on each month's sales against what was
+  // paid in the month after; income tax as it builds up through the year
+  // against what was paid or withheld that month.
+  final months = <MonthTax>[];
+  for (var i = 5; i >= 0; i--) {
+    final m = month.addMonths(-i);
+    final f = figures(m.firstDay, m.next.firstDay);
+    if (kind == TaxKind.turnover) {
+      final paidAfter = i == 0
+          ? null
+          : figures(m.next.firstDay, m.next.next.firstDay).paidToKraMinor;
+      months.add(
+        MonthTax(
+          month: m,
+          estimatedMinor: applyRate(f.incomeMinor, pack.turnoverRate),
+          paidMinor: paidAfter,
+        ),
+      );
+    } else if (kind == TaxKind.incomeTax && m.year == today.year) {
+      final start = CalendarDate(today.year, 1, 1);
+      final through = pack.incomeTax(
+        figures(start, m.next.firstDay).profitMinor,
+        company: settings.company,
+      );
+      final before = m.month == 1
+          ? 0
+          : pack.incomeTax(
+              figures(start, m.firstDay).profitMinor,
+              company: settings.company,
+            );
+      months.add(
+        MonthTax(
+          month: m,
+          estimatedMinor: through - before,
+          paidMinor: f.paidToKraMinor + f.withheldMinor,
+        ),
+      );
+    }
+  }
+  // Costs this year, and those with an eTIMS invoice.
+  final etims = await ref.watch(taxRepositoryProvider).etimsCosts();
+  final yearStart = CalendarDate(today.year, 1, 1).startInstant;
+  final costIds = <int>{
+    for (final e in books.entries)
+      if (e.source == JournalSource.transaction &&
+          !e.at.isBefore(yearStart) &&
+          e.lines.any(
+            (l) =>
+                l.account.accountClass == BookAccountClass.expense &&
+                l.account != BookAccount.tax &&
+                l.account != BookAccount.fees &&
+                l.amountMinor > 0,
+          ))
+        e.sourceId,
+  };
+
   return TaxView(
+    months: months,
+    costsCount: costIds.length,
+    etimsCount: costIds.where(etims.contains).length,
     pack: pack,
     settings: settings,
     kind: kind,

@@ -778,3 +778,13 @@ class InvoiceLines extends Table {
   IntColumn get quantityMilli => integer().nullable()();
   IntColumn get unitMinor => integer().nullable()();
 }
+
+/// A business cost the owner has an eTIMS invoice for.
+@DataClassName('EtimsCostRecord')
+class EtimsCosts extends Table {
+  IntColumn get transactionId =>
+      integer().references(Transactions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {transactionId};
+}

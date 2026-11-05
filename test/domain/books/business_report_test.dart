@@ -84,6 +84,7 @@ void main() {
       expect(s.name, 'Monthly Sacco report');
       expect(s.range, ReportRange.lastMonth);
       expect(s.sections, {ReportSection.profitAndLoss, ReportSection.balance});
+      expect(s.detail, ReportDetail.totals);
       expect(
         back.cover.line('Vegetable stall'),
         'Vegetable stall · Wanjiru K. · Gikomba',

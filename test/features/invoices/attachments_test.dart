@@ -48,6 +48,13 @@ class _Picker implements DocumentPicker {
   Future<PickedDocument?> pickImage() async => null;
 
   @override
+  Future<PickedDocument?> takePhoto() async => PickedDocument(
+    name: 'Receipt photo.jpg',
+    mimeType: 'image/jpeg',
+    bytes: Uint8List.fromList(const [1, 2, 3]),
+  );
+
+  @override
   Future<List<PickedDocument>> pickDocuments() async => [_receipt];
 }
 
@@ -217,5 +224,43 @@ void main() {
       () => c.read(documentsRepositoryProvider).attachments(invoice.id),
     );
     expect(files!.single.name, 'Design software receipt.pdf');
+  });
+
+  testAppWidgets('a photo of a receipt, recorded as a business cost', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const MakeInvoiceScreen(client: 'Bidii Traders Ltd'),
+        ),
+      ),
+    );
+    await settleFrames(tester);
+    await tester.tap(find.byKey(const Key('invoice-attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('attach-photo')));
+    await settleFrames(tester);
+    expect(find.text('Receipt photo.jpg'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('attach-charge-Receipt photo.jpg')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('attach-amount-Receipt photo.jpg')),
+      '1200',
+    );
+    await tester.tap(find.byKey(const Key('attach-record-Receipt photo.jpg')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('attach-done')));
+    await settleFrames(tester);
+    // Spent opens with the amount and what it was for filled in.
+    expect(find.text('1200'), findsOneWidget);
+    expect(find.text('Receipt photo'), findsWidgets);
   });
 }

@@ -10,6 +10,9 @@ import '../../../domain/people/reminder_text.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
+import '../../insights/application/report_sharer.dart';
+import '../../invoices/application/invoice_providers.dart';
+import '../../invoices/application/invoice_sender.dart';
 import '../../lending/data/reminder_sharer.dart';
 import '../../reminders/application/business_reminders.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -52,6 +55,7 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
   CallingCode? _code;
   var _loaded = false;
   var _busy = false;
+  var _attachInvoice = true;
 
   @override
   void dispose() {
@@ -145,8 +149,38 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
         ? null
         : internationalNumber(_number.text, code);
     final app = _sendWith ?? SendWith.whatsapp;
+    final invoice = _attachInvoice ? _openInvoice() : null;
     setState(() => _busy = true);
     try {
+      if (invoice != null) {
+        // With the invoice attached, the share sheet takes the file and the
+        // message; the owner picks the app and the person.
+        if (international != null) {
+          await ref
+              .read(contactsRepositoryProvider)
+              .save(
+                Contact(
+                  name: widget.customer.name,
+                  phone: international,
+                  sendWith: app,
+                ),
+              );
+        }
+        final sender = ref.read(invoiceSenderProvider);
+        final files = await sender.files(
+          await sender.docFor(invoice),
+          one: true,
+        );
+        await ref
+            .read(reportSharerProvider)
+            .shareFiles(
+              files,
+              subject: 'Invoice ${invoice.invoice.number}',
+              text: text,
+            );
+        navigator.pop(true);
+        return;
+      }
       await ref
           .read(contactsRepositoryProvider)
           .save(
@@ -181,11 +215,24 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
     }
   }
 
+  /// The customer's newest invoice still to be paid, if any.
+  InvoiceView? _openInvoice() =>
+      (ref.read(invoicesProvider).value ?? const <InvoiceView>[])
+          .where(
+            (v) =>
+                v.leftMinor > 0 &&
+                v.invoice.client.trim().toLowerCase() ==
+                    widget.customer.name.trim().toLowerCase(),
+          )
+          .firstOrNull;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final setup = ref.watch(reminderSetupProvider).value;
+    ref.watch(invoicesProvider);
+    final invoice = _openInvoice();
     if (setup == null) {
       return const Padding(
         padding: EdgeInsets.all(32),
@@ -256,9 +303,26 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
           onPick: _pickContact,
           onChanged: () => setState(() {}),
         ),
+        if (invoice != null)
+          CheckboxListTile(
+            key: const Key('remind-attach-invoice'),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _attachInvoice,
+            onChanged: (on) => setState(() => _attachInvoice = on ?? false),
+            title: Text('Attach invoice ${invoice.invoice.number}'),
+            subtitle: Text(
+              'With the invoice, you choose the app and the person.',
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
         Text(
-          hasNumber
+          invoice != null && _attachInvoice
+              ? 'Opens the share menu with the invoice and the message.'
+              : hasNumber
               ? 'Opens ${app.label} with the message filled in. You tap send '
                     'there.'
               : 'Without a number, you choose the app and the person.',
@@ -268,7 +332,11 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
         FilledButton(
           key: const Key('remind-send'),
           onPressed: _busy ? null : _send,
-          child: Text(hasNumber ? 'Open ${app.label}' : 'Share'),
+          child: Text(
+            hasNumber && !(invoice != null && _attachInvoice)
+                ? 'Open ${app.label}'
+                : 'Share',
+          ),
         ),
       ],
     );

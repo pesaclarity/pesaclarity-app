@@ -8,9 +8,11 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/categories_repository.dart';
+import '../../../data/repositories/documents_repository.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/books/report_setup.dart';
 import '../../../domain/time/calendar.dart';
+import '../../documents/application/document_providers.dart';
 import '../../insights/application/report_sharer.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../tax/application/tax_providers.dart';
@@ -68,6 +70,7 @@ class ReportMaker {
     required ReportPeriod period,
     required Set<ReportSection> sections,
     String title = 'Business report',
+    ReportDetail detail = ReportDetail.everyEntry,
   }) async {
     final report = await _ref.read(businessReportProvider(period).future);
     final cashBook = sections.contains(ReportSection.cashBook)
@@ -95,9 +98,18 @@ class ReportMaker {
       today: CalendarDate.local(_ref.read(clockProvider)()),
       cashBook: cashBook,
       tax: tax,
+      detail: detail,
+      logo: await _logo(),
       accountNames: {for (final a in accounts) a.id: a.name},
       categoryNames: {for (final c in categories) c.id: c.name},
     );
+  }
+
+  Future<Uint8List?> _logo() async {
+    final logo = await _ref.read(
+      documentFileProvider(DocumentFileKind.logo).future,
+    );
+    return logo != null && logo.isImage ? logo.bytes : null;
   }
 
   Future<Uint8List> pdf(ReportDocument doc) =>
