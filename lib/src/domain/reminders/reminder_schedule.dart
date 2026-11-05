@@ -5,7 +5,7 @@ import '../time/calendar.dart';
 import 'recurring_charges.dart';
 import 'reminder_settings.dart';
 
-enum ReminderKind { bill, cardCharge, payday, safeToSpend }
+enum ReminderKind { bill, cardCharge, payday, safeToSpend, collect, tax }
 
 /// One local notification to show at [at].
 class Reminder {
@@ -255,3 +255,66 @@ const _months = [
 /// A date as reminders show it, such as `Sun 1 Nov`.
 String formatShortDate(CalendarDate date) =>
     '${_weekdays[date.weekday - 1]} ${date.day} ${_months[date.month - 1]}';
+
+/// The id of a business's daily "who is due" reminder, apart from the rest.
+const collectReminderId = 1 << 30;
+
+/// The daily nudge of customers to remind: at [hour]:[minute] local time,
+/// today if that is still ahead of [now], else tomorrow. [due] lists who is
+/// due then with what they owe; null when no one is.
+Reminder? collectReminder({
+  required DateTime now,
+  required int hour,
+  required int minute,
+  required List<(String name, String amount)> Function(CalendarDate day) due,
+  required bool showAmounts,
+}) {
+  final local = now.toLocal();
+  var at = DateTime(local.year, local.month, local.day, hour, minute);
+  if (!at.isAfter(local)) at = at.add(const Duration(days: 1));
+  final people = due(CalendarDate(at.year, at.month, at.day));
+  if (people.isEmpty) return null;
+  const shown = 3;
+  final names = [
+    for (final (name, amount) in people.take(shown))
+      showAmounts ? '$name $amount' : name,
+  ].join(' · ');
+  final more = people.length > shown ? ' · ${people.length - shown} more' : '';
+  return Reminder(
+    id: collectReminderId,
+    kind: ReminderKind.collect,
+    at: at.toUtc(),
+    title: people.length == 1
+        ? '1 customer to remind today'
+        : '${people.length} customers to remind today',
+    body: '$names$more',
+  );
+}
+
+/// The id of a business's tax due reminder, apart from the rest.
+const taxReminderId = collectReminderId + 1;
+
+/// A reminder [daysBefore] days ahead of [due] at 9:00 local time that
+/// [what] is due, with about [amount] when amounts show; null when that
+/// time has passed.
+Reminder? taxReminder({
+  required DateTime now,
+  required CalendarDate due,
+  required String what,
+  required String amount,
+  required bool showAmounts,
+  int daysBefore = 3,
+}) {
+  final day = due.addDays(-daysBefore);
+  final at = DateTime(day.year, day.month, day.day, 9);
+  if (!at.isAfter(now.toLocal())) return null;
+  return Reminder(
+    id: taxReminderId,
+    kind: ReminderKind.tax,
+    at: at.toUtc(),
+    title: '$what is due ${formatShortDate(due)}',
+    body: showAmounts
+        ? 'About $amount, from your records. Pay it on KRA iTax or M-Pesa.'
+        : 'An estimate from your records is on the Tax screen.',
+  );
+}

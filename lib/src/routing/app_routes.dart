@@ -25,6 +25,15 @@ abstract final class AppRoutes {
   /// Adding a space, such as a business.
   static const addSpace = '/home/spaces/add';
 
+  /// A business: products, services or both.
+  static const whatYouSell = '/home/spaces/sells';
+
+  /// A business: opening balances.
+  static const startRecords = '/home/spaces/start';
+
+  /// A business: which accounts are business, personal or both.
+  static const businessOrPersonal = '/home/spaces/routing';
+
   /// Business and gigs: this week against a usual one, and the fund.
   static const weekByWeek = '/home/week';
   static String reviewMessage(int id) => '/home/review/$id';
@@ -41,6 +50,9 @@ abstract final class AppRoutes {
   static const baseCurrency = '/home/profile/currency';
   static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
+
+  /// A business's receipts and invoices: details, numbering, how to pay.
+  static const documentSettings = '/home/profile/documents';
 
   /// iPhone: the Shortcuts automation that passes messages.
   static const connectMessages = '/home/profile/connect';
@@ -60,4 +72,62 @@ abstract final class AppRoutes {
   static const debts = '/goals/debts';
   static const lending = '/goals/lending';
   static const insights = '/insights';
+
+  /// A business's profit and loss, cash book, customers and suppliers.
+  static const fullRecords = '/insights/records';
+
+  /// A business report to share as a PDF or CSV.
+  static const makeReport = '/insights/report';
+
+  /// What the business may owe in tax, as an estimate.
+  static const tax = '/insights/tax';
+
+  /// A business's cash book.
+  static const money = '/money';
+
+  /// A business's customers and suppliers.
+  static const people = '/people';
+
+  /// What one customer owes and has paid.
+  static String customerStatement(String name) =>
+      Uri(path: '/people/customer', queryParameters: {'name': name}).toString();
+
+  /// The business's reminder messages, app, till and daily nudge.
+  static const reminderMessages = '/people/messages';
+
+  /// The business's invoices and their status.
+  static const invoices = '/people/invoices';
+
+  /// A new invoice, for [client] when known.
+  static String newInvoice({String? client}) => Uri(
+    path: '/people/invoices/new',
+    queryParameters: client == null ? null : {'client': client},
+  ).toString();
+
+  /// What the business owes one supplier, and has paid.
+  static String supplierStatement(int debtId) => '/people/supplier/$debtId';
+
+  /// What a business sells, and its stock.
+  static const stock = '/stock';
+
+  /// One item: stock, price, cost and history.
+  static String item(int id) => '/stock/item/$id';
+
+  /// Count stock against the records.
+  static const countStock = '/stock/count';
+
+  /// Hours logged for clients, by day.
+  static const hours = '/stock/hours';
+
+  /// Hours logged for clients, by week.
+  static const hoursWeek = '/stock/hours?view=week';
+
+  /// A business: count the drawer and match the day's payments.
+  static const closeDay = '/close-day';
+
+  /// A business: sell, then pay. Full screen, over the tabs.
+  static const sell = '/sell';
+
+  /// A services business: work done, billed to pay later.
+  static const billed = '/people/invoices/new';
 }

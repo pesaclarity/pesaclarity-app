@@ -348,7 +348,7 @@ class _LoanActions extends StatelessWidget {
                 onPressed: () async {
                   final message = lentReminderMessage(lent, today: today);
                   Navigator.of(context).pop();
-                  await _confirmReminder(
+                  await confirmReminder(
                     screenContext,
                     container.read(reminderSharerProvider),
                     lent.person,
@@ -406,7 +406,8 @@ class _LoanActions extends StatelessWidget {
 }
 
 /// Shows the reminder as it will read, then hands it to the share sheet.
-Future<void> _confirmReminder(
+/// Copies it when sharing is unavailable.
+Future<void> confirmReminder(
   BuildContext context,
   ReminderSharer sharer,
   String person,

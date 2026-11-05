@@ -4,20 +4,30 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/money/money.dart';
+import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/lending_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/subscriptions_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/people/people.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/reminders/recurring_charges.dart';
 import '../../../domain/reminders/reminder_schedule.dart';
 import '../../../domain/reminders/reminder_settings.dart';
+import '../../../domain/spaces/space.dart';
 import '../../../domain/subscriptions/subscriptions.dart';
+import '../../../domain/tax/tax_estimate.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/format/date_labels.dart';
 import '../../home/application/safe_to_spend_provider.dart';
+import '../../spaces/application/spaces_providers.dart';
+import '../../tax/application/tax_providers.dart';
 import '../data/reminder_notifications.dart';
+import 'business_reminders.dart';
 
 /// Whether reminder notifications may show amounts. False keeps amounts off
 /// the lock screen.
@@ -186,7 +196,7 @@ class ReminderSync {
           ?.leftTodayMinor;
     }
 
-    return planReminders(
+    final planned = planReminders(
       settings: settings,
       now: now,
       bills: bills,
@@ -194,6 +204,62 @@ class ReminderSync {
       charges: charges,
       safeToSpendTodayMinor: safeToday,
       showAmounts: _ref.read(notificationAmountsVisibleProvider),
+    );
+    final collect = await _collect(now);
+    final tax = await _tax(now);
+    return [...planned, ?collect, ?tax];
+  }
+
+  /// A few days before a business's next tax date, when it may owe some.
+  Future<Reminder?> _tax(DateTime now) async {
+    if (_ref.read(activeSpaceProvider).kind != SpaceKind.business) return null;
+    final TaxView view;
+    try {
+      view = await _ref.read(taxViewProvider.future);
+    } on Object {
+      return null;
+    }
+    final (due, what, owed) = switch (view.kind) {
+      TaxKind.turnover => (
+        view.lastMonth.due,
+        'Turnover Tax for ${monthName(view.lastMonth.month)}',
+        view.lastMonth.leftMinor,
+      ),
+      TaxKind.incomeTax => (
+        view.income.nextInstalment,
+        'An income tax instalment',
+        view.income.leftMinor,
+      ),
+      TaxKind.belowTurnover => (null, '', 0),
+    };
+    if (due == null || owed <= 0) return null;
+    return taxReminder(
+      now: now,
+      due: due,
+      what: what,
+      amount: formatMoney(Money(owed), withCurrency: false),
+      showAmounts: _ref.read(notificationAmountsVisibleProvider),
+    );
+  }
+
+  /// A business's daily nudge of who to remind, when it is on.
+  Future<Reminder?> _collect(DateTime now) async {
+    if (_ref.read(activeSpaceProvider).kind != SpaceKind.business) return null;
+    final setup = await _ref.read(reminderSetupProvider.future);
+    if (!setup.nudge) return null;
+    final loans = await _ref.read(lendingRepositoryProvider).lent();
+    return collectReminder(
+      now: now,
+      hour: setup.nudgeHour,
+      minute: setup.nudgeMinute,
+      showAmounts: _ref.read(notificationAmountsVisibleProvider),
+      due: (day) => [
+        for (final c in dueCustomers(
+          customersFrom(loans, today: day),
+          today: day,
+        ))
+          (c.name, formatMoney(Money(c.owedMinor), withCurrency: false)),
+      ],
     );
   }
 
@@ -217,6 +283,9 @@ final reminderSyncProvider = Provider<ReminderSync>((ref) {
           db.transactions,
           db.payees,
           db.subscriptions,
+          db.lentLoans,
+          db.loanPayments,
+          db.appSettings,
         ]),
       )
       .listen((_) => sync.dataChanged());

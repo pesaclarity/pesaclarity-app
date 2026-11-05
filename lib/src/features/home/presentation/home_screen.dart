@@ -7,13 +7,16 @@ import 'package:go_router/go_router.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
+import '../../../domain/books/business_report.dart';
 import '../../../domain/budget/safe_to_spend.dart';
 import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
+import '../../../domain/hours/hours.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/plan/upcoming_bills.dart';
+import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/spaces/space_summary.dart';
 import '../../../domain/time/calendar.dart';
@@ -25,12 +28,22 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
+import '../../business_insights/application/business_report_providers.dart';
+import '../../hours/application/hours_providers.dart';
+import '../../hours/presentation/log_hours_sheet.dart';
 import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../review/application/review_providers.dart';
+import '../../sales/application/sales_providers.dart';
+import '../../sales/presentation/pay_sheet.dart';
+import '../../sales/presentation/records_sheets.dart';
+import '../../sales/presentation/waiting_payments_card.dart';
 import '../../security/application/balance_visibility.dart';
+import '../../spaces/application/business_setup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../../spaces/presentation/business_setup_card.dart';
+import '../../spaces/presentation/shared_line_card.dart';
 import '../../spaces/presentation/spaces_sheet.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../application/cash_flow_forecast_provider.dart';
@@ -89,6 +102,11 @@ class HomeScreen extends ConsumerWidget {
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
     final canImport = ref.watch(statementImportAvailableProvider);
     final space = ref.watch(activeSpaceProvider);
+    final isBusiness = space.kind == SpaceKind.business;
+    // Products and both lead with today's sales; services with profit.
+    final sellsProducts =
+        isBusiness &&
+        ref.watch(businessSetupProvider).value?.sells != BusinessSells.services;
 
     void openActivity(ActivityFilter filter) =>
         context.go(AppRoutes.activityWith(filter));
@@ -111,12 +129,28 @@ class HomeScreen extends ConsumerWidget {
               _Header(today: today),
               const SizedBox(height: 20),
               if (space.kind != SpaceKind.personal) ...[
+                if (sellsProducts) ...[
+                  const _SalesTodayCard(),
+                  const SizedBox(height: 12),
+                  const _QuickButtons(services: false),
+                  const SizedBox(height: 12),
+                  const WaitingPaymentsCard(),
+                ],
                 _SpaceSummaryCard(
-                  ref.watch(spaceSummaryProvider).value,
+                  _summaryFor(ref, isBusiness: isBusiness, today: today),
                   kind: space.kind,
+                  compact: sellsProducts,
                   onTap: () => openActivity(thisMonth),
                 ),
                 const SizedBox(height: 12),
+                if (isBusiness && !sellsProducts) ...[
+                  const _QuickButtons(services: true),
+                  const SizedBox(height: 12),
+                  const _HoursCards(),
+                  const WaitingPaymentsCard(),
+                ],
+                if (space.kind == SpaceKind.business) const BusinessSetupCard(),
+                const SharedLineCard(),
                 const _ReviewCard(),
                 const _WhatWasThisCard(),
                 if (sources.irregular) const _WeekCard(),
@@ -217,9 +251,16 @@ class HomeScreen extends ConsumerWidget {
       ),
       // Without a PDF engine (the F-Droid build) there is only one choice.
       floatingActionButton: FloatingActionButton(
-        tooltip: canImport ? 'Add or import' : 'Add a transaction',
+        key: const Key('home-add'),
+        tooltip: isBusiness
+            ? 'Sell'
+            : canImport
+            ? 'Add or import'
+            : 'Add a transaction',
         shape: const CircleBorder(),
-        onPressed: () => canImport
+        onPressed: () => isBusiness
+            ? context.push(AppRoutes.sell)
+            : canImport
             ? _showAddMenu(context)
             : showAddTransactionSheet(context),
         child: const Icon(Icons.add),
@@ -235,7 +276,13 @@ String _runwayLabel(CashFlowForecast? forecast) {
   return days == 1 ? '1 day' : '$days days';
 }
 
-Future<void> _showAddMenu(BuildContext context) async {
+/// Add a transaction or import a statement; a business can also pay its
+/// owner. Without a PDF engine (the F-Droid build) there is no import.
+Future<void> _showAddMenu(BuildContext context, {bool business = false}) async {
+  final canImport = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(statementImportAvailableProvider);
   final choice = await showModalBottomSheet<_AddChoice>(
     context: context,
     showDragHandle: true,
@@ -249,12 +296,21 @@ Future<void> _showAddMenu(BuildContext context) async {
             subtitle: const Text('Cash or anything a message missed'),
             onTap: () => Navigator.pop(context, _AddChoice.manual),
           ),
-          ListTile(
-            leading: const Icon(Icons.upload_file),
-            title: const Text('Import a statement'),
-            subtitle: const Text('M-Pesa or bank PDF, for older history'),
-            onTap: () => Navigator.pop(context, _AddChoice.import),
-          ),
+          if (business)
+            ListTile(
+              key: const Key('add-pay-yourself'),
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Pay yourself'),
+              subtitle: const Text('Move money to Personal as income'),
+              onTap: () => Navigator.pop(context, _AddChoice.payYourself),
+            ),
+          if (canImport)
+            ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: const Text('Import a statement'),
+              subtitle: const Text('M-Pesa or bank PDF, for older history'),
+              onTap: () => Navigator.pop(context, _AddChoice.import),
+            ),
           const SizedBox(height: 8),
         ],
       ),
@@ -266,12 +322,14 @@ Future<void> _showAddMenu(BuildContext context) async {
       await showAddTransactionSheet(context);
     case _AddChoice.import:
       context.go(AppRoutes.importStatement);
+    case _AddChoice.payYourself:
+      await showPayYourselfSheet(context);
     case null:
       break;
   }
 }
 
-enum _AddChoice { manual, import }
+enum _AddChoice { manual, import, payYourself }
 
 class _Header extends ConsumerWidget {
   const _Header({required this.today});
@@ -311,7 +369,11 @@ class _Header extends ConsumerWidget {
               ),
               Semantics(
                 identifier: SemanticIds.titleHome,
-                child: Text('Home', style: theme.textTheme.headlineMedium),
+                // A business calls its first tab Today.
+                child: Text(
+                  space.kind == SpaceKind.business ? 'Today' : 'Home',
+                  style: theme.textTheme.headlineMedium,
+                ),
               ),
             ],
           ),
@@ -997,6 +1059,199 @@ class _WeekCard extends ConsumerWidget {
   }
 }
 
+/// A business's quick records on Today, two by two. Products: Bought, Got
+/// paid, Paid, Close the day, with More below for cash in or out, pay
+/// yourself and statements. Services: Got paid, Spent, Billed, Other
+/// record.
+class _QuickButtons extends StatelessWidget {
+  const _QuickButtons({required this.services});
+
+  final bool services;
+
+  @override
+  Widget build(BuildContext context) {
+    void other() => _showAddMenu(context, business: true);
+    final buttons = services
+        ? [
+            _QuickButton(
+              'Got paid',
+              'A client pays what they owe',
+              () => showGotPaidSheet(context),
+            ),
+            _QuickButton(
+              'Spent',
+              'A business cost',
+              () => showBoughtSheet(context, costOnly: true),
+            ),
+            _QuickButton(
+              'Log hours',
+              'Time on a project',
+              () => showLogHoursSheet(context),
+            ),
+            _QuickButton(
+              'Billed',
+              'Make an invoice',
+              () => context.push(AppRoutes.billed),
+            ),
+          ]
+        : [
+            _QuickButton(
+              'Bought',
+              'Stock or a cost',
+              () => showBoughtSheet(context),
+            ),
+            _QuickButton(
+              'Got paid',
+              'A customer pays you',
+              () => showGotPaidSheet(context),
+            ),
+            _QuickButton(
+              'Paid',
+              'You pay a supplier',
+              () => showPaidSheet(context),
+            ),
+            _QuickButton(
+              'Close the day',
+              'Count your cash',
+              () => context.push(AppRoutes.closeDay),
+            ),
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < buttons.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: buttons[i]),
+                const SizedBox(width: 10),
+                Expanded(child: buttons[i + 1]),
+              ],
+            ),
+          ),
+        ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('quick-more'),
+            onPressed: other,
+            child: Text(
+              'More: cash in or out, pay yourself, a statement',
+              style: TextStyle(color: PesaColors.of(context).link),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickButton extends StatelessWidget {
+  const _QuickButton(this.title, this.subtitle, this.onTap);
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    return Card(
+      key: Key('quick-${title.toLowerCase().replaceAll(' ', '-')}'),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+        side: BorderSide(color: colors.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Today in a business that sells products: sales so far by how people
+/// paid, against a usual day like it.
+class _SalesTodayCard extends ConsumerWidget {
+  const _SalesTodayCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sales = ref.watch(salesTodayProvider).value;
+    final day = sales?.day;
+    if (day == null) {
+      return HeroFigureCard(
+        label: 'Sales today',
+        figure: '${BaseCurrency.code} —',
+      );
+    }
+    final ways = [
+      for (final MapEntry(:key, :value) in day.byWay.entries)
+        '${methodLabel(key)} ${_plain(context, value)}',
+    ].join(' · ');
+    final usual = sales!.usualMinor;
+    final weekday = weekdayName(day.date);
+    final compared = usual == null || day.totalMinor == 0
+        ? null
+        : _compared(context, day.totalMinor, usual, weekday);
+    return HeroFigureCard(
+      key: const Key('sales-today'),
+      label: 'Sales today',
+      figure: _kes(context, day.totalMinor),
+      caption: [
+        if (ways.isEmpty) 'Tap + to sell' else ways,
+        ?compared,
+      ].join('\n'),
+    );
+  }
+}
+
+/// Today against a usual day: up by a share, about the same, or what a
+/// usual day sells.
+String _compared(BuildContext context, int today, int usual, String weekday) {
+  final percent = ((today - usual) * 100 / usual).round();
+  if (percent == 0) return 'About the same as a usual $weekday';
+  if (percent > 0) return 'Up $percent% on a usual $weekday';
+  return 'A usual $weekday is ${_plain(context, usual)}';
+}
+
+/// The space's summary; a business takes this month's money in and costs
+/// from its books, so Today and Insights show the same profit.
+SpaceSummary? _summaryFor(
+  WidgetRef ref, {
+  required bool isBusiness,
+  required CalendarDate today,
+}) {
+  final summary = ref.watch(spaceSummaryProvider).value;
+  if (!isBusiness || summary == null) return summary;
+  final pnl = ref
+      .watch(businessProfitProvider(ReportPeriod.thisMonth(today)))
+      .value;
+  return pnl == null
+      ? null
+      : summary.withTotals(inMinor: pnl.incomeMinor, outMinor: pnl.costsMinor);
+}
+
 /// The top of Home for a space that is not Personal: profit for a business,
 /// rental or farm, what is left for a household, a savings group's pot.
 class _SpaceSummaryCard extends StatelessWidget {
@@ -1004,15 +1259,20 @@ class _SpaceSummaryCard extends StatelessWidget {
     this.summary, {
     required this.kind,
     required this.onTap,
+    this.compact = false,
   });
 
   final SpaceSummary? summary;
   final SpaceKind kind;
   final VoidCallback onTap;
 
+  /// Shown under another card that leads: a plain card, not the red one.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final summary = this.summary;
+    if (summary == null && compact) return const SizedBox.shrink();
     if (summary == null) {
       return HeroFigureCard(
         label: kind.label,
@@ -1058,45 +1318,61 @@ class _SpaceSummaryCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          key: const Key('space-summary'),
-          color: scheme.primary,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
-          ),
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    summary.headline,
-                    style: textTheme.labelLarge!.copyWith(
-                      color: scheme.onPrimary,
+        if (compact)
+          Card(
+            key: const Key('space-summary'),
+            child: ListTile(
+              onTap: onTap,
+              title: Text(summary.headline),
+              subtitle: Text(detail),
+              trailing: Text(
+                _plain(context, summary.figureMinor),
+                style: textTheme.titleMedium!.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          )
+        else
+          Card(
+            key: const Key('space-summary'),
+            color: scheme.primary,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      summary.headline,
+                      style: textTheme.labelLarge!.copyWith(
+                        color: scheme.onPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _kes(context, summary.figureMinor),
-                    style: AppTypography.amount(
-                      size: 44,
-                      color: scheme.onPrimary,
+                    const SizedBox(height: 10),
+                    Text(
+                      _kes(context, summary.figureMinor),
+                      style: AppTypography.amount(
+                        size: 44,
+                        color: scheme.onPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(detail, style: onBrand),
-                  if (since != null) ...[
-                    const SizedBox(height: 6),
-                    Text(since, style: onBrand),
+                    const SizedBox(height: 10),
+                    Text(detail, style: onBrand),
+                    if (since != null) ...[
+                      const SizedBox(height: 6),
+                      Text(since, style: onBrand),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
-        ),
         if (kind.makesProfit && summary.rows.isNotEmpty) ...[
           const SizedBox(height: 12),
           Card(
@@ -1137,6 +1413,66 @@ class _SpaceSummaryCard extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// A services business's hours: this week by client and what it bills,
+/// and the hours not billed yet.
+class _HoursCards extends ConsumerWidget {
+  const _HoursCards();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    final week = ref.watch(weekHoursProvider(weekStart(today))).value;
+    final unbilled = ref.watch(unbilledHoursProvider).value ?? const [];
+    if (week == null || (week.entries.isEmpty && unbilled.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final unbilledMinutes = unbilled.fold(0, (sum, e) => sum + e.minutes);
+    final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Column(
+          children: [
+            ListTile(
+              key: const Key('today-hours-week'),
+              title: const Text('Hours this week'),
+              subtitle: Text(
+                [
+                  '${hoursText(week.loggedMinutes)} h',
+                  for (final MapEntry(:key, :value) in week.byClient.entries)
+                    '${clientShort(key)} ${hoursText(value)}',
+                ].join(' · '),
+                style: muted,
+              ),
+              trailing: Text(
+                _plain(context, week.amountMinor),
+                style: theme.textTheme.titleMedium,
+              ),
+              onTap: () => context.push(AppRoutes.hoursWeek),
+            ),
+            if (unbilledMinutes > 0) ...[
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                key: const Key('today-hours-unbilled'),
+                title: const Text('Not billed yet'),
+                subtitle: Text('Since your last invoices', style: muted),
+                trailing: Text(
+                  '${hoursText(unbilledMinutes)} h',
+                  style: theme.textTheme.titleMedium,
+                ),
+                onTap: () => context.push(AppRoutes.hoursWeek),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

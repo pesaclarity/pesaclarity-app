@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/enums.dart';
+import '../../domain/people/reminder_text.dart';
 
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.
@@ -477,4 +478,303 @@ class CategoryConfirmations extends Table {
   TextColumn get features => text()();
   IntColumn get featureSchemaVersion => integer()();
   DateTimeColumn get confirmedAt => dateTime()();
+}
+
+/// A sale made with Sell. How it was paid is in [SalePayments].
+@DataClassName('SaleRecord')
+class Sales extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get soldAt => dateTime()();
+  IntColumn get totalMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+
+  /// What was sold, as the owner typed it; null for a plain amount.
+  TextColumn get note => text().nullable()();
+
+  /// The receipt's number, such as `VS-000245`, once a receipt is made.
+  TextColumn get receiptNo => text().nullable()();
+}
+
+/// One way a sale was paid: cash in hand, an M-Pesa or bank payment matched
+/// to its message, or what a customer owes.
+@DataClassName('SalePaymentRecord')
+@TableIndex(name: 'sale_payments_transaction', columns: {#transactionId})
+class SalePayments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get saleId =>
+      integer().references(Sales, #id, onDelete: KeyAction.cascade)();
+  TextColumn get method => textEnum<SalePaymentMethod>()();
+  IntColumn get amountMinor => integer()();
+
+  /// The cash entry made for it, or the payment message it matched. Null
+  /// while an M-Pesa or bank payment waits for its message.
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// What the customer owes, for a credit part.
+  IntColumn get lentLoanId => integer().nullable().references(
+    LentLoans,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+}
+
+/// Bought, Got paid and Paid from a business's Today: how much, how the
+/// money moved, and the cash entry made or the payment message matched.
+@DataClassName('QuickRecord')
+@TableIndex(name: 'quick_records_transaction', columns: {#transactionId})
+class QuickRecords extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => textEnum<QuickRecordKind>()();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+
+  /// Cash, M-Pesa or bank; credit for stock or a cost bought to pay later.
+  TextColumn get method => textEnum<SalePaymentMethod>()();
+
+  /// What was bought, for [QuickRecordKind.bought].
+  IntColumn get categoryId => integer().nullable().references(
+    Categories,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// The supplier or customer, as named.
+  TextColumn get party => text().nullable()();
+  TextColumn get note => text().nullable()();
+
+  /// The supplier owed: made by a purchase on credit, or paid by Paid.
+  IntColumn get debtId => integer().nullable().references(
+    Debts,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// The item restocked, for stock bought; its quantity is in
+  /// [StockMoves].
+  IntColumn get itemId => integer().nullable()();
+
+  /// The cash entry made, or the payment message matched. Null while an
+  /// M-Pesa or bank record waits for its message, and for credit.
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+}
+
+/// What a business sells: products with stock, and services. Quantities
+/// are in thousandths of the unit, so 0.5 kg is 500.
+@DataClassName('ItemRecord')
+class Items extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => textEnum<ItemKind>()();
+  TextColumn get name => text().withLength(min: 1, max: 80)();
+
+  /// Such as kg, bunch or piece; null sells each.
+  TextColumn get unit => text().nullable()();
+
+  /// The selling price per unit; null when the price varies.
+  IntColumn get priceMinor => integer().nullable()();
+
+  /// Stock on hand in thousandths of [unit]; products only.
+  IntColumn get stockMilli => integer().withDefault(const Constant(0))();
+
+  /// The average cost of one unit, recalculated at each restock.
+  IntColumn get averageCostMinor => integer().withDefault(const Constant(0))();
+
+  /// "Warn me below", in thousandths of [unit].
+  IntColumn get warnBelowMilli => integer().nullable()();
+
+  /// A group for the Sell chips, such as Vegetables.
+  TextColumn get grouping => text().nullable()();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+}
+
+/// Every change to an item's stock: opening, sold, restocked or counted.
+@DataClassName('StockMoveRecord')
+class StockMoves extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get itemId =>
+      integer().references(Items, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get at => dateTime()();
+  TextColumn get kind => textEnum<StockMoveKind>()();
+
+  /// Thousandths of the unit: up for opening and restock, down when sold.
+  IntColumn get quantityMilli => integer()();
+
+  /// What the move is worth at cost: what was paid for a restock, the
+  /// average cost for a sale or count.
+  IntColumn get costMinor => integer()();
+
+  /// The sale it was part of.
+  IntColumn get saleId => integer().nullable().references(
+    Sales,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// The Bought record it came from.
+  IntColumn get recordId => integer().nullable().references(
+    QuickRecords,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get reason => textEnum<CountReason>().nullable()();
+}
+
+/// What a sale was made of: items, or an amount typed in.
+@DataClassName('SaleLineRecord')
+class SaleLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get saleId =>
+      integer().references(Sales, #id, onDelete: KeyAction.cascade)();
+
+  /// Null for an "Other sale" amount.
+  IntColumn get itemId => integer().nullable().references(
+    Items,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get name => text()();
+  IntColumn get quantityMilli => integer()();
+  IntColumn get totalMinor => integer()();
+}
+
+/// A customer's or supplier's phone and how to remind them, by name, as
+/// the People tab groups them.
+@DataClassName('ContactRecord')
+class Contacts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Lowercased and trimmed, to find them by name.
+  TextColumn get nameKey => text().unique()();
+  TextColumn get name => text()();
+
+  /// In full international form, such as +254712345678.
+  TextColumn get phone => text().nullable()();
+  TextColumn get sendWith => textEnum<SendWith>().nullable()();
+}
+
+/// A business's day closes: what the drawer should hold, what was counted,
+/// and a note on any difference.
+@DataClassName('DayCloseRecord')
+class DayCloses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The start of the day closed, one close per day.
+  DateTimeColumn get day => dateTime().unique()();
+  IntColumn get expectedMinor => integer()();
+  IntColumn get countedMinor => integer()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get closedAt => dateTime()();
+}
+
+/// Tax a client kept back from a payment, such as 5% of consultancy fees,
+/// and paid to KRA for the business. It counts as tax paid.
+@DataClassName('WithheldTaxRecord')
+class WithheldTaxes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The client, as named on their credit.
+  TextColumn get person => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency => text().withDefault(const Constant('KES'))();
+  DateTimeColumn get at => dateTime()();
+
+  /// The withholding certificate's number, once the client sends it.
+  TextColumn get certificate => text().nullable()();
+}
+
+/// A picture or document kept with the business for its receipts and
+/// invoices: its logo, its M-PESA QR code, or an invoice's attachment. Kept
+/// in the space's encrypted database, so it goes into its backup and is
+/// never uploaded on its own.
+@DataClassName('DocumentFileRecord')
+class DocumentFiles extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// `logo`, `mpesaQr` or `attachment`.
+  TextColumn get kind => text()();
+  TextColumn get name => text()();
+  TextColumn get mimeType => text()();
+  BlobColumn get bytes => blob()();
+  DateTimeColumn get addedAt => dateTime()();
+
+  /// The invoice an attachment goes with, in [position] order.
+  IntColumn get invoiceId => integer().nullable()();
+  IntColumn get position => integer().withDefault(const Constant(0))();
+}
+
+/// Time logged for a client: what was done, on which day, for how long,
+/// and whether it is billed.
+@DataClassName('HourEntryRecord')
+class HourEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get client => text()();
+  TextColumn get project => text().nullable()();
+
+  /// What was done, such as a meeting or a task.
+  TextColumn get what => text()();
+
+  /// The start of the day the work was done.
+  DateTimeColumn get day => dateTime()();
+  IntColumn get minutes => integer()();
+  BoolColumn get billable => boolean().withDefault(const Constant(true))();
+
+  /// The rate an hour when logged, for billing.
+  IntColumn get rateMinor => integer().nullable()();
+
+  /// The invoice that billed it; null until billed.
+  IntColumn get invoiceId => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// An invoice made on the phone. What it bills is in [InvoiceLines]; what
+/// the client owes is a credit sale, so payments and the books follow it.
+@DataClassName('InvoiceRecord')
+class Invoices extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Such as `AC-INV-0018`.
+  TextColumn get number => text()();
+  TextColumn get client => text()();
+  DateTimeColumn get issuedOn => dateTime()();
+  DateTimeColumn get dueOn => dateTime().nullable()();
+  TextColumn get billBy => text()();
+  TextColumn get hoursDetail => text()();
+  BoolColumn get timesheet => boolean().withDefault(const Constant(false))();
+  TextColumn get withholding => text()();
+  IntColumn get feesMinor => integer()();
+  IntColumn get feesShownMinor => integer()();
+  IntColumn get costsMinor => integer().withDefault(const Constant(0))();
+  IntColumn get discountMinor => integer().withDefault(const Constant(0))();
+  IntColumn get vatMinor => integer().withDefault(const Constant(0))();
+  IntColumn get withheldMinor => integer().withDefault(const Constant(0))();
+  TextColumn get currency => text().withDefault(const Constant('KES'))();
+  TextColumn get notes => text().nullable()();
+
+  /// The credit sale that holds what the client owes.
+  IntColumn get saleId => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// One line of an invoice: fees (hours or items) or a cost passed on.
+@DataClassName('InvoiceLineRecord')
+class InvoiceLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get invoiceId =>
+      integer().references(Invoices, #id, onDelete: KeyAction.cascade)();
+  TextColumn get kind => text()();
+  TextColumn get name => text()();
+  TextColumn get detail => text().nullable()();
+  IntColumn get amountMinor => integer()();
+  IntColumn get quantityMilli => integer().nullable()();
+  IntColumn get unitMinor => integer().nullable()();
 }

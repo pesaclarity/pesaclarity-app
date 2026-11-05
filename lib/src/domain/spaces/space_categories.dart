@@ -33,11 +33,73 @@ const _kept = <SpaceKind, Set<String>>{
   SpaceKind.farm: {'fuel', 'money_received', 'savings'},
 };
 
+/// Category key sales are filed under in a business.
+const salesCategoryKey = 'sales';
+
+/// The Sales category's name as seeded.
+const salesCategoryName = 'Sales';
+
+/// A business's sales.
+const salesSeed = CategorySeed(
+  salesCategoryKey,
+  salesCategoryName,
+  CategoryType.income,
+);
+
+/// Stock bought to sell, the default for Bought.
+const stockSeed = CategorySeed(
+  'stock',
+  'Stock and supplies',
+  CategoryType.expense,
+);
+
+/// Personal's income from the owner's own business, as Pay yourself files
+/// it: as pay, or as other business income.
+const payFromBusinessSeed = CategorySeed(
+  'pay_from_business',
+  'Salary from my business',
+  CategoryType.income,
+);
+
+/// Money in from a customer that was neither a sale nor a payment of what
+/// they owe.
+const otherBusinessIncomeSeed = CategorySeed(
+  'other_business_income',
+  'Other income',
+  CategoryType.income,
+);
+
+/// The drawer counted more or less than the records, when the owner books
+/// it at Close the day.
+const cashDifferenceSeed = CategorySeed(
+  'cash_difference',
+  'Cash difference',
+  CategoryType.expense,
+);
+
+/// Customers paying what they owe for sales on credit: not a new sale.
+const customerPaymentsKey = 'customer_payments';
+
+const customerPaymentsSeed = CategorySeed(
+  customerPaymentsKey,
+  'Payments from customers',
+  CategoryType.income,
+);
+
+/// Paying suppliers what the business owes them: not a new cost.
+const supplierPaymentsKey = 'supplier_payments';
+
+const supplierPaymentsSeed = CategorySeed(
+  supplierPaymentsKey,
+  'Payments to suppliers',
+  CategoryType.debt,
+);
+
 /// Paying yourself from a business, rental or farm: money moved to
 /// Personal, not a cost.
 const ownerPayKey = 'owner_pay';
 
-const _ownerPay = CategorySeed(
+const ownerPaySeed = CategorySeed(
   ownerPayKey,
   'Paid yourself',
   CategoryType.transfer,
@@ -46,13 +108,15 @@ const _ownerPay = CategorySeed(
 /// Categories added for each kind.
 const _added = <SpaceKind, List<CategorySeed>>{
   SpaceKind.business: [
-    CategorySeed('sales', 'Sales', CategoryType.income),
-    CategorySeed('other_business_income', 'Other income', CategoryType.income),
-    CategorySeed('stock', 'Stock and supplies', CategoryType.expense),
+    salesSeed,
+    otherBusinessIncomeSeed,
+    stockSeed,
+    customerPaymentsSeed,
+    supplierPaymentsSeed,
     CategorySeed('wages', 'Wages', CategoryType.expense),
     CategorySeed('premises', 'Rent and premises', CategoryType.expense),
     CategorySeed('equipment', 'Tools and equipment', CategoryType.expense),
-    _ownerPay,
+    ownerPaySeed,
   ],
   SpaceKind.household: [
     CategorySeed(
@@ -87,7 +151,7 @@ const _added = <SpaceKind, List<CategorySeed>>{
       'Land rates and service charge',
       CategoryType.expense,
     ),
-    _ownerPay,
+    ownerPaySeed,
   ],
   SpaceKind.farm: [
     CategorySeed('harvest_sales', 'Harvest sales', CategoryType.income),
@@ -96,7 +160,7 @@ const _added = <SpaceKind, List<CategorySeed>>{
     CategorySeed('farm_labour', 'Labour', CategoryType.expense),
     CategorySeed('feed_vet', 'Animal feed and vet', CategoryType.expense),
     CategorySeed('farm_equipment', 'Tools and equipment', CategoryType.expense),
-    _ownerPay,
+    ownerPaySeed,
   ],
 };
 

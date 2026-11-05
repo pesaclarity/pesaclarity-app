@@ -151,4 +151,19 @@ class SpaceSummary {
     SpaceKind.personal ||
     SpaceKind.other => balanceMinor,
   };
+
+  /// The same summary with money in and out from elsewhere, such as a
+  /// business's books.
+  SpaceSummary withTotals({required int inMinor, required int outMinor}) =>
+      SpaceSummary(
+        kind: kind,
+        from: from,
+        inMinor: inMinor,
+        outMinor: outMinor,
+        balanceMinor: balanceMinor,
+        rows: rows,
+        paidYourselfMinor: paidYourselfMinor,
+        payersCount: payersCount,
+        loansOutCount: loansOutCount,
+      );
 }

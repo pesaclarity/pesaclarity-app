@@ -26,6 +26,7 @@ String debtTypeLabel(DebtType type) => switch (type) {
   DebtType.mobileLoan => 'Mobile loan',
   DebtType.saccoLoan => 'Sacco loan',
   DebtType.family => 'Family or friend',
+  DebtType.supplier => 'Supplier',
 };
 
 /// Opens the sheet to add a debt, or to edit or pay [debt].

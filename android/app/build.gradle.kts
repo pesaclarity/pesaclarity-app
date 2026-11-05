@@ -73,6 +73,14 @@ android {
         }
     }
 
+    // TFLite's GPU delegate is never used (the categoriser runs on the CPU),
+    // and its libraries add about 2.5 MB per chip.
+    packaging {
+        jniLibs {
+            excludes += "**/libtensorflowlite_gpu_jni.so"
+        }
+    }
+
     // F-Droid rejects the encrypted dependency metadata blob AGP adds to APKs.
     dependenciesInfo {
         includeInApk = false

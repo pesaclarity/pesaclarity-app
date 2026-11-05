@@ -15,6 +15,8 @@ and never sees a transaction.
 - Layouts you save with "Read messages like this the same way". A layout keeps the message's wording with the amount, payee, date and other details taken out, and numbers reduced to their shape, such as 9,999.99.
 - Statement PDFs. Their passwords are used once, in memory, then discarded. PDFs are never uploaded.
 - Budgets, debts, goals, payees, categories and every insight.
+- In a business space: customers' and suppliers' names and what they owe, the phone numbers you add or pick from your contacts (the app gets only the contact you pick), and the pictures and documents kept for receipts and invoices, such as your logo, your M-PESA QR code and receipts you attach.
+- Receipts, invoices and reports are made on your phone. They leave it only when you share them, in the app you choose.
 
 All of this sits in an encrypted database. The key is held by your
 phone's secure hardware and released only after you unlock the app with

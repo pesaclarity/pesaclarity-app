@@ -2,78 +2,193 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/spaces/business_setup.dart';
+import '../domain/spaces/space.dart';
 import '../features/currency/application/currency_controller.dart';
+import '../features/invoices/application/invoice_providers.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
+import '../features/sales/application/pay_yourself.dart';
+import '../features/sales/application/sales_providers.dart';
 import '../features/sms/application/sms_capture_providers.dart';
+import '../features/spaces/application/business_setup_providers.dart';
+import '../features/spaces/application/spaces_providers.dart';
 import '../shared/semantic_ids.dart';
 import '../theme/pesa_colors.dart';
 
-/// Five-tab shell with the floating pill navigation bar, on Android and
-/// iPhone alike. While it is shown,
-/// new account messages flow into the ledger, reminders stay scheduled, and
-/// a newer privacy policy is put up for review.
+/// The shell's branches, in the order the router lists them.
+enum ShellBranch { home, activity, plan, goals, insights, money, people, stock }
+
+/// Personal's tabs, and those of every space without its own.
+const personalTabs = [
+  PillDestination(
+    id: SemanticIds.navHome,
+    branch: ShellBranch.home,
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home,
+    label: 'Home',
+  ),
+  PillDestination(
+    id: SemanticIds.navActivity,
+    branch: ShellBranch.activity,
+    icon: Icons.receipt_long_outlined,
+    selectedIcon: Icons.receipt_long,
+    label: 'Activity',
+  ),
+  PillDestination(
+    id: SemanticIds.navPlan,
+    branch: ShellBranch.plan,
+    icon: Icons.calendar_month_outlined,
+    selectedIcon: Icons.calendar_month,
+    label: 'Plan',
+  ),
+  PillDestination(
+    id: SemanticIds.navGoals,
+    branch: ShellBranch.goals,
+    icon: Icons.flag_outlined,
+    selectedIcon: Icons.flag,
+    label: 'Goals',
+  ),
+  PillDestination(
+    id: SemanticIds.navInsights,
+    branch: ShellBranch.insights,
+    icon: Icons.insights_outlined,
+    selectedIcon: Icons.insights,
+    label: 'Insights',
+  ),
+];
+
+/// A business's tabs.
+const businessTabs = [
+  PillDestination(
+    id: SemanticIds.navHome,
+    branch: ShellBranch.home,
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home,
+    label: 'Today',
+  ),
+  PillDestination(
+    id: SemanticIds.navMoney,
+    branch: ShellBranch.money,
+    icon: Icons.payments_outlined,
+    selectedIcon: Icons.payments,
+    label: 'Money',
+  ),
+  PillDestination(
+    id: SemanticIds.navPeople,
+    branch: ShellBranch.people,
+    icon: Icons.people_outline,
+    selectedIcon: Icons.people,
+    label: 'People',
+  ),
+  PillDestination(
+    id: SemanticIds.navStock,
+    branch: ShellBranch.stock,
+    icon: Icons.inventory_2_outlined,
+    selectedIcon: Icons.inventory_2,
+    label: 'Stock',
+  ),
+  PillDestination(
+    id: SemanticIds.navInsights,
+    branch: ShellBranch.insights,
+    icon: Icons.insights_outlined,
+    selectedIcon: Icons.insights,
+    label: 'Insights',
+  ),
+];
+
+/// A services business's tabs: its customers are clients, and what it
+/// sells is services.
+final serviceTabs = [
+  for (final t in businessTabs)
+    switch (t.branch) {
+      ShellBranch.people => PillDestination(
+        id: t.id,
+        branch: t.branch,
+        icon: t.icon,
+        selectedIcon: t.selectedIcon,
+        label: 'Clients',
+      ),
+      ShellBranch.stock => PillDestination(
+        id: t.id,
+        branch: t.branch,
+        icon: Icons.work_outline,
+        selectedIcon: Icons.work,
+        label: 'Services',
+      ),
+      _ => t,
+    },
+];
+
+/// The tabs for a space of [kind]; a business that sells only [services]
+/// has clients.
+List<PillDestination> tabsFor(SpaceKind kind, {bool services = false}) =>
+    kind != SpaceKind.business
+    ? personalTabs
+    : services
+    ? serviceTabs
+    : businessTabs;
+
+/// Which of [tabs] to show as current while [branch] is open: its own tab,
+/// or the tab it opens from (a business's full Activity list opens from
+/// Money, and Lent and borrowed from People). -1 when none fits.
+int selectedTabOf(List<PillDestination> tabs, ShellBranch branch) {
+  final own = tabs.indexWhere((t) => t.branch == branch);
+  if (own >= 0) return own;
+  final parent = switch (branch) {
+    ShellBranch.activity => ShellBranch.money,
+    ShellBranch.goals => ShellBranch.people,
+    _ => null,
+  };
+  return tabs.indexWhere((t) => t.branch == parent);
+}
+
+/// The tabbed shell with the floating pill navigation bar, on Android and
+/// iPhone alike. A business gets its own tabs in the same bar. While it is
+/// shown, new account messages flow into the ledger, reminders stay
+/// scheduled, a business's sales meet their payment messages, and a newer
+/// privacy policy is put up for review.
 class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
-
-  static const _destinations = [
-    PillDestination(
-      id: SemanticIds.navHome,
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home,
-      label: 'Home',
-    ),
-    PillDestination(
-      id: SemanticIds.navActivity,
-      icon: Icons.receipt_long_outlined,
-      selectedIcon: Icons.receipt_long,
-      label: 'Activity',
-    ),
-    PillDestination(
-      id: SemanticIds.navPlan,
-      icon: Icons.calendar_month_outlined,
-      selectedIcon: Icons.calendar_month,
-      label: 'Plan',
-    ),
-    PillDestination(
-      id: SemanticIds.navGoals,
-      icon: Icons.flag_outlined,
-      selectedIcon: Icons.flag,
-      label: 'Goals',
-    ),
-    PillDestination(
-      id: SemanticIds.navInsights,
-      icon: Icons.insights_outlined,
-      selectedIcon: Icons.insights,
-      label: 'Insights',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(liveSmsCaptureProvider, (_, _) {});
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(ratesRefreshProvider, (_, _) {});
+    ref.listen(saleMatcherProvider, (_, _) {});
+    ref.listen(invoiceMatcherProvider, (_, _) {});
+    ref.listen(personalPayMatcherProvider, (_, _) {});
     ref.listen(policyReviewProvider, (_, next) {
       // While reloading, value still holds the previous changes.
       if (next case AsyncData(value: final changes?)) {
         showPolicyReview(context, changes);
       }
     });
-    void select(int index) => navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
+    final kind = ref.watch(activeSpaceProvider).kind;
+    final tabs = tabsFor(
+      kind,
+      services:
+          kind == SpaceKind.business &&
+          ref.watch(businessSetupProvider).value?.sells ==
+              BusinessSells.services,
     );
+    final current = navigationShell.currentIndex;
+    void select(int index) {
+      final branch = tabs[index].branch.index;
+      navigationShell.goBranch(branch, initialLocation: branch == current);
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
         child: PillNavigationBar(
-          destinations: _destinations,
-          selectedIndex: navigationShell.currentIndex,
+          destinations: tabs,
+          selectedIndex: selectedTabOf(tabs, ShellBranch.values[current]),
           onSelected: select,
         ),
       ),
@@ -85,6 +200,7 @@ class AppShell extends ConsumerWidget {
 class PillDestination {
   const PillDestination({
     required this.id,
+    required this.branch,
     required this.icon,
     required this.selectedIcon,
     required this.label,
@@ -92,13 +208,17 @@ class PillDestination {
 
   /// The semantics identifier UI flows tap, such as `nav-home`.
   final String id;
+
+  /// The branch the tab opens.
+  final ShellBranch branch;
   final IconData icon;
   final IconData selectedIcon;
   final String label;
 }
 
 /// The floating pill from the design: icons over labels, the current tab in
-/// the brand colour and bold, with no indicator behind it.
+/// the brand colour and bold, with no indicator behind it. A
+/// [selectedIndex] of -1 shows no tab as current.
 class PillNavigationBar extends StatelessWidget {
   const PillNavigationBar({
     required this.destinations,

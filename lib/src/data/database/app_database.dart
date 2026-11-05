@@ -4,11 +4,13 @@ import 'package:drift/drift.dart';
 
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
+import '../../domain/people/reminder_text.dart';
 import '../../domain/spaces/space.dart';
 import '../../domain/spaces/space_categories.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
+export '../../domain/people/reminder_text.dart' show SendWith;
 
 part 'app_database.g.dart';
 
@@ -40,13 +42,26 @@ part 'app_database.g.dart';
     CategoryCorrections,
     CategoryConfirmations,
     Subscriptions,
+    Sales,
+    SalePayments,
+    QuickRecords,
+    Items,
+    StockMoves,
+    SaleLines,
+    Contacts,
+    DayCloses,
+    WithheldTaxes,
+    DocumentFiles,
+    HourEntries,
+    Invoices,
+    InvoiceLines,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -163,6 +178,49 @@ class AppDatabase extends _$AppDatabase {
       if (from < 18 &&
           !await _exists('table', movedTransactions.actualTableName)) {
         await m.createTable(movedTransactions);
+      }
+      if (from < 19 && !await _exists('table', sales.actualTableName)) {
+        await m.createTable(sales);
+        await m.createTable(salePayments);
+        await m.create(salePaymentsTransaction);
+      }
+      if (from < 20 && !await _exists('table', quickRecords.actualTableName)) {
+        await m.createTable(quickRecords);
+        await m.create(quickRecordsTransaction);
+      }
+      if (from < 21 && !await _exists('table', items.actualTableName)) {
+        await _addColumnIfMissing(m, quickRecords, quickRecords.itemId);
+        await m.createTable(items);
+        await m.createTable(stockMoves);
+        await m.createTable(saleLines);
+      }
+      if (from < 22 && !await _exists('table', contacts.actualTableName)) {
+        await m.createTable(contacts);
+      }
+      if (from < 23 && !await _exists('table', dayCloses.actualTableName)) {
+        await m.createTable(dayCloses);
+      }
+      if (from < 24 && !await _exists('table', withheldTaxes.actualTableName)) {
+        await m.createTable(withheldTaxes);
+      }
+      if (from < 25) {
+        await _addColumnIfMissing(m, sales, sales.receiptNo);
+        if (!await _exists('table', documentFiles.actualTableName)) {
+          await m.createTable(documentFiles);
+        }
+      }
+      if (from < 26 && !await _exists('table', hourEntries.actualTableName)) {
+        await m.createTable(hourEntries);
+      }
+      if (from < 27) {
+        await _addColumnIfMissing(m, documentFiles, documentFiles.invoiceId);
+        await _addColumnIfMissing(m, documentFiles, documentFiles.position);
+        if (!await _exists('table', invoices.actualTableName)) {
+          await m.createTable(invoices);
+        }
+        if (!await _exists('table', invoiceLines.actualTableName)) {
+          await m.createTable(invoiceLines);
+        }
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

@@ -702,6 +702,132 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 26 database: invoices', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE invoice_lines');
+      await old.customStatement('DROP TABLE invoices');
+      await old.customStatement(
+        'ALTER TABLE document_files DROP COLUMN invoice_id',
+      );
+      await old.customStatement(
+        'ALTER TABLE document_files DROP COLUMN position',
+      );
+      await old.customStatement('PRAGMA user_version = 26');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.invoices).get(), isEmpty);
+      expect(await db.select(db.documentFiles).get(), isEmpty);
+    });
+
+    test('migrates a version 25 database: hours', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE hour_entries');
+      await old.customStatement('PRAGMA user_version = 25');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.hourEntries).get(), isEmpty);
+    });
+
+    test('migrates a version 24 database: receipts and files', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE document_files');
+      await old.customStatement('ALTER TABLE sales DROP COLUMN receipt_no');
+      await old.customStatement('PRAGMA user_version = 24');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.documentFiles).get(), isEmpty);
+      expect(await db.select(db.sales).get(), isEmpty);
+    });
+
+    test('migrates a version 23 database: withheld tax', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE withheld_taxes');
+      await old.customStatement('PRAGMA user_version = 23');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.withheldTaxes).get(), isEmpty);
+    });
+
+    test('migrates a version 22 database: day closes', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE day_closes');
+      await old.customStatement('PRAGMA user_version = 22');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.dayCloses).get(), isEmpty);
+    });
+
+    test('migrates a version 21 database: contacts', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE contacts');
+      await old.customStatement('PRAGMA user_version = 21');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.contacts).get(), isEmpty);
+    });
+
+    test('migrates a version 20 database: stock', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE sale_lines');
+      await old.customStatement('DROP TABLE stock_moves');
+      await old.customStatement('DROP TABLE items');
+      await old.customStatement(
+        'ALTER TABLE quick_records DROP COLUMN item_id',
+      );
+      await old.customStatement('PRAGMA user_version = 20');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.items).get(), isEmpty);
+      expect(await db.select(db.quickRecords).get(), isEmpty);
+    });
+
+    test('migrates a version 19 database: quick records', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE quick_records');
+      await old.customStatement('PRAGMA user_version = 19');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.quickRecords).get(), isEmpty);
+    });
+
+    test('migrates a version 18 database: sales', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE sale_payments');
+      await old.customStatement('DROP TABLE sales');
+      await old.customStatement('PRAGMA user_version = 18');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.sales).get(), isEmpty);
+      expect(await db.select(db.salePayments).get(), isEmpty);
+    });
+
     test('migrates a version 10 database: subscriptions', () async {
       final old = await version10();
       await old.close();

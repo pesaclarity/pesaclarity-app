@@ -38,8 +38,12 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
     setState(() => _saving = true);
     final router = GoRouter.of(context);
     await ref.read(spacesProvider.notifier).add(_name.text, _kind);
-    // The new space reads no messages until its accounts are picked.
+    // The new space reads no messages until its accounts are picked. A
+    // business then says what it sells and starts its records (underneath).
     router.go(AppRoutes.home);
+    if (_kind == SpaceKind.business) {
+      unawaited(router.push(AppRoutes.whatYouSell));
+    }
     unawaited(router.push(AppRoutes.myAccounts));
   }
 

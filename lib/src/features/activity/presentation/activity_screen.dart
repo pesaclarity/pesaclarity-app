@@ -12,6 +12,7 @@ import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -425,7 +426,7 @@ class _ActivityRow extends StatelessWidget {
       DailyNoiseLine() && final noise => _row(
         context,
         avatar: _Avatar.icon(Icons.layers_outlined, colors: colors),
-        title: _noiseTitle(noise.group),
+        title: noiseTitle(noise.group),
         subtitle: Text(
           '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'} · '
           '${_account(noise.accountId)}',
@@ -555,31 +556,7 @@ String _title(LedgerEntry entry) =>
     entry.counterpartyName ??
     entry.note ??
     entry.counterpartyValue ??
-    _kindLabel(entry.kind);
-
-String _kindLabel(TransactionKind kind) => switch (kind) {
-  TransactionKind.sent => 'Money sent',
-  TransactionKind.received => 'Money received',
-  TransactionKind.paybill => 'Paybill',
-  TransactionKind.till => 'Buy Goods',
-  TransactionKind.withdrawal => 'Cash withdrawal',
-  TransactionKind.deposit => 'Cash deposit',
-  TransactionKind.airtime => 'Airtime',
-  TransactionKind.fulizaDraw => 'Fuliza',
-  TransactionKind.fulizaRepayment => 'Fuliza repayment',
-  TransactionKind.roundUp => 'Round-up',
-  TransactionKind.charge => 'Charge',
-  TransactionKind.reversal => 'Reversal',
-  TransactionKind.bank => 'Bank transaction',
-};
-
-String _noiseTitle(NoiseGroup group) => switch (group) {
-  NoiseGroup.fulizaDraws => 'Fuliza draws',
-  NoiseGroup.fulizaRepayments => 'Fuliza repayments',
-  NoiseGroup.roundUps => 'Round-ups to savings',
-  NoiseGroup.charges => 'Charges',
-  NoiseGroup.airtime => 'Airtime',
-};
+    kindLabel(entry.kind);
 
 String _initials(String name) {
   final words = name
