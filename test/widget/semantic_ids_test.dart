@@ -43,6 +43,8 @@ void main() {
   test('institution ids use hyphens', () {
     expect(SemanticIds.institution('mpesa'), 'institution-mpesa');
     expect(SemanticIds.institution('im_bank'), 'institution-im-bank');
+    expect(SemanticIds.currency('KES'), 'currency-KES');
+    expect(SemanticIds.incomeSource('salary'), 'income-salary');
   });
 
   testAppWidgets('every screen the UI flows visit exposes its identifiers', (
@@ -54,10 +56,16 @@ void main() {
     expectId(SemanticIds.titleWelcome);
     await tapId(tester, SemanticIds.onboardingGetStarted);
     expectId(SemanticIds.titleCurrency);
+    // As the flows do: search for KES, then tap its row by id.
+    await tester.enterText(find.byKey(const Key('currency-search')), 'KES');
+    await tester.pumpAndSettle();
+    expectChecked(tester, SemanticIds.currency('KES'), checked: true);
+    await tapId(tester, SemanticIds.currency('KES'));
     await tapId(tester, SemanticIds.onboardingCurrencyContinue);
     expectId(SemanticIds.titleIncomeSources);
-    await tester.tap(find.byKey(const Key('income-salary')));
-    await tester.pumpAndSettle();
+    expectChecked(tester, SemanticIds.incomeSource('salary'), checked: false);
+    await tapId(tester, SemanticIds.incomeSource('salary'));
+    expectChecked(tester, SemanticIds.incomeSource('salary'), checked: true);
     await scrollTo(
       tester,
       find.bySemanticsIdentifier(SemanticIds.onboardingIncomeContinue),
@@ -125,8 +133,11 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await scrollTo(tester, find.text('Backup and restore'));
-    await tester.tap(find.text('Backup and restore'));
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.profileBackup),
+    );
+    await tester.tap(find.bySemanticsIdentifier(SemanticIds.profileBackup));
     // The backup screen shows a spinner until settings load; don't settle.
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -134,15 +145,19 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await scrollTo(tester, find.text('Privacy'));
-    await tester.tap(find.text('Privacy'));
-    await tester.pumpAndSettle();
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.profilePrivacy),
+    );
+    await tapId(tester, SemanticIds.profilePrivacy);
     expectId(SemanticIds.titlePrivacy);
 
     await tapId(tester, SemanticIds.navGoals);
-    await scrollTo(tester, find.text('See debts'));
-    await tester.tap(find.text('See debts'));
-    await tester.pumpAndSettle();
+    await scrollTo(
+      tester,
+      find.bySemanticsIdentifier(SemanticIds.goalsSeeDebts),
+    );
+    await tapId(tester, SemanticIds.goalsSeeDebts);
     expectId(SemanticIds.titleDebts);
 
     semantics.dispose();

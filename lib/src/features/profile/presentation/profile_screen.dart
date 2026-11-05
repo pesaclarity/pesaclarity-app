@@ -142,24 +142,30 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push(AppRoutes.importStatement),
     );
-    final backup = ListTile(
-      leading: const RowIcon(Icons.cloud_upload_outlined),
-      title: const Text('Backup and restore'),
-      subtitle: Text(
-        lastBackup ?? 'Set up an encrypted backup',
-        key: const Key('profile-last-backup'),
-        style: lastBackup == null
-            ? null
-            : TextStyle(color: PesaColors.of(context).successText),
+    final backup = Semantics(
+      identifier: SemanticIds.profileBackup,
+      child: ListTile(
+        leading: const RowIcon(Icons.cloud_upload_outlined),
+        title: const Text('Backup and restore'),
+        subtitle: Text(
+          lastBackup ?? 'Set up an encrypted backup',
+          key: const Key('profile-last-backup'),
+          style: lastBackup == null
+              ? null
+              : TextStyle(color: PesaColors.of(context).successText),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.go(AppRoutes.backup),
       ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => context.go(AppRoutes.backup),
     );
-    final privacy = ListTile(
-      leading: const RowIcon(Icons.lock_outline),
-      title: const Text('Privacy'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => context.go(AppRoutes.privacy),
+    final privacy = Semantics(
+      identifier: SemanticIds.profilePrivacy,
+      child: ListTile(
+        leading: const RowIcon(Icons.lock_outline),
+        title: const Text('Privacy'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.go(AppRoutes.privacy),
+      ),
     );
     final buildRow = ListTile(
       leading: const RowIcon(Icons.info_outline),
