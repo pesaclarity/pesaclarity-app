@@ -35,11 +35,19 @@ class BusinessReport {
     required this.insights,
     required this.customers,
     required this.suppliers,
+    this.previousPnl = const ProfitAndLoss(income: [], costs: []),
+    this.byDay = const [],
   });
 
   final ReportPeriod period;
   final ProfitAndLoss pnl;
   final int previousProfitMinor;
+
+  /// Profit and loss for the period before, line by line.
+  final ProfitAndLoss previousPnl;
+
+  /// Sales on each day of the period, first day first.
+  final List<int> byDay;
 
   /// What the period is compared with, such as `October`.
   final String previousLabel;
@@ -152,7 +160,14 @@ final businessReportProvider =
         period: period,
         pnl: pnl,
         previousProfitMinor: previous.profitMinor,
+        previousPnl: previous,
         previousLabel: compared.label,
+        byDay: salesByDay(
+          books,
+          period,
+          salesCategoryId: salesId,
+          currency: currency,
+        ),
         items: items,
         byWay: salesByWay(
           books,

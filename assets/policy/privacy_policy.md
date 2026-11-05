@@ -89,10 +89,11 @@ your account, sign-in records and vault backups from our server.
 
 Under the Kenya Data Protection Act 2019 you can ask to see, correct or
 delete the data we hold about you, take a copy with you, and object to
-how it is used or to automated decisions. We will answer within 30
-days. You can delete your account from inside the app. If you are
-unhappy with our answer, you can complain to the Office of the Data
-Protection Commissioner (odpc.go.ke).
+how it is used or to automated decisions. To ask, write to our Data
+Protection Officer, Dan Njuguna, at njugunahdann@gmail.com. We will
+answer within 30 days. You can delete your account from inside the app.
+If you are unhappy with our answer, you can complain to the Office of
+the Data Protection Commissioner (odpc.go.ke).
 
 Pesa Clarity is for people aged 18 and over.
 
@@ -109,5 +110,7 @@ read it before you carry on.
 
 ## Questions
 
-Ask in public on GitHub (github.com/pesaclarity), or report a security
-issue privately using the security policy there.
+Write to our Data Protection Officer, Dan Njuguna, at
+njugunahdann@gmail.com. You can also ask in public on GitHub
+(github.com/pesaclarity), or report a security issue privately using the
+security policy there.

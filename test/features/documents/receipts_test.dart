@@ -214,6 +214,48 @@ void main() {
     expect(back.offerReceipt, isTrue);
   });
 
+  test('how documents look: kept, and older settings load as before', () {
+    const s = DocumentSettings();
+    expect(s.receiptColour, ReceiptColour.colour);
+    expect(s.invoiceHeader, InvoiceHeader.strip);
+    expect(s.branding, isTrue);
+    expect(s.signature, isFalse);
+    final back = DocumentSettings.fromJson(
+      s
+          .copyWith(
+            receiptColour: ReceiptColour.blackAndWhite,
+            invoiceHeader: InvoiceHeader.band,
+            branding: false,
+            signature: true,
+          )
+          .toJson(),
+    );
+    expect(back.receiptColour, ReceiptColour.blackAndWhite);
+    expect(back.invoiceHeader, InvoiceHeader.band);
+    expect(back.branding, isFalse);
+    expect(back.signature, isTrue);
+    final old = DocumentSettings.fromJson(const {'footer': 'Karibu tena'});
+    expect(old.receiptColour, ReceiptColour.colour);
+    expect(old.invoiceHeader, InvoiceHeader.strip);
+    expect(old.branding, isTrue);
+    expect(old.signature, isFalse);
+  });
+
+  test('a black and white receipt for a till printer', () async {
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    final id = await sale(c);
+    await c
+        .read(documentSettingsProvider.notifier)
+        .save(
+          const DocumentSettings(receiptColour: ReceiptColour.blackAndWhite),
+        );
+    final r = (await c.read(receiptMakerProvider).receiptFor(id))!;
+    expect(r.blackAndWhite, isTrue);
+    final pdf = await renderReceiptPdf(r, label: methodLabel, initials: 'VS');
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+  });
+
   test('a receipt for a sale: lines, number once, paid', () async {
     final c = ProviderContainer(overrides: overrides());
     addTearDown(c.dispose);
@@ -365,10 +407,33 @@ void main() {
 
     await tester.tap(find.byKey(const Key('documents-offer')));
     await settleFrames(tester);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('documents-receipt-colour')),
+    );
+    await tester.tap(find.byKey(const Key('documents-receipt-colour')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('receipt-colour-blackAndWhite')));
+    await settleFrames(tester);
+    expect(find.text('Black and white'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('documents-invoice-header')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('invoice-header-band')));
+    await settleFrames(tester);
+    await tester.ensureVisible(find.byKey(const Key('documents-branding')));
+    await tester.tap(find.byKey(const Key('documents-signature')));
+    await settleFrames(tester);
+    await tester.tap(find.byKey(const Key('documents-branding')));
+    await settleFrames(tester);
+
     final settings = await tester.runAsync(
       () => c.read(documentSettingsProvider.future),
     );
     expect(settings!.offerReceipt, isFalse);
     expect(settings.place, 'Gikomba');
+    expect(settings.receiptColour, ReceiptColour.blackAndWhite);
+    expect(settings.invoiceHeader, InvoiceHeader.band);
+    expect(settings.signature, isTrue);
+    expect(settings.branding, isFalse);
   });
 }
