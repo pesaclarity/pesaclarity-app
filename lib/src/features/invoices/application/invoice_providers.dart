@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/documents_repository.dart';
 import '../../../data/repositories/hours_repository.dart';
 import '../../../data/repositories/invoices_repository.dart';
 import '../../../data/repositories/quick_records_repository.dart';
@@ -25,11 +26,15 @@ class InvoiceView {
     this.invoice, {
     required this.paidMinor,
     required this.status,
+    this.attached = 0,
   });
 
   final StoredInvoice invoice;
   final int paidMinor;
   final InvoiceStatus status;
+
+  /// How many documents go with it.
+  final int attached;
 
   int get leftMinor {
     final left = invoice.totals.toPayMinor - paidMinor;
@@ -43,6 +48,9 @@ final invoicesProvider = FutureProvider<List<InvoiceView>>((ref) async {
   final repo = ref.watch(invoicesRepositoryProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
   final paid = await repo.paidBySale();
+  final attached = await ref
+      .watch(documentsRepositoryProvider)
+      .attachmentCounts();
   return [
     for (final i in await repo.all())
       () {
@@ -55,6 +63,7 @@ final invoicesProvider = FutureProvider<List<InvoiceView>>((ref) async {
         return InvoiceView(
           i,
           paidMinor: paidMinor,
+          attached: attached[i.id] ?? 0,
           status: invoiceStatus(
             toPayMinor: i.totals.toPayMinor,
             paidMinor: paidMinor,
@@ -106,7 +115,10 @@ class InvoicesController {
 
   /// Keeps [draft] as the next numbered invoice, with a credit sale for
   /// what the client owes, and returns its id.
-  Future<int> create(InvoiceDraft draft) async {
+  Future<int> create(
+    InvoiceDraft draft, {
+    List<PickedDocument> attachments = const [],
+  }) async {
     final settings = await _ref.read(documentSettingsProvider.future);
     final space = _ref.read(activeSpaceProvider).name;
     final number = settings.invoiceLabel(space, settings.nextInvoice);
@@ -124,6 +136,16 @@ class InvoicesController {
           credit: CreditTerms(customer: draft.client, dueDate: draft.dueOn),
         );
     await repo.setSale(id, sale.saleId);
+    final files = _ref.read(documentsRepositoryProvider);
+    for (final a in attachments) {
+      await files.attach(
+        id,
+        name: a.name,
+        mimeType: a.mimeType,
+        bytes: a.bytes,
+        at: now,
+      );
+    }
     return id;
   }
 
