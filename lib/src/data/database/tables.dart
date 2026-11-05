@@ -706,6 +706,10 @@ class DocumentFiles extends Table {
   TextColumn get mimeType => text()();
   BlobColumn get bytes => blob()();
   DateTimeColumn get addedAt => dateTime()();
+
+  /// The invoice an attachment goes with, in [position] order.
+  IntColumn get invoiceId => integer().nullable()();
+  IntColumn get position => integer().withDefault(const Constant(0))();
 }
 
 /// Time logged for a client: what was done, on which day, for how long,
@@ -730,4 +734,47 @@ class HourEntries extends Table {
   /// The invoice that billed it; null until billed.
   IntColumn get invoiceId => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
+}
+
+/// An invoice made on the phone. What it bills is in [InvoiceLines]; what
+/// the client owes is a credit sale, so payments and the books follow it.
+@DataClassName('InvoiceRecord')
+class Invoices extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Such as `AC-INV-0018`.
+  TextColumn get number => text()();
+  TextColumn get client => text()();
+  DateTimeColumn get issuedOn => dateTime()();
+  DateTimeColumn get dueOn => dateTime().nullable()();
+  TextColumn get billBy => text()();
+  TextColumn get hoursDetail => text()();
+  BoolColumn get timesheet => boolean().withDefault(const Constant(false))();
+  TextColumn get withholding => text()();
+  IntColumn get feesMinor => integer()();
+  IntColumn get feesShownMinor => integer()();
+  IntColumn get costsMinor => integer().withDefault(const Constant(0))();
+  IntColumn get discountMinor => integer().withDefault(const Constant(0))();
+  IntColumn get vatMinor => integer().withDefault(const Constant(0))();
+  IntColumn get withheldMinor => integer().withDefault(const Constant(0))();
+  TextColumn get currency => text().withDefault(const Constant('KES'))();
+  TextColumn get notes => text().nullable()();
+
+  /// The credit sale that holds what the client owes.
+  IntColumn get saleId => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// One line of an invoice: fees (hours or items) or a cost passed on.
+@DataClassName('InvoiceLineRecord')
+class InvoiceLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get invoiceId =>
+      integer().references(Invoices, #id, onDelete: KeyAction.cascade)();
+  TextColumn get kind => text()();
+  TextColumn get name => text()();
+  TextColumn get detail => text().nullable()();
+  IntColumn get amountMinor => integer()();
+  IntColumn get quantityMilli => integer().nullable()();
+  IntColumn get unitMinor => integer().nullable()();
 }

@@ -24,6 +24,8 @@ import '../features/home/presentation/home_screen.dart';
 import '../features/hours/presentation/hours_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
 import '../features/income/presentation/week_by_week_screen.dart';
+import '../features/invoices/presentation/invoices_screen.dart';
+import '../features/invoices/presentation/make_invoice_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
 import '../features/onboarding/application/onboarding_controller.dart';
 import '../features/onboarding/presentation/first_insight_screen.dart';
@@ -351,6 +353,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'messages',
                     builder: (context, state) => const ReminderMessagesScreen(),
+                  ),
+                  GoRoute(
+                    path: 'invoices',
+                    builder: (context, state) => const InvoicesScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => MakeInvoiceScreen(
+                          client: state.uri.queryParameters['client'],
+                        ),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'supplier/:id',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/spaces/business_setup.dart';
 import '../domain/spaces/space.dart';
 import '../features/currency/application/currency_controller.dart';
+import '../features/invoices/application/invoice_providers.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
@@ -159,6 +160,7 @@ class AppShell extends ConsumerWidget {
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(ratesRefreshProvider, (_, _) {});
     ref.listen(saleMatcherProvider, (_, _) {});
+    ref.listen(invoiceMatcherProvider, (_, _) {});
     ref.listen(personalPayMatcherProvider, (_, _) {});
     ref.listen(policyReviewProvider, (_, next) {
       // While reloading, value still holds the previous changes.

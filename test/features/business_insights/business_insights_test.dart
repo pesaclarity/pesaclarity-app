@@ -47,6 +47,21 @@ class _FakeSharer implements ReportSharer {
     required String mimeType,
     required String subject,
   }) async => files.add((fileName: fileName, mimeType: mimeType, bytes: bytes));
+
+  @override
+  Future<void> shareFiles(
+    List<SharedFile> files, {
+    required String subject,
+  }) async {
+    for (final f in files) {
+      await shareFile(
+        f.bytes,
+        fileName: f.fileName,
+        mimeType: f.mimeType,
+        subject: subject,
+      );
+    }
+  }
 }
 
 void main() {

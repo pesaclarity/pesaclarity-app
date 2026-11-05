@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
@@ -8,6 +9,7 @@ import '../../../domain/books/business_report.dart'
     show ReportPeriod, periodText;
 import '../../../domain/hours/hours.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../security/application/balance_visibility.dart';
@@ -100,6 +102,19 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
             ..._weekView(context, week, plain)
           else
             ..._dayView(context, DayHours(_day, week.entries)),
+          if (_week && week != null && week.toBillMinutes > 0) ...[
+            const SizedBox(height: 16),
+            OutlinedButton(
+              key: const Key('hours-bill'),
+              onPressed: () {
+                final client = week.byClient.entries
+                    .reduce((a, b) => a.value >= b.value ? a : b)
+                    .key;
+                context.push(AppRoutes.newInvoice(client: client));
+              },
+              child: const Text('Bill these hours'),
+            ),
+          ],
           const SizedBox(height: 16),
           FilledButton(
             key: const Key('hours-log'),

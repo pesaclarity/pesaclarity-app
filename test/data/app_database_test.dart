@@ -702,6 +702,26 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 26 database: invoices', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE invoice_lines');
+      await old.customStatement('DROP TABLE invoices');
+      await old.customStatement(
+        'ALTER TABLE document_files DROP COLUMN invoice_id',
+      );
+      await old.customStatement(
+        'ALTER TABLE document_files DROP COLUMN position',
+      );
+      await old.customStatement('PRAGMA user_version = 26');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.invoices).get(), isEmpty);
+      expect(await db.select(db.documentFiles).get(), isEmpty);
+    });
+
     test('migrates a version 25 database: hours', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE hour_entries');
