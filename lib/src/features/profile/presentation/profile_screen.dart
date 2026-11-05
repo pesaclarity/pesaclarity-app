@@ -160,10 +160,20 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push(AppRoutes.businessOrPersonal),
     );
+    final documents = ListTile(
+      key: const Key('profile-documents'),
+      leading: const RowIcon(Icons.receipt_long_outlined),
+      title: const Text('Receipts and invoices'),
+      subtitle: const Text('Business details, numbering, how to pay'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(AppRoutes.documentSettings),
+    );
     final money = [
       myAccounts,
-      if (ref.watch(activeSpaceProvider).kind == SpaceKind.business)
+      if (ref.watch(activeSpaceProvider).kind == SpaceKind.business) ...[
         businessRouting,
+        documents,
+      ],
       if (ios) connect,
       income,
       payees,

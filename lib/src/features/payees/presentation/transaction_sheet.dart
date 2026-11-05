@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/categories_repository.dart';
+import '../../../data/repositories/documents_repository.dart';
 import '../../../data/repositories/purpose_repository.dart';
 import '../../../data/repositories/space_move_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -15,6 +16,7 @@ import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../documents/presentation/receipt_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/payee_providers.dart';
@@ -233,6 +235,7 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         TransactionTagsEditor(transactionId: r.id),
+        _ShareReceipt(transactionId: r.id),
         _MoveToSpace(transactionId: r.id),
         if (r.receiptNo != null) ...[
           const SizedBox(height: 20),
@@ -306,6 +309,36 @@ class _MoveToSpace extends ConsumerWidget {
         icon: const Icon(Icons.drive_file_move_outline),
         label: const Text('Move to another space'),
         onPressed: () => _move(context, ref, others),
+      ),
+    );
+  }
+}
+
+/// The sale a business's money came from, for sharing its receipt again.
+final _saleOfTransactionProvider = FutureProvider.family<int?, int>(
+  (ref, transactionId) =>
+      ref.watch(documentsRepositoryProvider).saleOf(transactionId),
+);
+
+class _ShareReceipt extends ConsumerWidget {
+  const _ShareReceipt({required this.transactionId});
+
+  final int transactionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(activeSpaceProvider).kind != SpaceKind.business) {
+      return const SizedBox.shrink();
+    }
+    final saleId = ref.watch(_saleOfTransactionProvider(transactionId)).value;
+    if (saleId == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: OutlinedButton.icon(
+        key: const Key('transaction-receipt'),
+        icon: const Icon(Icons.receipt_long_outlined),
+        label: const Text('Share receipt'),
+        onPressed: () => showReceiptSheet(context, saleId, justSaved: false),
       ),
     );
   }

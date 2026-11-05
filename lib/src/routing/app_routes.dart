@@ -51,6 +51,9 @@ abstract final class AppRoutes {
   static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
 
+  /// A business's receipts and invoices: details, numbering, how to pay.
+  static const documentSettings = '/home/profile/documents';
+
   /// iPhone: the Shortcuts automation that passes messages.
   static const connectMessages = '/home/profile/connect';
 

@@ -8,6 +8,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/people/people.dart';
+import '../../../domain/spaces/space.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
@@ -15,7 +16,10 @@ import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../documents/application/document_providers.dart';
+import '../../documents/presentation/receipt_sheet.dart';
 import '../../people/application/people_providers.dart';
+import '../../spaces/application/spaces_providers.dart';
 import '../application/sales_providers.dart';
 import 'choose_payments_sheet.dart';
 
@@ -190,10 +194,18 @@ class _PaySheetState extends ConsumerState<PaySheet> {
                   )
                 : null,
           );
+      // A business offers the receipt, unless the owner turned it off.
+      final offer =
+          ref.read(activeSpaceProvider).kind == SpaceKind.business &&
+          (await ref.read(documentSettingsProvider.future)).offerReceipt;
       navigator.pop(true);
       final waiting = outcome.waiting.firstOrNull;
       if (choose && waiting != null && navigator.mounted) {
         await showChoosePaymentsSheet(navigator.context, waiting);
+        return;
+      }
+      if (offer && navigator.mounted) {
+        await showReceiptSheet(navigator.context, outcome.saleId);
         return;
       }
       messenger.showSnackBar(

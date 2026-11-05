@@ -51,13 +51,14 @@ part 'app_database.g.dart';
     Contacts,
     DayCloses,
     WithheldTaxes,
+    DocumentFiles,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -198,6 +199,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 24 && !await _exists('table', withheldTaxes.actualTableName)) {
         await m.createTable(withheldTaxes);
+      }
+      if (from < 25) {
+        await _addColumnIfMissing(m, sales, sales.receiptNo);
+        if (!await _exists('table', documentFiles.actualTableName)) {
+          await m.createTable(documentFiles);
+        }
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

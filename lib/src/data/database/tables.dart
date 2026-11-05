@@ -491,6 +491,9 @@ class Sales extends Table {
 
   /// What was sold, as the owner typed it; null for a plain amount.
   TextColumn get note => text().nullable()();
+
+  /// The receipt's number, such as `VS-000245`, once a receipt is made.
+  TextColumn get receiptNo => text().nullable()();
 }
 
 /// One way a sale was paid: cash in hand, an M-Pesa or bank payment matched
@@ -687,4 +690,20 @@ class WithheldTaxes extends Table {
 
   /// The withholding certificate's number, once the client sends it.
   TextColumn get certificate => text().nullable()();
+}
+
+/// A picture or document kept with the business for its receipts and
+/// invoices: its logo, its M-PESA QR code, or an invoice's attachment. Kept
+/// in the space's encrypted database, so it goes into its backup and is
+/// never uploaded on its own.
+@DataClassName('DocumentFileRecord')
+class DocumentFiles extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// `logo`, `mpesaQr` or `attachment`.
+  TextColumn get kind => text()();
+  TextColumn get name => text()();
+  TextColumn get mimeType => text()();
+  BlobColumn get bytes => blob()();
+  DateTimeColumn get addedAt => dateTime()();
 }

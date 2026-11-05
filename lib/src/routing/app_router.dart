@@ -18,6 +18,7 @@ import '../features/close/presentation/close_day_screen.dart';
 import '../features/currency/presentation/base_currency_screen.dart';
 import '../features/currency/presentation/setup_currency_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
+import '../features/documents/presentation/document_settings_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
@@ -238,6 +239,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'subscriptions',
                         builder: (context, state) =>
                             const SubscriptionsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'documents',
+                        builder: (context, state) =>
+                            const DocumentSettingsScreen(),
                       ),
                       GoRoute(
                         path: 'sign-in',

@@ -702,6 +702,20 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 24 database: receipts and files', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE document_files');
+      await old.customStatement('ALTER TABLE sales DROP COLUMN receipt_no');
+      await old.customStatement('PRAGMA user_version = 24');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.documentFiles).get(), isEmpty);
+      expect(await db.select(db.sales).get(), isEmpty);
+    });
+
     test('migrates a version 23 database: withheld tax', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE withheld_taxes');
