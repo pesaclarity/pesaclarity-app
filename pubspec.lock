@@ -833,18 +833,18 @@ packages:
     dependency: transitive
     description:
       name: pdfium_dart
-      sha256: e9f712166563540228e9ce7b8a515fcbd42ebd9d7c0925baa42c6b981f7e7900
+      sha256: "3e250021b2f462058aae216837902fdc8b2cb7f0657e4ec2bc9ac541f960ff84"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.0"
+    version: "0.4.1"
   pdfium_flutter:
     dependency: "direct main"
     description:
       name: pdfium_flutter
-      sha256: e2c81c52bc4b44fc096ffae1f891328ccb0956013d7ae92ab29b473a5433cc97
+      sha256: "4d18e6181aa87200750aa4fc607c870f957731b1de9252c2ea19627c19109388"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.0"
+    version: "0.4.1"
   pdfrx_engine:
     dependency: "direct main"
     description:
