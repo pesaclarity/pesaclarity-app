@@ -309,6 +309,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.hourEntries,
       _db.invoices,
       _db.invoiceLines,
+      _db.etimsCosts,
     ]),
   );
 

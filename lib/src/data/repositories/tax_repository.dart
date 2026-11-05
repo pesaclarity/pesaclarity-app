@@ -45,6 +45,12 @@ abstract interface class TaxRepository {
 
   /// What the books post: tax paid, less what clients owe.
   Future<List<WithheldTax>> bookEntries();
+
+  /// Marks cost [transactionId] as having an eTIMS invoice, or not.
+  Future<void> setEtims(int transactionId, {required bool has});
+
+  /// The costs with an eTIMS invoice.
+  Future<Set<int>> etimsCosts();
 }
 
 class DriftTaxRepository implements TaxRepository {
@@ -98,6 +104,26 @@ class DriftTaxRepository implements TaxRepository {
       ),
     );
   }
+
+  @override
+  Future<void> setEtims(int transactionId, {required bool has}) async {
+    if (has) {
+      await _db
+          .into(_db.etimsCosts)
+          .insertOnConflictUpdate(
+            EtimsCostsCompanion.insert(transactionId: Value(transactionId)),
+          );
+    } else {
+      await (_db.delete(
+        _db.etimsCosts,
+      )..where((e) => e.transactionId.equals(transactionId))).go();
+    }
+  }
+
+  @override
+  Future<Set<int>> etimsCosts() async => {
+    for (final r in await _db.select(_db.etimsCosts).get()) r.transactionId,
+  };
 
   @override
   Future<List<WithheldTax>> bookEntries() async => [

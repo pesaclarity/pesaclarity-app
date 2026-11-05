@@ -8,6 +8,7 @@ import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/documents_repository.dart';
 import '../../../data/repositories/purpose_repository.dart';
 import '../../../data/repositories/space_move_repository.dart';
+import '../../../data/repositories/tax_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
@@ -236,6 +237,10 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: 20),
         TransactionTagsEditor(transactionId: r.id),
         _ShareReceipt(transactionId: r.id),
+        _EtimsSwitch(
+          transactionId: r.id,
+          outflow: r.direction == TransactionDirection.outflow,
+        ),
         _MoveToSpace(transactionId: r.id),
         if (r.receiptNo != null) ...[
           const SizedBox(height: 20),
@@ -340,6 +345,37 @@ class _ShareReceipt extends ConsumerWidget {
         label: const Text('Share receipt'),
         onPressed: () => showReceiptSheet(context, saleId, justSaved: false),
       ),
+    );
+  }
+}
+
+/// Whether a business's cost has an eTIMS invoice, for the Tax screen.
+final _etimsProvider = FutureProvider<Set<int>>((ref) {
+  ref.watch(ledgerChangesProvider);
+  return ref.watch(taxRepositoryProvider).etimsCosts();
+});
+
+class _EtimsSwitch extends ConsumerWidget {
+  const _EtimsSwitch({required this.transactionId, required this.outflow});
+
+  final int transactionId;
+  final bool outflow;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!outflow || ref.watch(activeSpaceProvider).kind != SpaceKind.business) {
+      return const SizedBox.shrink();
+    }
+    final has = ref.watch(_etimsProvider).value?.contains(transactionId);
+    if (has == null) return const SizedBox.shrink();
+    return SwitchListTile(
+      key: const Key('transaction-etims'),
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Has an eTIMS invoice'),
+      subtitle: const Text('KRA asks for one for a cost to count for tax'),
+      value: has,
+      onChanged: (on) =>
+          ref.read(taxRepositoryProvider).setEtims(transactionId, has: on),
     );
   }
 }

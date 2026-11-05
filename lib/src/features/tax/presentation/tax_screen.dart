@@ -39,8 +39,9 @@ class TaxScreen extends ConsumerWidget {
                   TaxKind.turnover => _turnover(context, view, plain),
                   TaxKind.belowTurnover => _below(context, view, plain),
                 },
+                ..._monthByMonth(context, view, plain),
                 const SizedBox(height: 12),
-                _Settings(view.settings),
+                _Settings(view),
                 const SizedBox(height: 12),
                 Text(
                   'Estimates from the tax pack in this app version, rules as '
@@ -133,7 +134,28 @@ class TaxScreen extends ConsumerWidget {
           bold: true,
         ),
       ]),
+      if (view.costsCount > 0) ...[
+        const SizedBox(height: 12),
+        _card([
+          _Row(
+            'Costs with an eTIMS invoice',
+            '${view.etimsCount} of ${view.costsCount}',
+            key: const Key('tax-etims'),
+            detail: 'This year. Mark them on each cost in Money',
+          ),
+        ]),
+      ],
       ..._sentences(context, [
+        if (view.etimsCount < view.costsCount)
+          'KRA asks for an eTIMS invoice for a cost to count against income '
+              'tax. Mark the costs that have one.',
+        if (view.setAsideMinor case final aside? when e.leftMinor > 0)
+          aside >= e.leftMinor
+              ? 'What you set aside, ${plain(aside)}, covers what is left to '
+                    'pay.'
+              : 'What you set aside, ${plain(aside)}, is '
+                    '${plain(e.leftMinor - aside)} short of what is left to '
+                    'pay.',
         if (e.nextInstalment case final next? when e.leftMinor > 0)
           'Next instalment is due ${shortDate(next)}. Paying about '
               '${plain(e.leftMinor)} by then keeps you even.',
@@ -230,6 +252,44 @@ class TaxScreen extends ConsumerWidget {
           'year, at ${rateText(view.pack.turnoverRate)} of sales.',
     ]),
   ];
+
+  List<Widget> _monthByMonth(
+    BuildContext context,
+    TaxView view,
+    String Function(int) plain,
+  ) {
+    if (view.months.isEmpty) return const [];
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+        child: Text(
+          'MONTH BY MONTH',
+          style: theme.textTheme.labelLarge!.copyWith(
+            color: colors.textMuted,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      _card([
+        for (final m in view.months.reversed)
+          _Row(
+            '${monthName(m.month)} ${m.month.year == view.today.year ? '' : m.month.year}'
+                .trim(),
+            plain(m.estimatedMinor),
+            key: Key('tax-month-${m.month}'),
+            detail: switch (m.paidMinor) {
+              null => 'An estimate, not due yet',
+              final paid when paid >= m.estimatedMinor && paid > 0 =>
+                'Paid ${plain(paid)}',
+              0 => 'An estimate, nothing paid',
+              final paid => 'Paid ${plain(paid)}',
+            },
+          ),
+      ]),
+    ];
+  }
 
   static String _minus(String Function(int) plain, int minor) =>
       minor == 0 ? plain(0) : '− ${plain(minor)}';
@@ -357,9 +417,11 @@ class _Row extends StatelessWidget {
 }
 
 class _Settings extends ConsumerWidget {
-  const _Settings(this.settings);
+  const _Settings(this.view);
 
-  final TaxSettings settings;
+  final TaxView view;
+
+  TaxSettings get settings => view.settings;
 
   Future<void> _save(WidgetRef ref, TaxSettings next) =>
       ref.read(taxSettingsProvider.notifier).save(next);
@@ -415,6 +477,76 @@ class _Settings extends ConsumerWidget {
               await _save(ref, settings.copyWith(company: company));
             },
           ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          SwitchListTile(
+            key: const Key('tax-set-aside'),
+            title: const Text('Set aside for tax'),
+            subtitle: Text(
+              switch (settings.setAside) {
+                null =>
+                  'Keep ${rateText(view.suggestedShare)} of money in aside',
+                final rate =>
+                  '${rateText(rate)} of money in · '
+                      '${formatMoney(Money(view.setAsideMinor ?? 0), withCurrency: false)} '
+                      'this year',
+              },
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+            value: settings.setAside != null,
+            onChanged: (on) => _save(
+              ref,
+              settings.copyWith(
+                setAside: () => on ? view.suggestedShare : null,
+              ),
+            ),
+          ),
+          if (settings.setAside case final rate?)
+            ListTile(
+              key: const Key('tax-set-aside-share'),
+              title: const Text('Share kept aside'),
+              trailing: Text(
+                rateText(rate),
+                style: theme.textTheme.titleMedium,
+              ),
+              onTap: () async {
+                final shares = {
+                  view.suggestedShare,
+                  150,
+                  300,
+                  500,
+                  1000,
+                  1500,
+                  2000,
+                  3000,
+                }.toList()..sort();
+                final picked = await showModalBottomSheet<int>(
+                  context: context,
+                  showDragHandle: true,
+                  builder: (context) => SafeArea(
+                    child: Wrap(
+                      children: [
+                        for (final share in shares)
+                          ListTile(
+                            key: Key('set-aside-$share'),
+                            title: Text(rateText(share)),
+                            subtitle: share == view.suggestedShare
+                                ? const Text('Suggested from your records')
+                                : null,
+                            trailing: share == rate
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () => Navigator.pop(context, share),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+                if (picked == null) return;
+                await _save(ref, settings.copyWith(setAside: () => picked));
+              },
+            ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           SwitchListTile(
             key: const Key('tax-vat'),
