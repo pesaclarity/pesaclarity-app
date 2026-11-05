@@ -7,10 +7,14 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/sales/sale_matching.dart';
+import '../../../domain/spaces/space.dart';
+import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
+import '../../spaces/application/spaces_providers.dart';
+import '../../tax/application/tax_providers.dart';
 import '../application/sales_providers.dart';
 import 'pay_sheet.dart';
 import 'records_sheets.dart';
@@ -53,14 +57,20 @@ class _ChoosePayments extends ConsumerStatefulWidget {
 class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
   final _picked = <int>{};
   ShortBy _short = ShortBy.theyOweIt;
+
+  /// Whether the owner picked what the gap was, so the suggestion stops.
+  var _shortPicked = false;
   OverBy _over = OverBy.changeInCash;
   final _customer = TextEditingController();
+  final _certificate = TextEditingController();
+  var _expectTax = true;
   CalendarDate? _due;
   var _saving = false;
 
   @override
   void dispose() {
     _customer.dispose();
+    _certificate.dispose();
     super.dispose();
   }
 
@@ -88,8 +98,18 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
             over: paid > widget.waiting.amountMinor ? _over : null,
             credit: short && _short == ShortBy.theyOweIt
                 ? CreditTerms(customer: customer, dueDate: _due)
+                : short && _short == ShortBy.taxWithheld && customer.isNotEmpty
+                ? CreditTerms(customer: customer)
                 : null,
+            certificate: _certificate.text.trim().isEmpty
+                ? null
+                : _certificate.text.trim(),
           );
+      if (short && _short == ShortBy.taxWithheld && customer.isNotEmpty) {
+        await ref
+            .read(withholdingClientsProvider.notifier)
+            .expect(customer, withholds: _expectTax);
+      }
       navigator.pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -110,6 +130,22 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
     ];
     final paid = chosen.fold(0, (sum, e) => sum + e.amountMinor);
     final gap = w.amountMinor - paid;
+    // A gap of the withholding rate's share of the sale looks like tax the
+    // client kept back; it is offered first in a business.
+    final pack = ref.watch(taxPackProvider).value;
+    final rate = pack?.withholdingRate;
+    final withholding =
+        rate != null &&
+            ref.watch(activeSpaceProvider).kind == SpaceKind.business &&
+            gap > 0 &&
+            (gap - applyRate(w.amountMinor, rate)).abs() <= 100
+        ? rate
+        : null;
+    if (withholding == null && _short == ShortBy.taxWithheld) {
+      _short = ShortBy.theyOweIt;
+    } else if (withholding != null && !_shortPicked) {
+      _short = ShortBy.taxWithheld;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,6 +212,11 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
               runSpacing: 8,
               children: [
                 for (final (choice, label) in [
+                  if (withholding != null)
+                    (
+                      ShortBy.taxWithheld,
+                      'Tax withheld (${rateText(withholding)})',
+                    ),
                   (ShortBy.theyOweIt, 'They owe it'),
                   (ShortBy.restInCash, 'Paid the rest in cash'),
                   (ShortBy.anotherPayment, 'Another payment'),
@@ -185,10 +226,43 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
                     key: Key('short-${choice.name}'),
                     label: Text(label),
                     selected: _short == choice,
-                    onSelected: (_) => setState(() => _short = choice),
+                    onSelected: (_) => setState(() {
+                      _short = choice;
+                      _shortPicked = true;
+                    }),
                   ),
               ],
             ),
+            if (_short == ShortBy.taxWithheld && withholding != null) ...[
+              const SizedBox(height: 12),
+              InfoNote(
+                '${_plain(gap)} is ${rateText(withholding)} of the sale, so it '
+                'looks like withholding tax. It counts as tax already paid, '
+                'and the sale is paid in full.',
+                key: const Key('choose-tax-note'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('choose-certificate'),
+                controller: _certificate,
+                decoration: const InputDecoration(
+                  labelText: 'Certificate number (optional)',
+                  hintText: 'Add it when it comes',
+                ),
+              ),
+              if (_customer.text.trim().isNotEmpty)
+                CheckboxListTile(
+                  key: const Key('choose-expect-tax'),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _expectTax,
+                  onChanged: (on) => setState(() => _expectTax = on ?? false),
+                  title: Text(
+                    'Expect ${rateText(withholding)} from '
+                    '${_customer.text.trim()} from now on',
+                  ),
+                ),
+            ],
             if (_short == ShortBy.theyOweIt) ...[
               const SizedBox(height: 12),
               TextField(

@@ -339,7 +339,7 @@ class DriftSalesRepository implements SalesRepository {
     final rest = part.amountMinor - paid;
     if (rest > 0) {
       switch (short ?? ShortBy.anotherPayment) {
-        case ShortBy.theyOweIt:
+        case ShortBy.theyOweIt || ShortBy.taxWithheld:
           final terms = credit;
           if (terms == null) throw ArgumentError.notNull('credit');
           final loanId = await _db

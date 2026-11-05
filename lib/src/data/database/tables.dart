@@ -672,3 +672,19 @@ class DayCloses extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get closedAt => dateTime()();
 }
+
+/// Tax a client kept back from a payment, such as 5% of consultancy fees,
+/// and paid to KRA for the business. It counts as tax paid.
+@DataClassName('WithheldTaxRecord')
+class WithheldTaxes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The client, as named on their credit.
+  TextColumn get person => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency => text().withDefault(const Constant('KES'))();
+  DateTimeColumn get at => dateTime()();
+
+  /// The withholding certificate's number, once the client sends it.
+  TextColumn get certificate => text().nullable()();
+}

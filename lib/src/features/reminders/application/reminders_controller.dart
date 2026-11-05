@@ -20,9 +20,12 @@ import '../../../domain/reminders/reminder_schedule.dart';
 import '../../../domain/reminders/reminder_settings.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/subscriptions/subscriptions.dart';
+import '../../../domain/tax/tax_estimate.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/format/date_labels.dart';
 import '../../home/application/safe_to_spend_provider.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../../tax/application/tax_providers.dart';
 import '../data/reminder_notifications.dart';
 import 'business_reminders.dart';
 
@@ -203,7 +206,40 @@ class ReminderSync {
       showAmounts: _ref.read(notificationAmountsVisibleProvider),
     );
     final collect = await _collect(now);
-    return [...planned, ?collect];
+    final tax = await _tax(now);
+    return [...planned, ?collect, ?tax];
+  }
+
+  /// A few days before a business's next tax date, when it may owe some.
+  Future<Reminder?> _tax(DateTime now) async {
+    if (_ref.read(activeSpaceProvider).kind != SpaceKind.business) return null;
+    final TaxView view;
+    try {
+      view = await _ref.read(taxViewProvider.future);
+    } on Object {
+      return null;
+    }
+    final (due, what, owed) = switch (view.kind) {
+      TaxKind.turnover => (
+        view.lastMonth.due,
+        'Turnover Tax for ${monthName(view.lastMonth.month)}',
+        view.lastMonth.leftMinor,
+      ),
+      TaxKind.incomeTax => (
+        view.income.nextInstalment,
+        'An income tax instalment',
+        view.income.leftMinor,
+      ),
+      TaxKind.belowTurnover => (null, '', 0),
+    };
+    if (due == null || owed <= 0) return null;
+    return taxReminder(
+      now: now,
+      due: due,
+      what: what,
+      amount: formatMoney(Money(owed), withCurrency: false),
+      showAmounts: _ref.read(notificationAmountsVisibleProvider),
+    );
   }
 
   /// A business's daily nudge of who to remind, when it is on.

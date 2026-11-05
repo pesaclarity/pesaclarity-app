@@ -76,6 +76,9 @@ abstract final class AppRoutes {
   /// A business report to share as a PDF or CSV.
   static const makeReport = '/insights/report';
 
+  /// What the business may owe in tax, as an estimate.
+  static const tax = '/insights/tax';
+
   /// A business's cash book.
   static const money = '/money';
 

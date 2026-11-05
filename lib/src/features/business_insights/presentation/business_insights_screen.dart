@@ -14,6 +14,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../security/application/balance_visibility.dart';
+import '../../tax/application/tax_providers.dart';
 import '../application/business_report_providers.dart';
 
 /// The period the business's Insights shows, kept while the app is open so
@@ -104,6 +105,8 @@ class BusinessInsightsScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _Sentences(report.insights),
               ],
+              const SizedBox(height: 12),
+              const _TaxCard(),
               const SizedBox(height: 16),
               OutlinedButton(
                 key: const Key('insights-share-report'),
@@ -489,6 +492,45 @@ class _Sentences extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// What the business may owe in tax, opening the Tax screen.
+class _TaxCard extends ConsumerWidget {
+  const _TaxCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final view = ref.watch(taxViewProvider).value;
+    final hidden = ref.watch(balancesHiddenProvider);
+    final owed = view?.owedMinor;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        key: const Key('insights-tax'),
+        title: const Text('Tax you may owe'),
+        subtitle: Text(
+          'An estimate from your records',
+          style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (owed != null)
+              Text(
+                hidden
+                    ? maskedDigits
+                    : formatMoney(Money(owed), withCurrency: false),
+                style: theme.textTheme.titleMedium,
+              ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: () => context.push(AppRoutes.tax),
       ),
     );
   }

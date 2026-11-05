@@ -5,7 +5,7 @@ import '../time/calendar.dart';
 import 'recurring_charges.dart';
 import 'reminder_settings.dart';
 
-enum ReminderKind { bill, cardCharge, payday, safeToSpend, collect }
+enum ReminderKind { bill, cardCharge, payday, safeToSpend, collect, tax }
 
 /// One local notification to show at [at].
 class Reminder {
@@ -288,5 +288,33 @@ Reminder? collectReminder({
         ? '1 customer to remind today'
         : '${people.length} customers to remind today',
     body: '$names$more',
+  );
+}
+
+/// The id of a business's tax due reminder, apart from the rest.
+const taxReminderId = collectReminderId + 1;
+
+/// A reminder [daysBefore] days ahead of [due] at 9:00 local time that
+/// [what] is due, with about [amount] when amounts show; null when that
+/// time has passed.
+Reminder? taxReminder({
+  required DateTime now,
+  required CalendarDate due,
+  required String what,
+  required String amount,
+  required bool showAmounts,
+  int daysBefore = 3,
+}) {
+  final day = due.addDays(-daysBefore);
+  final at = DateTime(day.year, day.month, day.day, 9);
+  if (!at.isAfter(now.toLocal())) return null;
+  return Reminder(
+    id: taxReminderId,
+    kind: ReminderKind.tax,
+    at: at.toUtc(),
+    title: '$what is due ${formatShortDate(due)}',
+    body: showAmounts
+        ? 'About $amount, from your records. Pay it on KRA iTax or M-Pesa.'
+        : 'An estimate from your records is on the Tax screen.',
   );
 }

@@ -702,6 +702,18 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 23 database: withheld tax', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE withheld_taxes');
+      await old.customStatement('PRAGMA user_version = 23');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.withheldTaxes).get(), isEmpty);
+    });
+
     test('migrates a version 22 database: day closes', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE day_closes');

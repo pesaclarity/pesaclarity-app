@@ -11,6 +11,7 @@ import '../../../data/repositories/category_seeds.dart';
 import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../data/repositories/stock_repository.dart';
+import '../../../data/repositories/tax_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/sales/sale_matching.dart';
@@ -271,9 +272,20 @@ class SalesController {
     ShortBy? short,
     OverBy? over,
     CreditTerms? credit,
+    String? certificate,
   }) async {
     final paid = chosen.fold(0, (sum, e) => sum + e.amountMinor);
     final cash = await _cashAccount();
+    // Tax withheld: the client owes the rest for a moment, then it is paid
+    // as tax, so the sale stays whole and the tax counts as paid.
+    final client = short == ShortBy.taxWithheld
+        ? (credit?.customer ??
+                  chosen.first.payeeName ??
+                  chosen.first.counterpartyName ??
+                  'Client')
+              .trim()
+        : null;
+    if (client != null) credit = CreditTerms(customer: client);
     await _sales.settle(
       w.id,
       [for (final e in chosen) (id: e.id, amountMinor: e.amountMinor)],
@@ -284,6 +296,16 @@ class SalesController {
       credit: credit,
       keepExtra: over == OverBy.keepWithSale,
     );
+    if (client != null && paid < w.amountMinor) {
+      await _ref
+          .read(taxRepositoryProvider)
+          .withhold(
+            person: client,
+            amountMinor: w.amountMinor - paid,
+            at: _now(),
+            certificate: certificate,
+          );
+    }
     final extra = paid - w.amountMinor;
     if (extra > 0 &&
         (over == OverBy.changeInCash || over == OverBy.changeByMpesa)) {

@@ -148,6 +148,10 @@ enum ShortBy {
 
   /// The owner gave a discount, so the sale is smaller.
   discount,
+
+  /// The client kept back withholding tax and pays it to KRA: the sale
+  /// stays whole and the rest counts as tax paid.
+  taxWithheld,
 }
 
 /// What happened to the extra when payments came to more than the sale.
