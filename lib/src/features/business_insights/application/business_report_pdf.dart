@@ -207,13 +207,23 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
         ],
       ),
       build: (context) => [
-        pw.Text(
-          _latin1(doc.business),
-          style: pw.TextStyle(
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
-            color: brand,
-          ),
+        pw.Row(
+          children: [
+            if (doc.logo case final logo?) ...[
+              pw.Image(pw.MemoryImage(logo), height: 32),
+              pw.SizedBox(width: 10),
+            ],
+            pw.Expanded(
+              child: pw.Text(
+                _latin1(doc.business),
+                style: pw.TextStyle(
+                  fontSize: 20,
+                  fontWeight: pw.FontWeight.bold,
+                  color: brand,
+                ),
+              ),
+            ),
+          ],
         ),
         if (details.isNotEmpty) ...[
           pw.SizedBox(height: 2),

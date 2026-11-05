@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/books/business_report.dart';
@@ -56,6 +58,7 @@ class ReportDocument {
     required this.made,
     required this.currency,
     required this.blocks,
+    this.logo,
   });
 
   final String title;
@@ -65,6 +68,9 @@ class ReportDocument {
   final CalendarDate made;
   final String currency;
   final List<ReportBlock> blocks;
+
+  /// The business's logo for the cover, when it has one.
+  final Uint8List? logo;
 
   String get periodLine => periodText(period);
 
@@ -89,6 +95,8 @@ ReportDocument reportDocument({
   required CalendarDate today,
   CashBook? cashBook,
   TaxView? tax,
+  ReportDetail detail = ReportDetail.everyEntry,
+  Uint8List? logo,
   Map<int, String> accountNames = const {},
   Map<int, String> categoryNames = const {},
 }) {
@@ -125,6 +133,22 @@ ReportDocument reportDocument({
             total: ['Total sales', total > 0 ? '100%' : null, total],
           ),
         );
+      case ReportSection.customers when detail == ReportDetail.totals:
+        final owing = report.customers;
+        blocks.add(
+          ReportTable(
+            section.label,
+            columns: const ['', 'Over two weeks', 'Owed'],
+            rows: [
+              [
+                owing.length == 1 ? '1 customer' : '${owing.length} customers',
+                owing.fold<int>(0, (sum, c) => sum + c.overTwoWeeksMinor),
+                owing.fold<int>(0, (sum, c) => sum + c.owedMinor),
+              ],
+            ],
+            note: asOfToday,
+          ),
+        );
       case ReportSection.customers:
         blocks.add(
           ReportTable(
@@ -142,6 +166,24 @@ ReportDocument reportDocument({
               'Total',
               null,
               report.customers.fold<int>(0, (sum, c) => sum + c.owedMinor),
+            ],
+            note: asOfToday,
+          ),
+        );
+      case ReportSection.suppliers when detail == ReportDetail.totals:
+        final owed = [
+          for (final s in report.suppliers)
+            if (s.owedMinor > 0) s,
+        ];
+        blocks.add(
+          ReportTable(
+            section.label,
+            columns: const ['', 'Owed'],
+            rows: [
+              [
+                owed.length == 1 ? '1 supplier' : '${owed.length} suppliers',
+                owed.fold<int>(0, (sum, s) => sum + s.owedMinor),
+              ],
             ],
             note: asOfToday,
           ),
@@ -233,6 +275,22 @@ ReportDocument reportDocument({
             note: asOfToday,
           ),
         );
+      case ReportSection.cashBook when detail == ReportDetail.totals:
+        final days = (cashBook?.days ?? const <CashBookDay>[]).reversed;
+        blocks.add(
+          ReportTable(
+            'Cash book by day',
+            columns: const ['Date', 'In', 'Out'],
+            rows: [
+              for (final d in days) [d.date, d.inMinor, d.outMinor],
+            ],
+            total: [
+              'Total',
+              days.fold<int>(0, (sum, d) => sum + d.inMinor),
+              days.fold<int>(0, (sum, d) => sum + d.outMinor),
+            ],
+          ),
+        );
       case ReportSection.cashBook:
         final rows = <List<Object?>>[];
         var inTotal = 0;
@@ -273,6 +331,7 @@ ReportDocument reportDocument({
     made: today,
     currency: BaseCurrency.code,
     blocks: blocks,
+    logo: logo,
   );
 }
 

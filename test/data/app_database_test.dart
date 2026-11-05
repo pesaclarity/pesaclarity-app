@@ -702,6 +702,18 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 27 database: eTIMS costs', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE etims_costs');
+      await old.customStatement('PRAGMA user_version = 27');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.etimsCosts).get(), isEmpty);
+    });
+
     test('migrates a version 26 database: invoices', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE invoice_lines');

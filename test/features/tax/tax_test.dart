@@ -281,4 +281,39 @@ void main() {
     );
     expect(expected, contains('juhudi sacco'));
   });
+
+  test('month by month, set aside and eTIMS costs', () async {
+    final c = container();
+    await services(c);
+    await fees(126000000, eat(2026, 3, 2, 9));
+    final cost = (await (db.select(
+      db.categories,
+    )..where((x) => x.type.equalsValue(CategoryType.expense))).get()).first.id;
+    final software = await message(
+      2480000,
+      inflow: false,
+      name: 'Software',
+      category: cost,
+      at: eat(2026, 4, 2, 9),
+    );
+    await message(
+      1000000,
+      inflow: false,
+      name: 'Travel',
+      category: cost,
+      at: eat(2026, 5, 2, 9),
+    );
+    await c.read(taxRepositoryProvider).setEtims(software, has: true);
+    await c
+        .read(taxSettingsProvider.notifier)
+        .save(const TaxSettings(setAside: 1700));
+
+    final view = await c.read(taxViewProvider.future);
+    expect(view.costsCount, 2);
+    expect(view.etimsCount, 1);
+    expect(view.setAsideMinor, 21420000);
+    expect(view.months.map((m) => m.month.month), [6, 7, 8, 9, 10, 11]);
+    // Nothing earned from June on, so each month adds no tax.
+    expect(view.months.every((m) => m.estimatedMinor == 0), isTrue);
+  });
 }

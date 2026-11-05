@@ -24,6 +24,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   late ReportRange? _range = ref.read(insightsRangeProvider);
   ReportPeriod? _dates;
   late Set<ReportSection> _sections = {..._audience.sections};
+  late ReportDetail _detail = _audience.detail;
   String? _name;
   var _busy = false;
 
@@ -35,6 +36,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   void _use(ReportSetup s) => setState(() {
     _audience = s.audience;
     _sections = {...s.sections};
+    _detail = s.detail;
     _range = s.range;
     _dates = s.range == null ? s.periodOn(_today) : null;
     _name = s.name;
@@ -106,6 +108,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
               range: dates == null ? _range : null,
               from: dates?.from,
               to: dates?.to,
+              detail: _detail,
             ),
           ),
         );
@@ -149,6 +152,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
         period: _period,
         sections: _sections,
         title: _name ?? 'Business report',
+        detail: _detail,
       );
       if (csv) {
         await maker.shareCsv(doc);
@@ -216,6 +220,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                         onSelected: (_) => setState(() {
                           _audience = a;
                           _sections = {...a.sections};
+                          _detail = a.detail;
                         }),
                       ),
                   ],
@@ -231,6 +236,21 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                     _dates = null;
                   }),
                   onCustom: _pickDates,
+                ),
+                const SizedBox(height: 16),
+                Text('Detail', style: label()),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final d in ReportDetail.values)
+                      ChoiceChip(
+                        key: Key('detail-${d.name}'),
+                        label: Text(d.label),
+                        selected: _detail == d,
+                        onSelected: (_) => setState(() => _detail = d),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Card(

@@ -107,4 +107,31 @@ void main() {
     expect(pack.isKra(name: 'Kenya Revenue Authority'), isTrue);
     expect(pack.isKra(name: 'Krazy Kitchen'), isFalse);
   });
+
+  test('set aside: kept, and suggested from the records', () {
+    final back = TaxSettings.fromJson(
+      const TaxSettings(setAside: 1000).toJson(),
+    );
+    expect(back.setAside, 1000);
+    expect(TaxSettings.fromJson(const TaxSettings().toJson()).setAside, isNull);
+    expect(
+      suggestedSetAside(
+        kind: TaxKind.turnover,
+        pack: pack,
+        taxMinor: 0,
+        incomeMinor: 0,
+      ),
+      150,
+    );
+    // 212,200 on 1,260,000 is 16.8%, so 17%.
+    expect(
+      suggestedSetAside(
+        kind: TaxKind.incomeTax,
+        pack: pack,
+        taxMinor: 21220000,
+        incomeMinor: 126000000,
+      ),
+      1700,
+    );
+  });
 }

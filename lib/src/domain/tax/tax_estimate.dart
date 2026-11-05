@@ -3,26 +3,75 @@ import 'tax_pack.dart';
 
 /// How the business files, set in Tax settings.
 class TaxSettings {
-  const TaxSettings({this.company = false, this.vatRegistered = false});
+  const TaxSettings({
+    this.company = false,
+    this.vatRegistered = false,
+    this.setAside,
+  });
 
   /// Files as a company (the company rate), else as an individual.
   final bool company;
   final bool vatRegistered;
 
-  TaxSettings copyWith({bool? company, bool? vatRegistered}) => TaxSettings(
+  /// The share of money in kept aside for tax; null when off.
+  final BasisPoints? setAside;
+
+  TaxSettings copyWith({
+    bool? company,
+    bool? vatRegistered,
+    BasisPoints? Function()? setAside,
+  }) => TaxSettings(
     company: company ?? this.company,
     vatRegistered: vatRegistered ?? this.vatRegistered,
+    setAside: setAside == null ? this.setAside : setAside(),
   );
 
   Map<String, Object?> toJson() => {
     'company': company,
     'vatRegistered': vatRegistered,
+    'setAside': ?setAside,
   };
 
-  static TaxSettings fromJson(Map<String, Object?>? json) => TaxSettings(
-    company: json?['company'] == true,
-    vatRegistered: json?['vatRegistered'] == true,
-  );
+  static TaxSettings fromJson(Map<String, Object?>? json) {
+    final aside = json?['setAside'];
+    return TaxSettings(
+      company: json?['company'] == true,
+      vatRegistered: json?['vatRegistered'] == true,
+      setAside: aside is num && aside > 0 && aside < 10000
+          ? aside.toInt()
+          : null,
+    );
+  }
+}
+
+/// One month's tax: what the records say it comes to, and what was paid.
+class MonthTax {
+  const MonthTax({
+    required this.month,
+    required this.estimatedMinor,
+    this.paidMinor,
+  });
+
+  final YearMonth month;
+  final int estimatedMinor;
+
+  /// Paid to KRA for it; null while it is not due yet.
+  final int? paidMinor;
+}
+
+/// The share to keep aside: the Turnover Tax rate, or what income tax
+/// comes to as a share of money in, rounded up to a whole percent.
+BasisPoints suggestedSetAside({
+  required TaxKind kind,
+  required TaxPack pack,
+  required int taxMinor,
+  required int incomeMinor,
+}) {
+  if (kind == TaxKind.turnover) return pack.turnoverRate;
+  if (incomeMinor <= 0 || taxMinor <= 0) return 500;
+  final share = taxMinor * 10000 / incomeMinor;
+  final whole = (share / 100).ceil() * 100;
+  return whole.clamp(100, 5000);
 }
 
 /// Which tax a business's estimate uses.

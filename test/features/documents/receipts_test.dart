@@ -50,6 +50,7 @@ class _Files implements ReportSharer {
   Future<void> shareFiles(
     List<SharedFile> files, {
     required String subject,
+    String? text,
   }) async {
     for (final f in files) {
       await shareFile(
@@ -85,6 +86,13 @@ class _Picker implements DocumentPicker {
     name: 'logo.png',
     mimeType: 'image/png',
     bytes: Uint8List.fromList(_png),
+  );
+
+  @override
+  Future<PickedDocument?> takePhoto() async => PickedDocument(
+    name: 'Receipt photo.jpg',
+    mimeType: 'image/jpeg',
+    bytes: Uint8List.fromList(const [1, 2, 3]),
   );
 
   @override

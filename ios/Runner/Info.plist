@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>To take a photo of a paper receipt to attach to an invoice. The photo stays on this phone.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID unlocks Pesa Clarity, so only you see your money.</string>
 	<key>UIApplicationSceneManifest</key>

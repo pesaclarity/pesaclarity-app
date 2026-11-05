@@ -15,6 +15,7 @@ import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../security/application/balance_visibility.dart';
 import '../application/people_providers.dart';
+import '../application/statement_pdf.dart';
 import 'people_screen.dart';
 
 /// What the business owes one supplier, from Bought and Paid.
@@ -45,7 +46,29 @@ class CustomerStatementScreen extends ConsumerWidget {
         ?.where((c) => c.name.toLowerCase() == name.trim().toLowerCase())
         .firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
+      appBar: AppBar(
+        title: Text(name),
+        actions: [
+          if (c != null)
+            IconButton(
+              key: const Key('statement-share'),
+              tooltip: 'Share the statement (PDF)',
+              icon: const Icon(Icons.ios_share),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await ref.read(statementSenderProvider).share(c);
+                } on Object {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('The statement was not made. Try again.'),
+                    ),
+                  );
+                }
+              },
+            ),
+        ],
+      ),
       body: customers == null
           ? const Center(child: CircularProgressIndicator.adaptive())
           : c == null

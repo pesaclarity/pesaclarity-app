@@ -22,8 +22,13 @@ abstract interface class ReportSharer {
     required String subject,
   });
 
-  /// Several files in one share.
-  Future<void> shareFiles(List<SharedFile> files, {required String subject});
+  /// Several files in one share, with [text] when the app takes a message
+  /// too.
+  Future<void> shareFiles(
+    List<SharedFile> files, {
+    required String subject,
+    String? text,
+  });
 }
 
 /// A file to share: its bytes, name and type.
@@ -59,6 +64,7 @@ class SharePlusReportSharer implements ReportSharer {
   Future<void> shareFiles(
     List<SharedFile> files, {
     required String subject,
+    String? text,
   }) async {
     final dir = await getTemporaryDirectory();
     final out = <XFile>[];
@@ -67,7 +73,9 @@ class SharePlusReportSharer implements ReportSharer {
       await file.writeAsBytes(f.bytes, flush: true);
       out.add(XFile(file.path, mimeType: f.mimeType));
     }
-    await SharePlus.instance.share(ShareParams(files: out, subject: subject));
+    await SharePlus.instance.share(
+      ShareParams(files: out, subject: subject, text: text),
+    );
   }
 }
 

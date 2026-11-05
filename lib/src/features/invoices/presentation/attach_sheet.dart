@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
@@ -9,7 +10,12 @@ import '../../documents/application/document_providers.dart';
 
 /// A document to attach, and the cost line it adds when charged to the
 /// client.
-typedef Attached = ({PickedDocument file, String? costName, int? costMinor});
+typedef Attached = ({
+  PickedDocument file,
+  String? costName,
+  int? costMinor,
+  bool recordCost,
+});
 
 /// Attach documents from the phone's files: receipts for costs, the eTIMS
 /// invoice, a contract. Returns what to attach, or null.
@@ -41,6 +47,7 @@ class _Picked {
   final TextEditingController name;
   final amount = TextEditingController();
   var charge = false;
+  var record = false;
 
   void dispose() {
     name.dispose();
@@ -70,6 +77,19 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
     final files = await ref.read(documentPickerProvider).pickDocuments();
     if (!mounted || files.isEmpty) return;
     setState(() => _picked.addAll(files.map(_Picked.new)));
+  }
+
+  Future<void> _photo() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final photo = await ref.read(documentPickerProvider).takePhoto();
+      if (!mounted || photo == null) return;
+      setState(() => _picked.add(_Picked(photo)));
+    } on PlatformException {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('The camera is not available.')),
+      );
+    }
   }
 
   static String _size(int bytes) => bytes < 1024 * 1024
@@ -106,6 +126,18 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: _pick,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            key: const Key('attach-photo'),
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Take a photo'),
+            subtitle: Text('A paper receipt', style: muted),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _photo,
           ),
         ),
         for (final p in _picked) ...[
@@ -164,6 +196,19 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                         : null,
                   ),
                   if (p.charge)
+                    CheckboxListTile(
+                      key: Key('attach-record-${p.file.name}'),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: p.record,
+                      onChanged: (on) => setState(() => p.record = on ?? false),
+                      title: const Text('Record it as a business cost'),
+                      subtitle: Text(
+                        "If it isn't in Money already",
+                        style: muted,
+                      ),
+                    ),
+                  if (p.charge)
                     Row(
                       children: [
                         Expanded(
@@ -213,6 +258,7 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                       costMinor: p.charge
                           ? AmountField.amountFrom(p.amount.text)
                           : null,
+                      recordCost: p.charge && p.record,
                     ),
                 ]),
           child: const Text('Attach'),

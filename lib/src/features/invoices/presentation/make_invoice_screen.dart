@@ -208,6 +208,19 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
   Future<void> _attach() async {
     final picked = await showAttachSheet(context);
     if (picked == null || !mounted) return;
+    // A cost not in Money yet is recorded the usual way: how it was paid
+    // is asked in Spent.
+    for (final a in picked) {
+      final cost = a.costMinor;
+      if (!a.recordCost || cost == null || cost <= 0 || !mounted) continue;
+      await showBoughtSheet(
+        context,
+        costOnly: true,
+        amountMinor: cost,
+        note: a.costName,
+      );
+    }
+    if (!mounted) return;
     setState(() {
       for (final a in picked) {
         _attached.add(a.file);
