@@ -73,6 +73,16 @@ abstract final class AppRoutes {
   /// A business's cash book.
   static const money = '/money';
 
+  /// A business's customers and suppliers.
+  static const people = '/people';
+
+  /// What one customer owes and has paid.
+  static String customerStatement(String name) =>
+      Uri(path: '/people/customer', queryParameters: {'name': name}).toString();
+
+  /// What the business owes one supplier, and has paid.
+  static String supplierStatement(int debtId) => '/people/supplier/$debtId';
+
   /// A business: sell, then pay. Full screen, over the tabs.
   static const sell = '/sell';
 

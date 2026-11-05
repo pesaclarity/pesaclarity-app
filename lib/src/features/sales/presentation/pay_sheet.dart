@@ -6,13 +6,14 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/sales_repository.dart';
+import '../../../domain/people/people.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../lending/application/lending_providers.dart';
+import '../../people/application/people_providers.dart';
 import '../application/sales_providers.dart';
 
 /// How a sale is paid, as Pay offers it.
@@ -195,8 +196,11 @@ class _PaySheetState extends ConsumerState<PaySheet> {
     final colors = PesaColors.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     // Newest first, each name once.
-    final lent = ref.watch(lendingOverviewProvider).value?.lent ?? const [];
-    final customers = {for (final l in lent) l.person}.toList();
+    final customers = [
+      for (final c
+          in ref.watch(customersProvider).value ?? const <CustomerAccount>[])
+        c.name,
+    ];
 
     return SafeArea(
       child: SingleChildScrollView(

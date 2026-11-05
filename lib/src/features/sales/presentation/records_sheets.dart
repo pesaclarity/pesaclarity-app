@@ -7,17 +7,16 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/category_seeds.dart';
-import '../../../data/repositories/debts_repository.dart';
-import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/debts/debt.dart';
+import '../../../domain/people/people.dart';
 import '../../../domain/spaces/space_categories.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../lending/application/lending_providers.dart';
 import '../../payees/presentation/category_picker.dart';
+import '../../people/application/people_providers.dart';
 import '../application/sales_providers.dart';
 import 'pay_sheet.dart';
 
@@ -48,16 +47,19 @@ Future<bool?> _sheet(BuildContext context, Widget child) =>
 
 /// Bought: stock or a cost, paid now or later. With [costOnly], as for a
 /// services business, there is no stock to choose.
-Future<bool?> showBoughtSheet(BuildContext context, {bool costOnly = false}) =>
-    _sheet(context, _BoughtSheet(costOnly: costOnly));
+Future<bool?> showBoughtSheet(
+  BuildContext context, {
+  bool costOnly = false,
+  bool payLater = false,
+}) => _sheet(context, _BoughtSheet(costOnly: costOnly, payLater: payLater));
 
 /// Got paid: a customer pays some or all of what they owe.
-Future<bool?> showGotPaidSheet(BuildContext context) =>
-    _sheet(context, const _GotPaidSheet());
+Future<bool?> showGotPaidSheet(BuildContext context, {String? customer}) =>
+    _sheet(context, _GotPaidSheet(customer: customer));
 
 /// Paid: the business pays a supplier some or all of what it owes.
-Future<bool?> showPaidSheet(BuildContext context) =>
-    _sheet(context, const _PaidSheet());
+Future<bool?> showPaidSheet(BuildContext context, {int? debtId}) =>
+    _sheet(context, _PaidSheet(debtId: debtId));
 
 void _saved(
   NavigatorState navigator,
@@ -101,9 +103,10 @@ Widget _waitNote(SalePaymentMethod method, int amountMinor) => switch (method) {
 };
 
 class _BoughtSheet extends ConsumerStatefulWidget {
-  const _BoughtSheet({required this.costOnly});
+  const _BoughtSheet({required this.costOnly, required this.payLater});
 
   final bool costOnly;
+  final bool payLater;
 
   @override
   ConsumerState<_BoughtSheet> createState() => _BoughtSheetState();
@@ -116,7 +119,9 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
   final _supplier = TextEditingController();
   late var _stock = !widget.costOnly;
   int? _costId;
-  var _method = SalePaymentMethod.cash;
+  late var _method = widget.payLater
+      ? SalePaymentMethod.credit
+      : SalePaymentMethod.cash;
   CalendarDate? _due;
   var _saving = false;
 
@@ -284,7 +289,10 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
 typedef _Owing = ({String name, int owedMinor});
 
 class _GotPaidSheet extends ConsumerStatefulWidget {
-  const _GotPaidSheet();
+  const _GotPaidSheet({this.customer});
+
+  /// The customer to start with.
+  final String? customer;
 
   @override
   ConsumerState<_GotPaidSheet> createState() => _GotPaidSheetState();
@@ -303,18 +311,11 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
     super.dispose();
   }
 
-  List<_Owing> _owing(CalendarDate today) {
-    final byName = <String, int>{};
-    final lent = ref.watch(lendingOverviewProvider).value?.lent ?? const [];
-    for (final l in lent) {
-      final left = l.status(today).remainingMinor;
-      if (left > 0) byName[l.person] = (byName[l.person] ?? 0) + left;
-    }
-    return [
-      for (final MapEntry(:key, :value) in byName.entries)
-        (name: key, owedMinor: value),
-    ];
-  }
+  List<_Owing> _owing() => [
+    for (final c
+        in ref.watch(customersProvider).value ?? const <CustomerAccount>[])
+      if (c.owedMinor > 0) (name: c.name, owedMinor: c.owedMinor),
+  ];
 
   void _pick(_Owing who) => setState(() {
     _customer = who.name;
@@ -343,11 +344,16 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final today = CalendarDate.local(ref.watch(clockProvider)());
-    final owing = _owing(today);
+    final owing = _owing();
     if (_customer == null && owing.isNotEmpty) {
+      final start = owing
+          .where(
+            (o) =>
+                o.name.toLowerCase() == widget.customer?.trim().toLowerCase(),
+          )
+          .firstOrNull;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _customer == null) _pick(owing.first);
+        if (mounted && _customer == null) _pick(start ?? owing.first);
       });
     }
     final owed = owing
@@ -420,19 +426,11 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
   }
 }
 
-/// Suppliers the open business owes, with what is left on each.
-final suppliersOwedProvider = FutureProvider<List<Debt>>((ref) async {
-  ref.watch(ledgerChangesProvider);
-  final today = CalendarDate.local(ref.watch(clockProvider)());
-  return [
-    for (final d
-        in await ref.watch(debtsRepositoryProvider).debts(today: today))
-      if (d.balanceMinor > 0 && !d.isFormal) d,
-  ];
-});
-
 class _PaidSheet extends ConsumerStatefulWidget {
-  const _PaidSheet();
+  const _PaidSheet({this.debtId});
+
+  /// The supplier's debt to start with.
+  final int? debtId;
 
   @override
   ConsumerState<_PaidSheet> createState() => _PaidSheetState();
@@ -480,10 +478,15 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final owed = ref.watch(suppliersOwedProvider).value ?? const [];
+    final owed = [
+      for (final s
+          in ref.watch(suppliersProvider).value ?? const <SupplierAccount>[])
+        s.debt,
+    ];
     if (_debt == null && owed.isNotEmpty) {
+      final start = owed.where((d) => d.id == widget.debtId).firstOrNull;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _debt == null) _pick(owed.first);
+        if (mounted && _debt == null) _pick(start ?? owed.first);
       });
     }
     return Form(

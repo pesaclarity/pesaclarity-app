@@ -25,6 +25,8 @@ import '../features/onboarding/presentation/first_insight_screen.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/payees/presentation/payees_screen.dart';
+import '../features/people/presentation/people_screen.dart';
+import '../features/people/presentation/statement_screen.dart';
 import '../features/plan/presentation/payday_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
 import '../features/privacy/presentation/policy_screen.dart';
@@ -298,6 +300,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.money,
                 builder: (context, state) => const MoneyScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.people,
+                builder: (context, state) => const PeopleScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'customer',
+                    builder: (context, state) => CustomerStatementScreen(
+                      name: state.uri.queryParameters['name'] ?? '',
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'supplier/:id',
+                    builder: (context, state) => SupplierStatementScreen(
+                      debtId: int.parse(state.pathParameters['id']!),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

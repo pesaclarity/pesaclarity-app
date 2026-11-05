@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/money.dart';
 import '../../domain/books/books.dart';
+import '../../domain/people/people.dart';
 import '../../domain/sales/sale_matching.dart';
 import '../../domain/time/calendar.dart';
 import '../database/app_database.dart';
@@ -73,6 +74,42 @@ abstract interface class QuickRecordsRepository {
 
   /// Stock and costs bought to pay later, for the books.
   Future<List<CreditPurchase>> creditPurchases();
+
+  /// What customers and suppliers were owed before the records, for the
+  /// books: lent loans that are not a sale's credit, and supplier debts not
+  /// made by Bought, dated [suppliersAt] since a debt keeps no date.
+  Future<List<OwedBefore>> owedBefore({required DateTime suppliersAt});
+
+  /// What was bought from and paid to the supplier on [debtId], newest
+  /// first. A debt not made by Bought starts with what was owed before.
+  Future<List<StatementLine>> supplierHistory(
+    int debtId, {
+    required CalendarDate today,
+  });
+
+  /// Payments to suppliers that have gone through in `[from, to)`, newest
+  /// first.
+  Future<List<PaidRecord>> paidBetween({
+    required DateTime from,
+    required DateTime to,
+  });
+}
+
+/// A payment made to a supplier.
+class PaidRecord {
+  const PaidRecord({
+    required this.supplier,
+    required this.amountMinor,
+    required this.at,
+    required this.method,
+    this.debtId,
+  });
+
+  final String supplier;
+  final int amountMinor;
+  final DateTime at;
+  final SalePaymentMethod method;
+  final int? debtId;
 }
 
 class DriftQuickRecordsRepository implements QuickRecordsRepository {
@@ -368,6 +405,144 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
         categoryId: r.categoryId!,
       ),
   ];
+
+  @override
+  Future<List<PaidRecord>> paidBetween({
+    required DateTime from,
+    required DateTime to,
+  }) async => [
+    for (final r
+        in await (_db.select(_db.quickRecords)
+              ..where(
+                (r) =>
+                    r.kind.equalsValue(QuickRecordKind.paid) &
+                    r.transactionId.isNotNull() &
+                    r.at.isBiggerOrEqualValue(from) &
+                    r.at.isSmallerThanValue(to),
+              )
+              ..orderBy([(r) => OrderingTerm.desc(r.at)]))
+            .get())
+      PaidRecord(
+        supplier: r.party ?? 'Supplier',
+        amountMinor: r.amountMinor,
+        at: r.at,
+        method: r.method,
+        debtId: r.debtId,
+      ),
+  ];
+
+  @override
+  Future<List<StatementLine>> supplierHistory(
+    int debtId, {
+    required CalendarDate today,
+  }) async {
+    final debt = await (_db.select(
+      _db.debts,
+    )..where((d) => d.id.equals(debtId))).getSingleOrNull();
+    if (debt == null) return const [];
+    final records = await (_db.select(
+      _db.quickRecords,
+    )..where((r) => r.debtId.equals(debtId))).get();
+    final lines = <StatementLine>[
+      for (final r in records)
+        if (r.kind == QuickRecordKind.bought)
+          StatementLine(
+            date: CalendarDate.local(r.at),
+            label: r.note == null ? 'Bought on credit' : '${r.note} on credit',
+            amountMinor: r.amountMinor,
+          )
+        else if (r.transactionId != null)
+          StatementLine(
+            date: CalendarDate.local(r.at),
+            label: 'Paid',
+            amountMinor: -r.amountMinor,
+          ),
+    ];
+    final linked = {for (final r in records) ?r.transactionId};
+    for (final t
+        in await (_db.select(_db.transactions)..where(
+              (t) =>
+                  t.debtId.equals(debtId) &
+                  t.direction.equalsValue(TransactionDirection.outflow),
+            ))
+            .get()) {
+      if (linked.contains(t.id)) continue;
+      lines.add(
+        StatementLine(
+          date: CalendarDate.local(t.occurredAt),
+          label: 'Paid',
+          amountMinor: -t.amountMinor,
+        ),
+      );
+    }
+    for (final p in await (_db.select(
+      _db.loanPayments,
+    )..where((p) => p.debtId.equals(debtId))).get()) {
+      lines.add(
+        StatementLine(
+          date: CalendarDate.local(p.paidOn),
+          label: 'Paid',
+          amountMinor: -p.amountMinor,
+        ),
+      );
+    }
+    if (!records.any((r) => r.kind == QuickRecordKind.bought)) {
+      final first = lines.isEmpty
+          ? null
+          : lines.map((l) => l.date).reduce((a, b) => a.isBefore(b) ? a : b);
+      lines.add(
+        StatementLine(
+          date: first ?? today,
+          label: 'Owed before',
+          amountMinor: debt.startingBalanceMinor,
+        ),
+      );
+    }
+    lines.sort((a, b) => b.date.compareTo(a.date));
+    return lines;
+  }
+
+  @override
+  Future<List<OwedBefore>> owedBefore({required DateTime suppliersAt}) async {
+    final fromSales = {
+      for (final p in await (_db.select(
+        _db.salePayments,
+      )..where((p) => p.lentLoanId.isNotNull())).get())
+        p.lentLoanId!,
+    };
+    final fromBought = {
+      for (final r
+          in await (_db.select(_db.quickRecords)..where(
+                (r) =>
+                    r.kind.equalsValue(QuickRecordKind.bought) &
+                    r.debtId.isNotNull(),
+              ))
+              .get())
+        r.debtId!,
+    };
+    return [
+      for (final l in await _db.select(_db.lentLoans).get())
+        if (!fromSales.contains(l.id))
+          OwedBefore(
+            sourceId: l.id,
+            at: l.lentOn,
+            amountMinor: l.amountMinor,
+            currency: l.currency,
+            toYou: true,
+          ),
+      for (final d in await (_db.select(
+        _db.debts,
+      )..where((d) => d.type.equalsValue(DebtType.supplier))).get())
+        if (!fromBought.contains(d.id))
+          OwedBefore(
+            sourceId: d.id,
+            at: suppliersAt,
+            amountMinor: d.startingBalanceMinor,
+            currency: d.currency,
+            toYou: false,
+          ),
+    ];
+  }
 }
 
 final quickRecordsRepositoryProvider = Provider<QuickRecordsRepository>(

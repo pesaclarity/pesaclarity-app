@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/spaces/business_setup.dart';
 import '../domain/spaces/space.dart';
 import '../features/currency/application/currency_controller.dart';
 import '../features/privacy/application/consent_controller.dart';
@@ -9,12 +10,13 @@ import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
 import '../features/sales/application/sales_providers.dart';
 import '../features/sms/application/sms_capture_providers.dart';
+import '../features/spaces/application/business_setup_providers.dart';
 import '../features/spaces/application/spaces_providers.dart';
 import '../shared/semantic_ids.dart';
 import '../theme/pesa_colors.dart';
 
 /// The shell's branches, in the order the router lists them.
-enum ShellBranch { home, activity, plan, goals, insights, money }
+enum ShellBranch { home, activity, plan, goals, insights, money, people }
 
 /// Personal's tabs, and those of every space without its own.
 const personalTabs = [
@@ -55,7 +57,7 @@ const personalTabs = [
   ),
 ];
 
-/// A business's tabs. People and Stock join as they are built.
+/// A business's tabs. Stock joins as it is built.
 const businessTabs = [
   PillDestination(
     id: SemanticIds.navHome,
@@ -72,6 +74,13 @@ const businessTabs = [
     label: 'Money',
   ),
   PillDestination(
+    id: SemanticIds.navPeople,
+    branch: ShellBranch.people,
+    icon: Icons.people_outline,
+    selectedIcon: Icons.people,
+    label: 'People',
+  ),
+  PillDestination(
     id: SemanticIds.navInsights,
     branch: ShellBranch.insights,
     icon: Icons.insights_outlined,
@@ -80,18 +89,38 @@ const businessTabs = [
   ),
 ];
 
-/// The tabs for a space of [kind].
-List<PillDestination> tabsFor(SpaceKind kind) =>
-    kind == SpaceKind.business ? businessTabs : personalTabs;
+/// A services business's tabs: its customers are clients.
+final serviceTabs = [
+  for (final t in businessTabs)
+    t.branch == ShellBranch.people
+        ? PillDestination(
+            id: t.id,
+            branch: t.branch,
+            icon: t.icon,
+            selectedIcon: t.selectedIcon,
+            label: 'Clients',
+          )
+        : t,
+];
+
+/// The tabs for a space of [kind]; a business that sells only [services]
+/// has clients.
+List<PillDestination> tabsFor(SpaceKind kind, {bool services = false}) =>
+    kind != SpaceKind.business
+    ? personalTabs
+    : services
+    ? serviceTabs
+    : businessTabs;
 
 /// Which of [tabs] to show as current while [branch] is open: its own tab,
 /// or the tab it opens from (a business's full Activity list opens from
-/// Money). -1 when none fits.
+/// Money, and Lent and borrowed from People). -1 when none fits.
 int selectedTabOf(List<PillDestination> tabs, ShellBranch branch) {
   final own = tabs.indexWhere((t) => t.branch == branch);
   if (own >= 0) return own;
   final parent = switch (branch) {
     ShellBranch.activity => ShellBranch.money,
+    ShellBranch.goals => ShellBranch.people,
     _ => null,
   };
   return tabs.indexWhere((t) => t.branch == parent);
@@ -119,7 +148,14 @@ class AppShell extends ConsumerWidget {
         showPolicyReview(context, changes);
       }
     });
-    final tabs = tabsFor(ref.watch(activeSpaceProvider).kind);
+    final kind = ref.watch(activeSpaceProvider).kind;
+    final tabs = tabsFor(
+      kind,
+      services:
+          kind == SpaceKind.business &&
+          ref.watch(businessSetupProvider).value?.sells ==
+              BusinessSells.services,
+    );
     final current = navigationShell.currentIndex;
     void select(int index) {
       final branch = tabs[index].branch.index;
