@@ -4,6 +4,7 @@ import 'package:pesaclarity/src/domain/debts/family_loan.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/lending/lent_loan.dart';
 import 'package:pesaclarity/src/domain/people/people.dart';
+import 'package:pesaclarity/src/domain/people/phone_number.dart';
 import 'package:pesaclarity/src/domain/people/reminder_text.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
@@ -90,26 +91,67 @@ void main() {
     expect(dueWithin(list, today: today), 450000);
   });
 
-  test('the friendly reminder leaves out what it does not know', () {
+  test('templates fill in, leaving out what is not known', () {
+    final friendly = defaultTemplates('KES').first.text;
     expect(
-      friendlyReminder(
-        name: 'Otieno Ouma',
-        business: 'Vegetable stall',
-        amount: 'KES 1,200',
-        due: 'today',
-      ),
+      fillTemplate(friendly, {
+        'name': 'Otieno Ouma',
+        'business': 'Vegetable stall',
+        'amount': '1,200',
+        'due': 'today',
+      }),
       'Hi Otieno, a friendly reminder from Vegetable stall: KES 1,200, due '
       'today. Thank you!',
     );
     expect(
-      friendlyReminder(
-        name: 'Kamau',
-        business: 'Vegetable stall',
-        amount: 'KES 700',
-        what: 'vegetables',
-      ),
+      fillTemplate(friendly, {
+        'name': 'Kamau',
+        'business': 'Vegetable stall',
+        'amount': '700',
+        'what': 'vegetables',
+        'due': '8 Nov',
+        'till': '000000',
+      }),
       'Hi Kamau, a friendly reminder from Vegetable stall: KES 700 for '
-      'vegetables. Thank you!',
+      'vegetables, due 8 Nov. You can pay to till 000000. Thank you!',
     );
+    final aWhile = defaultTemplates('KES').last.text;
+    expect(
+      fillTemplate(aWhile, {
+        'name': 'Njeri',
+        'amount': '600',
+        'date': '20 Oct',
+      }),
+      'Hi Njeri, just checking in on KES 600 from 20 Oct. Thank you!',
+    );
+  });
+
+  test('numbers get their country code', () {
+    final kenya = callingCodeFor('KE');
+    expect(internationalNumber('0712 345 678', kenya), '+254712345678');
+    expect(internationalNumber('712345678', kenya), '+254712345678');
+    expect(internationalNumber('254712345678', kenya), '+254712345678');
+    expect(internationalNumber('+44 7700 900123', kenya), '+447700900123');
+    expect(internationalNumber('0044 7700 900123', kenya), '+447700900123');
+    expect(internationalNumber('123', kenya), isNull);
+    expect(callingCodeFor('UG').code, '256');
+    expect(callingCodeFor(null).code, '254');
+    expect(
+      whatsAppLink('+254712345678', 'Hi there').toString(),
+      'https://wa.me/254712345678?text=Hi%20there',
+    );
+    expect(
+      smsLink('+254712345678', 'Hi').toString(),
+      'sms:+254712345678?body=Hi',
+    );
+  });
+
+  test('due customers: due today or late, or owing over two weeks', () {
+    final list = customersFrom([
+      loan('A', 100, today.addDays(-20)),
+      loan('B', 100, today, due: today),
+      loan('C', 100, today, due: today.addDays(3)),
+    ], today: today);
+    expect(dueCustomers(list, today: today).map((c) => c.name), ['A', 'B']);
   });
 }

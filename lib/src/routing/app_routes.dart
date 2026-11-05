@@ -80,6 +80,9 @@ abstract final class AppRoutes {
   static String customerStatement(String name) =>
       Uri(path: '/people/customer', queryParameters: {'name': name}).toString();
 
+  /// The business's reminder messages, app, till and daily nudge.
+  static const reminderMessages = '/people/messages';
+
   /// What the business owes one supplier, and has paid.
   static String supplierStatement(int debtId) => '/people/supplier/$debtId';
 

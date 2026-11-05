@@ -179,3 +179,15 @@ int dueWithin(
 }) => suppliers
     .where((s) => s.nextDue != null && today.daysUntil(s.nextDue!) <= days)
     .fold(0, (sum, s) => sum + s.owedMinor);
+
+/// Customers to remind today: due today or late, or owing over two weeks.
+List<CustomerAccount> dueCustomers(
+  Iterable<CustomerAccount> customers, {
+  required CalendarDate today,
+}) => [
+  for (final c in customers)
+    if (c.owedMinor > 0 &&
+        ((c.nextDue != null && !c.nextDue!.isAfter(today)) ||
+            c.overTwoWeeksMinor > 0))
+      c,
+];

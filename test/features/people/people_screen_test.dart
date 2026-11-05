@@ -14,9 +14,11 @@ import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/spaces/space_categories.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/books/application/books_providers.dart';
+import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 import 'package:pesaclarity/src/features/lending/data/reminder_sharer.dart';
 import 'package:pesaclarity/src/features/people/presentation/people_screen.dart';
 import 'package:pesaclarity/src/features/people/presentation/statement_screen.dart';
+import 'package:pesaclarity/src/features/reminders/application/business_reminders.dart';
 import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
@@ -32,6 +34,22 @@ class _Sharer implements ReminderSharer {
   Future<void> share(String message) async => shared.add(message);
 }
 
+class _Launcher implements MessageLauncher {
+  final opened = <(SendWith, String, String)>[];
+
+  @override
+  Future<bool> open(SendWith app, String international, String text) async {
+    opened.add((app, international, text));
+    return true;
+  }
+}
+
+class _Picker implements ContactPicker {
+  @override
+  Future<PickedContact?> pickPhone() async =>
+      (number: '+254 712 345 678', name: 'Otieno');
+}
+
 const _stall = Space(
   id: 'abc123',
   name: 'Vegetable stall',
@@ -41,11 +59,13 @@ const _stall = Space(
 void main() {
   late AppDatabase db;
   late _Sharer sharer;
+  late _Launcher launcher;
   final now = eat(2026, 11, 5, 10);
 
   setUp(() {
     db = openTestDatabase();
     sharer = _Sharer();
+    launcher = _Launcher();
   });
 
   List<Override> overrides() => [
@@ -53,6 +73,9 @@ void main() {
     clockProvider.overrideWithValue(() => now),
     activeSpaceProvider.overrideWithValue(_stall),
     reminderSharerProvider.overrideWithValue(sharer),
+    messageLauncherProvider.overrideWithValue(launcher),
+    contactPickerProvider.overrideWithValue(_Picker()),
+    deviceRegionProvider.overrideWithValue('KE'),
   ];
 
   Future<void> seed(ProviderContainer c) async {
@@ -117,23 +140,54 @@ void main() {
     await settleFrames(tester);
   }
 
-  testAppWidgets('customers show what they owe, and Remind shares a message', (
-    tester,
-  ) async {
+  testAppWidgets('customers show what they owe; Remind without a number '
+      'shares the message', (tester) async {
     await pump(tester);
     expect(find.text('People'), findsOneWidget);
     expect(find.text('Otieno'), findsOneWidget);
     expect(find.text('Due today · since 5 Nov'), findsOneWidget);
+    expect(find.byKey(const Key('remind-all')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('remind-Otieno')));
     await settleFrames(tester);
-    await tester.tap(find.text('Share'));
+    // Due today picks the Due today message.
+    final message = tester.widget<TextField>(
+      find.byKey(const Key('remind-message')),
+    );
+    expect(
+      message.controller!.text,
+      'Hi Otieno, KES 1,200 is due today. Thank you!',
+    );
+    await tester.tap(find.byKey(const Key('remind-send')));
     await settleFrames(tester);
     expect(
       sharer.shared.single,
+      'Hi Otieno, KES 1,200 is due today. Thank you!',
+    );
+  });
+
+  testAppWidgets('Remind with a contact opens WhatsApp to their number', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('remind-Otieno')));
+    await settleFrames(tester);
+    await tester.tap(find.byKey(const Key('phone-contacts')));
+    await settleFrames(tester);
+    await tester.tap(find.byKey(const Key('template-friendly')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('remind-send')));
+    await settleFrames(tester);
+    final (app, number, text) = launcher.opened.single;
+    expect(app, SendWith.whatsapp);
+    expect(number, '+254712345678');
+    expect(
+      text,
       'Hi Otieno, a friendly reminder from Vegetable stall: KES 1,200, due '
       'today. Thank you!',
     );
+    final saved = await tester.runAsync(() => db.select(db.contacts).get());
+    expect(saved!.single.phone, '+254712345678');
   });
 
   testAppWidgets('suppliers show what is owed and due', (tester) async {

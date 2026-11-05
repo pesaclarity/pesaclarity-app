@@ -26,6 +26,7 @@ import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
 import '../features/payees/presentation/payees_screen.dart';
 import '../features/people/presentation/people_screen.dart';
+import '../features/people/presentation/reminder_messages_screen.dart';
 import '../features/people/presentation/statement_screen.dart';
 import '../features/plan/presentation/payday_screen.dart';
 import '../features/plan/presentation/plan_screen.dart';
@@ -317,6 +318,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => CustomerStatementScreen(
                       name: state.uri.queryParameters['name'] ?? '',
                     ),
+                  ),
+                  GoRoute(
+                    path: 'messages',
+                    builder: (context, state) => const ReminderMessagesScreen(),
                   ),
                   GoRoute(
                     path: 'supplier/:id',

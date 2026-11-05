@@ -6,7 +6,6 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/people/people.dart';
-import '../../../domain/people/reminder_text.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
@@ -16,14 +15,12 @@ import '../../../shared/format/date_labels.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../lending/data/reminder_sharer.dart';
-import '../../lending/presentation/lending_screen.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
-import '../../spaces/application/spaces_providers.dart';
 import '../application/people_providers.dart';
+import 'remind_sheet.dart';
 
 /// People tab: customers who owe the business, and suppliers it owes. A
 /// services business calls its customers clients.
@@ -50,9 +47,23 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Text(
-              services ? 'Clients' : 'People',
-              style: theme.textTheme.headlineLarge,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    services ? 'Clients' : 'People',
+                    style: theme.textTheme.headlineLarge,
+                  ),
+                ),
+                TextButton(
+                  key: const Key('reminder-messages'),
+                  onPressed: () => context.push(AppRoutes.reminderMessages),
+                  child: Text(
+                    'Messages',
+                    style: TextStyle(color: PesaColors.of(context).link),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -93,30 +104,25 @@ String customerStanding(CustomerAccount c, {required CalendarDate today}) {
   return [?first, if (since != null) 'since ${shortDate(since)}'].join(' · ');
 }
 
-/// Shares the friendly reminder for [c] after showing it.
+/// Opens the Remind sheet for [c].
 Future<void> remindCustomer(
   BuildContext context,
   WidgetRef ref,
   CustomerAccount c,
-) {
-  final today = CalendarDate.local(ref.read(clockProvider)());
-  final due = c.nextDue;
-  final message = friendlyReminder(
-    name: c.name,
-    business: ref.read(activeSpaceProvider).name,
-    amount: formatMoney(Money(c.owedMinor)),
-    due: due == null
-        ? null
-        : due == today
-        ? 'today'
-        : dayLabel(due, thisYear: today.year),
-  );
-  return confirmReminder(
-    context,
-    ref.read(reminderSharerProvider),
-    c.name,
-    message,
-  );
+) => showRemindSheet(context, c);
+
+/// Steps through everyone due today or late, or owing over two weeks, one
+/// Remind sheet at a time; stops when one is closed.
+Future<void> remindAllDue(
+  BuildContext context,
+  List<CustomerAccount> customers, {
+  required CalendarDate today,
+}) async {
+  for (final c in dueCustomers(customers, today: today)) {
+    if (!context.mounted) return;
+    final sent = await showRemindSheet(context, c);
+    if (sent != true) return;
+  }
 }
 
 class _Tiles extends StatelessWidget {
@@ -246,6 +252,14 @@ class _Customers extends ConsumerWidget {
               ],
             ),
           ),
+        if (dueCustomers(owing, today: today).isNotEmpty) ...[
+          const SizedBox(height: 16),
+          OutlinedButton(
+            key: const Key('remind-all'),
+            onPressed: () => remindAllDue(context, owing, today: today),
+            child: const Text('Remind all who are due'),
+          ),
+        ],
       ],
     );
   }
