@@ -40,6 +40,7 @@ enum ReportSection {
   bestSellers('Best sellers'),
   stock('Stock'),
   cashBook('Cash book, every entry'),
+  tax('Tax estimate'),
   insights('Insights');
 
   const ReportSection(this.label);

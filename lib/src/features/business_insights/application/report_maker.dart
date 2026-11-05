@@ -13,6 +13,7 @@ import '../../../domain/books/report_setup.dart';
 import '../../../domain/time/calendar.dart';
 import '../../insights/application/report_sharer.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../../tax/application/tax_providers.dart';
 import '../presentation/report_preview_screen.dart';
 import 'business_report_pdf.dart';
 import 'business_report_providers.dart';
@@ -80,6 +81,9 @@ class ReportMaker {
         .read(categoriesRepositoryProvider)
         .watchAll()
         .first;
+    final tax = sections.contains(ReportSection.tax)
+        ? await _ref.read(taxViewProvider.future)
+        : null;
     final settings = await _ref.read(reportSettingsProvider.future);
     final space = _ref.read(activeSpaceProvider).name;
     return reportDocument(
@@ -90,6 +94,7 @@ class ReportMaker {
       coverLine: settings.cover.line(space),
       today: CalendarDate.local(_ref.read(clockProvider)()),
       cashBook: cashBook,
+      tax: tax,
       accountNames: {for (final a in accounts) a.id: a.name},
       categoryNames: {for (final c in categories) c.id: c.name},
     );

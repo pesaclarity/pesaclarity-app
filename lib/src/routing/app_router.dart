@@ -51,6 +51,7 @@ import '../features/stock/presentation/count_stock_screen.dart';
 import '../features/stock/presentation/item_screen.dart';
 import '../features/stock/presentation/stock_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
+import '../features/tax/presentation/tax_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
@@ -311,6 +312,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'report',
                     builder: (context, state) => const MakeReportScreen(),
+                  ),
+                  GoRoute(
+                    path: 'tax',
+                    builder: (context, state) => const TaxScreen(),
                   ),
                 ],
               ),

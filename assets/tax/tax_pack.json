@@ -1,0 +1,44 @@
+{
+  "country": "KE",
+  "version": 1,
+  "rulesAsOf": "2026-07-01",
+  "currency": "KES",
+  "turnoverTax": {
+    "rateBasisPoints": 150,
+    "fromMinor": 100000000,
+    "upToMinor": 2500000000,
+    "dueDay": 20,
+    "source": "Income Tax Act s.12C; rate from the Tax Laws (Amendment) Act 2024; band from the Finance Act 2023"
+  },
+  "vat": {
+    "rateBasisPoints": 1600,
+    "registerFromMinor": 500000000,
+    "source": "VAT Act 2013 s.5 and s.34"
+  },
+  "withholding": {
+    "residentFeesBasisPoints": 500,
+    "source": "Income Tax Act, Third Schedule: management, professional and consultancy fees to residents"
+  },
+  "incomeTax": {
+    "individualBands": [
+      { "widthMinor": 28800000, "rateBasisPoints": 1000 },
+      { "widthMinor": 10000000, "rateBasisPoints": 2500 },
+      { "widthMinor": 561200000, "rateBasisPoints": 3000 },
+      { "widthMinor": 360000000, "rateBasisPoints": 3250 },
+      { "rateBasisPoints": 3500 }
+    ],
+    "personalReliefMinor": 2880000,
+    "companyRateBasisPoints": 3000,
+    "source": "Income Tax Act, Third Schedule, yearly bands and personal relief"
+  },
+  "instalments": {
+    "months": [4, 6, 9, 12],
+    "day": 20,
+    "fromTaxMinor": 4000000,
+    "source": "Income Tax Act s.12: 25% of the year's tax on the 20th of the 4th, 6th, 9th and 12th months"
+  },
+  "kraPayments": {
+    "paybills": ["572572"],
+    "names": ["kra", "kenya revenue authority", "itax"]
+  }
+}

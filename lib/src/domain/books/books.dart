@@ -35,6 +35,10 @@ enum JournalSource {
   /// Stock in at the start, sold, or counted: [JournalEntry.sourceId] is
   /// the stock move's id.
   stock,
+
+  /// Tax a client kept back from a payment and paid to KRA for the
+  /// business: [JournalEntry.sourceId] is the withheld record's id.
+  withheld,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -133,6 +137,22 @@ class OwedBefore {
   final bool toYou;
 }
 
+/// Tax a client withheld: it counts as tax paid and comes off what they
+/// owe.
+class WithheldTax {
+  const WithheldTax({
+    required this.sourceId,
+    required this.at,
+    required this.amountMinor,
+    required this.currency,
+  });
+
+  final int sourceId;
+  final DateTime at;
+  final int amountMinor;
+  final String currency;
+}
+
 /// A stock move the books post: stock there at the start, sold at the
 /// average cost, or a count's difference.
 class StockEntry {
@@ -181,6 +201,7 @@ class Books {
     Iterable<OwedBefore> owedBefore = const [],
     Iterable<StockEntry> stock = const [],
     Set<int> restocks = const {},
+    Iterable<WithheldTax> withheld = const [],
   }) {
     final all = history.toList();
     final fuliza = FulizaLedger.of(all);
@@ -226,7 +247,8 @@ class Books {
       JournalSource.stock => 0,
       JournalSource.transaction ||
       JournalSource.creditSale ||
-      JournalSource.creditPurchase => 1,
+      JournalSource.creditPurchase ||
+      JournalSource.withheld => 1,
       JournalSource.balanceDifference => 2,
     };
     for (final p in purchases) {
@@ -262,6 +284,20 @@ class Books {
           lines: [
             JournalLine(owed, sign * o.amountMinor),
             JournalLine(BookAccount.openingBalances, -sign * o.amountMinor),
+          ],
+        ),
+      );
+    }
+    for (final w in withheld) {
+      out.add(
+        JournalEntry(
+          source: JournalSource.withheld,
+          sourceId: w.sourceId,
+          at: w.at,
+          currency: w.currency,
+          lines: [
+            JournalLine(BookAccount.tax, w.amountMinor),
+            JournalLine(BookAccount.owedToYou, -w.amountMinor),
           ],
         ),
       );

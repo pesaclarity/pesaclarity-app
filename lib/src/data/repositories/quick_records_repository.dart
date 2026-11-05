@@ -381,39 +381,8 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
     }
   }
 
-  /// Records [amountMinor] against what [customer] owes, oldest first.
-  Future<void> _takeOff(String customer, int amountMinor, DateTime at) async {
-    final key = customer.trim().toLowerCase();
-    final loans = [
-      for (final l in await (_db.select(
-        _db.lentLoans,
-      )..orderBy([(l) => OrderingTerm.asc(l.lentOn)])).get())
-        if (l.person.trim().toLowerCase() == key) l,
-    ];
-    final paid = <int, int>{};
-    for (final p in await (_db.select(
-      _db.loanPayments,
-    )..where((p) => p.lentLoanId.isNotNull())).get()) {
-      paid[p.lentLoanId!] = (paid[p.lentLoanId!] ?? 0) + p.amountMinor;
-    }
-    var left = amountMinor;
-    for (final loan in loans) {
-      if (left <= 0) break;
-      final owed = loan.amountMinor - (paid[loan.id] ?? 0);
-      if (owed <= 0) continue;
-      final part = owed < left ? owed : left;
-      await _db
-          .into(_db.loanPayments)
-          .insert(
-            LoanPaymentsCompanion.insert(
-              lentLoanId: Value(loan.id),
-              paidOn: at,
-              amountMinor: part,
-            ),
-          );
-      left -= part;
-    }
-  }
+  Future<void> _takeOff(String customer, int amountMinor, DateTime at) =>
+      takeOffOwed(_db, customer, amountMinor, at);
 
   @override
   Future<List<WaitingPayment>> waiting() async => [
@@ -645,3 +614,43 @@ class DriftQuickRecordsRepository implements QuickRecordsRepository {
 final quickRecordsRepositoryProvider = Provider<QuickRecordsRepository>(
   (ref) => DriftQuickRecordsRepository(ref.watch(appDatabaseProvider)),
 );
+
+/// Records [amountMinor] against what [customer] owes in [db], oldest
+/// credit first.
+Future<void> takeOffOwed(
+  AppDatabase db,
+  String customer,
+  int amountMinor,
+  DateTime at,
+) async {
+  final key = customer.trim().toLowerCase();
+  final loans = [
+    for (final l in await (db.select(
+      db.lentLoans,
+    )..orderBy([(l) => OrderingTerm.asc(l.lentOn)])).get())
+      if (l.person.trim().toLowerCase() == key) l,
+  ];
+  final paid = <int, int>{};
+  for (final p in await (db.select(
+    db.loanPayments,
+  )..where((p) => p.lentLoanId.isNotNull())).get()) {
+    paid[p.lentLoanId!] = (paid[p.lentLoanId!] ?? 0) + p.amountMinor;
+  }
+  var left = amountMinor;
+  for (final loan in loans) {
+    if (left <= 0) break;
+    final owed = loan.amountMinor - (paid[loan.id] ?? 0);
+    if (owed <= 0) continue;
+    final part = owed < left ? owed : left;
+    await db
+        .into(db.loanPayments)
+        .insert(
+          LoanPaymentsCompanion.insert(
+            lentLoanId: Value(loan.id),
+            paidOn: at,
+            amountMinor: part,
+          ),
+        );
+    left -= part;
+  }
+}

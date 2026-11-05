@@ -6,9 +6,13 @@ import '../../../domain/books/report_setup.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/ledger/activity_lines.dart';
 import '../../../domain/stock/stock.dart';
+import '../../../domain/tax/tax_estimate.dart';
+import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../sales/presentation/pay_sheet.dart';
+import '../../tax/application/tax_providers.dart';
 import 'business_report_providers.dart';
 
 /// A part of a report.
@@ -84,6 +88,7 @@ ReportDocument reportDocument({
   required String coverLine,
   required CalendarDate today,
   CashBook? cashBook,
+  TaxView? tax,
   Map<int, String> accountNames = const {},
   Map<int, String> categoryNames = const {},
 }) {
@@ -252,6 +257,8 @@ ReportDocument reportDocument({
                 'count neither in nor out.',
           ),
         );
+      case ReportSection.tax:
+        if (tax != null) blocks.add(_taxTable(tax, section.label));
       case ReportSection.insights:
         if (report.insights.isNotEmpty) {
           blocks.add(ReportNotes(section.label, report.insights));
@@ -315,6 +322,70 @@ List<Object?>? _cashRow(
       ];
   }
 }
+
+ReportTable _taxTable(TaxView view, String title) {
+  final note =
+      'An estimate from the tax pack, rules as of '
+      '${_day(view.pack.rulesAsOf)}. Check with KRA or a tax adviser before '
+      'you file.';
+  switch (view.kind) {
+    case TaxKind.incomeTax:
+      final e = view.income;
+      final f = e.figures;
+      return ReportTable(
+        '$title, ${e.year} to date',
+        columns: const ['', 'Amount'],
+        rows: [
+          [view.services ? 'Fees earned' : 'Sales', f.incomeMinor],
+          ['Costs', -f.costsMinor],
+          ['Profit', f.profitMinor],
+          [
+            e.company
+                ? 'Income tax on profit, company rate'
+                : 'Income tax on profit, individual rates',
+            e.taxMinor,
+          ],
+          ['Withheld by clients', -f.withheldMinor],
+          ['Paid to KRA', -f.paidToKraMinor],
+        ],
+        total: ['Left to pay', e.leftMinor],
+        note: note,
+      );
+    case TaxKind.turnover:
+      final last = view.lastMonth;
+      final now = view.thisMonth;
+      final rate = rateText(view.pack.turnoverRate);
+      return ReportTable(
+        '$title: Turnover Tax at $rate',
+        columns: const ['', 'Due', 'Amount'],
+        rows: [
+          ['Sales, ${_month(last.month)}', null, last.salesMinor],
+          [
+            'Turnover Tax, ${_month(last.month)}',
+            _day(last.due),
+            last.taxMinor,
+          ],
+          ['Paid to KRA', null, -last.paidMinor],
+          ['Sales, ${_month(now.month)} so far', null, now.salesMinor],
+          ['Turnover Tax so far', _day(now.due), now.taxMinor],
+        ],
+        total: ['May owe', null, view.owedMinor],
+        note: note,
+      );
+    case TaxKind.belowTurnover:
+      return ReportTable(
+        title,
+        columns: const ['', 'Amount'],
+        rows: [
+          ['Sales over the last 12 months', view.yearSalesMinor],
+          ['Turnover Tax starts at', view.pack.turnoverFromMinor],
+        ],
+        note: note,
+      );
+  }
+}
+
+String _month(YearMonth m) => '${monthName(m)} ${m.year}';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
 
