@@ -144,6 +144,13 @@ void main() {
     expect(tabsFor(SpaceKind.business).map((t) => t.label), [
       'Today',
       'Money',
+      'People',
+      'Insights',
+    ]);
+    expect(tabsFor(SpaceKind.business, services: true).map((t) => t.label), [
+      'Today',
+      'Money',
+      'Clients',
       'Insights',
     ]);
   });
@@ -154,6 +161,8 @@ void main() {
     expect(selectedTabOf(businessTabs, ShellBranch.plan), -1);
     expect(selectedTabOf(personalTabs, ShellBranch.activity), 1);
     expect(selectedTabOf(personalTabs, ShellBranch.money), -1);
+    // Lent and borrowed sits under Goals; a business finds it in People.
+    expect(selectedTabOf(businessTabs, ShellBranch.goals), 2);
   });
 
   testWidgets('the bar shows no tab as current when none fits', (tester) async {

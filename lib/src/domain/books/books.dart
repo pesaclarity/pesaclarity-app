@@ -26,6 +26,10 @@ enum JournalSource {
   /// Stock or a cost bought to pay later: [JournalEntry.sourceId] is the
   /// record's id.
   creditPurchase,
+
+  /// What a customer owed, or the business owed a supplier, before its
+  /// records: [JournalEntry.sourceId] is the loan's or debt's id.
+  owedBefore,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -102,6 +106,24 @@ class CreditPurchase {
   final int categoryId;
 }
 
+/// Money owed from before the records: by a customer to the business
+/// ([toYou]), or by the business to a supplier.
+class OwedBefore {
+  const OwedBefore({
+    required this.sourceId,
+    required this.at,
+    required this.amountMinor,
+    required this.currency,
+    required this.toYou,
+  });
+
+  final int sourceId;
+  final DateTime at;
+  final int amountMinor;
+  final String currency;
+  final bool toYou;
+}
+
 /// Category key whose outflows are the owner taking money out.
 const ownerPayCategoryKey = 'owner_pay';
 
@@ -123,6 +145,7 @@ class Books {
     required Map<int, BookCategory> categories,
     Iterable<CreditSale> credits = const [],
     Iterable<CreditPurchase> purchases = const [],
+    Iterable<OwedBefore> owedBefore = const [],
   }) {
     final all = history.toList();
     final fuliza = FulizaLedger.of(all);
@@ -153,7 +176,7 @@ class Books {
     // By time; at the same instant an opening comes first and a balance
     // difference last, after the transaction that reported the balance.
     int rank(JournalSource s) => switch (s) {
-      JournalSource.opening => 0,
+      JournalSource.opening || JournalSource.owedBefore => 0,
       JournalSource.transaction ||
       JournalSource.creditSale ||
       JournalSource.creditPurchase => 1,
@@ -172,6 +195,24 @@ class Books {
               p.amountMinor,
             ),
             JournalLine(BookAccount.owedToSuppliers, -p.amountMinor),
+          ],
+        ),
+      );
+    }
+    for (final o in owedBefore) {
+      final owed = o.toYou
+          ? BookAccount.owedToYou
+          : BookAccount.owedToSuppliers;
+      final sign = o.toYou ? 1 : -1;
+      out.add(
+        JournalEntry(
+          source: JournalSource.owedBefore,
+          sourceId: o.sourceId,
+          at: o.at,
+          currency: o.currency,
+          lines: [
+            JournalLine(owed, sign * o.amountMinor),
+            JournalLine(BookAccount.openingBalances, -sign * o.amountMinor),
           ],
         ),
       );
