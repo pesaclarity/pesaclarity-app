@@ -58,21 +58,30 @@ Future<bool?> showPaySheet(
   BuildContext context, {
   required int totalMinor,
   String? note,
+  PayWay initialWay = PayWay.cash,
 }) => showModalBottomSheet<bool>(
   context: context,
   isScrollControlled: true,
   showDragHandle: true,
   builder: (context) => Padding(
     padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: PaySheet(totalMinor: totalMinor, note: note),
+    child: PaySheet(totalMinor: totalMinor, note: note, initialWay: initialWay),
   ),
 );
 
 class PaySheet extends ConsumerStatefulWidget {
-  const PaySheet({required this.totalMinor, this.note, super.key});
+  const PaySheet({
+    required this.totalMinor,
+    this.note,
+    this.initialWay = PayWay.cash,
+    super.key,
+  });
 
   final int totalMinor;
   final String? note;
+
+  /// Credit for work billed to pay later.
+  final PayWay initialWay;
 
   @override
   ConsumerState<PaySheet> createState() => _PaySheetState();
@@ -86,7 +95,7 @@ const _customerSuggestions = 5;
 
 class _PaySheetState extends ConsumerState<PaySheet> {
   final _form = GlobalKey<FormState>();
-  var _way = PayWay.cash;
+  late var _way = widget.initialWay;
   final _given = TextEditingController();
   final _customer = TextEditingController();
   final _now = TextEditingController();
@@ -267,7 +276,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
       _Change(controller: _given, totalMinor: widget.totalMinor),
     ],
     PayWay.mpesa || PayWay.bank => [
-      _Note(
+      InfoNote(
         'Waiting for the ${methodName(_way.method!)} message for '
         '${_kes(widget.totalMinor)}. It will match this sale on its own, '
         'or tap Done now.',
@@ -282,7 +291,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         maxMinor: widget.totalMinor - 100,
       ),
       const SizedBox(height: 8),
-      _MethodChips(
+      MethodChips(
         keyPrefix: 'pay-now',
         options: const [
           SalePaymentMethod.cash,
@@ -314,7 +323,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         },
       ),
       const SizedBox(height: 8),
-      _MethodChips(
+      MethodChips(
         keyPrefix: 'pay-rest',
         options: [
           for (final m in SalePaymentMethod.values)
@@ -412,18 +421,22 @@ class _PaySheetState extends ConsumerState<PaySheet> {
   }
 }
 
-class _MethodChips extends StatelessWidget {
-  const _MethodChips({
+/// One chip per way of paying in [options].
+class MethodChips extends StatelessWidget {
+  const MethodChips({
     required this.keyPrefix,
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.labelFor = methodLabel,
+    super.key,
   });
 
   final String keyPrefix;
   final List<SalePaymentMethod> options;
   final SalePaymentMethod selected;
   final ValueChanged<SalePaymentMethod> onSelected;
+  final String Function(SalePaymentMethod method) labelFor;
 
   @override
   Widget build(BuildContext context) => Wrap(
@@ -433,7 +446,7 @@ class _MethodChips extends StatelessWidget {
       for (final m in options)
         ChoiceChip(
           key: Key('$keyPrefix-${m.name}'),
-          label: Text(methodLabel(m)),
+          label: Text(labelFor(m)),
           selected: selected == m,
           onSelected: (_) => onSelected(m),
         ),
@@ -456,7 +469,7 @@ class _Change extends StatelessWidget {
       if (given <= totalMinor) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: _Note(
+        child: InfoNote(
           'Change: ${formatMoney(Money(given - totalMinor))}',
           key: const Key('pay-change'),
         ),
@@ -465,8 +478,9 @@ class _Change extends StatelessWidget {
   );
 }
 
-class _Note extends StatelessWidget {
-  const _Note(this.text, {super.key});
+/// A soft green note, such as what happens next.
+class InfoNote extends StatelessWidget {
+  const InfoNote(this.text, {super.key});
 
   final String text;
 

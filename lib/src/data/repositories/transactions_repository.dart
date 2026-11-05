@@ -299,6 +299,9 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.salePayments,
       _db.lentLoans,
       _db.loanPayments,
+      _db.quickRecords,
+      _db.debts,
+      _db.debtInstalments,
     ]),
   );
 

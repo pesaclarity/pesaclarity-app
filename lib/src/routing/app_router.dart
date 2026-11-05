@@ -83,7 +83,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.sell,
-        builder: (context, state) => const SellScreen(),
+        builder: (context, state) =>
+            SellScreen(billed: state.uri.queryParameters['for'] == 'billed'),
       ),
       GoRoute(
         path: AppRoutes.onboarding,

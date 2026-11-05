@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/books/books.dart';
@@ -32,5 +33,8 @@ final booksProvider = FutureProvider<Books>((ref) async {
         : await ref
               .watch(salesRepositoryProvider)
               .creditSales(salesCategoryId: sales.id),
+    purchases: await ref
+        .watch(quickRecordsRepositoryProvider)
+        .creditPurchases(),
   );
 });

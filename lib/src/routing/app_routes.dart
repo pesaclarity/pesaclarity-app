@@ -75,4 +75,7 @@ abstract final class AppRoutes {
 
   /// A business: sell, then pay. Full screen, over the tabs.
   static const sell = '/sell';
+
+  /// A services business: work done, billed to pay later.
+  static const billed = '/sell?for=billed';
 }

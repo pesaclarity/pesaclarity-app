@@ -22,13 +22,15 @@ void main() {
     int amount = 18000,
     SalePaymentMethod method = SalePaymentMethod.mpesa,
     DateTime? at,
+    WaitingKind kind = WaitingKind.sale,
   }) => WaitingPayment(
-    paymentId: id,
-    saleId: id,
+    id: id,
+    kind: kind,
     method: method,
     amountMinor: amount,
     currency: 'KES',
-    soldAt: at ?? soldAt,
+    at: at ?? soldAt,
+    categoryId: sales,
   );
 
   LedgerEntry paid(
@@ -39,12 +41,13 @@ void main() {
     int? categoryId,
     bool auto = false,
     int? pair,
+    bool out = false,
   }) => LedgerEntry(
     id: id,
     accountId: accountId,
     occurredAt: at ?? soldAt.add(const Duration(minutes: 1)),
     amountMinor: amount,
-    direction: TransactionDirection.inflow,
+    direction: out ? TransactionDirection.outflow : TransactionDirection.inflow,
     kind: TransactionKind.received,
     categoryId: categoryId,
     categoryIsAuto: auto,
@@ -55,13 +58,15 @@ void main() {
     List<WaitingPayment> w,
     List<LedgerEntry> e, {
     Set<int> linked = const {},
-  }) => matchWaitingPayments(
-    w,
-    e,
-    accountTypes: types,
-    linked: linked,
-    salesCategoryId: sales,
-  );
+  }) => {
+    for (final MapEntry(:key, :value) in matchWaitingPayments(
+      w,
+      e,
+      accountTypes: types,
+      linked: linked,
+    ).entries)
+      key.id: value,
+  };
 
   test('a payment of the same amount on M-Pesa matches', () {
     expect(match([waiting(1)], [paid(100)]), {1: 100});
@@ -124,6 +129,18 @@ void main() {
       {1: 101, 2: 100},
     );
     expect(match([waiting(1), waiting(2)], [paid(100)]), {1: 100});
+  });
+
+  test('money out matches what was bought or paid, money in does not', () {
+    expect(
+      match([waiting(1, kind: WaitingKind.bought)], [paid(100, out: true)]),
+      {1: 100},
+    );
+    expect(match([waiting(1, kind: WaitingKind.paid)], [paid(100)]), isEmpty);
+    expect(match([waiting(1)], [paid(100, out: true)]), isEmpty);
+    expect(match([waiting(1, kind: WaitingKind.gotPaid)], [paid(100)]), {
+      1: 100,
+    });
   });
 
   test('cash and credit never wait for a message', () {

@@ -1,0 +1,609 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/money/money.dart';
+import '../../../core/money/money_format.dart';
+import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart';
+import '../../../data/database/database_providers.dart';
+import '../../../data/repositories/category_seeds.dart';
+import '../../../data/repositories/debts_repository.dart';
+import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/debts/debt.dart';
+import '../../../domain/spaces/space_categories.dart';
+import '../../../domain/time/calendar.dart';
+import '../../../domain/time/date_labels.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/form_fields.dart';
+import '../../../theme/pesa_colors.dart';
+import '../../lending/application/lending_providers.dart';
+import '../../payees/presentation/category_picker.dart';
+import '../application/sales_providers.dart';
+import 'pay_sheet.dart';
+
+/// Ways money is paid now, for Got paid and Paid.
+const _paidNow = [
+  SalePaymentMethod.cash,
+  SalePaymentMethod.mpesa,
+  SalePaymentMethod.bank,
+];
+
+Future<bool?> _sheet(BuildContext context, Widget child) =>
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: child,
+          ),
+        ),
+      ),
+    );
+
+/// Bought: stock or a cost, paid now or later. With [costOnly], as for a
+/// services business, there is no stock to choose.
+Future<bool?> showBoughtSheet(BuildContext context, {bool costOnly = false}) =>
+    _sheet(context, _BoughtSheet(costOnly: costOnly));
+
+/// Got paid: a customer pays some or all of what they owe.
+Future<bool?> showGotPaidSheet(BuildContext context) =>
+    _sheet(context, const _GotPaidSheet());
+
+/// Paid: the business pays a supplier some or all of what it owes.
+Future<bool?> showPaidSheet(BuildContext context) =>
+    _sheet(context, const _PaidSheet());
+
+void _saved(
+  NavigatorState navigator,
+  ScaffoldMessengerState messenger, {
+  required SalePaymentMethod method,
+  required String what,
+}) {
+  navigator.pop(true);
+  final waits =
+      method == SalePaymentMethod.mpesa || method == SalePaymentMethod.bank;
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(
+        waits
+            ? '$what saved. It will match the ${methodName(method)} message '
+                  'when it comes.'
+            : '$what saved.',
+      ),
+    ),
+  );
+}
+
+Widget _label(BuildContext context, String text) => Padding(
+  padding: const EdgeInsets.only(bottom: 8),
+  child: Text(
+    text,
+    style: Theme.of(context).textTheme.bodyMedium!
+        .copyWith(color: PesaColors.of(context).textMuted),
+  ),
+);
+
+Widget _waitNote(SalePaymentMethod method, int amountMinor) => switch (method) {
+  SalePaymentMethod.mpesa || SalePaymentMethod.bank => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: InfoNote(
+      'It will match the ${methodName(method)} message for '
+      '${formatMoney(Money(amountMinor))} when it comes.',
+    ),
+  ),
+  _ => const SizedBox.shrink(),
+};
+
+class _BoughtSheet extends ConsumerStatefulWidget {
+  const _BoughtSheet({required this.costOnly});
+
+  final bool costOnly;
+
+  @override
+  ConsumerState<_BoughtSheet> createState() => _BoughtSheetState();
+}
+
+class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
+  final _form = GlobalKey<FormState>();
+  final _amount = TextEditingController();
+  final _note = TextEditingController();
+  final _supplier = TextEditingController();
+  late var _stock = !widget.costOnly;
+  int? _costId;
+  var _method = SalePaymentMethod.cash;
+  CalendarDate? _due;
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _note.dispose();
+    _supplier.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      final category = _stock
+          ? await ensureCategory(ref.read(appDatabaseProvider), stockSeed)
+          : _costId!;
+      final note = _note.text.trim();
+      final supplier = _supplier.text.trim();
+      await ref
+          .read(salesControllerProvider)
+          .bought(
+            amountMinor: AmountField.amountFrom(_amount.text)!,
+            method: _method,
+            categoryId: category,
+            supplier: supplier.isEmpty ? null : supplier,
+            dueDate: _method == SalePaymentMethod.credit ? _due : null,
+            note: note.isEmpty ? null : note,
+          );
+      _saved(navigator, messenger, method: _method, what: 'Bought');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    final later = _method == SalePaymentMethod.credit;
+    return Form(
+      key: _form,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Bought', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          if (!widget.costOnly) ...[
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  key: const Key('bought-stock'),
+                  label: const Text('Stock'),
+                  selected: _stock,
+                  onSelected: (_) => setState(() => _stock = true),
+                ),
+                ChoiceChip(
+                  key: const Key('bought-cost'),
+                  label: const Text('A cost'),
+                  selected: !_stock,
+                  onSelected: (_) => setState(() => _stock = false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (!_stock) ...[
+            FormField<int>(
+              validator: (_) => _costId == null ? 'Choose what it was.' : null,
+              builder: (field) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CategorySelectorField(
+                    key: const Key('bought-category'),
+                    label: 'What it was',
+                    noneLabel: 'Choose',
+                    selectedId: _costId,
+                    allowType: (type) => type == CategoryType.expense,
+                    onChanged: (id) => setState(() => _costId = id),
+                  ),
+                  if (field.errorText case final error?)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 12),
+                      child: Text(
+                        error,
+                        style: theme.textTheme.bodySmall!.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          AmountField(
+            key: const Key('bought-amount'),
+            controller: _amount,
+            label: 'Amount',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('bought-note'),
+            controller: _note,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: _stock
+                  ? 'What you bought (optional)'
+                  : 'Note (optional)',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _label(context, 'How did you pay?'),
+          MethodChips(
+            keyPrefix: 'bought-way',
+            options: SalePaymentMethod.values,
+            labelFor: (m) =>
+                m == SalePaymentMethod.credit ? 'Pay later' : methodLabel(m),
+            selected: _method,
+            onSelected: (m) => setState(() => _method = m),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('bought-supplier'),
+            controller: _supplier,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: later ? 'Supplier' : 'Supplier (optional)',
+            ),
+            validator: (text) => later && (text ?? '').trim().isEmpty
+                ? 'Enter who you will pay, such as Wakulima wholesaler.'
+                : null,
+          ),
+          if (later) ...[
+            const SizedBox(height: 16),
+            _label(context, 'When will you pay?'),
+            DueDateChips(
+              today: today,
+              value: _due,
+              onChanged: (d) => setState(() => _due = d),
+            ),
+          ],
+          ListenableBuilder(
+            listenable: _amount,
+            builder: (context, _) =>
+                _waitNote(_method, AmountField.amountFrom(_amount.text) ?? 0),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('bought-save'),
+            onPressed: _saving ? null : _save,
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Someone who owes the business, by name, and how much in all.
+typedef _Owing = ({String name, int owedMinor});
+
+class _GotPaidSheet extends ConsumerStatefulWidget {
+  const _GotPaidSheet();
+
+  @override
+  ConsumerState<_GotPaidSheet> createState() => _GotPaidSheetState();
+}
+
+class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
+  final _form = GlobalKey<FormState>();
+  final _amount = TextEditingController();
+  String? _customer;
+  var _method = SalePaymentMethod.cash;
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  List<_Owing> _owing(CalendarDate today) {
+    final byName = <String, int>{};
+    final lent = ref.watch(lendingOverviewProvider).value?.lent ?? const [];
+    for (final l in lent) {
+      final left = l.status(today).remainingMinor;
+      if (left > 0) byName[l.person] = (byName[l.person] ?? 0) + left;
+    }
+    return [
+      for (final MapEntry(:key, :value) in byName.entries)
+        (name: key, owedMinor: value),
+    ];
+  }
+
+  void _pick(_Owing who) => setState(() {
+    _customer = who.name;
+    _amount.text = formatMoney(Money(who.owedMinor), withCurrency: false);
+  });
+
+  Future<void> _save(int owed) async {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(salesControllerProvider)
+          .gotPaid(
+            customer: _customer!,
+            amountMinor: AmountField.amountFrom(_amount.text)!,
+            method: _method,
+          );
+      _saved(navigator, messenger, method: _method, what: 'Payment');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    final owing = _owing(today);
+    if (_customer == null && owing.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _customer == null) _pick(owing.first);
+      });
+    }
+    final owed = owing
+        .where((o) => o.name == _customer)
+        .fold(0, (sum, o) => sum + o.owedMinor);
+
+    return Form(
+      key: _form,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Got paid', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          if (owing.isEmpty)
+            Text(
+              'Customers who owe you show here. Sell on credit and they '
+              'appear, ready to pay.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else ...[
+            _label(context, 'Who paid?'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final who in owing)
+                  ChoiceChip(
+                    key: Key('got-paid-${who.name}'),
+                    label: Text(
+                      '${who.name} · '
+                      '${formatMoney(Money(who.owedMinor), withCurrency: false)}',
+                    ),
+                    selected: _customer == who.name,
+                    onSelected: (_) => _pick(who),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AmountField(
+              key: const Key('got-paid-amount'),
+              controller: _amount,
+              label: 'Amount paid',
+              maxMinor: owed > 0 ? owed : null,
+            ),
+            const SizedBox(height: 16),
+            _label(context, 'How did they pay?'),
+            MethodChips(
+              keyPrefix: 'got-paid-way',
+              options: _paidNow,
+              selected: _method,
+              onSelected: (m) => setState(() => _method = m),
+            ),
+            ListenableBuilder(
+              listenable: _amount,
+              builder: (context, _) =>
+                  _waitNote(_method, AmountField.amountFrom(_amount.text) ?? 0),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('got-paid-save'),
+              onPressed: _saving || _customer == null
+                  ? null
+                  : () => _save(owed),
+              child: const Text('Save'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Suppliers the open business owes, with what is left on each.
+final suppliersOwedProvider = FutureProvider<List<Debt>>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  return [
+    for (final d
+        in await ref.watch(debtsRepositoryProvider).debts(today: today))
+      if (d.balanceMinor > 0 && !d.isFormal) d,
+  ];
+});
+
+class _PaidSheet extends ConsumerStatefulWidget {
+  const _PaidSheet();
+
+  @override
+  ConsumerState<_PaidSheet> createState() => _PaidSheetState();
+}
+
+class _PaidSheetState extends ConsumerState<_PaidSheet> {
+  final _form = GlobalKey<FormState>();
+  final _amount = TextEditingController();
+  Debt? _debt;
+  var _method = SalePaymentMethod.mpesa;
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _pick(Debt debt) => setState(() {
+    _debt = debt;
+    _amount.text = formatMoney(Money(debt.balanceMinor), withCurrency: false);
+  });
+
+  Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final debt = _debt!;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(salesControllerProvider)
+          .paid(
+            debtId: debt.id,
+            supplier: debt.lender,
+            amountMinor: AmountField.amountFrom(_amount.text)!,
+            method: _method,
+          );
+      _saved(navigator, messenger, method: _method, what: 'Payment');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final owed = ref.watch(suppliersOwedProvider).value ?? const [];
+    if (_debt == null && owed.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _debt == null) _pick(owed.first);
+      });
+    }
+    return Form(
+      key: _form,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Paid a supplier', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          if (owed.isEmpty)
+            Text(
+              'Suppliers you owe show here. Buy with Pay later in Bought, '
+              'and pay them from here.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else ...[
+            _label(context, 'Who did you pay?'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final d in owed)
+                  ChoiceChip(
+                    key: Key('paid-${d.id}'),
+                    label: Text(
+                      '${d.lender} · '
+                      '${formatMoney(Money(d.balanceMinor), withCurrency: false)}',
+                    ),
+                    selected: _debt?.id == d.id,
+                    onSelected: (_) => _pick(d),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AmountField(
+              key: const Key('paid-amount'),
+              controller: _amount,
+              label: 'Amount paid',
+              maxMinor: _debt?.balanceMinor,
+            ),
+            const SizedBox(height: 16),
+            _label(context, 'How did you pay?'),
+            MethodChips(
+              keyPrefix: 'paid-way',
+              options: _paidNow,
+              selected: _method,
+              onSelected: (m) => setState(() => _method = m),
+            ),
+            ListenableBuilder(
+              listenable: _amount,
+              builder: (context, _) =>
+                  _waitNote(_method, AmountField.amountFrom(_amount.text) ?? 0),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('paid-save'),
+              onPressed: _saving || _debt == null ? null : _save,
+              child: const Text('Save'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// When money is due: today, in a week, or a picked date. Null is no date.
+class DueDateChips extends StatelessWidget {
+  const DueDateChips({
+    required this.today,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final CalendarDate today;
+  final CalendarDate? value;
+  final ValueChanged<CalendarDate?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final week = today.addDays(7);
+    final picked = value != null && value != today && value != week
+        ? value
+        : null;
+    DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ChoiceChip(
+          label: const Text('Today'),
+          selected: value == today,
+          onSelected: (on) => onChanged(on ? today : null),
+        ),
+        ChoiceChip(
+          label: const Text('In a week'),
+          selected: value == week,
+          onSelected: (on) => onChanged(on ? week : null),
+        ),
+        ChoiceChip(
+          label: Text(
+            picked == null
+                ? 'Pick a date'
+                : dayLabel(picked, thisYear: today.year),
+          ),
+          selected: picked != null,
+          onSelected: (_) async {
+            final chosen = await pickDate(
+              context,
+              initialDate: asDay(value ?? week),
+              firstDate: asDay(today),
+              lastDate: asDay(today.addDays(366)),
+            );
+            if (chosen != null) {
+              onChanged(CalendarDate(chosen.year, chosen.month, chosen.day));
+            }
+          },
+        ),
+      ],
+    );
+  }
+}

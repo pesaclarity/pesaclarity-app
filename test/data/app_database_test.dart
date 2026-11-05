@@ -702,6 +702,18 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 19 database: quick records', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE quick_records');
+      await old.customStatement('PRAGMA user_version = 19');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.quickRecords).get(), isEmpty);
+    });
+
     test('migrates a version 18 database: sales', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE sale_payments');
