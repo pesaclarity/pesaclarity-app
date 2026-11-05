@@ -72,16 +72,23 @@ class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
                 children: [
                   for (final (i, source) in IncomeSource.values.indexed) ...[
                     if (i > 0) const Divider(height: 1),
-                    CheckboxListTile(
-                      key: Key('income-${source.name}'),
-                      title: Text(source.label),
-                      subtitle: Text(source.hint),
-                      value: picked.contains(source),
-                      onChanged: (on) => setState(
-                        () => _picked = {
-                          ...picked.where((s) => s != source),
-                          if (on ?? false) source,
-                        },
+                    // Merged so the id lands on the node that carries the
+                    // checked state.
+                    MergeSemantics(
+                      child: Semantics(
+                        identifier: SemanticIds.incomeSource(source.name),
+                        child: CheckboxListTile(
+                          key: Key('income-${source.name}'),
+                          title: Text(source.label),
+                          subtitle: Text(source.hint),
+                          value: picked.contains(source),
+                          onChanged: (on) => setState(
+                            () => _picked = {
+                              ...picked.where((s) => s != source),
+                              if (on ?? false) source,
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ],

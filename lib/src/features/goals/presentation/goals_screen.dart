@@ -69,9 +69,12 @@ class _GoalsBody extends ConsumerWidget {
           _DebtFreeCard(overview),
           _SectionHeader(
             'Debts',
-            action: TextButton(
-              onPressed: () => context.go(AppRoutes.debts),
-              child: const Text('See debts'),
+            action: Semantics(
+              identifier: SemanticIds.goalsSeeDebts,
+              child: TextButton(
+                onPressed: () => context.go(AppRoutes.debts),
+                child: const Text('See debts'),
+              ),
             ),
           ),
           if (open.isEmpty)

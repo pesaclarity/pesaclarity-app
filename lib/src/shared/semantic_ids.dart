@@ -22,8 +22,17 @@ abstract final class SemanticIds {
   static String institution(String institutionId) =>
       'institution-${institutionId.replaceAll('_', '-')}';
 
+  /// A row in the currency picker, such as `currency-KES`.
+  static String currency(String code) => 'currency-$code';
+
+  /// A row in the income sources list, such as `income-salary`.
+  static String incomeSource(String name) => 'income-$name';
+
   static const homeProfile = 'home-profile';
   static const profileMyAccounts = 'profile-my-accounts';
+  static const profileBackup = 'profile-backup';
+  static const profilePrivacy = 'profile-privacy';
+  static const goalsSeeDebts = 'goals-see-debts';
 
   static const titleWelcome = 'title-welcome';
   static const titleCurrency = 'title-currency';

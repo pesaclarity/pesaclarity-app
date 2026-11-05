@@ -357,6 +357,60 @@ void main() {
       expect(String.fromCharCodes(pdf.take(4)), '%PDF');
     });
 
+    test(
+      'an invoice with a full band, a place to sign, and no branding',
+      () async {
+        const settings = DocumentSettings(
+          till: 'Paybill 000000',
+          invoiceHeader: InvoiceHeader.band,
+          signature: true,
+          branding: false,
+        );
+        expect(invoiceFooter(settings), 'This is not an eTIMS tax invoice.');
+        expect(
+          invoiceFooter(const DocumentSettings()),
+          'Made on this phone with Pesa Clarity. This is not an eTIMS tax '
+          'invoice.',
+        );
+        expect(
+          statementFooter(settings, CalendarDate(2026, 11, 13)),
+          'Made on 13 November 2026.',
+        );
+        final pdf = await renderInvoicePdf(
+          InvoiceDoc(
+            invoice: StoredInvoice(
+              id: 2,
+              number: 'AC-INV-0019',
+              client: 'Bidii Traders Ltd',
+              issuedOn: CalendarDate(2026, 11, 13),
+              billBy: BillBy.items,
+              hoursDetail: HoursDetail.total,
+              timesheet: false,
+              withholding: Withholding.none,
+              totals: invoiceTotals(
+                feesMinor: 1500000,
+                costsMinor: 0,
+                withholding: Withholding.none,
+                withholdingRate: 500,
+              ),
+              currency: 'KES',
+              lines: const [
+                InvoiceLine(
+                  kind: InvoiceLineKind.fees,
+                  name: 'Website revamp',
+                  amountMinor: 1500000,
+                ),
+              ],
+            ),
+            business: 'Amina Consulting',
+            settings: settings,
+            withholdingRate: 500,
+          ),
+        );
+        expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+      },
+    );
+
     testAppWidgets('make an invoice from hours, then share it', (tester) async {
       tester.view.physicalSize = const Size(900, 3000);
       tester.view.devicePixelRatio = 1;

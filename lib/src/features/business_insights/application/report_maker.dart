@@ -12,6 +12,7 @@ import '../../../data/repositories/documents_repository.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/books/report_setup.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../domain/time/date_labels.dart';
 import '../../documents/application/document_providers.dart';
 import '../../insights/application/report_sharer.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -71,6 +72,7 @@ class ReportMaker {
     required Set<ReportSection> sections,
     String title = 'Business report',
     ReportDetail detail = ReportDetail.everyEntry,
+    ReportStyle style = const ReportStyle(),
   }) async {
     final report = await _ref.read(businessReportProvider(period).future);
     final cashBook = sections.contains(ReportSection.cashBook)
@@ -89,6 +91,9 @@ class ReportMaker {
         : null;
     final settings = await _ref.read(reportSettingsProvider.future);
     final space = _ref.read(activeSpaceProvider).name;
+    final documents = style.kraPin
+        ? await _ref.read(documentSettingsProvider.future)
+        : null;
     return reportDocument(
       report: report,
       sections: sections,
@@ -102,7 +107,34 @@ class ReportMaker {
       logo: await _logo(),
       accountNames: {for (final a in accounts) a.id: a.name},
       categoryNames: {for (final c in categories) c.id: c.name},
+      style: style,
+      profitTrend:
+          style.charts && sections.contains(ReportSection.profitAndLoss)
+          ? await _profitTrend(period)
+          : const [],
+      coverNotes: [
+        if (documents?.kraPin case final pin?) 'KRA PIN $pin',
+        if (style.permit)
+          if (settings.cover.permit case final permit?)
+            'Business permit $permit',
+      ],
     );
+  }
+
+  /// Profit in each of the six months up to the end of [period].
+  Future<List<ReportPoint>> _profitTrend(ReportPeriod period) async {
+    final last = period.lastDay.yearMonth;
+    final out = <ReportPoint>[];
+    for (var k = _trendMonths - 1; k >= 0; k--) {
+      final m = last.addMonths(-k);
+      final pnl = await _ref.read(
+        businessProfitProvider(
+          ReportPeriod(m.firstDay, m.next.firstDay, monthName(m)),
+        ).future,
+      );
+      out.add(ReportPoint(monthName(m).substring(0, 3), pnl.profitMinor));
+    }
+    return out;
   }
 
   Future<Uint8List?> _logo() async {
@@ -134,3 +166,6 @@ class ReportMaker {
 }
 
 final reportMakerProvider = Provider<ReportMaker>(ReportMaker.new);
+
+/// How many months the profit trend shows.
+const _trendMonths = 6;

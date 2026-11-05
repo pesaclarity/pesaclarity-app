@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/income/income_sources.dart';
+import '../../../domain/look/look_settings.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
@@ -22,6 +23,7 @@ import '../../currency/application/currency_controller.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../income/application/income_providers.dart';
+import '../../look/application/look_providers.dart';
 import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
@@ -103,6 +105,18 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showTimeZoneSheet(context, ref),
     );
+    final lookNow = ref.watch(currentLookProvider);
+    final look = ListTile(
+      key: const Key('profile-look'),
+      leading: const RowIcon(Icons.palette_outlined),
+      title: const Text('Look'),
+      subtitle: Text(
+        '${lookNow.theme.label} theme · '
+        '${lookNow.fields.label.toLowerCase()} fields',
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showLookSheet(context, ref),
+    );
     final subscriptionsRow = ListTile(
       key: const Key('profile-subscriptions'),
       leading: const RowIcon(Icons.autorenew),
@@ -128,24 +142,30 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push(AppRoutes.importStatement),
     );
-    final backup = ListTile(
-      leading: const RowIcon(Icons.cloud_upload_outlined),
-      title: const Text('Backup and restore'),
-      subtitle: Text(
-        lastBackup ?? 'Set up an encrypted backup',
-        key: const Key('profile-last-backup'),
-        style: lastBackup == null
-            ? null
-            : TextStyle(color: PesaColors.of(context).successText),
+    final backup = Semantics(
+      identifier: SemanticIds.profileBackup,
+      child: ListTile(
+        leading: const RowIcon(Icons.cloud_upload_outlined),
+        title: const Text('Backup and restore'),
+        subtitle: Text(
+          lastBackup ?? 'Set up an encrypted backup',
+          key: const Key('profile-last-backup'),
+          style: lastBackup == null
+              ? null
+              : TextStyle(color: PesaColors.of(context).successText),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.go(AppRoutes.backup),
       ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => context.go(AppRoutes.backup),
     );
-    final privacy = ListTile(
-      leading: const RowIcon(Icons.lock_outline),
-      title: const Text('Privacy'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => context.go(AppRoutes.privacy),
+    final privacy = Semantics(
+      identifier: SemanticIds.profilePrivacy,
+      child: ListTile(
+        leading: const RowIcon(Icons.lock_outline),
+        title: const Text('Privacy'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.go(AppRoutes.privacy),
+      ),
     );
     final buildRow = ListTile(
       leading: const RowIcon(Icons.info_outline),
@@ -179,6 +199,7 @@ class ProfileScreen extends ConsumerWidget {
       payees,
       currency,
       timezone,
+      look,
       subscriptionsRow,
     ];
     final data = [export, if (canImport) importRow, backup];
@@ -205,6 +226,70 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           const AccountActions(),
         ],
+      ),
+    );
+  }
+
+  void _showLookSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final look = ref.watch(currentLookProvider);
+          final theme = Theme.of(context);
+          Widget heading(String title, String note) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                Text(
+                  note,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: PesaColors.of(context).textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+          Future<void> save(LookSettings next) =>
+              ref.read(lookSettingsProvider.notifier).save(next);
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  heading('Theme', 'System follows your phone.'),
+                  for (final t in ThemeChoice.values)
+                    ListTile(
+                      key: Key('look-theme-${t.name}'),
+                      title: Text(t.label),
+                      trailing: t == look.theme
+                          ? const Icon(Icons.check)
+                          : null,
+                      onTap: () => save(look.copyWith(theme: t)),
+                    ),
+                  heading('Text fields', 'How boxes you type in look.'),
+                  for (final f in FieldStyle.values)
+                    ListTile(
+                      key: Key('look-fields-${f.name}'),
+                      title: Text(f.label),
+                      trailing: f == look.fields
+                          ? const Icon(Icons.check)
+                          : null,
+                      onTap: () => save(look.copyWith(fields: f)),
+                    ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
