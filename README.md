@@ -233,6 +233,8 @@ Each space keeps double-entry books (`lib/src/domain/books/`), the base for the 
 - Each account opens with its opening balance. Where a message reports a balance the records do not reach (a missing message, say), a balance difference entry keeps the account equal to the balance the app already shows.
 - Tests check that every entry balances, that the trial balance is zero, and that profit and balances agree with the rest of the app, including on random histories.
 
+- **Business or personal.** In a business, Profile › Business or personal sets each account (an M-Pesa line, a bank) to the business, Personal, or "Ask me" for an account used for both. "Ask me" keeps the account in Personal only, so each message is read once, and business Home asks about each recent payment on it: "Grace Wambui sent you KES 650. Was this for the business?". Business sale moves the payment into the business with the existing move; Personal keeps it. "Always do this for …" remembers the person (by their number, or name), and from then on their payments are sorted as soon as Personal reads them. The rules sit in Personal's settings (`routing.rules`); see `lib/src/features/spaces/application/routing_providers.dart`.
+
 ## Testing
 
 ```sh

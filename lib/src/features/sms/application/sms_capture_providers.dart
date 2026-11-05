@@ -4,16 +4,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/sms_scan_marks_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/auto_categoriser.dart';
 import '../../categoriser/application/categoriser_providers.dart';
+import '../../spaces/application/routing_providers.dart';
 import '../data/sms_source.dart';
 import 'scan_range_provider.dart';
 import 'sms_ingestor.dart';
@@ -84,9 +87,24 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   yield initial;
 
   final senders = {for (final i in selected) ...i.senderIds};
+  // Personal reads accounts shared with a business; sort what it already
+  // knows (people the owner said are always business or personal).
+  Future<void> sortShared() async {
+    if (ref.read(activeSpaceIdProvider) != personalSpaceId) return;
+    try {
+      await ref.read(sharedLineRouterProvider).applyRules();
+    } on Object catch (error) {
+      if (kDebugMode) debugPrint('Sorting shared accounts failed: $error');
+    }
+  }
+
+  if (initial.added > 0) await sortShared();
   await for (final message in source.incoming(senders)) {
     final summary = await ingestor.ingest([message], selected);
-    if (summary.added > 0) triggerAutoCategorise();
+    if (summary.added > 0) {
+      triggerAutoCategorise();
+      await sortShared();
+    }
     yield summary;
   }
 });

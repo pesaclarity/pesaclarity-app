@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/features/home/application/upcoming_bills_provide
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
+import 'package:pesaclarity/src/features/spaces/application/routing_providers.dart';
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -62,6 +63,7 @@ void main() {
           cashFlowForecastProvider.overrideWith((ref) async => null),
           healthIndexProvider.overrideWith((ref) async => null),
           upcomingBillsProvider.overrideWith((ref) async => []),
+          sharedLineQuestionsProvider.overrideWith((ref) async => const []),
         ],
         child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
       ),
