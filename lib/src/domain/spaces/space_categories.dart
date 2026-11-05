@@ -33,6 +33,12 @@ const _kept = <SpaceKind, Set<String>>{
   SpaceKind.farm: {'fuel', 'money_received', 'savings'},
 };
 
+/// Category key sales are filed under in a business.
+const salesCategoryKey = 'sales';
+
+/// The Sales category's name as seeded.
+const salesCategoryName = 'Sales';
+
 /// Paying yourself from a business, rental or farm: money moved to
 /// Personal, not a cost.
 const ownerPayKey = 'owner_pay';
@@ -46,7 +52,7 @@ const _ownerPay = CategorySeed(
 /// Categories added for each kind.
 const _added = <SpaceKind, List<CategorySeed>>{
   SpaceKind.business: [
-    CategorySeed('sales', 'Sales', CategoryType.income),
+    CategorySeed(salesCategoryKey, salesCategoryName, CategoryType.income),
     CategorySeed('other_business_income', 'Other income', CategoryType.income),
     CategorySeed('stock', 'Stock and supplies', CategoryType.expense),
     CategorySeed('wages', 'Wages', CategoryType.expense),

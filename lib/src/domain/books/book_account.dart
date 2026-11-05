@@ -56,6 +56,9 @@ enum BookAccountKind {
   /// transfer meet here, so it nets to zero once both are recorded.
   ownTransfers(BookAccountClass.asset),
 
+  /// What customers owe for sales on credit.
+  owedToYou(BookAccountClass.asset),
+
   /// Money the owner took out of a business ("Paid yourself").
   ownerPay(BookAccountClass.equity),
 
@@ -107,6 +110,7 @@ class BookAccount {
   static const borrowed = BookAccount.fixed(BookAccountKind.borrowed);
   static const awaitingPayee = BookAccount.fixed(BookAccountKind.awaitingPayee);
   static const ownTransfers = BookAccount.fixed(BookAccountKind.ownTransfers);
+  static const owedToYou = BookAccount.fixed(BookAccountKind.owedToYou);
   static const ownerPay = BookAccount.fixed(BookAccountKind.ownerPay);
   static const openingBalances = BookAccount.fixed(
     BookAccountKind.openingBalances,

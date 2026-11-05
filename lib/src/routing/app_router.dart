@@ -32,6 +32,7 @@ import '../features/privacy/presentation/privacy_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/review/presentation/review_inbox_screen.dart';
 import '../features/review/presentation/review_message_screen.dart';
+import '../features/sales/presentation/sell_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
@@ -79,6 +80,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.chooseSpace,
         builder: (context, state) => const ChooseSpaceScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.sell,
+        builder: (context, state) => const SellScreen(),
       ),
       GoRoute(
         path: AppRoutes.onboarding,

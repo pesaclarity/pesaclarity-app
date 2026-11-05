@@ -40,13 +40,15 @@ part 'app_database.g.dart';
     CategoryCorrections,
     CategoryConfirmations,
     Subscriptions,
+    Sales,
+    SalePayments,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -163,6 +165,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 18 &&
           !await _exists('table', movedTransactions.actualTableName)) {
         await m.createTable(movedTransactions);
+      }
+      if (from < 19 && !await _exists('table', sales.actualTableName)) {
+        await m.createTable(sales);
+        await m.createTable(salePayments);
+        await m.create(salePaymentsTransaction);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

@@ -17,7 +17,6 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
-import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../payees/presentation/transaction_sheet.dart';
 import '../../security/application/balance_visibility.dart';
 import '../application/cash_book_providers.dart';
@@ -167,9 +166,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Add a record',
+        key: const Key('money-sell'),
+        tooltip: 'Sell',
         shape: const CircleBorder(),
-        onPressed: () => showAddTransactionSheet(context),
+        onPressed: () => context.push(AppRoutes.sell),
         child: const Icon(Icons.add),
       ),
     );

@@ -7,6 +7,7 @@ import '../features/currency/application/currency_controller.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
 import '../features/reminders/application/reminders_controller.dart';
+import '../features/sales/application/sales_providers.dart';
 import '../features/sms/application/sms_capture_providers.dart';
 import '../features/spaces/application/spaces_providers.dart';
 import '../shared/semantic_ids.dart';
@@ -99,7 +100,8 @@ int selectedTabOf(List<PillDestination> tabs, ShellBranch branch) {
 /// The tabbed shell with the floating pill navigation bar, on Android and
 /// iPhone alike. A business gets its own tabs in the same bar. While it is
 /// shown, new account messages flow into the ledger, reminders stay
-/// scheduled, and a newer privacy policy is put up for review.
+/// scheduled, a business's sales meet their payment messages, and a newer
+/// privacy policy is put up for review.
 class AppShell extends ConsumerWidget {
   const AppShell({required this.navigationShell, super.key});
 
@@ -110,6 +112,7 @@ class AppShell extends ConsumerWidget {
     ref.listen(liveSmsCaptureProvider, (_, _) {});
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(ratesRefreshProvider, (_, _) {});
+    ref.listen(saleMatcherProvider, (_, _) {});
     ref.listen(policyReviewProvider, (_, next) {
       // While reloading, value still holds the previous changes.
       if (next case AsyncData(value: final changes?)) {

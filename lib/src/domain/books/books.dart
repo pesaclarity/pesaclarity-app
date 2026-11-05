@@ -17,6 +17,10 @@ enum JournalSource {
   /// [JournalEntry.sourceId] is the transaction that carried the balance, or
   /// the account id for the start of the account.
   balanceDifference,
+
+  /// The part of a sale a customer pays later: [JournalEntry.sourceId] is
+  /// the sale payment's id.
+  creditSale,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -55,6 +59,25 @@ class JournalEntry {
 /// Category facts the posting needs, by category id.
 typedef BookCategory = ({String? key, CategoryType type});
 
+/// The part of a sale a customer pays later, as the books need it.
+class CreditSale {
+  const CreditSale({
+    required this.paymentId,
+    required this.at,
+    required this.amountMinor,
+    required this.currency,
+    required this.salesCategoryId,
+  });
+
+  final int paymentId;
+  final DateTime at;
+  final int amountMinor;
+  final String currency;
+
+  /// The income category the sale counts under.
+  final int salesCategoryId;
+}
+
 /// Category key whose outflows are the owner taking money out.
 const ownerPayCategoryKey = 'owner_pay';
 
@@ -64,7 +87,8 @@ const ownerPayCategoryKey = 'owner_pay';
 /// Every transaction posts by its [LedgerRole], so the books agree with the
 /// totals the rest of the app shows. Where a reported balance differs from
 /// what the records add up to, a balance difference entry keeps each money
-/// account equal to [balanceAt].
+/// account equal to [balanceAt]. A sale on credit counts as a sale when it
+/// is made, against what the customer owes.
 class Books {
   Books._(this.entries);
 
@@ -72,6 +96,7 @@ class Books {
     Iterable<LedgerEntry> history, {
     required Iterable<AccountOpening> accounts,
     required Map<int, BookCategory> categories,
+    Iterable<CreditSale> credits = const [],
   }) {
     final all = history.toList();
     final fuliza = FulizaLedger.of(all);
@@ -82,11 +107,28 @@ class Books {
     for (final account in accounts) {
       out.addAll(_openingAndDifferences(account, all));
     }
+    for (final c in credits) {
+      out.add(
+        JournalEntry(
+          source: JournalSource.creditSale,
+          sourceId: c.paymentId,
+          at: c.at,
+          currency: c.currency,
+          lines: [
+            JournalLine(BookAccount.owedToYou, c.amountMinor),
+            JournalLine(
+              BookAccount.category(c.salesCategoryId, income: true),
+              -c.amountMinor,
+            ),
+          ],
+        ),
+      );
+    }
     // By time; at the same instant an opening comes first and a balance
     // difference last, after the transaction that reported the balance.
     int rank(JournalSource s) => switch (s) {
       JournalSource.opening => 0,
-      JournalSource.transaction => 1,
+      JournalSource.transaction || JournalSource.creditSale => 1,
       JournalSource.balanceDifference => 2,
     };
     out.sort((a, b) {

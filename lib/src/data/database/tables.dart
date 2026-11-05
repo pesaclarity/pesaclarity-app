@@ -478,3 +478,43 @@ class CategoryConfirmations extends Table {
   IntColumn get featureSchemaVersion => integer()();
   DateTimeColumn get confirmedAt => dateTime()();
 }
+
+/// A sale made with Sell. How it was paid is in [SalePayments].
+@DataClassName('SaleRecord')
+class Sales extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get soldAt => dateTime()();
+  IntColumn get totalMinor => integer()();
+  TextColumn get currency =>
+      text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
+
+  /// What was sold, as the owner typed it; null for a plain amount.
+  TextColumn get note => text().nullable()();
+}
+
+/// One way a sale was paid: cash in hand, an M-Pesa or bank payment matched
+/// to its message, or what a customer owes.
+@DataClassName('SalePaymentRecord')
+@TableIndex(name: 'sale_payments_transaction', columns: {#transactionId})
+class SalePayments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get saleId =>
+      integer().references(Sales, #id, onDelete: KeyAction.cascade)();
+  TextColumn get method => textEnum<SalePaymentMethod>()();
+  IntColumn get amountMinor => integer()();
+
+  /// The cash entry made for it, or the payment message it matched. Null
+  /// while an M-Pesa or bank payment waits for its message.
+  IntColumn get transactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// What the customer owes, for a credit part.
+  IntColumn get lentLoanId => integer().nullable().references(
+    LentLoans,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+}

@@ -295,6 +295,10 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.accounts,
       _db.recurring,
       _db.budgetItems,
+      _db.sales,
+      _db.salePayments,
+      _db.lentLoans,
+      _db.loanPayments,
     ]),
   );
 
