@@ -8,6 +8,7 @@ abstract final class SemanticIds {
   static const navPlan = 'nav-plan';
   static const navGoals = 'nav-goals';
   static const navInsights = 'nav-insights';
+  static const navMoney = 'nav-money';
 
   static const onboardingGetStarted = 'onboarding-get-started';
   static const onboardingCurrencyContinue = 'onboarding-currency-continue';
@@ -33,6 +34,7 @@ abstract final class SemanticIds {
   static const titlePlan = 'title-plan';
   static const titleGoals = 'title-goals';
   static const titleInsights = 'title-insights';
+  static const titleMoney = 'title-money';
   static const titleProfile = 'title-profile';
   static const titleProfileMyAccounts = 'title-profile-my-accounts';
   static const titleDebts = 'title-debts';

@@ -10,6 +10,7 @@ import '../features/auth/presentation/devices_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/backup/presentation/backup_setup_screen.dart';
+import '../features/books/presentation/money_screen.dart';
 import '../features/currency/presentation/base_currency_screen.dart';
 import '../features/currency/presentation/setup_currency_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
@@ -114,6 +115,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // Branches in [ShellBranch] order.
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(navigationShell: shell),
         branches: [
@@ -282,6 +284,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.insights,
                 builder: (context, state) => const InsightsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.money,
+                builder: (context, state) => const MoneyScreen(),
               ),
             ],
           ),

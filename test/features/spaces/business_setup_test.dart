@@ -122,28 +122,19 @@ void main() {
     addTearDown(c.dispose);
     // Database work runs outside the test's fake clock, so let it finish
     // between frames instead of waiting for the screen to settle.
-    Future<void> settle() async {
-      for (var i = 0; i < 8; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-    }
-
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: c,
         child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
       ),
     );
-    await settle();
+    await settleFrames(tester);
     expect(find.text('With Products you get'), findsOneWidget);
     await tester.tap(find.text('Services'));
-    await settle();
+    await settleFrames(tester);
     expect(find.textContaining('No stock'), findsWidgets);
     await tester.tap(find.byKey(const Key('sells-continue')));
-    await settle();
+    await settleFrames(tester);
 
     expect(find.text('Start your records'), findsOneWidget);
     expect(
@@ -152,7 +143,7 @@ void main() {
     );
     await tester.enterText(find.byKey(const Key('start-cash')), '1000');
     await tester.tap(find.byKey(const Key('start-records')));
-    await settle();
+    await settleFrames(tester);
     expect(find.text('Home'), findsOneWidget);
 
     final setup = await tester.runAsync(
