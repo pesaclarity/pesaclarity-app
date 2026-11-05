@@ -9,8 +9,10 @@ tags:
 - assertVisible:
     id: title-goals
 - scrollUntilVisible:
-    element: "See debts"
-- tapOn: "See debts"
+    element:
+      id: goals-see-debts
+- tapOn:
+    id: goals-see-debts
 - assertVisible:
     id: title-debts
 - waitForAnimationToEnd

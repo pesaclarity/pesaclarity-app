@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/money/currency_data.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
 
 /// A searchable list of every currency, with [suggested] (the phone
@@ -65,18 +66,24 @@ class _CurrencyPickerState extends State<CurrencyPicker> {
 
     Widget tile(String code) {
       final subtitle = widget.subtitleOf?.call(code);
-      return RadioListTile<String>(
-        key: Key('currency-$code'),
-        value: code,
-        title: Text(currencyCatalogue[code]!.name),
-        subtitle: subtitle == null ? null : Text(subtitle),
-        secondary: SizedBox(
-          width: 44,
-          child: Text(
-            code,
-            style: theme.textTheme.labelLarge!.copyWith(
-              color: colors.textMuted,
-              fontWeight: FontWeight.w700,
+      // Merged so the id lands on the node that carries the checked state.
+      return MergeSemantics(
+        child: Semantics(
+          identifier: SemanticIds.currency(code),
+          child: RadioListTile<String>(
+            key: Key('currency-$code'),
+            value: code,
+            title: Text(currencyCatalogue[code]!.name),
+            subtitle: subtitle == null ? null : Text(subtitle),
+            secondary: SizedBox(
+              width: 44,
+              child: Text(
+                code,
+                style: theme.textTheme.labelLarge!.copyWith(
+                  color: colors.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ),

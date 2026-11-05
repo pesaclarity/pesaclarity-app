@@ -19,14 +19,18 @@ tags:
 # the designs.
 - tapOn: "Search by name or code"
 - inputText: "KES"
-- tapOn: "Kenyan Shilling"
+- tapOn:
+    id: currency-KES
 - hideKeyboard
 - tapOn:
     id: onboarding-currency-continue
 - assertVisible:
     id: title-income-sources
 - tapOn:
-    text: "Salary"
+    id: income-salary
+- assertVisible:
+    id: income-salary
+    checked: true
 - tapOn:
     id: onboarding-income-continue
 - assertVisible:

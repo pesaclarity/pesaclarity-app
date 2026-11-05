@@ -9,8 +9,10 @@ tags:
 - assertVisible:
     id: title-profile
 - scrollUntilVisible:
-    element: "Privacy"
-- tapOn: "Privacy"
+    element:
+      id: profile-privacy
+- tapOn:
+    id: profile-privacy
 - assertVisible:
     id: title-privacy
 - waitForAnimationToEnd
