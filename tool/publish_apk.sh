@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
-# Puts one flavour's APK on GitHub Releases as pesaclarity-<flavor>.apk, for
-# the APK workflow (.github/workflows/test-apk.yml).
+# Puts one flavour's APKs on GitHub Releases, for the APK workflow
+# (.github/workflows/test-apk.yml): pesaclarity-<flavor>.apk for 64-bit
+# phones and pesaclarity-<flavor>-32bit.apk for older 32-bit phones.
 #
-#   tool/publish_apk.sh test-build <apk> <flavor> <build name>
-#     Replaces the file on the test-build pre-release and points its tag at
+#   tool/publish_apk.sh test-build <64-bit apk> <32-bit apk> <flavor> <build name>
+#     Replaces the files on the test-build pre-release and points its tag at
 #     this commit. The notes list the changes since the last release.
 #
-#   tool/publish_apk.sh release <apk> <flavor> <version>
-#     Adds the file to release v<version>, which release-please creates on
+#   tool/publish_apk.sh release <64-bit apk> <32-bit apk> <flavor> <version>
+#     Adds the files to release v<version>, which release-please creates on
 #     the same push with the changelog as its notes.
 #
 # Needs GH_TOKEN, GH_REPO, GITHUB_SHA and RUN_URL, and gh on the path.
 set -euo pipefail
 
-mode="$1" apk="$2" flavor="$3" name="$4"
+mode="$1" apk64="$2" apk32="$3" flavor="$4" name="$5"
 out="$(mktemp -d)"
 file="$out/pesaclarity-$flavor.apk"
-cp "$apk" "$file"
+file32="$out/pesaclarity-$flavor-32bit.apk"
+cp "$apk64" "$file"
+cp "$apk32" "$file32"
 
 if [ "$mode" = release ]; then
   tag="v$name"
@@ -30,7 +33,7 @@ if [ "$mode" = release ]; then
     echo "::error::Release $tag not found; did release-please fail on this push?"
     exit 1
   }
-  gh release upload "$tag" "$file" --clobber
+  gh release upload "$tag" "$file" "$file32" --clobber
   exit 0
 fi
 
@@ -55,10 +58,11 @@ changes="$(printf '%s\n' "$titles" \
 title="Test build $name"
 notes="The newest build from \`dev\`: $name, commit ${GITHUB_SHA::7}. It has not been through QA; each push to \`dev\` replaces these files.
 
-- \`pesaclarity-play.apk\`: the Google Play flavour.
-- \`pesaclarity-foss.apk\`: the F-Droid flavour, with no Google services.
+- \`pesaclarity-play.apk\`: the Google Play flavour, for most phones (64-bit).
+- \`pesaclarity-play-32bit.apk\`: the same, for older 32-bit phones.
+- \`pesaclarity-foss.apk\` and \`pesaclarity-foss-32bit.apk\`: the F-Droid flavour, with no Google services.
 
-On Android, open the file and allow installs from this source when asked.
+On Android, open the file and allow installs from this source when asked. If the phone says the app is not compatible, use the 32-bit file.
 
 ## $heading
 
@@ -70,11 +74,11 @@ tag=test-build
 if gh release view "$tag" > /dev/null 2>&1; then
   gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$tag" \
     -f sha="$GITHUB_SHA" -F force=true > /dev/null
-  gh release upload "$tag" "$file" --clobber
+  gh release upload "$tag" "$file" "$file32" --clobber
   gh release edit "$tag" --title "$title" --notes "$notes" \
     --prerelease --latest=false
-elif ! gh release create "$tag" "$file" --target "$GITHUB_SHA" \
+elif ! gh release create "$tag" "$file" "$file32" --target "$GITHUB_SHA" \
   --title "$title" --notes "$notes" --prerelease --latest=false; then
   # The other flavour's job made the release first.
-  gh release upload "$tag" "$file" --clobber
+  gh release upload "$tag" "$file" "$file32" --clobber
 fi
