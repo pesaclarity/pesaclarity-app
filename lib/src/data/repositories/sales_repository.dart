@@ -60,6 +60,20 @@ abstract interface class SalesRepository {
     required int salesCategoryId,
   });
 
+  /// Pays waiting part [paymentId] with the messages in [payments] (id and
+  /// amount). Short of the part, the rest goes as [short] says (credit
+  /// needs [credit]); over it, [keepExtra] counts the extra in the sale.
+  Future<void> settle(
+    int paymentId,
+    List<({int id, int amountMinor})> payments, {
+    required int salesCategoryId,
+    required int cashAccountId,
+    required DateTime at,
+    ShortBy? short,
+    CreditTerms? credit,
+    bool keepExtra = false,
+  });
+
   /// A waiting part was paid in cash after all.
   Future<void> paidInCash(
     int paymentId, {
@@ -230,6 +244,93 @@ class DriftSalesRepository implements SalesRepository {
     )..where((t) => t.id.equals(transactionId))).write(
       TransactionsCompanion(categoryOverrideId: Value(salesCategoryId)),
     );
+  });
+
+  @override
+  Future<void> settle(
+    int paymentId,
+    List<({int id, int amountMinor})> payments, {
+    required int salesCategoryId,
+    required int cashAccountId,
+    required DateTime at,
+    ShortBy? short,
+    CreditTerms? credit,
+    bool keepExtra = false,
+  }) => _db.transaction(() async {
+    final row = await _paymentWithSale(paymentId);
+    if (row == null) return;
+    final (part, sale) = row;
+    final paid = payments.fold(0, (sum, p) => sum + p.amountMinor);
+    await (_db.delete(
+      _db.salePayments,
+    )..where((p) => p.id.equals(paymentId))).go();
+    Future<void> add(
+      SalePaymentMethod method,
+      int amount, {
+      int? transactionId,
+      int? loanId,
+    }) => _db
+        .into(_db.salePayments)
+        .insert(
+          SalePaymentsCompanion.insert(
+            saleId: sale.id,
+            method: method,
+            amountMinor: amount,
+            transactionId: Value(transactionId),
+            lentLoanId: Value(loanId),
+          ),
+        );
+    for (final p in payments) {
+      await add(part.method, p.amountMinor, transactionId: p.id);
+      await (_db.update(
+        _db.transactions,
+      )..where((t) => t.id.equals(p.id))).write(
+        TransactionsCompanion(categoryOverrideId: Value(salesCategoryId)),
+      );
+    }
+    var total = sale.totalMinor;
+    final rest = part.amountMinor - paid;
+    if (rest > 0) {
+      switch (short ?? ShortBy.anotherPayment) {
+        case ShortBy.theyOweIt:
+          final terms = credit;
+          if (terms == null) throw ArgumentError.notNull('credit');
+          final loanId = await _db
+              .into(_db.lentLoans)
+              .insert(
+                LentLoansCompanion.insert(
+                  person: terms.customer,
+                  amountMinor: rest,
+                  currency: Value(sale.currency),
+                  lentOn: CalendarDate.local(sale.soldAt).startInstant,
+                  dueDate: Value(terms.dueDate?.startInstant),
+                  note: Value(sale.note ?? 'Sale'),
+                ),
+              );
+          await add(SalePaymentMethod.credit, rest, loanId: loanId);
+        case ShortBy.restInCash:
+          final transactionId = await _cashSale(
+            at: at,
+            amountMinor: rest,
+            currency: sale.currency,
+            note: sale.note,
+            salesCategoryId: salesCategoryId,
+            cashAccountId: cashAccountId,
+          );
+          await add(SalePaymentMethod.cash, rest, transactionId: transactionId);
+        case ShortBy.anotherPayment:
+          await add(part.method, rest);
+        case ShortBy.discount:
+          total -= rest;
+      }
+    } else if (rest < 0 && keepExtra) {
+      total -= rest;
+    }
+    if (total != sale.totalMinor) {
+      await (_db.update(_db.sales)..where((s) => s.id.equals(sale.id))).write(
+        SalesCompanion(totalMinor: Value(total)),
+      );
+    }
   });
 
   @override

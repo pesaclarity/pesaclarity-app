@@ -270,7 +270,13 @@ String _runwayLabel(CashFlowForecast? forecast) {
   return days == 1 ? '1 day' : '$days days';
 }
 
-Future<void> _showAddMenu(BuildContext context) async {
+/// Add a transaction or import a statement; a business can also pay its
+/// owner. Without a PDF engine (the F-Droid build) there is no import.
+Future<void> _showAddMenu(BuildContext context, {bool business = false}) async {
+  final canImport = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(statementImportAvailableProvider);
   final choice = await showModalBottomSheet<_AddChoice>(
     context: context,
     showDragHandle: true,
@@ -284,12 +290,21 @@ Future<void> _showAddMenu(BuildContext context) async {
             subtitle: const Text('Cash or anything a message missed'),
             onTap: () => Navigator.pop(context, _AddChoice.manual),
           ),
-          ListTile(
-            leading: const Icon(Icons.upload_file),
-            title: const Text('Import a statement'),
-            subtitle: const Text('M-Pesa or bank PDF, for older history'),
-            onTap: () => Navigator.pop(context, _AddChoice.import),
-          ),
+          if (business)
+            ListTile(
+              key: const Key('add-pay-yourself'),
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Pay yourself'),
+              subtitle: const Text('Move money to Personal as income'),
+              onTap: () => Navigator.pop(context, _AddChoice.payYourself),
+            ),
+          if (canImport)
+            ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: const Text('Import a statement'),
+              subtitle: const Text('M-Pesa or bank PDF, for older history'),
+              onTap: () => Navigator.pop(context, _AddChoice.import),
+            ),
           const SizedBox(height: 8),
         ],
       ),
@@ -301,12 +316,14 @@ Future<void> _showAddMenu(BuildContext context) async {
       await showAddTransactionSheet(context);
     case _AddChoice.import:
       context.go(AppRoutes.importStatement);
+    case _AddChoice.payYourself:
+      await showPayYourselfSheet(context);
     case null:
       break;
   }
 }
 
-enum _AddChoice { manual, import }
+enum _AddChoice { manual, import, payYourself }
 
 class _Header extends ConsumerWidget {
   const _Header({required this.today});
@@ -1046,7 +1063,7 @@ class _QuickButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void other() => _showAddMenu(context);
+    void other() => _showAddMenu(context, business: true);
     final buttons = services
         ? [
             _QuickButton(

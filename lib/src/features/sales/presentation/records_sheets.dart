@@ -17,6 +17,8 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../../people/application/people_providers.dart';
+import '../../spaces/application/spaces_providers.dart';
+import '../application/pay_yourself.dart';
 import '../application/sales_providers.dart';
 import 'pay_sheet.dart';
 
@@ -56,6 +58,11 @@ Future<bool?> showBoughtSheet(
 /// Got paid: a customer pays some or all of what they owe.
 Future<bool?> showGotPaidSheet(BuildContext context, {String? customer}) =>
     _sheet(context, _GotPaidSheet(customer: customer));
+
+/// Pay yourself: money the owner takes for themselves, as income in
+/// Personal.
+Future<bool?> showPayYourselfSheet(BuildContext context) =>
+    _sheet(context, const _PayYourselfSheet());
 
 /// Paid: the business pays a supplier some or all of what it owes.
 Future<bool?> showPaidSheet(BuildContext context, {int? debtId}) =>
@@ -607,6 +614,130 @@ class DueDateChips extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _PayYourselfSheet extends ConsumerStatefulWidget {
+  const _PayYourselfSheet();
+
+  @override
+  ConsumerState<_PayYourselfSheet> createState() => _PayYourselfSheetState();
+}
+
+class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
+  final _form = GlobalKey<FormState>();
+  final _amount = TextEditingController();
+  var _method = SalePaymentMethod.mpesa;
+  var _as = PersonalPayAs.salary;
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(payYourselfControllerProvider)
+          .payYourself(
+            amountMinor: AmountField.amountFrom(_amount.text)!,
+            method: _method,
+            as: _as,
+          );
+      _saved(navigator, messenger, method: _method, what: 'Pay');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final profit = ref.watch(spaceSummaryProvider).value?.figureMinor;
+    return Form(
+      key: _form,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Pay yourself', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 6),
+          Text(
+            'Money you take for yourself. It leaves the business and shows '
+            'as income in Personal.',
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: PesaColors.of(context).textMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          AmountField(
+            key: const Key('pay-yourself-amount'),
+            controller: _amount,
+            label: 'Amount',
+          ),
+          const SizedBox(height: 16),
+          _label(context, 'From'),
+          MethodChips(
+            keyPrefix: 'pay-yourself-from',
+            options: const [
+              SalePaymentMethod.mpesa,
+              SalePaymentMethod.bank,
+              SalePaymentMethod.cash,
+            ],
+            labelFor: (m) => switch (m) {
+              SalePaymentMethod.mpesa => 'Business M-Pesa',
+              SalePaymentMethod.bank => 'Business bank',
+              _ => methodLabel(m),
+            },
+            selected: _method,
+            onSelected: (m) => setState(() => _method = m),
+          ),
+          const SizedBox(height: 16),
+          _label(context, 'Into Personal as'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final a in PersonalPayAs.values)
+                ChoiceChip(
+                  key: Key('pay-yourself-as-${a.name}'),
+                  label: Text(a.label),
+                  selected: _as == a,
+                  onSelected: (_) => setState(() => _as = a),
+                ),
+            ],
+          ),
+          if (profit != null)
+            ListenableBuilder(
+              listenable: _amount,
+              builder: (context, _) {
+                final amount = AmountField.amountFrom(_amount.text) ?? 0;
+                final left = profit - amount;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: InfoNote(
+                    'Your business profit this month is '
+                    '${formatMoney(Money(profit), withCurrency: false)}.'
+                    '${amount > 0 && left >= 0 ? ' After this, ${formatMoney(Money(left), withCurrency: false)} stays in the business.' : ''}',
+                  ),
+                );
+              },
+            ),
+          _waitNote(_method, AmountField.amountFrom(_amount.text) ?? 0),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('pay-yourself-save'),
+            onPressed: _saving ? null : _save,
+            child: const Text('Pay yourself'),
+          ),
+        ],
+      ),
     );
   }
 }
