@@ -174,3 +174,14 @@ PrivacyPolicy bundledPolicy() => PrivacyPolicy.fromAssets(
   ) as Map<String, Object?>,
   markdown: File('assets/policy/privacy_policy.md').readAsStringSync(),
 );
+
+/// Lets real database work finish between frames, for screens that show a
+/// spinner while loading, where `pumpAndSettle` would never settle.
+Future<void> settleFrames(WidgetTester tester) async {
+  for (var i = 0; i < 8; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}

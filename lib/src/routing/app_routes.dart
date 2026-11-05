@@ -69,4 +69,7 @@ abstract final class AppRoutes {
   static const debts = '/goals/debts';
   static const lending = '/goals/lending';
   static const insights = '/insights';
+
+  /// A business's cash book.
+  static const money = '/money';
 }
