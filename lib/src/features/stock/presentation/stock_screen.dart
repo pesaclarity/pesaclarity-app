@@ -63,6 +63,12 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                     style: theme.textTheme.headlineLarge,
                   ),
                 ),
+                if (services)
+                  TextButton(
+                    key: const Key('services-hours'),
+                    onPressed: () => context.push(AppRoutes.hours),
+                    child: Text('Hours', style: TextStyle(color: colors.link)),
+                  ),
                 if (products.isNotEmpty)
                   TextButton(
                     key: const Key('count-stock'),
