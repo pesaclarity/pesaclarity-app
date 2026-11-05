@@ -11,6 +11,7 @@ import '../../../domain/books/business_report.dart';
 import '../../../domain/budget/safe_to_spend.dart';
 import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
+import '../../../domain/hours/hours.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
 import '../../../domain/ledger/activity_feed.dart';
@@ -28,6 +29,8 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../business_insights/application/business_report_providers.dart';
+import '../../hours/application/hours_providers.dart';
+import '../../hours/presentation/log_hours_sheet.dart';
 import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
@@ -143,6 +146,7 @@ class HomeScreen extends ConsumerWidget {
                 if (isBusiness && !sellsProducts) ...[
                   const _QuickButtons(services: true),
                   const SizedBox(height: 12),
+                  const _HoursCards(),
                   const WaitingPaymentsCard(),
                 ],
                 if (space.kind == SpaceKind.business) const BusinessSetupCard(),
@@ -1080,11 +1084,15 @@ class _QuickButtons extends StatelessWidget {
               () => showBoughtSheet(context, costOnly: true),
             ),
             _QuickButton(
+              'Log hours',
+              'Time on a project',
+              () => showLogHoursSheet(context),
+            ),
+            _QuickButton(
               'Billed',
-              'Work done, pay later',
+              'Make an invoice',
               () => context.push(AppRoutes.billed),
             ),
-            _QuickButton('Other record', 'Cash in or out, a statement', other),
           ]
         : [
             _QuickButton(
@@ -1124,18 +1132,17 @@ class _QuickButtons extends StatelessWidget {
             ),
           ),
         ],
-        if (!services)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              key: const Key('quick-more'),
-              onPressed: other,
-              child: Text(
-                'More: cash in or out, pay yourself, a statement',
-                style: TextStyle(color: PesaColors.of(context).link),
-              ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('quick-more'),
+            onPressed: other,
+            child: Text(
+              'More: cash in or out, pay yourself, a statement',
+              style: TextStyle(color: PesaColors.of(context).link),
             ),
           ),
+        ),
       ],
     );
   }
@@ -1406,6 +1413,66 @@ class _SpaceSummaryCard extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// A services business's hours: this week by client and what it bills,
+/// and the hours not billed yet.
+class _HoursCards extends ConsumerWidget {
+  const _HoursCards();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final today = CalendarDate.local(ref.watch(clockProvider)());
+    final week = ref.watch(weekHoursProvider(weekStart(today))).value;
+    final unbilled = ref.watch(unbilledHoursProvider).value ?? const [];
+    if (week == null || (week.entries.isEmpty && unbilled.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final unbilledMinutes = unbilled.fold(0, (sum, e) => sum + e.minutes);
+    final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Column(
+          children: [
+            ListTile(
+              key: const Key('today-hours-week'),
+              title: const Text('Hours this week'),
+              subtitle: Text(
+                [
+                  '${hoursText(week.loggedMinutes)} h',
+                  for (final MapEntry(:key, :value) in week.byClient.entries)
+                    '${clientShort(key)} ${hoursText(value)}',
+                ].join(' · '),
+                style: muted,
+              ),
+              trailing: Text(
+                _plain(context, week.amountMinor),
+                style: theme.textTheme.titleMedium,
+              ),
+              onTap: () => context.push(AppRoutes.hoursWeek),
+            ),
+            if (unbilledMinutes > 0) ...[
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                key: const Key('today-hours-unbilled'),
+                title: const Text('Not billed yet'),
+                subtitle: Text('Since your last invoices', style: muted),
+                trailing: Text(
+                  '${hoursText(unbilledMinutes)} h',
+                  style: theme.textTheme.titleMedium,
+                ),
+                onTap: () => context.push(AppRoutes.hoursWeek),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

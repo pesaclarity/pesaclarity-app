@@ -112,7 +112,7 @@ void main() {
     tester,
   ) async {
     await pumpBusiness(tester, BusinessSells.services);
-    for (final quick in ['Got paid', 'Spent', 'Billed', 'Other record']) {
+    for (final quick in ['Got paid', 'Spent', 'Log hours', 'Billed']) {
       expect(find.text(quick), findsOneWidget);
     }
 

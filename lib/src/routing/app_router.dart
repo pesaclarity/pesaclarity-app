@@ -21,6 +21,7 @@ import '../features/debts/presentation/debts_screen.dart';
 import '../features/documents/presentation/document_settings_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/hours/presentation/hours_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
 import '../features/income/presentation/week_by_week_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
@@ -376,6 +377,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'count',
                     builder: (context, state) => const CountStockScreen(),
+                  ),
+                  GoRoute(
+                    path: 'hours',
+                    builder: (context, state) => HoursScreen(
+                      week: state.uri.queryParameters['view'] == 'week',
+                    ),
                   ),
                 ],
               ),

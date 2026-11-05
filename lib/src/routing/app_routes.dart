@@ -107,6 +107,12 @@ abstract final class AppRoutes {
   /// Count stock against the records.
   static const countStock = '/stock/count';
 
+  /// Hours logged for clients, by day.
+  static const hours = '/stock/hours';
+
+  /// Hours logged for clients, by week.
+  static const hoursWeek = '/stock/hours?view=week';
+
   /// A business: count the drawer and match the day's payments.
   static const closeDay = '/close-day';
 

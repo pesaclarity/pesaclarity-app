@@ -707,3 +707,27 @@ class DocumentFiles extends Table {
   BlobColumn get bytes => blob()();
   DateTimeColumn get addedAt => dateTime()();
 }
+
+/// Time logged for a client: what was done, on which day, for how long,
+/// and whether it is billed.
+@DataClassName('HourEntryRecord')
+class HourEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get client => text()();
+  TextColumn get project => text().nullable()();
+
+  /// What was done, such as a meeting or a task.
+  TextColumn get what => text()();
+
+  /// The start of the day the work was done.
+  DateTimeColumn get day => dateTime()();
+  IntColumn get minutes => integer()();
+  BoolColumn get billable => boolean().withDefault(const Constant(true))();
+
+  /// The rate an hour when logged, for billing.
+  IntColumn get rateMinor => integer().nullable()();
+
+  /// The invoice that billed it; null until billed.
+  IntColumn get invoiceId => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+}

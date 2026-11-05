@@ -702,6 +702,18 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 25 database: hours', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE hour_entries');
+      await old.customStatement('PRAGMA user_version = 25');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.hourEntries).get(), isEmpty);
+    });
+
     test('migrates a version 24 database: receipts and files', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE document_files');
