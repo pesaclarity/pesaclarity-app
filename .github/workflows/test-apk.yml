@@ -138,7 +138,8 @@ jobs:
       # Server settings follow the branch: main builds use the release
       # variables, other branches the dev ones; empty ones leave that feature
       # off. The Google client id follows the signing key, so it is the dev
-      # one. 32- and 64-bit ARM only: x86_64 is for emulators.
+      # one. One APK per chip (32- and 64-bit ARM; x86_64 is for emulators),
+      # with debug symbols kept apart, so each download stays small.
       - name: Build the APK
         id: build
         env:
@@ -158,7 +159,8 @@ jobs:
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
           VAULT_URL="${VAULT_URL:-$API_URL}"
           flutter build apk --release --flavor "$FLAVOR" \
-            --target-platform android-arm,android-arm64 \
+            --target-platform android-arm,android-arm64 --split-per-abi \
+            --split-debug-info="$RUNNER_TEMP/symbols" \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --dart-define=PESACLARITY_VERSION="$BUILD_NAME" \
             --dart-define=PESACLARITY_API_URL="$API_URL" \
@@ -169,10 +171,33 @@ jobs:
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
             --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID"
-          name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR.apk"
-          cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$name"
-          echo "path=$RUNNER_TEMP/$name" >> "$GITHUB_OUTPUT"
+          name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR"
+          out="$RUNNER_TEMP/apks"
+          mkdir -p "$out"
+          cp "build/app/outputs/flutter-apk/app-arm64-v8a-$FLAVOR-release.apk" "$out/$name.apk"
+          cp "build/app/outputs/flutter-apk/app-armeabi-v7a-$FLAVOR-release.apk" "$out/$name-32bit.apk"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+          echo "path64=$out/$name.apk" >> "$GITHUB_OUTPUT"
+          echo "path32=$out/$name-32bit.apk" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      # People on slow or costly data download these, so keep each one small.
+      - name: Check the APK sizes
+        env:
+          LIMIT_MB: 50
+          DIR: ${{ steps.build.outputs.dir }}
+        run: |
+          limit=$((LIMIT_MB * 1000 * 1000))
+          status=0
+          for apk in "$DIR"/*.apk; do
+            size=$(stat -c %s "$apk")
+            echo "$(basename "$apk"): $((size / 1000000)) MB"
+            if [ "$size" -gt "$limit" ]; then
+              echo "::error::$(basename "$apk") is over $LIMIT_MB MB"
+              status=1
+            fi
+          done
+          exit $status
 
       - name: Remove signing files
         if: always()
@@ -181,8 +206,15 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.build.outputs.name }}
-          path: ${{ steps.build.outputs.path }}
+          path: ${{ steps.build.outputs.dir }}
           retention-days: 30
+
+      # For reading crash stack traces from these builds.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.build.outputs.name }}-symbols
+          path: ${{ runner.temp }}/symbols
+          retention-days: 90
 
       # Only dev-key builds go on Releases: Android will not install an update
       # signed with a different key, and uninstalling first deletes the
@@ -197,10 +229,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          APK: ${{ steps.build.outputs.path }}
+          APK64: ${{ steps.build.outputs.path64 }}
+          APK32: ${{ steps.build.outputs.path32 }}
           FLAVOR: ${{ matrix.flavor }}
           BUILD_NAME: ${{ steps.version.outputs.name }}
-        run: tool/publish_apk.sh test-build "$APK" "$FLAVOR" "$BUILD_NAME"
+        run: tool/publish_apk.sh test-build "$APK64" "$APK32" "$FLAVOR" "$BUILD_NAME"
 
       - name: Add to the release
         if: env.DEV_SIGNED == 'true' && steps.version.outputs.release == 'true'
@@ -208,10 +241,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          APK: ${{ steps.build.outputs.path }}
+          APK64: ${{ steps.build.outputs.path64 }}
+          APK32: ${{ steps.build.outputs.path32 }}
           FLAVOR: ${{ matrix.flavor }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: tool/publish_apk.sh release "$APK" "$FLAVOR" "$VERSION"
+        run: tool/publish_apk.sh release "$APK64" "$APK32" "$FLAVOR" "$VERSION"
 
   # Rebuilds pesaclarity.github.io once both APKs are on Releases, so the
   # version under its download buttons is the one people get. Needs the
