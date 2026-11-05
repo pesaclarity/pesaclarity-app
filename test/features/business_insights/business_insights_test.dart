@@ -52,6 +52,7 @@ class _FakeSharer implements ReportSharer {
   Future<void> shareFiles(
     List<SharedFile> files, {
     required String subject,
+    String? text,
   }) async {
     for (final f in files) {
       await shareFile(

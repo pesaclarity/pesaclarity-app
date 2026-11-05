@@ -23,7 +23,9 @@ const taxPackAsset = 'assets/tax/tax_pack.json';
 
 /// The tax pack shipped with this app version.
 final taxPackProvider = FutureProvider<TaxPack>((ref) async {
-  final text = await rootBundle.loadString(taxPackAsset);
+  // Read fresh each time: the pack is small, and a cached load would be
+  // shared across separate app containers.
+  final text = await rootBundle.loadString(taxPackAsset, cache: false);
   return TaxPack.fromJson((jsonDecode(text) as Map).cast<String, Object?>());
 });
 

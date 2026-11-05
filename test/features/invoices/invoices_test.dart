@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/hours_repository.dart';
 import 'package:pesaclarity/src/data/repositories/invoices_repository.dart';
+import 'package:pesaclarity/src/data/repositories/sales_repository.dart';
 import 'package:pesaclarity/src/data/repositories/tax_repository.dart';
 import 'package:pesaclarity/src/domain/books/book_account.dart';
 import 'package:pesaclarity/src/domain/documents/document_settings.dart';
@@ -26,6 +27,10 @@ import 'package:pesaclarity/src/features/invoices/application/invoice_providers.
 import 'package:pesaclarity/src/features/invoices/application/invoice_sender.dart';
 import 'package:pesaclarity/src/features/invoices/presentation/invoices_screen.dart';
 import 'package:pesaclarity/src/features/invoices/presentation/make_invoice_screen.dart';
+import 'package:pesaclarity/src/features/people/application/people_providers.dart';
+import 'package:pesaclarity/src/features/people/application/statement_pdf.dart';
+import 'package:pesaclarity/src/features/people/presentation/remind_sheet.dart';
+import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
@@ -35,6 +40,7 @@ import '../../helpers/test_app.dart';
 
 class _Files implements ReportSharer {
   final files = <String>[];
+  final texts = <String?>[];
 
   @override
   Future<void> sharePdf(
@@ -55,7 +61,11 @@ class _Files implements ReportSharer {
   Future<void> shareFiles(
     List<SharedFile> files, {
     required String subject,
-  }) async => this.files.addAll(files.map((f) => f.fileName));
+    String? text,
+  }) async {
+    this.files.addAll(files.map((f) => f.fileName));
+    texts.add(text);
+  }
 }
 
 const _amina = Space(
@@ -434,6 +444,89 @@ void main() {
         () => c.read(clientWithholdingProvider.future),
       );
       expect(remembered!['bidii traders ltd'], Withholding.deducts);
+    });
+
+    test('a statement PDF for a customer', () async {
+      final c = ProviderContainer(overrides: overrides());
+      addTearDown(c.dispose);
+      await c.read(salesControllerProvider).sell([
+        const SalePart(SalePaymentMethod.credit, 1500000),
+      ], credit: const CreditTerms(customer: 'Bidii Traders Ltd'));
+      final customer = (await c.read(customersProvider.future)).single;
+      final pdf = await renderStatementPdf(
+        customer: customer,
+        business: 'Amina Consulting',
+        settings: const DocumentSettings(till: 'Paybill 000000'),
+        today: CalendarDate(2026, 11, 13),
+      );
+      expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+      await c.read(statementSenderProvider).share(customer);
+      expect(files.files, ['statement-bidii-traders-ltd-2026-11-13.pdf']);
+    });
+
+    testAppWidgets('Remind attaches the open invoice', (tester) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = ProviderContainer(overrides: overrides());
+      addTearDown(c.dispose);
+      final customer = await tester.runAsync(() async {
+        await c
+            .read(invoicesControllerProvider)
+            .create(
+              InvoiceDraft(
+                client: 'Bidii Traders Ltd',
+                issuedOn: CalendarDate(2026, 11, 13),
+                billBy: BillBy.items,
+                hoursDetail: HoursDetail.total,
+                withholding: Withholding.none,
+                totals: invoiceTotals(
+                  feesMinor: 1500000,
+                  costsMinor: 0,
+                  withholding: Withholding.none,
+                  withholdingRate: 500,
+                ),
+                lines: const [
+                  InvoiceLine(
+                    kind: InvoiceLineKind.fees,
+                    name: 'Strategy session',
+                    amountMinor: 1500000,
+                  ),
+                ],
+              ),
+            );
+        return (await c.read(customersProvider.future)).single;
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showRemindSheet(context, customer!),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await settleFrames(tester);
+      expect(find.text('Attach invoice AC-INV-0001'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('remind-send')));
+      await tester.tap(find.byKey(const Key('remind-send')));
+      // Making the invoice's files reads the database a few times.
+      for (var i = 0; i < 40 && files.files.isEmpty; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(files.files, ['ac-inv-0001.pdf']);
+      expect(files.texts.single, contains('AC-INV-0001'));
     });
   });
 }
