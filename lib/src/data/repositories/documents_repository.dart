@@ -78,6 +78,22 @@ abstract interface class DocumentsRepository {
 
   /// The sale that transaction [transactionId] paid, if any.
   Future<int?> saleOf(int transactionId);
+
+  /// Keeps [bytes] attached to invoice [invoiceId], after those already
+  /// there.
+  Future<int> attach(
+    int invoiceId, {
+    required String name,
+    required String mimeType,
+    required Uint8List bytes,
+    required DateTime at,
+  });
+
+  /// Invoice [invoiceId]'s attachments, in order.
+  Future<List<StoredFile>> attachments(int invoiceId);
+
+  /// How many attachments each invoice has, by invoice id.
+  Future<Map<int, int>> attachmentCounts();
 }
 
 class DriftDocumentsRepository implements DocumentsRepository {
@@ -190,6 +206,59 @@ class DriftDocumentsRepository implements DocumentsRepository {
       receiptNo: sale.receiptNo,
       customer: customer,
     );
+  }
+
+  @override
+  Future<int> attach(
+    int invoiceId, {
+    required String name,
+    required String mimeType,
+    required Uint8List bytes,
+    required DateTime at,
+  }) async {
+    final count = (await attachments(invoiceId)).length;
+    return _db
+        .into(_db.documentFiles)
+        .insert(
+          DocumentFilesCompanion.insert(
+            kind: DocumentFileKind.attachment,
+            name: name,
+            mimeType: mimeType,
+            bytes: bytes,
+            addedAt: at,
+            invoiceId: Value(invoiceId),
+            position: Value(count),
+          ),
+        );
+  }
+
+  @override
+  Future<List<StoredFile>> attachments(int invoiceId) async => [
+    for (final r
+        in await (_db.select(_db.documentFiles)
+              ..where(
+                (f) =>
+                    f.kind.equals(DocumentFileKind.attachment) &
+                    f.invoiceId.equals(invoiceId),
+              )
+              ..orderBy([(f) => OrderingTerm.asc(f.position)]))
+            .get())
+      _file(r),
+  ];
+
+  @override
+  Future<Map<int, int>> attachmentCounts() async {
+    final out = <int, int>{};
+    for (final r
+        in await (_db.select(_db.documentFiles)..where(
+              (f) =>
+                  f.kind.equals(DocumentFileKind.attachment) &
+                  f.invoiceId.isNotNull(),
+            ))
+            .get()) {
+      out[r.invoiceId!] = (out[r.invoiceId!] ?? 0) + 1;
+    }
+    return out;
   }
 
   @override

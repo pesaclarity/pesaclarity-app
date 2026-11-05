@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 
 import '../../../data/repositories/documents_repository.dart';
 import '../../backup/application/backup_providers.dart';
@@ -23,6 +24,17 @@ final invoiceRendererProvider =
         bool withTimesheet,
       })
     >((ref) => renderInvoicePdf);
+
+/// Each page of a PDF as a PNG, so an attached PDF can follow the invoice
+/// in one file; tests swap in a stand-in.
+final pdfPagesProvider =
+    Provider<Future<List<Uint8List>> Function(Uint8List pdf)>(
+      (ref) =>
+          (pdf) async => [
+            await for (final page in Printing.raster(pdf, dpi: 150))
+              await page.toPng(),
+          ],
+    );
 
 /// Builds, shares and saves invoices.
 class InvoiceSender {
@@ -50,7 +62,29 @@ class InvoiceSender {
       logo: logo != null && logo.isImage ? logo.bytes : null,
       qr: qr != null && qr.isImage ? qr.bytes : null,
       paid: view.leftMinor == 0,
+      attachedPages: await _pages(view.invoice.id),
     );
+  }
+
+  Future<List<StoredFile>> _attachments(int invoiceId) =>
+      _ref.read(documentsRepositoryProvider).attachments(invoiceId);
+
+  /// Attachments as page pictures: pictures as they are, PDFs page by page.
+  /// A file that will not open is left for the separate files.
+  Future<List<Uint8List>> _pages(int invoiceId) async {
+    final out = <Uint8List>[];
+    for (final f in await _attachments(invoiceId)) {
+      try {
+        if (f.isImage) {
+          out.add(f.bytes);
+        } else if (f.mimeType == 'application/pdf') {
+          out.addAll(await _ref.read(pdfPagesProvider)(f.bytes));
+        }
+      } on Object {
+        continue;
+      }
+    }
+    return out;
   }
 
   /// The files to send: one PDF, or the invoice and the timesheet apart.
@@ -67,7 +101,7 @@ class InvoiceSender {
     }
     return [
       (
-        bytes: await render(doc, withTimesheet: false),
+        bytes: await render(doc.withoutAttachedPages(), withTimesheet: false),
         fileName: doc.fileName(''),
         mimeType: 'application/pdf',
       ),
@@ -77,6 +111,8 @@ class InvoiceSender {
           fileName: doc.fileName('timesheet'),
           mimeType: 'application/pdf',
         ),
+      for (final a in await _attachments(doc.invoice.id))
+        (bytes: a.bytes, fileName: a.name, mimeType: a.mimeType),
     ];
   }
 

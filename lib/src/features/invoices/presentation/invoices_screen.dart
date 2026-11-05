@@ -6,6 +6,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/contacts_repository.dart';
+import '../../../data/repositories/documents_repository.dart';
 import '../../../domain/documents/invoice.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/time/calendar.dart';
@@ -210,7 +211,11 @@ class _InvoiceRow extends StatelessWidget {
                 children: [
                   Text(i.client, style: theme.textTheme.titleMedium),
                   Text(
-                    '${i.number} · $detail',
+                    [
+                      i.number,
+                      detail,
+                      if (view.attached > 0) '${view.attached} attached',
+                    ].join(' · '),
                     style: theme.textTheme.bodySmall!.copyWith(
                       color: colors.textMuted,
                     ),
@@ -278,6 +283,7 @@ class _ShareInvoice extends ConsumerStatefulWidget {
 class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
   final _number = TextEditingController();
   CallingCode? _code;
+  List<String> _attachments = const [];
   var _one = true;
   var _busy = false;
 
@@ -297,8 +303,12 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
     final contact = await ref
         .read(contactsRepositoryProvider)
         .byName(widget.view.invoice.client);
+    final attached = await ref
+        .read(documentsRepositoryProvider)
+        .attachments(widget.view.invoice.id);
     if (!mounted) return;
     setState(() {
+      _attachments = [for (final a in attached) a.name];
       _code = callingCodeFor(ref.read(deviceRegionProvider));
       final phone = contact?.phone;
       if (phone != null) {
@@ -388,6 +398,8 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
     final parts = [
       ('Invoice', widget.view.status == InvoiceStatus.paid ? 'Paid' : 'PDF'),
       if (i.timesheet) ('Timesheet', 'PDF'),
+      for (final a in _attachments)
+        (a.replaceFirst(RegExp(r'\.[A-Za-z0-9]+$'), ''), 'attached'),
     ];
 
     return Column(
@@ -403,7 +415,8 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          runSpacing: 8,
           children: [
             for (final (name, kind) in parts)
               Container(
@@ -421,7 +434,12 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: theme.textTheme.labelMedium),
+                    Text(
+                      name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium,
+                    ),
                     Text(kind, style: muted),
                   ],
                 ),

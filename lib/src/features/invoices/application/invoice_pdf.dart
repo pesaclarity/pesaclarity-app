@@ -29,6 +29,7 @@ class InvoiceDoc {
     this.logo,
     this.qr,
     this.paid = false,
+    this.attachedPages = const [],
   });
 
   final StoredInvoice invoice;
@@ -44,6 +45,22 @@ class InvoiceDoc {
 
   /// Shows a Paid stamp.
   final bool paid;
+
+  /// Attached documents as page pictures, in order, for one PDF.
+  final List<Uint8List> attachedPages;
+
+  /// The same, without the attached pages, for separate files.
+  InvoiceDoc withoutAttachedPages() => InvoiceDoc(
+    invoice: invoice,
+    business: business,
+    settings: settings,
+    withholdingRate: withholdingRate,
+    vatRate: vatRate,
+    hours: hours,
+    logo: logo,
+    qr: qr,
+    paid: paid,
+  );
 
   String fileName(String part) =>
       '${invoice.number.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}'
@@ -591,6 +608,15 @@ Future<Uint8List> renderInvoicePdf(
             ],
           ),
         ],
+      ),
+    );
+  }
+  for (final page in withInvoice ? doc.attachedPages : const <Uint8List>[]) {
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (context) => pw.Center(child: pw.Image(pw.MemoryImage(page))),
       ),
     );
   }

@@ -15,10 +15,12 @@ import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../documents/application/document_providers.dart';
 import '../../hours/application/hours_providers.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../tax/application/tax_providers.dart';
 import '../application/invoice_providers.dart';
+import 'attach_sheet.dart';
 import 'invoices_screen.dart';
 
 /// A line typed in: an item billed, or a cost passed on.
@@ -59,6 +61,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
   var _timesheet = false;
   final _items = <_Typed>[];
   final _costs = <_Typed>[];
+  final _attached = <PickedDocument>[];
   Withholding? _withholding;
   var _vat = false;
   var _remember = true;
@@ -202,6 +205,24 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
     });
   }
 
+  Future<void> _attach() async {
+    final picked = await showAttachSheet(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      for (final a in picked) {
+        _attached.add(a.file);
+        final cost = a.costMinor;
+        if (a.costName != null && cost != null && cost > 0) {
+          _costs.add(
+            _Typed()
+              ..name.text = a.costName!
+              ..amount.text = '${cost ~/ 100}',
+          );
+        }
+      }
+    });
+  }
+
   Future<void> _save({required bool share}) async {
     final client = _client.text.trim();
     final messenger = ScaffoldMessenger.of(context);
@@ -240,6 +261,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                   ? [for (final e in _chosenHours) e.id]
                   : const [],
             ),
+            attachments: _attached,
           );
       navigator.pop();
       if (share && navigator.mounted) {
@@ -572,6 +594,43 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
               onPressed: () => setState(() => _costs.add(_Typed())),
               child: Text(
                 'Add a cost passed on, such as software for the work',
+                style: TextStyle(color: colors.link),
+              ),
+            ),
+          ),
+          if (_attached.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('ATTACHED', style: label()),
+            const SizedBox(height: 8),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final a in _attached)
+                    ListTile(
+                      leading: Icon(
+                        a.mimeType == 'application/pdf'
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.image_outlined,
+                      ),
+                      title: Text(a.name),
+                      trailing: IconButton(
+                        tooltip: 'Leave it out',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => setState(() => _attached.remove(a)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('invoice-attach'),
+              onPressed: _attach,
+              child: Text(
+                'Attach a document, such as a receipt or the eTIMS invoice',
                 style: TextStyle(color: colors.link),
               ),
             ),
