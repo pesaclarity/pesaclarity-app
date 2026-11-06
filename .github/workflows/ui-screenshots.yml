@@ -10,6 +10,8 @@ on:
       - "tool/run_ui_flows.sh"
       - "tool/ui_diagnostics.sh"
       - "tool/install_app.sh"
+      - "tool/prepare_foss.sh"
+      - "tool/foss/**"
   workflow_dispatch:
 
 permissions:
@@ -62,6 +64,10 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+
+      # The app as F-Droid builds it, SQLCipher compiled from source included.
+      - name: Prepare the F-Droid build
+        run: ./tool/prepare_foss.sh
 
       - name: Install dependencies
         run: flutter pub get

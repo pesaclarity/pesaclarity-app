@@ -27,6 +27,8 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+# SQLCipher and LibTomCrypt sources, fetched by tool/foss/sqlcipher.sh
+/third_party/
 
 # Symbols and obfuscation maps (keep them, but not in git)
 app.*.symbols

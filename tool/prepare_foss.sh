@@ -5,6 +5,8 @@
 #
 # - Removes PDFium (pdfrx_engine and pdfium_flutter); the app then hides
 #   statement import.
+# - Builds SQLCipher from source instead of using the prebuilt library
+#   (tool/foss/sqlcipher.sh).
 #
 # Usage: tool/prepare_foss.sh [checkout]   (default: the current directory)
 set -euo pipefail
@@ -23,5 +25,8 @@ fi
 cp tool/foss/pdf_engine.dart lib/src/features/statements/data/pdf_engine.dart
 rm -f lib/src/features/statements/data/pdfium_text_extractor.dart \
   test/features/statements/pdfium_text_extractor_test.dart
+
+# SQLCipher: compiled from source by package:sqlite3's build hook.
+./tool/foss/sqlcipher.sh
 
 echo "Prepared $(pwd) for the foss build."

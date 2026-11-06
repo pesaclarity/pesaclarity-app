@@ -1,6 +1,7 @@
 name: Foss build
 
-# A release build of the foss flavour, checked for Google sign-in code.
+# A release build of the foss flavour, checked for SQLCipher built from source, PDFium
+# and Google sign-in code.
 # Pull requests run it only when the Android build or dependencies change;
 # main runs it after every app change, to catch release-only build failures.
 on:
@@ -72,6 +73,33 @@ jobs:
         run: >-
           flutter build apk --release --flavor foss
           --obfuscate --split-debug-info=build/symbols
+
+      # tool/foss/sqlcipher.sh: compiled by package:sqlite3's hook as libsqlite3.so, with
+      # LibTomCrypt. The hook's download is libsqlcipher.so and links OpenSSL.
+      - name: Check SQLCipher was built from source
+        run: |
+          apk=build/app/outputs/flutter-apk/app-foss-release.apk
+          status=0
+          if unzip -l "$apk" | grep -q 'libsqlcipher\.so'; then
+            echo "::error::The foss APK contains the prebuilt SQLCipher"
+            status=1
+          fi
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            lib="$RUNNER_TEMP/libsqlite3-$abi.so"
+            unzip -p "$apk" "lib/$abi/libsqlite3.so" > "$lib"
+            if ! strings "$lib" | grep -qx libtomcrypt || strings "$lib" | grep -q '^OpenSSL [0-9]'; then
+              echo "::error::lib/$abi/libsqlite3.so is not SQLCipher with LibTomCrypt"
+              status=1
+            fi
+          done
+          exit $status
+
+      # The same source build, for this machine: databases from either build open in it.
+      - name: Test SQLCipher built from source
+        run: >-
+          flutter test test/data/sqlcipher_format_test.dart test/data/app_database_test.dart
+          test/features/backup/local_database_backup_test.dart
+          --dart-define=EXPECT_CIPHER_PROVIDER=libtomcrypt
 
       - name: Check the foss APK has no PDFium
         run: |

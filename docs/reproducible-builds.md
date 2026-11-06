@@ -13,14 +13,15 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 | No build timestamps | Set `SOURCE_DATE_EPOCH` to the release commit time: `export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)`. Avoid `DateTime.now()` or `BuildConfig` timestamps in build scripts. |
 | No dependency metadata blob | Done: `dependenciesInfo { includeInApk = false; includeInBundle = false }` in `android/app/build.gradle.kts`. |
 | Same build command | `flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols`, plus the same `--dart-define` values (see `RELEASING.md`). Different defines produce a different APK. |
-| No prebuilt binaries in `foss` | Run `tool/prepare_foss.sh` first. PDFium is done; SQLCipher is not yet (see below). |
+| No prebuilt binaries in `foss` | Run `tool/prepare_foss.sh` first. PDFium and SQLCipher are done; LiteRT is open (see below). |
 | No committed binaries | Done: no `.jar`, `.so` or `.aar` files are in the repo. The Gradle wrapper jar is not committed; Flutter supplies it. |
 
 ## Current offenders
 
-1. **SQLCipher (`package:sqlite3` build hook).** `hooks.user_defines.sqlite3.source: sqlcipher` in `pubspec.yaml` makes the hook download a prebuilt `libsqlcipher.so` from the `sqlite3` package's GitHub releases (checked against hashes in the package). F-Droid does not accept prebuilt native libraries. Fix for `foss`: compile SQLCipher from source with the hook's `source: source` option (pointing `path` at a SQLCipher amalgamation built in the F-Droid recipe, with its crypto library), or have the recipe build the library and use `source: system`. This needs testing on a device before the first F-Droid submission.
+1. **SQLCipher.** Resolved: `pubspec.yaml`'s `hooks.user_defines.sqlite3.source: sqlcipher` makes `package:sqlite3`'s build hook download a prebuilt `libsqlcipher.so`, so `tool/prepare_foss.sh` runs `tool/foss/sqlcipher.sh` instead. That fetches SQLCipher 4.19.0 (the prebuilt's version) and LibTomCrypt 1.18.2 at pinned commits, makes SQLCipher's single-file source with SQLCipher's own build, and points the hook at it (`source: source`), so the hook compiles `libsqlite3.so` for each chip with the prebuilt's compile options. LibTomCrypt supplies the crypto, since the hook can't build OpenSSL for each chip. Databases are the SQLCipher 4 format either way, and `test/data/sqlcipher_format_test.dart` reads one made by each build. The `Foss build` workflow fails if the APK holds the prebuilt or a library without LibTomCrypt, and the UI flows run on this build. F-Droid's recipe can pass its own checkouts as `SQLCIPHER_SRC` and `LIBTOMCRYPT_SRC`.
 2. **PDFium.** Resolved: `tool/prepare_foss.sh` removes `pdfrx_engine` and `pdfium_flutter` and swaps in `tool/foss/pdf_engine.dart`, so the `foss` build has no PDF engine and hides statement import. The `Foss build` workflow runs the script and fails if `libpdfium` is in the APK.
 3. **Flutter engine.** The Flutter SDK downloads its engine artefacts. F-Droid builds Flutter apps with the SDK as a srclib; follow fdroiddata's current guidance for Flutter when writing the recipe.
+4. **LiteRT.** `tflite_flutter` links Google's prebuilt LiteRT AAR from Maven Central, with native libraries in it. F-Droid accepts some libraries from Maven Central; if its reviewers don't accept this one, LiteRT needs building from source in the recipe, or another runtime behind `TfliteRuntime`.
 
 ## Checking a build
 

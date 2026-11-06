@@ -110,7 +110,8 @@ Not set up yet. Before the first upload:
 - [ ] Play Console project and Google Cloud project created; Play Integrity added to the `play` flavour behind `IntegrityAttestor`, with server-side token checks
 - [ ] Upload and release keys created in a hardware key or secrets manager, with an offline backup
 - [ ] SMS permissions declaration and Data safety form submitted and approved
-- [ ] SQLCipher built from source for `foss`; PDFium handled before it ships in `foss`
+- [x] SQLCipher built from source for `foss`; PDFium removed from `foss`
+- [ ] LiteRT accepted by F-Droid as it is, or built from source (`docs/reproducible-builds.md`)
 - [ ] External penetration test against OWASP MASVS L2 passed, findings fixed
 - [ ] Performance budget met on a 2 GB phone (`docs/performance-budget.md`)
 - [ ] ODPC registration done (spec: Privacy and compliance)

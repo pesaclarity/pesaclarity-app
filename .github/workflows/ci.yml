@@ -62,4 +62,5 @@ jobs:
         run: flutter analyze --fatal-infos --fatal-warnings
 
       - name: Test
-        run: flutter test
+        # The play build's SQLCipher is the hook's prebuilt, with OpenSSL.
+        run: flutter test --dart-define=EXPECT_CIPHER_PROVIDER=openssl
