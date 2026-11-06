@@ -23,6 +23,10 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 
 ## Checking a build
 
+The **Reproducible build** workflow does this on every change to `main` that touches the app, and on pull requests that change the Android build, the dependencies or the foss preparation. It builds the foss APKs twice, from two checkouts in different folders, with the release flags and one throwaway key, and fails if the files differ. `tool/compare_apks.py` then names the entries that differ, and the run keeps both APKs for diffoscope.
+
+It doesn't vary the Flutter SDK's location, the user or the machine, as F-Droid's builder will. Before the first F-Droid submission, also check by hand:
+
 1. Build the release twice from a clean checkout of the same tag, in two fresh containers, with the same Flutter version, JDK and `SOURCE_DATE_EPOCH`.
 2. Compare the unsigned APKs with `diffoscope`. Expect only the signature to differ.
 3. To compare against a signed APK, copy the signature across with `apksigcopier compare signed.apk --unsigned unsigned.apk`. A match means the signed APK was built from this source.
