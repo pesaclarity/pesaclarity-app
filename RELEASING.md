@@ -40,7 +40,7 @@ Build, with `SOURCE_DATE_EPOCH` set for reproducibility (see `docs/reproducible-
 ```sh
 export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
 flutter build appbundle --release --flavor play --obfuscate --split-debug-info=build/symbols/play --dart-define=...
-./tool/prepare_foss.sh   # on a throwaway checkout; see docs/reproducible-builds.md
+./tool/prepare_foss.sh   # on a throwaway checkout in /home/vagrant/build/com.pesaclarity.app; see docs/reproducible-builds.md
 flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols/foss --dart-define=...
 ```
 

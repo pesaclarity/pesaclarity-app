@@ -1,9 +1,10 @@
 name: Reproducible build
 
-# Builds the foss APKs twice, from two checkouts in different folders, and checks the
-# files match. F-Droid can then rebuild a release and ship it with our signature
-# (docs/reproducible-builds.md). Both builds share a throwaway key, so matching APKs are
-# identical files; tool/compare_apks.py names the entries that differ when they are not.
+# Builds the foss APKs twice from fresh copies of the checkout and checks the files match,
+# so F-Droid can rebuild a release and ship it with our signature
+# (docs/reproducible-builds.md). Flutter records the build folder in the app, so both
+# builds use F-Droid's path. Both share a throwaway key, so matching APKs are identical
+# files; tool/compare_apks.py names the entries that differ when they are not.
 on:
   push:
     branches: [main]
@@ -45,20 +46,19 @@ jobs:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      BUILD_DIR: /home/vagrant/build/com.pesaclarity.app
     steps:
       - uses: actions/checkout@v7
         with:
-          path: first
+          path: src
           persist-credentials: false
 
-      # A second checkout at a different path, so a build that records where it ran fails.
-      - name: Copy the checkout elsewhere
+      - name: Prepare F-Droid's build folder
         run: |
-          second="$RUNNER_TEMP/another/folder/second"
-          mkdir -p "$(dirname "$second")"
-          cp -a first "$second"
-          echo "SECOND=$second" >> "$GITHUB_ENV"
-          echo "SOURCE_DATE_EPOCH=$(git -C first log -1 --format=%ct)" >> "$GITHUB_ENV"
+          sudo mkdir -p "$(dirname "$BUILD_DIR")"
+          sudo chown "$USER" "$(dirname "$BUILD_DIR")"
+          echo "SOURCE_DATE_EPOCH=$(git -C src log -1 --format=%ct)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v6
         with:
@@ -79,11 +79,13 @@ jobs:
             "$RUNNER_TEMP/test.jks" > "$RUNNER_TEMP/key.properties"
 
       # Release flags (RELEASING.md), one APK per chip as in test-apk.yml, fixed defines.
-      - name: Build both
+      - name: Build twice
         run: |
-          for dir in "$GITHUB_WORKSPACE/first" "$SECOND"; do
-            echo "::group::Build in $dir"
-            cd "$dir"
+          for run in first second; do
+            echo "::group::Build $run"
+            rm -rf "$BUILD_DIR"
+            cp -a "$GITHUB_WORKSPACE/src" "$BUILD_DIR"
+            cd "$BUILD_DIR"
             ./tool/prepare_foss.sh
             cp "$RUNNER_TEMP/key.properties" android/key.properties
             flutter pub get
@@ -94,6 +96,8 @@ jobs:
               --build-name=0.0.0-check --build-number=1 \
               --dart-define=PESACLARITY_VERSION=0.0.0-check \
               --dart-define=PESACLARITY_API_URL=https://api.example.org
+            mkdir -p "$RUNNER_TEMP/apks/$run"
+            cp build/app/outputs/flutter-apk/app-*-foss-release.apk "$RUNNER_TEMP/apks/$run/"
             echo "::endgroup::"
           done
 
@@ -101,25 +105,19 @@ jobs:
         run: |
           status=0
           for abi in arm64-v8a armeabi-v7a; do
-            apk="build/app/outputs/flutter-apk/app-$abi-foss-release.apk"
-            a="first/$apk" b="$SECOND/$apk"
+            a="$RUNNER_TEMP/apks/first/app-$abi-foss-release.apk"
+            b="$RUNNER_TEMP/apks/second/app-$abi-foss-release.apk"
             sha256sum "$a" "$b"
             if cmp -s "$a" "$b"; then
               echo "$abi: identical"
             else
               echo "::error::The $abi foss APK differs between the two builds"
-              python3 -I first/tool/compare_apks.py "$a" "$b" || true
+              python3 -I src/tool/compare_apks.py "$a" "$b" || true
               status=1
             fi
           done
           exit $status
 
-      - name: Keep both builds for diffoscope
-        if: failure()
-        run: |
-          mkdir -p "$RUNNER_TEMP/apks/first" "$RUNNER_TEMP/apks/second"
-          cp first/build/app/outputs/flutter-apk/*.apk "$RUNNER_TEMP/apks/first/"
-          cp "$SECOND"/build/app/outputs/flutter-apk/*.apk "$RUNNER_TEMP/apks/second/"
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

@@ -9,6 +9,7 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 | Pinned Flutter SDK | CI pins `FLUTTER_VERSION: "3.47.8"`; `pubspec.yaml` only asks for `>=3.47.0`. Release builds must use the CI version exactly, and the F-Droid recipe must name the same Flutter tag as its srclib. |
 | Locked Dart dependencies | `pubspec.lock` is committed. The one git dependency (`ujumbe`) is pinned to a commit; switch it to a tag once one exists. |
 | Pinned Android toolchain | AGP 9.4.1, Kotlin 2.4.21 and Gradle 9.8.2 are pinned in `android/settings.gradle.kts` and `gradle-wrapper.properties`. JDK 17 (Temurin in CI). The compile and target SDK come from the Flutter version, so pinning Flutter pins them. |
+| Same build path | Flutter compiles the absolute path of a generated file (`.dart_tool/flutter_build/dart_plugin_registrant.dart`) into `libapp.so`, and native libraries built by package hooks, such as `libdartjni.so`, carry a build id that depends on it. Builds in two folders differ in both, so build a `foss` release in `/home/vagrant/build/com.pesaclarity.app`, the path F-Droid's builder uses. |
 | No build timestamps | Set `SOURCE_DATE_EPOCH` to the release commit time: `export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)`. Avoid `DateTime.now()` or `BuildConfig` timestamps in build scripts. |
 | No dependency metadata blob | Done: `dependenciesInfo { includeInApk = false; includeInBundle = false }` in `android/app/build.gradle.kts`. |
 | Same build command | `flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols`, plus the same `--dart-define` values (see `RELEASING.md`). Different defines produce a different APK. |
@@ -23,7 +24,7 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 
 ## Checking a build
 
-The **Reproducible build** workflow does this on every change to `main` that touches the app, and on pull requests that change the Android build, the dependencies or the foss preparation. It builds the foss APKs twice, from two checkouts in different folders, with the release flags and one throwaway key, and fails if the files differ. `tool/compare_apks.py` then names the entries that differ, and the run keeps both APKs for diffoscope.
+The **Reproducible build** workflow does this on every change to `main` that touches the app, and on pull requests that change the Android build, the dependencies or the foss preparation. It builds the foss APKs twice, each time from a fresh copy of the checkout in F-Droid's build path, with the release flags and one throwaway key, and fails if the files differ. `tool/compare_apks.py` then names the entries that differ, and the run keeps both APKs for diffoscope.
 
 It doesn't vary the Flutter SDK's location, the user or the machine, as F-Droid's builder will. Before the first F-Droid submission, also check by hand:
 
