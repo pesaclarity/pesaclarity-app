@@ -1,0 +1,126 @@
+name: Reproducible build
+
+# Builds the foss APKs twice from fresh copies of the checkout and checks the files match,
+# so F-Droid can rebuild a release and ship it with our signature
+# (docs/reproducible-builds.md). Flutter records the build folder in the app, so both
+# builds use F-Droid's path. Both share a throwaway key, so matching APKs are identical
+# files; tool/compare_apks.py names the entries that differ when they are not.
+on:
+  push:
+    branches: [main]
+    paths:
+      - lib/**
+      - assets/**
+      - android/**
+      - pubspec.yaml
+      - pubspec.lock
+      - tool/prepare_foss.sh
+      - tool/foss/**
+      - tool/compare_apks.py
+      - .github/workflows/reproducible-build.yml
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - android/**
+      - pubspec.yaml
+      - pubspec.lock
+      - tool/prepare_foss.sh
+      - tool/foss/**
+      - tool/compare_apks.py
+      - .github/workflows/reproducible-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reproducible-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  rebuild:
+    name: Build foss twice and compare
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BUILD_DIR: /home/vagrant/build/com.pesaclarity.app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: src
+          persist-credentials: false
+
+      - name: Prepare F-Droid's build folder
+        run: |
+          sudo mkdir -p "$(dirname "$BUILD_DIR")"
+          sudo chown "$USER" "$(dirname "$BUILD_DIR")"
+          echo "SOURCE_DATE_EPOCH=$(git -C src log -1 --format=%ct)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Make a throwaway signing key
+        run: |
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/test.jks" \
+            -storepass throwaway -keypass throwaway -alias test \
+            -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Reproducible build check"
+          printf 'storeFile=%s\nstorePassword=throwaway\nkeyAlias=test\nkeyPassword=throwaway\n' \
+            "$RUNNER_TEMP/test.jks" > "$RUNNER_TEMP/key.properties"
+
+      # Release flags (RELEASING.md), one APK per chip as in test-apk.yml, fixed defines.
+      - name: Build twice
+        run: |
+          for run in first second; do
+            echo "::group::Build $run"
+            rm -rf "$BUILD_DIR"
+            cp -a "$GITHUB_WORKSPACE/src" "$BUILD_DIR"
+            cd "$BUILD_DIR"
+            ./tool/prepare_foss.sh
+            cp "$RUNNER_TEMP/key.properties" android/key.properties
+            flutter pub get
+            dart run build_runner build --delete-conflicting-outputs
+            flutter build apk --release --flavor foss \
+              --target-platform android-arm,android-arm64 --split-per-abi \
+              --obfuscate --split-debug-info=build/symbols \
+              --build-name=0.0.0-check --build-number=1 \
+              --dart-define=PESACLARITY_VERSION=0.0.0-check \
+              --dart-define=PESACLARITY_API_URL=https://api.example.org
+            mkdir -p "$RUNNER_TEMP/apks/$run"
+            cp build/app/outputs/flutter-apk/app-*-foss-release.apk "$RUNNER_TEMP/apks/$run/"
+            echo "::endgroup::"
+          done
+
+      - name: Compare
+        run: |
+          status=0
+          for abi in arm64-v8a armeabi-v7a; do
+            a="$RUNNER_TEMP/apks/first/app-$abi-foss-release.apk"
+            b="$RUNNER_TEMP/apks/second/app-$abi-foss-release.apk"
+            sha256sum "$a" "$b"
+            if cmp -s "$a" "$b"; then
+              echo "$abi: identical"
+            else
+              echo "::error::The $abi foss APK differs between the two builds"
+              python3 -I src/tool/compare_apks.py "$a" "$b" || true
+              status=1
+            fi
+          done
+          exit $status
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: unreproducible-foss-apks
+          path: ${{ runner.temp }}/apks
+          retention-days: 14
