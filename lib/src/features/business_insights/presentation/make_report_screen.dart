@@ -5,7 +5,11 @@ import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/books/report_setup.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/report_maker.dart';
@@ -47,8 +51,8 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
 
   Future<void> _pickDates() async {
     final today = _today;
-    final picked = await showDateRangePicker(
-      context: context,
+    final picked = await pickDateRange(
+      context,
       firstDate: DateTime(today.year - 5),
       lastDate: DateTime(today.year, today.month, today.day),
       initialDateRange: DateTimeRange(
@@ -83,7 +87,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
 
   Future<void> _editCover(ReportSettings settings) async {
     final space = ref.read(activeSpaceProvider).name;
-    final cover = await showDialog<ReportCover>(
+    final cover = await showAdaptiveDialog<ReportCover>(
       context: context,
       builder: (context) => _CoverDialog(cover: settings.cover, space: space),
     );
@@ -93,10 +97,8 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
         .save(settings.copyWith(cover: cover));
   }
 
-  Future<void> _editStyle() => showModalBottomSheet<void>(
+  Future<void> _editStyle() => showAppSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     builder: (context) => _StyleSheet(
       style: _style,
       onChanged: (s) => setState(() => _style = s),
@@ -104,7 +106,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   );
 
   Future<void> _save(ReportSettings settings) async {
-    final name = await showDialog<String>(
+    final name = await showAdaptiveDialog<String>(
       context: context,
       builder: (context) => _NameDialog(initial: _name ?? _suggestedName()),
     );
@@ -129,7 +131,13 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
     setState(() => _name = name.trim());
   }
 
-  Future<void> _remove(ReportSettings settings, ReportSetup s) async {
+  Future<void> _delete(ReportSettings settings, ReportSetup s) async {
+    final yes = await confirmDelete(
+      context,
+      title: 'Delete ${s.name}?',
+      body: 'It goes from Your reports.',
+    );
+    if (!yes) return;
     await ref
         .read(reportSettingsProvider.notifier)
         .save(
@@ -157,7 +165,6 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   }
 
   Future<void> _make({required bool csv}) async {
-    final messenger = ScaffoldMessenger.of(context);
     final previewer = ref.read(reportPreviewerProvider);
     setState(() => _busy = true);
     try {
@@ -177,9 +184,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
         await previewer(context, doc, pdf);
       }
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The report was not made. Try again.')),
-      );
+      if (mounted) showNote(context, 'The report was not made. Try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -189,7 +194,8 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final settings = ref.watch(reportSettingsProvider).value;
+    final loaded = ref.watch(reportSettingsProvider);
+    final settings = loaded.value;
     final space = ref.watch(activeSpaceProvider).name;
     TextStyle label() =>
         theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
@@ -197,9 +203,14 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Make a report')),
       body: settings == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? loaded.hasError
+                ? ErrorView(
+                    'Your report settings could not load.',
+                    onRetry: () => ref.invalidate(reportSettingsProvider),
+                  )
+                : const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 if (settings.saved.isNotEmpty) ...[
                   Text('Your reports', style: label()),
@@ -214,8 +225,8 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                           label: Text(s.name),
                           selected: _name == s.name,
                           onPressed: () => _use(s),
-                          onDeleted: () => _remove(settings, s),
-                          deleteButtonTooltipMessage: 'Remove ${s.name}',
+                          onDeleted: () => _delete(settings, s),
+                          deleteButtonTooltipMessage: 'Delete ${s.name}',
                         ),
                     ],
                   ),
@@ -255,26 +266,19 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                 const SizedBox(height: 16),
                 Text('Detail', style: label()),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final d in ReportDetail.values)
-                      ChoiceChip(
-                        key: Key('detail-${d.name}'),
-                        label: Text(d.label),
-                        selected: _detail == d,
-                        onSelected: (_) => setState(() => _detail = d),
-                      ),
-                  ],
+                AdaptiveSegmented<ReportDetail>(
+                  key: const Key('report-detail'),
+                  name: 'Detail',
+                  segments: [for (final d in ReportDetail.values) (d, d.label)],
+                  selected: _detail,
+                  onChanged: (d) => setState(() => _detail = d),
                 ),
                 const SizedBox(height: 16),
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       for (final (i, s) in ReportSection.values.indexed) ...[
-                        if (i > 0)
-                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        if (i > 0) const Divider(height: 1),
                         CheckboxListTile(
                           key: Key('section-${s.name}'),
                           controlAffinity: ListTileControlAffinity.leading,
@@ -294,40 +298,32 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                 ),
                 const SizedBox(height: 12),
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       ListTile(
                         key: const Key('report-cover'),
                         title: const Text('On the cover'),
                         subtitle: Text(settings.cover.line(space)),
-                        trailing: Text(
-                          'Edit',
-                          style: TextStyle(color: colors.link),
-                        ),
+                        trailing: const TrailingLink('Edit'),
                         onTap: () => _editCover(settings),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1),
                       ListTile(
                         key: const Key('report-style'),
                         title: const Text('Style'),
                         subtitle: Text(_style.summary),
-                        trailing: Text(
-                          'Change',
-                          style: TextStyle(color: colors.link),
-                        ),
+                        trailing: const TrailingLink('Change'),
                         onTap: _editStyle,
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1),
                       ListTile(
                         key: const Key('report-save'),
                         title: const Text('Saved as'),
                         subtitle: Text(
                           _name ?? 'Save it to make it again in one tap',
                         ),
-                        trailing: Text(
+                        trailing: TrailingLink(
                           _name == null ? 'Save' : 'Rename',
-                          style: TextStyle(color: colors.link),
                         ),
                         onTap: () => _save(settings),
                       ),
@@ -335,26 +331,21 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        key: const Key('report-preview'),
-                        onPressed: _busy || _sections.isEmpty
-                            ? null
-                            : () => _make(csv: false),
-                        child: const Text('Preview PDF'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      key: const Key('report-csv'),
-                      onPressed: _busy || _sections.isEmpty
-                          ? null
-                          : () => _make(csv: true),
-                      child: const Text('CSV'),
-                    ),
-                  ],
+                ButtonPair(
+                  primary: FilledButton(
+                    key: const Key('report-preview'),
+                    onPressed: _busy || _sections.isEmpty
+                        ? null
+                        : () => _make(csv: false),
+                    child: const Text('Preview PDF'),
+                  ),
+                  secondary: OutlinedButton(
+                    key: const Key('report-csv'),
+                    onPressed: _busy || _sections.isEmpty
+                        ? null
+                        : () => _make(csv: true),
+                    child: const Text('CSV'),
+                  ),
                 ),
               ],
             ),
@@ -393,7 +384,7 @@ class _CoverDialogState extends State<_CoverDialog> {
       c.text.trim().isEmpty ? null : c.text.trim();
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AlertDialog.adaptive(
     title: const Text('On the cover'),
     content: SingleChildScrollView(
       child: Column(
@@ -435,11 +426,11 @@ class _CoverDialogState extends State<_CoverDialog> {
       ),
     ),
     actions: [
-      TextButton(
+      DialogAction(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      TextButton(
+      DialogAction(
         key: const Key('cover-save'),
         onPressed: () => Navigator.of(context).pop(
           ReportCover(
@@ -477,7 +468,7 @@ class _NameDialogState extends State<_NameDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AlertDialog.adaptive(
     title: const Text('Save this report'),
     content: TextField(
       key: const Key('report-name'),
@@ -487,11 +478,11 @@ class _NameDialogState extends State<_NameDialog> {
       decoration: const InputDecoration(labelText: 'Name'),
     ),
     actions: [
-      TextButton(
+      DialogAction(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      TextButton(
+      DialogAction(
         key: const Key('report-name-save'),
         onPressed: () => Navigator.of(context).pop(_name.text),
         child: const Text('Save'),
@@ -525,8 +516,9 @@ class _StyleSheetState extends State<_StyleSheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A drop-down keyed `style-<title>` for more than two choices, else
-    // chips. Each choice is keyed `style-<title>-<name>`.
+    // A drop-down keyed `style-<title>` for more than two choices, its rows
+    // keyed `style-<title>-<name>`; two choices side by side, keyed
+    // `style-<title>`.
     Widget choice<T extends Enum>(
       String title,
       List<T> values,
@@ -537,7 +529,7 @@ class _StyleSheetState extends State<_StyleSheet> {
       final id = 'style-${title.toLowerCase()}';
       Key rowKey(T v) => Key('$id-${v.name}');
       return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -553,18 +545,12 @@ class _StyleSheetState extends State<_StyleSheet> {
                 onChanged: (v) => _set(pick(v)),
               )
             else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final v in values)
-                    ChoiceChip(
-                      key: rowKey(v),
-                      label: Text(name(v)),
-                      selected: v == selected,
-                      onSelected: (_) => _set(pick(v)),
-                    ),
-                ],
+              AdaptiveSegmented<T>(
+                key: Key(id),
+                name: title,
+                segments: [for (final v in values) (v, name(v))],
+                selected: selected,
+                onChanged: (v) => _set(pick(v)),
               ),
           ],
         ),
@@ -577,8 +563,9 @@ class _StyleSheetState extends State<_StyleSheet> {
       bool value,
       ReportStyle Function(bool) pick, {
       String? subtitle,
-    }) => SwitchListTile(
+    }) => SwitchListTile.adaptive(
       key: Key('style-$key'),
+      contentPadding: EdgeInsets.zero,
       title: Text(title),
       subtitle: subtitle == null ? null : Text(subtitle),
       value: value,
@@ -586,96 +573,83 @@ class _StyleSheetState extends State<_StyleSheet> {
     );
 
     final s = _style;
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+    return SheetBody(
+      title: 'Style',
+      children: [
+        choice(
+          'Cover',
+          ReportCoverStyle.values,
+          s.cover,
+          (v) => v.label,
+          (v) => s.copyWith(cover: v),
         ),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text('Style', style: theme.textTheme.titleLarge),
-            ),
-            choice(
-              'Cover',
-              ReportCoverStyle.values,
-              s.cover,
-              (v) => v.label,
-              (v) => s.copyWith(cover: v),
-            ),
-            choice(
-              'Colour',
-              ReportColour.values,
-              s.colour,
-              (v) => v.label,
-              (v) => s.copyWith(colour: v),
-            ),
-            choice(
-              'Length',
-              ReportLength.values,
-              s.length,
-              (v) => v.label,
-              (v) => s.copyWith(length: v),
-            ),
-            choice(
-              'Words',
-              ReportWording.values,
-              s.wording,
-              (v) => v.label,
-              (v) => s.copyWith(wording: v),
-            ),
-            toggle(
-              'compare',
-              'Compare with the period before',
-              s.compare,
-              (on) => s.copyWith(compare: on),
-            ),
-            toggle(
-              'charts',
-              'Add charts',
-              s.charts,
-              (on) => s.copyWith(charts: on),
-              subtitle: 'How people paid, sales by day and profit by month',
-            ),
-            toggle(
-              'signature',
-              'A line to sign',
-              s.signature,
-              (on) => s.copyWith(signature: on),
-            ),
-            toggle(
-              'kraPin',
-              'KRA PIN on the cover',
-              s.kraPin,
-              (on) => s.copyWith(kraPin: on),
-              subtitle: 'From Receipts and invoices',
-            ),
-            toggle(
-              'permit',
-              'Business permit on the cover',
-              s.permit,
-              (on) => s.copyWith(permit: on),
-              subtitle: 'Add the number under On the cover',
-            ),
-            toggle(
-              'branding',
-              'Made with Pesa Clarity, at the foot',
-              s.branding,
-              (on) => s.copyWith(branding: on),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: FilledButton(
-                key: const Key('style-done'),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
-            ),
-          ],
+        choice(
+          'Colour',
+          ReportColour.values,
+          s.colour,
+          (v) => v.label,
+          (v) => s.copyWith(colour: v),
         ),
-      ),
+        choice(
+          'Length',
+          ReportLength.values,
+          s.length,
+          (v) => v.label,
+          (v) => s.copyWith(length: v),
+        ),
+        choice(
+          'Words',
+          ReportWording.values,
+          s.wording,
+          (v) => v.label,
+          (v) => s.copyWith(wording: v),
+        ),
+        toggle(
+          'compare',
+          'Compare with the period before',
+          s.compare,
+          (on) => s.copyWith(compare: on),
+        ),
+        toggle(
+          'charts',
+          'Add charts',
+          s.charts,
+          (on) => s.copyWith(charts: on),
+          subtitle: 'How people paid, sales by day and profit by month',
+        ),
+        toggle(
+          'signature',
+          'A line to sign',
+          s.signature,
+          (on) => s.copyWith(signature: on),
+        ),
+        toggle(
+          'kraPin',
+          'KRA PIN on the cover',
+          s.kraPin,
+          (on) => s.copyWith(kraPin: on),
+          subtitle: 'From Receipts and invoices',
+        ),
+        toggle(
+          'permit',
+          'Business permit on the cover',
+          s.permit,
+          (on) => s.copyWith(permit: on),
+          subtitle: 'Add the number under On the cover',
+        ),
+        toggle(
+          'branding',
+          'Made with Pesa Clarity, at the foot',
+          s.branding,
+          (on) => s.copyWith(branding: on),
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          key: const Key('style-done'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Done'),
+        ),
+      ],
     );
   }
 }

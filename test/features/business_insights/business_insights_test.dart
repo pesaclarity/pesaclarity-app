@@ -428,22 +428,21 @@ void main() {
           .value,
       isFalse,
     );
-    expect(
-      tester
-          .widget<ChoiceChip>(find.byKey(const Key('detail-totals')))
-          .selected,
-      isTrue,
-    );
+    ReportDetail detail() => tester
+        .widget<SegmentedButton<ReportDetail>>(
+          find.descendant(
+            of: find.byKey(const Key('report-detail')),
+            matching: find.byType(SegmentedButton<ReportDetail>),
+          ),
+        )
+        .selected
+        .single;
+    expect(detail(), ReportDetail.totals);
     await tester.tap(find.byKey(const Key('report-audience')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('audience-accountant')));
     await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<ChoiceChip>(find.byKey(const Key('detail-everyEntry')))
-          .selected,
-      isTrue,
-    );
+    expect(detail(), ReportDetail.everyEntry);
     expect(
       tester
           .widget<CheckboxListTile>(find.byKey(const Key('section-cashBook')))
@@ -497,7 +496,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('style-cover-band')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('style-words-formal')));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('style-words')),
+        matching: find.text('Accounting terms'),
+      ),
+    );
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('style-compare')));
     await tester.tap(find.byKey(const Key('style-compare')));

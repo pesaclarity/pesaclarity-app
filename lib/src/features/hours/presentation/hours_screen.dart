@@ -8,8 +8,13 @@ import '../../../domain/books/business_report.dart'
 import '../../../domain/hours/hours.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/hours_providers.dart';
 import 'log_hours_sheet.dart';
@@ -36,7 +41,8 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
     final colors = PesaColors.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = weekStart(_day);
-    final week = ref.watch(weekHoursProvider(from)).value;
+    final loaded = ref.watch(weekHoursProvider(from));
+    final week = loaded.value;
     final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
         moneyOrHidden(minor, hidden: hidden, withCurrency: false);
@@ -55,24 +61,22 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
         actions: const [AmountsEye(), SizedBox(width: 8)],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Day')),
-              ButtonSegment(value: true, label: Text('Week')),
-            ],
-            selected: {_week},
+          AdaptiveSegmented<bool>(
+            key: const Key('hours-day-week'),
+            segments: const [(false, 'Day'), (true, 'Week')],
+            selected: _week,
             showSelectedIcon: false,
-            onSelectionChanged: (s) => setState(() => _week = s.single),
+            onChanged: (week) => setState(() => _week = week),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              IconButton.outlined(
+              StepButton(
                 key: const Key('hours-back'),
-                tooltip: _week ? 'Week before' : 'Day before',
-                icon: const Icon(Icons.chevron_left),
+                tooltip: _week ? 'Previous week' : 'Previous day',
+                icon: Icons.chevron_left,
                 onPressed: () =>
                     setState(() => _day = _day.addDays(_week ? -7 : -1)),
               ),
@@ -84,21 +88,23 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
                   style: theme.textTheme.titleMedium,
                 ),
               ),
-              IconButton.outlined(
+              StepButton(
                 key: const Key('hours-next'),
-                tooltip: _week ? 'Week after' : 'Day after',
-                icon: const Icon(Icons.chevron_right),
+                tooltip: _week ? 'Next week' : 'Next day',
+                icon: Icons.chevron_right,
                 onPressed: () =>
                     setState(() => _day = _day.addDays(_week ? 7 : 1)),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          if (week == null)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator.adaptive()),
+          if (week == null && loaded.hasError)
+            ErrorView(
+              'Your hours could not load.',
+              onRetry: () => ref.invalidate(weekHoursProvider(from)),
             )
+          else if (week == null)
+            const LoadingView(inList: true)
           else if (_week)
             ..._weekView(context, week, plain)
           else
@@ -134,58 +140,50 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
   }
 
   List<Widget> _dayView(BuildContext context, DayHours day) {
-    final colors = PesaColors.of(context);
     if (day.entries.isEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          child: Text(
-            'Hours you log for this day show here.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium!
-                .copyWith(color: colors.textMuted),
-          ),
-        ),
-      ];
+      return const [EmptyNote('Hours you log for this day show here.')];
     }
     final toBill = day.toBill;
     final toBillMinutes = toBill.values.fold(0, (a, b) => a + b);
     return [
-      _card([
-        for (final e in day.entries)
-          _Row(
-            e.what,
-            '${hoursText(e.minutes)} h',
-            key: Key('hour-${e.id}'),
-            detail: [
-              clientName(e.client),
-              ?e.project,
-              if (!e.billable) 'not billed',
-              if (e.invoiceId != null) 'billed',
-            ].join(' · '),
-            onTap: () => showLogHoursSheet(context, entry: e),
-          ),
-      ]),
+      GroupedSection(
+        children: [
+          for (final e in day.entries)
+            LabelValueRow(
+              key: Key('hour-${e.id}'),
+              label: e.what,
+              value: '${hoursText(e.minutes)} h',
+              detail: _detail([
+                clientName(e.client),
+                ?e.project,
+                if (!e.billable) 'not billed',
+                if (e.invoiceId != null) 'billed',
+              ]),
+              onTap: () => showLogHoursSheet(context, entry: e),
+            ),
+        ],
+      ),
       const SizedBox(height: 12),
-      _card([
-        _Row(
-          'Day total',
-          '${hoursText(day.totalMinutes)} h',
-          key: const Key('hours-day-total'),
-          detail: day.entries.length == 1
-              ? '1 entry'
-              : '${day.entries.length} entries',
-        ),
-        _Row(
-          'To bill',
-          '${hoursText(toBillMinutes)} h',
-          detail: [
-            for (final MapEntry(:key, :value) in toBill.entries)
-              '${clientShort(key)} ${hoursText(value)} h',
-          ].join(' · '),
-          color: colors.successText,
-        ),
-      ]),
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            key: const Key('hours-day-total'),
+            label: 'Day total',
+            value: '${hoursText(day.totalMinutes)} h',
+            detail: day.entries.length == 1
+                ? '1 entry'
+                : '${day.entries.length} entries',
+          ),
+          LabelValueRow(
+            label: 'To bill',
+            value: '${hoursText(toBillMinutes)} h',
+            detail: _detail([
+              for (final MapEntry(:key, :value) in toBill.entries)
+                '${clientShort(key)} ${hoursText(value)} h',
+            ]),
+          ),
+        ],
+      ),
     ];
   }
 
@@ -194,148 +192,69 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
     WeekHours week,
     String Function(int) plain,
   ) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     if (week.entries.isEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          child: Text(
-            'Hours you log this week show here.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-        ),
-      ];
+      return const [EmptyNote('Hours you log this week show here.')];
     }
     final notWhat = week.notBilledWhat;
     return [
-      _card([
-        for (final d in week.days)
-          _Row(
-            '${weekdayName(d.day).substring(0, 3)} ${shortDate(d.day)}',
-            '${hoursText(d.totalMinutes)} h',
-            detail: [
-              for (final MapEntry(:key, :value) in d.toBill.entries)
-                '${clientShort(key)} ${hoursText(value)}',
-              if (d.notBilledMinutes > 0)
-                '${hoursText(d.notBilledMinutes)} not billed',
-            ].join(' · '),
-            onTap: () => setState(() {
-              _day = d.day;
-              _week = false;
-            }),
-          ),
-      ]),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-        child: Text(
-          'BY PROJECT',
-          style: theme.textTheme.labelLarge!.copyWith(
-            color: colors.textMuted,
-            letterSpacing: 1,
-          ),
-        ),
+      GroupedSection(
+        children: [
+          for (final d in week.days)
+            LabelValueRow(
+              label:
+                  '${weekdayName(d.day).substring(0, 3)} ${shortDate(d.day)}',
+              value: '${hoursText(d.totalMinutes)} h',
+              detail: _detail([
+                for (final MapEntry(:key, :value) in d.toBill.entries)
+                  '${clientShort(key)} ${hoursText(value)}',
+                if (d.notBilledMinutes > 0)
+                  '${hoursText(d.notBilledMinutes)} not billed',
+              ]),
+              onTap: () => setState(() {
+                _day = d.day;
+                _week = false;
+              }),
+            ),
+        ],
       ),
-      _card([
-        for (final p in week.projects)
-          _Row(
-            [clientName(p.client), ?p.project].join(' · '),
-            p.rateMinor == null && p.amountMinor == 0
-                ? '${hoursText(p.minutes)} h'
-                : plain(p.amountMinor),
-            detail: p.rateMinor == null
-                ? '${hoursText(p.minutes)} h'
-                : '${hoursText(p.minutes)} h × ${plain(p.rateMinor!)}',
-          ),
-        if (week.notBilledMinutes > 0)
-          _Row(
-            'Not billed',
-            '${hoursText(week.notBilledMinutes)} h',
-            detail: notWhat.take(3).join(', '),
-          ),
-      ]),
+      const SectionLabel('By project'),
+      GroupedSection(
+        children: [
+          for (final p in week.projects)
+            LabelValueRow(
+              label: [clientName(p.client), ?p.project].join(' · '),
+              value: p.rateMinor == null && p.amountMinor == 0
+                  ? '${hoursText(p.minutes)} h'
+                  : plain(p.amountMinor),
+              detail: p.rateMinor == null
+                  ? '${hoursText(p.minutes)} h'
+                  : '${hoursText(p.minutes)} h × ${plain(p.rateMinor!)}',
+            ),
+          if (week.notBilledMinutes > 0)
+            LabelValueRow(
+              label: 'Not billed',
+              value: '${hoursText(week.notBilledMinutes)} h',
+              detail: _detail(notWhat.take(3), separator: ', '),
+            ),
+        ],
+      ),
       const SizedBox(height: 12),
-      _card([
-        _Row(
-          'This week',
-          plain(week.amountMinor),
-          key: const Key('hours-week-total'),
-          detail:
-              '${hoursText(week.loggedMinutes)} h logged · '
-              '${hoursText(week.toBillMinutes)} h to bill',
-          color: colors.successText,
-        ),
-      ]),
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            key: const Key('hours-week-total'),
+            label: 'This week',
+            value: plain(week.amountMinor),
+            detail:
+                '${hoursText(week.loggedMinutes)} h logged · '
+                '${hoursText(week.toBillMinutes)} h to bill',
+          ),
+        ],
+      ),
     ];
   }
 }
 
-Widget _card(List<Widget> rows) => Card(
-  margin: EdgeInsets.zero,
-  child: Column(
-    children: [
-      for (final (i, r) in rows.indexed) ...[
-        if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-        r,
-      ],
-    ],
-  ),
-);
-
-class _Row extends StatelessWidget {
-  const _Row(
-    this.name,
-    this.amount, {
-    this.detail,
-    this.color,
-    this.onTap,
-    super.key,
-  });
-
-  final String name;
-  final String amount;
-  final String? detail;
-  final Color? color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: theme.textTheme.titleMedium),
-                  if (detail case final d? when d.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      d,
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              amount,
-              style: theme.textTheme.titleMedium!.copyWith(color: color),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// [parts] joined for a row's detail line, or null when there are none.
+String? _detail(Iterable<String> parts, {String separator = ' · '}) =>
+    parts.isEmpty ? null : parts.join(separator);
