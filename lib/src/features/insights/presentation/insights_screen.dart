@@ -251,7 +251,7 @@ class _EmptyCard extends ConsumerWidget {
             const SizedBox(height: 16),
             FilledButton(
               key: const Key('insights-accounts'),
-              onPressed: () => context.go(AppRoutes.myAccounts),
+              onPressed: () => context.go(AppRoutes.chooseAccounts),
               child: const Text('Choose my accounts'),
             ),
             if (canImport) ...[

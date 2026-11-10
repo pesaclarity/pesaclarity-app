@@ -1,3 +1,6 @@
+import 'package:ujumbe/ujumbe.dart' show currencyCode;
+
+import '../../core/money/currency_data.dart';
 import '../time/calendar.dart';
 
 /// Turns the text of a found field into a value. Each returns null when the
@@ -15,6 +18,16 @@ int? amountMinorFrom(String text) {
   if (whole == null) return null;
   final cents = parts.length > 1 ? int.parse(parts[1].padRight(2, '0')) : 0;
   return whole * 100 + cents;
+}
+
+/// The currency printed with an amount: `USD 1,500.00` → USD, `Ksh.500`
+/// → KES. Null when it shows none, or only a word like `Sh`.
+String? currencyFrom(String text) {
+  for (final word in RegExp(r'[A-Za-z]+').allMatches(text)) {
+    final code = currencyCode(word.group(0)!);
+    if (code != null && currencyCatalogue.containsKey(code)) return code;
+  }
+  return null;
 }
 
 const _months = [

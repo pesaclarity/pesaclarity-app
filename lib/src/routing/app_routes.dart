@@ -39,6 +39,7 @@ abstract final class AppRoutes {
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
+  static const chooseAccounts = '/home/profile/accounts/choose';
   static const backup = '/home/profile/backup';
   static const backupSetup = '/home/profile/backup/setup';
   static const privacy = '/home/profile/privacy';
@@ -48,6 +49,7 @@ abstract final class AppRoutes {
   static const terms = '/home/profile/privacy/terms';
   static const payees = '/home/profile/payees';
   static const baseCurrency = '/home/profile/currency';
+  static const converter = '/home/profile/currency/converter';
   static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
 

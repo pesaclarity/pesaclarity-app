@@ -9,8 +9,8 @@ import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/payees/payee_identifier.dart';
 import '../../../shared/names.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
-import '../application/payee_providers.dart';
 import 'category_picker.dart';
 
 /// Names the party behind [identifier], or edits [payee] when given. The
@@ -77,13 +77,6 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
     super.dispose();
   }
 
-  Future<void> _pickCategory() async {
-    final choice = await pickCategory(context, selectedId: _categoryId);
-    if (choice case ChosenCategory(:final id)) {
-      setState(() => _categoryId = id);
-    }
-  }
-
   Future<void> _save() async {
     setState(() => _saving = true);
     final repo = ref.read(payeesRepositoryProvider);
@@ -118,14 +111,6 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final categories = ref.watch(categoriesProvider).value ?? const [];
-    final categoryName = _categoryId == null
-        ? uncategorisedName
-        : categories
-                  .where((c) => c.id == _categoryId)
-                  .map((c) => c.name)
-                  .firstOrNull ??
-              uncategorisedName;
     final name = _name.text.trim();
     final canSave = !_saving && name.isNotEmpty && name.length <= 80;
     final who = widget.identifier?.label;
@@ -163,13 +148,14 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
               ),
             ),
             const SizedBox(height: 4),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Category'),
-              subtitle: Text(categoryName),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickCategory,
+            const SizedBox(height: 12),
+            CategorySelectorField(
+              key: const Key('payee-category'),
+              selectedId: _categoryId,
+              noneLabel: uncategorisedName,
+              onChanged: (id) => setState(() => _categoryId = id),
             ),
+            const SizedBox(height: 4),
             if (widget.payee != null)
               SwitchListTile(
                 key: const Key('payee-ask-purpose'),
@@ -186,17 +172,14 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
             const SizedBox(height: 4),
             Text('Leaks add up on Insights.', style: theme.textTheme.bodySmall),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final type in LeakType.values)
-                  ChoiceChip(
-                    label: Text(leakTypeLabel(type)),
-                    selected: _leakType == type,
-                    onSelected: (_) => setState(() => _leakType = type),
-                  ),
-              ],
+            ChoiceMenu<LeakType>(
+              key: const Key('payee-leak-type'),
+              name: 'Leak type',
+              expand: true,
+              options: [for (final t in LeakType.values) (t, leakTypeLabel(t))],
+              value: _leakType,
+              itemKey: (t) => Key('payee-leak-${t.name}'),
+              onChanged: (t) => setState(() => _leakType = t),
             ),
             const SizedBox(height: 20),
             SizedBox(

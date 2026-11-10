@@ -6,6 +6,8 @@ import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/currency_rebase_repository.dart';
+import '../../../data/repositories/rate_history_repository.dart';
+import '../../../domain/time/calendar.dart';
 import '../data/rates_client.dart';
 
 /// The phone's region, such as `KE`, from its language settings.
@@ -23,6 +25,7 @@ class CurrencySettings {
     this.chosen = false,
     this.ownRates = const {},
     this.rates,
+    this.history,
   });
 
   /// The currency the person counts in.
@@ -38,8 +41,29 @@ class CurrencySettings {
   /// The latest fetched rates, in whatever base the service used.
   final ExchangeRates? rates;
 
-  CurrencyConverter get converter =>
-      CurrencyConverter(base: base, rates: rates, ownRates: ownRates);
+  /// The first rates fetched each day, so amounts convert at their day's.
+  final RateHistory? history;
+
+  CurrencyConverter get converter => CurrencyConverter(
+    base: base,
+    rates: rates,
+    ownRates: ownRates,
+    history: history,
+  );
+
+  CurrencySettings copyWith({
+    String? base,
+    bool? chosen,
+    Map<String, double>? ownRates,
+    ExchangeRates? rates,
+    RateHistory? history,
+  }) => CurrencySettings(
+    base: base ?? this.base,
+    chosen: chosen ?? this.chosen,
+    ownRates: ownRates ?? this.ownRates,
+    rates: rates ?? this.rates,
+    history: history ?? this.history,
+  );
 
   Map<String, Object?> toJson() => {
     'base': base,
@@ -56,11 +80,19 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
   AppSettingsRepository get _settings =>
       ref.read(appSettingsRepositoryProvider);
 
+  RateHistoryRepository get _history => ref.read(rateHistoryRepositoryProvider);
+
   @override
   Future<CurrencySettings> build() async {
     final json = await _settings.readJson(settingsKey);
     final saved = await _settings.readJson(ratesKey);
     final rates = saved == null ? null : ExchangeRates.fromSaved(saved);
+    var history = await _history.read();
+    // Rates fetched before rates were kept by day become their day's.
+    if (history.isEmpty && rates != null) {
+      await _history.keep(CalendarDate.local(rates.fetchedAt), rates);
+      history = await _history.read();
+    }
     final base = json?['base'];
     final own = json?['ownRates'];
     return CurrencySettings(
@@ -75,6 +107,7 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
               key: value.toDouble(),
       },
       rates: rates,
+      history: history,
     );
   }
 
@@ -94,6 +127,7 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
         chosen: true,
         ownRates: _rebaseOwn(current, code),
         rates: current.rates,
+        history: current.history,
       ),
     );
   }
@@ -115,6 +149,7 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
         chosen: true,
         ownRates: _rebaseOwn(current, code),
         rates: current.rates,
+        history: current.history,
       ),
     );
     return true;
@@ -134,6 +169,7 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
           if (rate != null && rate > 0) code: rate,
         },
         rates: current.rates,
+        history: current.history,
       ),
     );
   }
@@ -152,15 +188,10 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
       final rates = await ref.read(ratesClientProvider).fetch(current.base);
       if (rates == null) return false;
       await _settings.writeJson(ratesKey, rates.toJson());
+      await _history.keep(CalendarDate.local(rates.fetchedAt), rates);
+      final history = await _history.read();
       final latest = await _current();
-      state = AsyncData(
-        CurrencySettings(
-          base: latest.base,
-          chosen: latest.chosen,
-          ownRates: latest.ownRates,
-          rates: rates,
-        ),
-      );
+      state = AsyncData(latest.copyWith(rates: rates, history: history));
       return true;
     } on Object catch (error) {
       if (kDebugMode) debugPrint('Rates did not load: $error');
@@ -202,6 +233,7 @@ final currencyConverterProvider = Provider<CurrencyConverter>((ref) {
     base: base,
     rates: settings?.rates,
     ownRates: settings?.ownRates ?? const {},
+    history: settings?.history,
   );
 });
 

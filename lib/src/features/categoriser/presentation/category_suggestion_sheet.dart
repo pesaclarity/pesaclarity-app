@@ -10,6 +10,7 @@ import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../payees/presentation/category_picker.dart';
 import '../application/categoriser_providers.dart';
 
 /// Short line on where a suggestion came from.
@@ -34,26 +35,52 @@ Future<void> confirmCategory(
       suggestion: suggestion,
     );
 
-/// Opens the sheet to accept [suggestion] for [entry] or pick another
-/// category.
+/// Opens the sheet to accept [suggestion] for [entry], or the category
+/// picker to choose one, the same picker as everywhere else. With no
+/// suggestion, the picker opens straight away.
 Future<void> showCategorySuggestionSheet(
   BuildContext context, {
   required LedgerEntry entry,
   required String title,
   CategorySuggestion? suggestion,
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => CategorySuggestionSheet(
-    entry: entry,
-    title: title,
-    suggestion: suggestion,
-  ),
+}) async {
+  if (suggestion == null) {
+    final container = ProviderScope.containerOf(context);
+    final choice = await _pickFor(context, entry);
+    if (choice case ChosenCategory(:final id?)) {
+      await container
+          .read(categorySuggestionsRepositoryProvider)
+          .confirm(entry, categoryId: id, at: container.read(clockProvider)());
+    }
+    return;
+  }
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => CategorySuggestionSheet(
+      entry: entry,
+      title: title,
+      suggestion: suggestion,
+    ),
+  );
+}
+
+/// The category picker for [entry]: income categories for money in,
+/// spending ones for money out.
+Future<CategoryChoice?> _pickFor(
+  BuildContext context,
+  LedgerEntry entry, {
+  int? selectedId,
+}) => pickCategory(
+  context,
+  selectedId: selectedId,
+  allowType: (t) =>
+      entry.isInflow ? t != CategoryType.expense : t != CategoryType.income,
 );
 
 /// Shows the suggested category with its confidence: one tap accepts it,
-/// Change lists the other categories, and one tap on any of them saves it.
+/// and Change opens the category picker.
 class CategorySuggestionSheet extends ConsumerStatefulWidget {
   const CategorySuggestionSheet({
     required this.entry,
@@ -73,7 +100,6 @@ class CategorySuggestionSheet extends ConsumerStatefulWidget {
 
 class _CategorySuggestionSheetState
     extends ConsumerState<CategorySuggestionSheet> {
-  late var _choosing = widget.suggestion == null;
   var _saving = false;
 
   Future<void> _save(int categoryId) async {
@@ -81,6 +107,15 @@ class _CategorySuggestionSheetState
     setState(() => _saving = true);
     await confirmCategory(ref, widget.entry, categoryId, widget.suggestion);
     if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _change(int? suggestedId) async {
+    final choice = await _pickFor(
+      context,
+      widget.entry,
+      selectedId: suggestedId,
+    );
+    if (choice case ChosenCategory(:final id?)) await _save(id);
   }
 
   @override
@@ -92,13 +127,6 @@ class _CategorySuggestionSheetState
     final all = ref.watch(categoryListProvider).value ?? const <Category>[];
     final byId = {for (final c in all) c.id: c};
     final suggested = suggestion == null ? null : byId[suggestion.categoryId];
-    final options = all
-        .where(
-          (c) => entry.isInflow
-              ? c.type != CategoryType.expense
-              : c.type != CategoryType.income,
-        )
-        .toList();
     final amount = formatMoney(Money(entry.signedMinor));
 
     return SafeArea(
@@ -154,9 +182,8 @@ class _CategorySuggestionSheetState
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _saving
-                          ? null
-                          : () => setState(() => _choosing = !_choosing),
+                      key: const Key('category-change'),
+                      onPressed: _saving ? null : () => _change(suggested.id),
                       child: const Text('Change'),
                     ),
                   ),
@@ -168,38 +195,6 @@ class _CategorySuggestionSheetState
                     ),
                   ),
                 ],
-              ),
-            ],
-            if (_choosing || suggested == null) ...[
-              const SizedBox(height: 8),
-              Text('Choose a category', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(
-                'Your choice applies to this payee from now on.',
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.45,
-                ),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final c in options)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(c.name),
-                        trailing: c.id == suggested?.id
-                            ? Icon(Icons.check, color: colors.link)
-                            : null,
-                        enabled: !_saving,
-                        onTap: () => _save(c.id),
-                      ),
-                  ],
-                ),
               ),
             ],
           ],

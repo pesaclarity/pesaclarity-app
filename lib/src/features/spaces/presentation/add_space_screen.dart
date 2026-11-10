@@ -44,7 +44,7 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
     if (_kind == SpaceKind.business) {
       unawaited(router.push(AppRoutes.whatYouSell));
     }
-    unawaited(router.push(AppRoutes.myAccounts));
+    unawaited(router.push(AppRoutes.chooseAccounts));
   }
 
   @override

@@ -5,6 +5,7 @@ import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/books/report_setup.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/report_maker.dart';
@@ -222,27 +223,27 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                 ],
                 Text('Who is it for?', style: label()),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final a in ReportAudience.values)
-                      ChoiceChip(
-                        key: Key('audience-${a.name}'),
-                        label: Text(a.label),
-                        selected: _audience == a,
-                        onSelected: (_) => setState(() {
-                          _audience = a;
-                          _sections = {...a.sections};
-                          _detail = a.detail;
-                        }),
-                      ),
-                  ],
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ChoiceMenu<ReportAudience>(
+                    key: const Key('report-audience'),
+                    name: 'Who is it for',
+                    options: [
+                      for (final a in ReportAudience.values) (a, a.label),
+                    ],
+                    value: _audience,
+                    itemKey: (a) => Key('audience-${a.name}'),
+                    onChanged: (a) => setState(() {
+                      _audience = a;
+                      _sections = {...a.sections};
+                      _detail = a.detail;
+                    }),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text('Period', style: label()),
                 const SizedBox(height: 8),
-                RangeChips(
+                RangeMenu(
                   selected: _range,
                   custom: _dates != null,
                   onSelected: (r) => setState(() {
@@ -524,35 +525,52 @@ class _StyleSheetState extends State<_StyleSheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    Widget chips<T extends Enum>(
+    // A drop-down keyed `style-<title>` for more than two choices, else
+    // chips. Each choice is keyed `style-<title>-<name>`.
+    Widget choice<T extends Enum>(
       String title,
       List<T> values,
       T selected,
       String Function(T) name,
       ReportStyle Function(T) pick,
-    ) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: label),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final v in values)
-                ChoiceChip(
-                  key: Key('style-${title.toLowerCase()}-${v.name}'),
-                  label: Text(name(v)),
-                  selected: v == selected,
-                  onSelected: (_) => _set(pick(v)),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
+    ) {
+      final id = 'style-${title.toLowerCase()}';
+      Key rowKey(T v) => Key('$id-${v.name}');
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: label),
+            const SizedBox(height: 8),
+            if (values.length > 2)
+              ChoiceMenu<T>(
+                key: Key(id),
+                name: title,
+                options: [for (final v in values) (v, name(v))],
+                value: selected,
+                itemKey: rowKey,
+                onChanged: (v) => _set(pick(v)),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final v in values)
+                    ChoiceChip(
+                      key: rowKey(v),
+                      label: Text(name(v)),
+                      selected: v == selected,
+                      onSelected: (_) => _set(pick(v)),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      );
+    }
+
     Widget toggle(
       String key,
       String title,
@@ -580,28 +598,28 @@ class _StyleSheetState extends State<_StyleSheet> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text('Style', style: theme.textTheme.titleLarge),
             ),
-            chips(
+            choice(
               'Cover',
               ReportCoverStyle.values,
               s.cover,
               (v) => v.label,
               (v) => s.copyWith(cover: v),
             ),
-            chips(
+            choice(
               'Colour',
               ReportColour.values,
               s.colour,
               (v) => v.label,
               (v) => s.copyWith(colour: v),
             ),
-            chips(
+            choice(
               'Length',
               ReportLength.values,
               s.length,
               (v) => v.label,
               (v) => s.copyWith(length: v),
             ),
-            chips(
+            choice(
               'Words',
               ReportWording.values,
               s.wording,

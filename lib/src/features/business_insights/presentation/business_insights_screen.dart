@@ -10,6 +10,7 @@ import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
@@ -76,7 +77,7 @@ class BusinessInsightsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            RangeChips(
+            RangeMenu(
               selected: range,
               onSelected: (r) =>
                   ref.read(insightsRangeProvider.notifier).set(r),
@@ -121,9 +122,11 @@ class BusinessInsightsScreen extends ConsumerWidget {
   }
 }
 
-/// This month, Last month and 3 months.
-class RangeChips extends StatelessWidget {
-  const RangeChips({
+/// This month, Last month and 3 months, and Pick dates with [onCustom], as
+/// a drop-down keyed `range`. Its rows are keyed `range-<name>` and
+/// `range-dates`.
+class RangeMenu extends StatelessWidget {
+  const RangeMenu({
     required this.selected,
     required this.onSelected,
     this.custom = false,
@@ -136,28 +139,24 @@ class RangeChips extends StatelessWidget {
 
   /// Whether "Pick dates" is the one chosen.
   final bool custom;
+
+  /// Opens the dates to pick, each time "Pick dates" is chosen.
   final VoidCallback? onCustom;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      for (final r in ReportRange.values)
-        ChoiceChip(
-          key: Key('range-${r.name}'),
-          label: Text(r.label),
-          selected: !custom && selected == r,
-          onSelected: (_) => onSelected(r),
-        ),
-      if (onCustom case final pick?)
-        ChoiceChip(
-          key: const Key('range-dates'),
-          label: const Text('Pick dates'),
-          selected: custom,
-          onSelected: (_) => pick(),
-        ),
-    ],
+  Widget build(BuildContext context) => Align(
+    alignment: AlignmentDirectional.centerStart,
+    child: ChoiceMenu<ReportRange?>(
+      key: const Key('range'),
+      name: 'Period',
+      options: [
+        for (final r in ReportRange.values) (r, r.label),
+        if (onCustom != null) (null, 'Pick dates'),
+      ],
+      value: custom ? null : selected,
+      itemKey: (r) => Key('range-${r?.name ?? 'dates'}'),
+      onChanged: (r) => r == null ? onCustom?.call() : onSelected(r),
+    ),
   );
 }
 

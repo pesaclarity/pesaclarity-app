@@ -167,19 +167,38 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await _pumpActivity(tester, db);
 
-    await tester.tap(find.text('Spending only'));
-    await tester.pumpAndSettle();
+    Future<void> show(String type) async {
+      await tester.tap(find.byKey(const Key('activity-types')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('activity-type-$type')));
+      await tester.pumpAndSettle();
+    }
+
+    await show('spending');
     expect(find.text('I&M → M-Pesa'), findsNothing);
     expect(find.text('Employer Ltd'), findsNothing);
     expect(find.text('Naivas Juja City'), findsOneWidget);
 
-    await tester.tap(find.text('Spending only'));
-    await tester.tap(find.text('I&M'));
+    await show('all');
+    await tester.tap(find.byKey(const Key('activity-accounts')));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('I&M').last);
+    await tester.pumpAndSettle();
+    // The menu shows the chosen account.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('activity-accounts')),
+        matching: find.text('I&M'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Naivas Juja City'), findsNothing);
     expect(find.text('Employer Ltd'), findsOneWidget);
 
-    await tester.tap(find.text('All accounts'));
+    await tester.tap(find.byKey(const Key('activity-accounts')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('activity-account-all')));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'naivas');
     await tester.pumpAndSettle();
     expect(find.text('Naivas Juja City'), findsOneWidget);

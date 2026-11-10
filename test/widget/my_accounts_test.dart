@@ -97,6 +97,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('My accounts'), 200);
     await tapText(tester, 'My accounts');
+    await tapText(tester, 'Add or remove accounts');
 
     SwitchListTile tile(String name) =>
         tester.widget(find.widgetWithText(SwitchListTile, name));

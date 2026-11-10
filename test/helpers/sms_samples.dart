@@ -46,3 +46,18 @@ SmsMessage personal({DateTime? receivedAt}) => SmsMessage(
   body: 'See you at six. Bring the receipt, KES 500 sent.',
   receivedAt: receivedAt ?? DateTime.utc(2026, 10, 26, 13),
 );
+
+/// A credit to an Equity account in [currency], numbered [account].
+SmsMessage equityReceived({
+  String currency = 'KES',
+  String account = '0170****4321',
+  String amount = '2,000.00',
+  String receipt = 'EQB0000000000002',
+  DateTime? receivedAt,
+}) => SmsMessage(
+  sender: 'EQUITYBANK',
+  body:
+      'You have received $amount $currency from EXAMPLE TRADERS to your '
+      'Equity account $account. Ref. $receipt on 12 Sep 2026 at 14:05 EAT',
+  receivedAt: receivedAt ?? DateTime.utc(2026, 9, 12, 11, 5, 5),
+);

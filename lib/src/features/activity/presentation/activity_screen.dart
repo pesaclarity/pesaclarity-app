@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
@@ -14,18 +17,40 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
+import '../../currency/application/currency_controller.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../payees/application/tag_filter.dart';
 import '../../payees/presentation/transaction_sheet.dart';
+import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
 import 'name_payee_sheet.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+
+/// [minor] with a sign for money in, and the currency code when [code] is
+/// set: lists show codes once they hold more than one currency.
+String _signed(int minor, {String? code}) {
+  final text = code == null
+      ? _plain(minor)
+      : formatMoney(Money(minor, currency: code));
+  return minor > 0 ? '+$text' : text;
+}
+
+/// The currencies other than the base among [entries], in the order seen.
+List<String> _otherCurrencies(Iterable<LedgerEntry> entries, String base) => {
+  for (final e in entries)
+    if (e.originalCurrency case final code?)
+      code
+    else if (e.currency != base)
+      e.currency,
+}.toList();
 
 /// Activity tab: where did my money go?
 class ActivityScreen extends ConsumerStatefulWidget {
@@ -68,6 +93,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = ref.watch(activityCategoriesProvider).value ?? const {};
     final suggester = ref.watch(categorySuggesterProvider);
+    final base = ref.watch(baseCurrencyProvider);
+    final others = _otherCurrencies(entries, base);
+    // With more than one currency, every amount shows its code.
+    final code = others.isEmpty ? null : base;
 
     String? categoryName(LedgerEntry e) =>
         e.categoryId == null ? null : categories[e.categoryId]?.name;
@@ -137,8 +166,13 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               categories: categories,
               onChanged: _update,
             ),
+            _FixedNote(
+              accounts: accounts,
+              onSeeThem: (id) =>
+                  _update((f) => f.copyWith(accountId: () => id)),
+            ),
             const SizedBox(height: 16),
-            _WeekCard(week),
+            _WeekCard(week, code: code, others: others),
             const SizedBox(height: 8),
             if (loaded.isLoading && !loaded.hasValue)
               const Padding(
@@ -180,6 +214,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                     suggest: (e) => suggester?.suggest(e),
                     onAccept: (e, s) =>
                         confirmCategory(ref, e, s.categoryId, s),
+                    base: base,
+                    code: code,
                   ),
               ],
             if (_filter.from == null && entries.isNotEmpty) ...[
@@ -218,33 +254,39 @@ class _Filters extends StatelessWidget {
   Widget build(BuildContext context) {
     final from = filter.from;
     final to = filter.to;
+    final mixed = accounts.values.map((a) => a.currency).toSet().length > 1;
+    final sorted = accounts.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        _Chip(
-          label: 'All accounts',
-          selected: filter.accountId == null,
-          onTap: () => onChanged((f) => f.copyWith(accountId: () => null)),
+        if (accounts.length > 1)
+          ChoiceMenu<int?>(
+            key: const Key('activity-accounts'),
+            name: 'Account',
+            options: [
+              (null, 'All accounts'),
+              for (final a in sorted)
+                (a.id, mixed ? '${a.name} · ${a.currency}' : a.name),
+            ],
+            value: accounts.containsKey(filter.accountId)
+                ? filter.accountId
+                : null,
+            highlight: accounts.containsKey(filter.accountId),
+            itemKey: (id) => Key('activity-account-${id ?? 'all'}'),
+            onChanged: (id) =>
+                onChanged((f) => f.copyWith(accountId: () => id)),
+          ),
+        ChoiceMenu<ActivityType>(
+          key: const Key('activity-types'),
+          name: 'Show',
+          options: [for (final t in ActivityType.values) (t, t.label)],
+          value: filter.type,
+          highlight: filter.type != ActivityType.all,
+          itemKey: (t) => Key('activity-type-${t.name}'),
+          onChanged: (t) => onChanged((f) => f.copyWith(type: t)),
         ),
-        for (final a in accounts.values)
-          _Chip(
-            label: a.name,
-            selected: filter.accountId == a.id,
-            onTap: () => onChanged(
-              (f) => f.copyWith(
-                accountId: () => f.accountId == a.id ? null : a.id,
-              ),
-            ),
-          ),
-        for (final type in ActivityType.values.skip(1))
-          _Chip(
-            label: type.label,
-            selected: filter.type == type,
-            onTap: () => onChanged(
-              (f) => f.copyWith(type: f.type == type ? ActivityType.all : type),
-            ),
-          ),
         if (filter.hasCategory)
           InputChip(
             key: const Key('activity-category'),
@@ -272,35 +314,16 @@ class _Filters extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      selectedColor: scheme.primary,
-      labelStyle: TextStyle(color: selected ? scheme.onPrimary : null),
-      onSelected: (_) => onTap(),
-    );
-  }
-}
-
 class _WeekCard extends StatelessWidget {
-  const _WeekCard(this.week);
+  const _WeekCard(this.week, {this.code, this.others = const []});
 
   final WeekInOut week;
+
+  /// The base currency's code, shown when the list holds others too.
+  final String? code;
+
+  /// The other currencies in the list.
+  final List<String> others;
 
   @override
   Widget build(BuildContext context) {
@@ -314,42 +337,65 @@ class _WeekCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Out this week', style: label),
-                  Text(
-                    _plain(week.outMinor),
-                    style: AppTypography.amount(
-                      size: 26,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
               children: [
-                Text('In this week', style: label),
-                Text(
-                  week.inMinor > 0 ? '+${_plain(week.inMinor)}' : '0',
-                  style: AppTypography.amount(
-                    size: 26,
-                    color: colors.successText,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Out this week', style: label),
+                      Text(
+                        code == null
+                            ? _plain(week.outMinor)
+                            : formatMoney(Money(week.outMinor, currency: code)),
+                        style: AppTypography.amount(
+                          size: code == null ? 26 : 20,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('In this week', style: label),
+                    Text(
+                      week.inMinor > 0
+                          ? _signed(week.inMinor, code: code)
+                          : '0',
+                      style: AppTypography.amount(
+                        size: code == null ? 26 : 20,
+                        color: colors.successText,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            if (code != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Totals are in $code, your base currency. '
+                '${_list(others)} amounts count at the rate of their day.',
+                key: const Key('activity-currencies-note'),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+/// `KES`, `KES and EUR`, `KES, EUR and GBP`.
+String _list(List<String> codes) => codes.length < 2
+    ? codes.join()
+    : '${codes.sublist(0, codes.length - 1).join(', ')} and ${codes.last}';
 
 class _ActivityRow extends StatelessWidget {
   const _ActivityRow({
@@ -359,9 +405,17 @@ class _ActivityRow extends StatelessWidget {
     required this.categories,
     required this.suggest,
     required this.onAccept,
+    required this.base,
+    this.code,
   });
 
   final ActivityLine line;
+
+  /// The base currency, which totals are counted in.
+  final String base;
+
+  /// The base currency's code, when the list holds other currencies too.
+  final String? code;
   final Map<int, Account> accounts;
   final String? Function(LedgerEntry) categoryName;
   final Map<int, Category> categories;
@@ -385,7 +439,7 @@ class _ActivityRow extends StatelessWidget {
           'Tap to name this payee',
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.warning),
         ),
-        amount: _amount(context, entry.signedMinor),
+        amount: _entryAmount(context, entry),
         onTap: () => showNamePayeeSheet(context, entry),
       ),
       EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
@@ -397,16 +451,10 @@ class _ActivityRow extends StatelessWidget {
         avatar: _Avatar.text(_initials(_title(entry)), colors: colors),
         title: _title(entry),
         subtitle: Text(
-          [
-            _categoryLabel(entry),
-            _account(entry.accountId),
-            // Paid in another currency: the amount as it moved.
-            if (entry.originalCurrency case final code?)
-              formatMoney(Money(entry.originalAmountMinor!, currency: code)),
-          ].join(' · '),
+          [_categoryLabel(entry), _account(entry.accountId)].join(' · '),
           style: muted,
         ),
-        amount: _amount(context, entry.signedMinor),
+        amount: _entryAmount(context, entry),
         onTap: () => showTransactionSheet(context, entry.id),
       ),
       OwnTransferLine(:final outflow, :final inflow, :final shown) => _row(
@@ -418,10 +466,7 @@ class _ActivityRow extends StatelessWidget {
             ? 'From ${_account(outflow.accountId)}'
             : 'To ${_account(inflow!.accountId)}',
         subtitle: Text('Own transfer · not spending', style: muted),
-        amount: Text(
-          _plain(shown.amountMinor),
-          style: AppTypography.amount(size: 18, color: colors.textMuted),
-        ),
+        amount: _entryAmount(context, shown, transfer: true),
       ),
       DailyNoiseLine() && final noise => _row(
         context,
@@ -464,7 +509,7 @@ class _ActivityRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyMedium!.copyWith(color: colors.link),
       ),
-      amount: _amount(context, entry.signedMinor),
+      amount: _entryAmount(context, entry),
       trailing: name == null
           ? null
           : IconButton(
@@ -533,13 +578,60 @@ class _ActivityRow extends StatelessWidget {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0;
     return Text(
-      inflow ? '+${_plain(signedMinor)}' : _plain(signedMinor),
+      _signed(signedMinor, code: code),
       style: AppTypography.amount(
         size: 18,
         color: inflow
             ? colors.successText
             : Theme.of(context).colorScheme.onSurface,
       ),
+    );
+  }
+
+  /// [entry]'s amount in the currency it moved in, with the base amount
+  /// under it when that differs; an own [transfer] shows no sign.
+  Widget _entryAmount(
+    BuildContext context,
+    LedgerEntry entry, {
+    bool transfer = false,
+  }) {
+    final colors = PesaColors.of(context);
+    final inflow = entry.direction == TransactionDirection.inflow;
+    final original = entry.originalCurrency;
+    // Converted into the base, or left in its own currency for want of a rate.
+    final ownCode =
+        original ?? (entry.currency != base ? entry.currency : null);
+    final ownMinor = original == null
+        ? entry.amountMinor
+        : entry.originalAmountMinor!;
+    final signed = transfer || inflow ? ownMinor : -ownMinor;
+    final main = ownCode == null
+        ? _signed(signed, code: code)
+        : _signed(signed, code: ownCode);
+    final style = AppTypography.amount(
+      size: 18,
+      color: transfer
+          ? colors.textMuted
+          : inflow
+          ? colors.successText
+          : Theme.of(context).colorScheme.onSurface,
+    );
+    final under = original != null
+        ? '≈ ${formatMoney(Money(entry.amountMinor, currency: entry.currency))}'
+        : ownCode != null
+        ? 'Not in totals yet'
+        : null;
+    if (under == null) return Text(main, style: style);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(main, style: style),
+        Text(
+          under,
+          style: Theme.of(context).textTheme.bodySmall!
+              .copyWith(color: colors.textMuted),
+        ),
+      ],
     );
   }
 }
@@ -609,6 +701,86 @@ class _Avatar extends StatelessWidget {
               style: Theme.of(context).textTheme.labelLarge!
                   .copyWith(color: foreground),
             ),
+    );
+  }
+}
+
+/// After messages were read again: how many amounts moved to the currency
+/// and account their messages show. Closes with OK; See them filters to
+/// that account.
+class _FixedNote extends ConsumerWidget {
+  const _FixedNote({required this.accounts, required this.onSeeThem});
+
+  final Map<int, Account> accounts;
+  final ValueChanged<int> onSeeThem;
+
+  Future<void> _close(WidgetRef ref) async {
+    await ref
+        .read(appSettingsRepositoryProvider)
+        .writeJson(MessageRecheck.noticeKey, const {});
+    ref.invalidate(recheckNoticeProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notice = ref.watch(recheckNoticeProvider).value;
+    final account = notice == null ? null : accounts[notice.accountId];
+    if (notice == null || account == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final institution = ref
+        .watch(institutionCatalogueProvider)
+        .where((i) => i.id == account.institutionId)
+        .firstOrNull;
+    final bank = institution?.name ?? account.name;
+    final n = notice.count;
+    final amounts = n == 1 ? '1 amount' : '$n amounts';
+    final body = notice.currencyChanged
+        ? '$amounts at $bank ${n == 1 ? 'was' : 'were'} in '
+              '${notice.currency}. ${n == 1 ? 'It is' : 'They are'} now in '
+              '${account.name}, counted in ${notice.currency}.'
+        : '$amounts at $bank ${n == 1 ? 'is' : 'are'} now in ${account.name}.';
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        key: const Key('recheck-note'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.success.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.success.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Amounts fixed from your messages',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(body, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton(
+                  key: const Key('recheck-see'),
+                  onPressed: () {
+                    onSeeThem(account.id);
+                    unawaited(_close(ref));
+                  },
+                  child: const Text('See them'),
+                ),
+                OutlinedButton(
+                  key: const Key('recheck-ok'),
+                  onPressed: () => _close(ref),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

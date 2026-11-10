@@ -8,6 +8,7 @@ import '../../../domain/people/people.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/people/reminder_text.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../insights/application/report_sharer.dart';
@@ -253,19 +254,34 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
           style: theme.textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final t in setup.templates)
-              ChoiceChip(
-                key: Key('template-${t.id}'),
-                label: Text(t.name),
-                selected: _templateId == t.id,
-                onSelected: (_) => _useTemplate(setup, t),
-              ),
-          ],
-        ),
+        if (setup.templates.length > 2)
+          ChoiceMenu<String>(
+            key: const Key('remind-template'),
+            name: 'Reminder message',
+            expand: true,
+            options: [for (final t in setup.templates) (t.id, t.name)],
+            // Till the contact loads, the one it will start with.
+            value: _templateId ?? _pickTemplate(setup).id,
+            itemKey: (id) => Key('template-$id'),
+            onChanged: (id) => _useTemplate(
+              setup,
+              setup.templates.firstWhere((t) => t.id == id),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final t in setup.templates)
+                ChoiceChip(
+                  key: Key('template-${t.id}'),
+                  label: Text(t.name),
+                  selected: _templateId == t.id,
+                  onSelected: (_) => _useTemplate(setup, t),
+                ),
+            ],
+          ),
         const SizedBox(height: 12),
         TextField(
           key: const Key('remind-message'),

@@ -14,6 +14,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
@@ -298,18 +299,14 @@ class _PaySheetState extends ConsumerState<PaySheet> {
                 ),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final way in PayWay.values)
-                    ChoiceChip(
-                      key: Key('pay-${way.name}'),
-                      label: Text(way.label),
-                      selected: _way == way,
-                      onSelected: (_) => setState(() => _way = way),
-                    ),
-                ],
+              ChoiceMenu<PayWay>(
+                key: const Key('pay-way'),
+                name: 'Payment',
+                expand: true,
+                options: [for (final way in PayWay.values) (way, way.label)],
+                value: _way,
+                itemKey: (way) => Key('pay-${way.name}'),
+                onChanged: (way) => setState(() => _way = way),
               ),
               const SizedBox(height: 16),
               ..._details(context, today, customers),
@@ -366,8 +363,9 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         maxMinor: _total - 100,
       ),
       const SizedBox(height: 8),
-      MethodChips(
+      MethodMenu(
         keyPrefix: 'pay-now',
+        name: 'Paid now',
         options: const [
           SalePaymentMethod.cash,
           SalePaymentMethod.mpesa,
@@ -396,8 +394,9 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         },
       ),
       const SizedBox(height: 8),
-      MethodChips(
+      MethodMenu(
         keyPrefix: 'pay-rest',
+        name: 'The rest',
         options: [
           for (final m in SalePaymentMethod.values)
             if (m != _nowWay) m,
@@ -450,54 +449,51 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
       ),
       const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          ChoiceChip(
-            label: const Text('Today'),
-            selected: _payBy == _PayBy.today,
-            onSelected: (_) => setState(() => _payBy = _PayBy.today),
-          ),
-          ChoiceChip(
-            label: const Text('In a week'),
-            selected: _payBy == _PayBy.inAWeek,
-            onSelected: (_) => setState(() => _payBy = _PayBy.inAWeek),
-          ),
-          ChoiceChip(
-            key: const Key('pay-by-date'),
-            label: Text(
-              _payBy == _PayBy.date && picked != null
-                  ? dayLabel(picked, thisYear: today.year)
-                  : 'Pick a date',
-            ),
-            selected: _payBy == _PayBy.date,
-            onSelected: (_) async {
-              DateTime asDay(CalendarDate d) =>
-                  DateTime(d.year, d.month, d.day);
-              final chosen = await pickDate(
-                context,
-                initialDate: asDay(picked ?? today.addDays(7)),
-                firstDate: asDay(today),
-                lastDate: asDay(today.addDays(366)),
-              );
-              if (chosen == null) return;
-              setState(() {
-                _picked = CalendarDate(chosen.year, chosen.month, chosen.day);
-                _payBy = _PayBy.date;
-              });
-            },
+      ChoiceMenu<_PayBy>(
+        key: const Key('pay-by'),
+        name: 'Due',
+        expand: true,
+        options: [
+          (_PayBy.today, 'Today'),
+          (_PayBy.inAWeek, 'In a week'),
+          (
+            _PayBy.date,
+            _payBy == _PayBy.date && picked != null
+                ? dayLabel(picked, thisYear: today.year)
+                : 'Pick a date',
           ),
         ],
+        value: _payBy,
+        itemKey: (by) => Key('pay-by-${by.name}'),
+        onChanged: (by) async {
+          if (by != _PayBy.date) {
+            setState(() => _payBy = by);
+            return;
+          }
+          DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
+          final chosen = await pickDate(
+            context,
+            initialDate: asDay(picked ?? today.addDays(7)),
+            firstDate: asDay(today),
+            lastDate: asDay(today.addDays(366)),
+          );
+          if (chosen == null) return;
+          setState(() {
+            _picked = CalendarDate(chosen.year, chosen.month, chosen.day);
+            _payBy = _PayBy.date;
+          });
+        },
       ),
     ];
   }
 }
 
-/// One chip per way of paying in [options].
-class MethodChips extends StatelessWidget {
-  const MethodChips({
+/// A drop-down of the ways of paying in [options]. It opens by the key
+/// `<keyPrefix>-menu`, and each way is `<keyPrefix>-<method>`.
+class MethodMenu extends StatelessWidget {
+  const MethodMenu({
     required this.keyPrefix,
+    required this.name,
     required this.options,
     required this.selected,
     required this.onSelected,
@@ -506,24 +502,23 @@ class MethodChips extends StatelessWidget {
   });
 
   final String keyPrefix;
+
+  /// What is being chosen, such as `Paid now`, for screen readers.
+  final String name;
   final List<SalePaymentMethod> options;
   final SalePaymentMethod selected;
   final ValueChanged<SalePaymentMethod> onSelected;
   final String Function(SalePaymentMethod method) labelFor;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      for (final m in options)
-        ChoiceChip(
-          key: Key('$keyPrefix-${m.name}'),
-          label: Text(labelFor(m)),
-          selected: selected == m,
-          onSelected: (_) => onSelected(m),
-        ),
-    ],
+  Widget build(BuildContext context) => ChoiceMenu<SalePaymentMethod>(
+    key: Key('$keyPrefix-menu'),
+    name: name,
+    expand: true,
+    options: [for (final m in options) (m, labelFor(m))],
+    value: selected,
+    itemKey: (m) => Key('$keyPrefix-${m.name}'),
+    onChanged: onSelected,
   );
 }
 

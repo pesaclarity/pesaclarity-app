@@ -6,6 +6,7 @@ import '../../../core/money/money_format.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_shell.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../stock/application/stock_providers.dart';
@@ -411,7 +412,21 @@ class _TilesSellState extends State<_TilesSell> {
                 prefixIcon: Icon(Icons.search),
               ),
             ),
-            if (groups.isNotEmpty) ...[
+            if (groups.length > 1) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ChoiceMenu<String?>(
+                  key: const Key('sell-groups'),
+                  name: 'Group',
+                  options: [(null, 'All'), for (final g in groups) (g, g)],
+                  value: groups.contains(_group) ? _group : null,
+                  highlight: groups.contains(_group),
+                  itemKey: (g) => Key('sell-group-${g ?? 'all'}'),
+                  onChanged: (g) => setState(() => _group = g),
+                ),
+              ),
+            ] else if (groups.isNotEmpty) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

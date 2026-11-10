@@ -45,6 +45,11 @@ jobs:
           RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
           RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
         run: |
+          # Repository variables replace tool/rates.env's service.
+          . tool/rates.env
+          RATES_URL="${RATES_URL:-$PESACLARITY_RATES_URL}"
+          RATES_SOURCE_NAME="${RATES_SOURCE_NAME:-$PESACLARITY_RATES_SOURCE_NAME}"
+          RATES_SOURCE_URL="${RATES_SOURCE_URL:-$PESACLARITY_RATES_SOURCE_URL}"
           flutter build ios --release --no-codesign \
             --build-number="$BUILD_NUMBER" \
             --dart-define=PESACLARITY_API_URL="$API_URL" \

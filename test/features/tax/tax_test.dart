@@ -22,6 +22,7 @@ import 'package:pesaclarity/src/features/sales/presentation/choose_payments_shee
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
 import 'package:pesaclarity/src/features/tax/application/tax_providers.dart';
 import 'package:pesaclarity/src/features/tax/presentation/tax_screen.dart';
+import 'package:pesaclarity/src/shared/widgets/choice_menu.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
@@ -260,10 +261,10 @@ void main() {
     await settleFrames(tester);
     await tester.tap(find.byType(CheckboxListTile).first);
     await settleFrames(tester);
-    final chip = tester.widget<ChoiceChip>(
-      find.byKey(const Key('short-taxWithheld')),
+    final menu = tester.widget<ChoiceMenu<ShortBy>>(
+      find.byKey(const Key('choose-short')),
     );
-    expect(chip.selected, isTrue);
+    expect(menu.value, ShortBy.taxWithheld);
     expect(find.text('Tax withheld (5%)'), findsOneWidget);
     expect(find.byKey(const Key('choose-tax-note')), findsOneWidget);
     expect(

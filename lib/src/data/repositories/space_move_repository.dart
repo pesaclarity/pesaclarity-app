@@ -106,8 +106,9 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
     });
   }
 
-  /// The account in [db] that matches [account]: the same institution, else
-  /// the same name and type, else a new one with no opening balance.
+  /// The account in [db] that matches [account]: the same institution,
+  /// number and currency, else the same name and type, else a new one with
+  /// no opening balance.
   Future<int> _accountIn(
     AppDatabase db,
     Account account,
@@ -117,7 +118,11 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
     final existing =
         await (db.select(db.accounts)..where(
               (a) => institution != null
-                  ? a.institutionId.equals(institution)
+                  ? a.institutionId.equals(institution) &
+                        a.currency.equals(account.currency) &
+                        (account.reference == null
+                            ? a.reference.isNull()
+                            : a.reference.equals(account.reference!))
                   : a.name.equals(account.name) &
                         a.type.equalsValue(account.type),
             ))
@@ -132,6 +137,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
             currency: Value(account.currency),
             openingDate: firstSeen,
             institutionId: Value(institution),
+            reference: Value(account.reference),
           ),
         );
   }

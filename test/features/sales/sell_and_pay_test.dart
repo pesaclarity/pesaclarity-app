@@ -7,6 +7,7 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/sales_repository.dart';
+import 'package:pesaclarity/src/data/repositories/stock_repository.dart';
 import 'package:pesaclarity/src/domain/books/book_account.dart';
 import 'package:pesaclarity/src/domain/spaces/space_categories.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
@@ -193,6 +194,14 @@ void main() {
       await tester.pump();
     }
 
+    /// Opens the drop-down [menu] and picks [choice] in it.
+    Future<void> choose(WidgetTester tester, String menu, String choice) async {
+      await tester.tap(find.byKey(Key(menu)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key(choice)));
+      await tester.pumpAndSettle();
+    }
+
     testAppWidgets('typing an amount and paying cash saves the sale', (
       tester,
     ) async {
@@ -229,8 +238,7 @@ void main() {
       await key(tester, '00');
       await tester.tap(find.byKey(const Key('sell-pay')));
       await settleFrames(tester);
-      await tester.tap(find.byKey(const Key('pay-credit')));
-      await tester.pump();
+      await choose(tester, 'pay-way', 'pay-credit');
       await tester.tap(find.byKey(const Key('pay-done')));
       await tester.pump();
       expect(find.text('Enter who will pay, such as Otieno.'), findsOneWidget);
@@ -250,8 +258,7 @@ void main() {
       await key(tester, '0');
       await tester.tap(find.byKey(const Key('sell-pay')));
       await settleFrames(tester);
-      await tester.tap(find.byKey(const Key('pay-mpesa')));
-      await tester.pump();
+      await choose(tester, 'pay-way', 'pay-mpesa');
       expect(
         find.textContaining('Waiting for the M-Pesa message for KES 180'),
         findsOneWidget,
@@ -264,6 +271,112 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testAppWidgets('split: part now, the rest on credit due today', (
+      tester,
+    ) async {
+      await pump(tester);
+      await key(tester, '5');
+      await key(tester, '00');
+      await tester.tap(find.byKey(const Key('sell-pay')));
+      await settleFrames(tester);
+      await choose(tester, 'pay-way', 'pay-split');
+      await tester.enterText(find.byKey(const Key('pay-now')), '200');
+      await choose(tester, 'pay-now-menu', 'pay-now-mpesa');
+      // The rest goes another way from the part paid now: cash.
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('pay-rest-menu')),
+          matching: find.text('Cash'),
+        ),
+        findsOneWidget,
+      );
+      await choose(tester, 'pay-rest-menu', 'pay-rest-credit');
+      await tester.enterText(find.byKey(const Key('pay-customer')), 'Otieno');
+      await choose(tester, 'pay-by', 'pay-by-today');
+      await tester.tap(find.byKey(const Key('pay-done')));
+      await settleFrames(tester);
+
+      final loan = await tester.runAsync(
+        () => db.select(db.lentLoans).getSingle(),
+      );
+      expect(loan!.person, 'Otieno');
+      expect(loan.amountMinor, 30000);
+      expect(CalendarDate.local(loan.dueDate!), CalendarDate(2026, 11, 5));
+    });
+  });
+
+  group('Sell by group', () {
+    /// Sell with Tomatoes and Delivery, and with [grouped] Onions in a
+    /// Vegetables group too.
+    Future<void> pump(WidgetTester tester, {bool grouped = false}) async {
+      tester.view.physicalSize = const Size(900, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(() async {
+        final stock = container().read(stockRepositoryProvider);
+        await stock.add(
+          kind: ItemKind.product,
+          name: 'Tomatoes',
+          priceMinor: 12000,
+          at: now,
+        );
+        await stock.add(
+          kind: ItemKind.service,
+          name: 'Delivery',
+          priceMinor: 5000,
+          at: now,
+        );
+        if (grouped) {
+          await stock.add(
+            kind: ItemKind.product,
+            name: 'Onions',
+            priceMinor: 8000,
+            grouping: 'Vegetables',
+            at: now,
+          );
+        }
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides(),
+          child: MaterialApp(theme: AppTheme.light, home: const SellScreen()),
+        ),
+      );
+      await settleFrames(tester);
+    }
+
+    testAppWidgets('one group shows as chips beside All', (tester) async {
+      await pump(tester);
+      expect(find.byKey(const Key('sell-groups')), findsNothing);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Services'));
+      await tester.pump();
+      expect(find.text('Tomatoes'), findsNothing);
+      expect(find.text('Delivery'), findsOneWidget);
+    });
+
+    testAppWidgets('more groups show as a menu', (tester) async {
+      await pump(tester, grouped: true);
+      Future<void> show(String group) async {
+        await tester.tap(find.byKey(const Key('sell-groups')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('sell-group-$group')));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.byType(ChoiceChip), findsNothing);
+      await show('Vegetables');
+      expect(find.text('Onions'), findsOneWidget);
+      expect(find.text('Tomatoes'), findsNothing);
+      expect(find.text('Delivery'), findsNothing);
+      await show('Services');
+      expect(find.text('Delivery'), findsOneWidget);
+      expect(find.text('Onions'), findsNothing);
+      await show('all');
+      for (final name in ['Tomatoes', 'Onions', 'Delivery']) {
+        expect(find.text(name), findsOneWidget);
+      }
     });
   });
 }
