@@ -38,11 +38,13 @@ class SheetBody extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
+        // Clear of the phone's gesture bar, which the sheet's safe area
+        // leaves out.
+        padding: EdgeInsets.fromLTRB(
           Layout.gutter,
           0,
           Layout.gutter,
-          Layout.screenBottom,
+          Layout.screenBottom + MediaQuery.paddingOf(context).bottom,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
