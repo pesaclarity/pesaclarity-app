@@ -111,7 +111,10 @@ void main() {
       await toConnectStep(tester);
 
       expect(find.text('Connect your messages'), findsOneWidget);
-      expect(find.text('Waiting for your first message'), findsOneWidget);
+      expect(
+        find.textContaining('Waiting for your first message.'),
+        findsOneWidget,
+      );
       expect(find.text('Allow access to messages'), findsNothing);
 
       await tester.tap(find.byKey(const Key('connect-open-shortcuts')));
@@ -139,8 +142,7 @@ void main() {
       shortcuts.last = DateTime.now().subtract(const Duration(minutes: 2));
       await toConnectStep(tester);
 
-      expect(find.text('Connected'), findsOneWidget);
-      expect(find.text('Last message 2 min ago'), findsOneWidget);
+      expect(find.text('Connected. Last message 2 min ago.'), findsOneWidget);
       await tapText(tester, 'Continue');
       expect(find.byType(PillNavigationBar), findsOneWidget);
     });
@@ -180,7 +182,8 @@ void main() {
         findsOneWidget,
       );
 
-      await tapText(tester, 'Tap to change the day');
+      await tester.tap(find.byKey(const Key('add-transaction-date')));
+      await tester.pumpAndSettle();
       expect(find.byType(DatePickerDialog), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

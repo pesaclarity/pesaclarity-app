@@ -12,7 +12,12 @@ import '../../../domain/sales/tab.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
@@ -37,19 +42,9 @@ String _tabLine(OpenTab t) =>
 Future<String?> showAddToTabSheet(
   BuildContext context, {
   required List<SaleLine> lines,
-}) => showModalBottomSheet<String>(
+}) => showAppSheet<String>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: _AddToTabSheet(lines: lines),
-      ),
-    ),
-  ),
+  builder: (context) => _AddToTabSheet(lines: lines),
 );
 
 class _AddToTabSheet extends ConsumerStatefulWidget {
@@ -89,27 +84,17 @@ class _AddToTabSheetState extends ConsumerState<_AddToTabSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final open = ref.watch(openTabsProvider).value ?? const <OpenTab>[];
     final count = widget.lines.fold(0, (sum, l) => sum + l.quantityMilli);
     final total = widget.lines.fold(0, (sum, l) => sum + l.totalMinor);
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: 'Add to a tab',
+        subtitle: '${itemsText((count / milli).round())} · ${_kes(total)}',
         children: [
-          Text('Add to a tab', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 4),
-          Text(
-            '${itemsText((count / milli).round())} · ${_kes(total)}',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 16),
           if (open.isNotEmpty) ...[
             Card(
-              margin: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (final (i, t) in open.reversed.indexed) ...[
@@ -120,7 +105,9 @@ class _AddToTabSheetState extends ConsumerState<_AddToTabSheet> {
                       subtitle: Text(_tabLine(t)),
                       trailing: Text(
                         _kes(t.totalMinor),
-                        style: theme.textTheme.titleSmall,
+                        style: AppTypography.rowAmount(
+                          theme.colorScheme.onSurface,
+                        ),
                       ),
                       onTap: _saving
                           ? null
@@ -130,23 +117,14 @@ class _AddToTabSheetState extends ConsumerState<_AddToTabSheet> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
-              child: Text(
-                'OR START ONE',
-                style: theme.textTheme.labelLarge!.copyWith(
-                  color: colors.textMuted,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
+            const SectionLabel('Or start one'),
           ],
           TextFormField(
             key: const Key('tab-new'),
             controller: _name,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
-              labelText: 'New tab',
+              labelText: 'Name',
               hintText: 'Table 7, or a name',
             ),
             validator: (t) => (t ?? '').trim().isEmpty
@@ -176,7 +154,7 @@ class OpenTabsScreen extends ConsumerWidget {
 
   Future<void> _start(BuildContext context, WidgetRef ref) async {
     final navigator = Navigator.of(context);
-    final name = await showDialog<String>(
+    final name = await showAdaptiveDialog<String>(
       context: context,
       builder: (context) => const _NameDialog(),
     );
@@ -195,19 +173,19 @@ class OpenTabsScreen extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final open = ref.watch(openTabsProvider).value;
     if (open == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator.adaptive()),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Open tabs')),
+        body: const LoadingView(),
       );
     }
     final total = open.fold(0, (sum, t) => sum + t.totalMinor);
     return Scaffold(
       appBar: AppBar(title: const Text('Open tabs')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           if (open.isNotEmpty) ...[
             Card(
-              margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -225,9 +203,8 @@ class OpenTabsScreen extends ConsumerWidget {
                           Text(
                             _kes(total),
                             key: const Key('tabs-total'),
-                            style: AppTypography.amount(
-                              size: 24,
-                              color: theme.colorScheme.onSurface,
+                            style: AppTypography.tileFigure(
+                              theme.colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -244,9 +221,8 @@ class OpenTabsScreen extends ConsumerWidget {
                         ),
                         Text(
                           '${open.length}',
-                          style: AppTypography.amount(
-                            size: 24,
-                            color: theme.colorScheme.onSurface,
+                          style: AppTypography.tileFigure(
+                            theme.colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -257,7 +233,6 @@ class OpenTabsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Card(
-              margin: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (final (i, t) in open.indexed) ...[
@@ -268,7 +243,9 @@ class OpenTabsScreen extends ConsumerWidget {
                       subtitle: Text(_tabLine(t)),
                       trailing: Text(
                         _kes(t.totalMinor),
-                        style: theme.textTheme.titleSmall,
+                        style: AppTypography.rowAmount(
+                          theme.colorScheme.onSurface,
+                        ),
                       ),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -282,7 +259,7 @@ class OpenTabsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-          const InfoNote(
+          const Notice(
             'A tab keeps adding rounds until it is paid. Open tabs show in '
             'Close the day, so none is missed.',
           ),
@@ -320,7 +297,7 @@ class _NameDialogState extends State<_NameDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AlertDialog.adaptive(
     title: const Text('Start a tab'),
     content: TextField(
       key: const Key('tab-start-name'),
@@ -328,17 +305,17 @@ class _NameDialogState extends State<_NameDialog> {
       autofocus: true,
       textCapitalization: TextCapitalization.words,
       decoration: const InputDecoration(
-        labelText: 'New tab',
+        labelText: 'Name',
         hintText: 'Table 7, or a name',
       ),
       onSubmitted: (_) => _done(),
     ),
     actions: [
-      TextButton(
+      DialogAction(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      FilledButton(
+      DialogAction(
         key: const Key('tab-start-save'),
         onPressed: _done,
         child: const Text('Start'),
@@ -445,8 +422,8 @@ class TabScreen extends ConsumerWidget {
     final lines = ref.watch(tabLinesProvider(tabId)).value;
     if (tab == null || lines == null) {
       return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator.adaptive()),
+        appBar: AppBar(title: Text(tab?.name ?? 'Tab')),
+        body: const LoadingView(),
       );
     }
     final items = {
@@ -464,7 +441,7 @@ class TabScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tab.name)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           Text(
             'Open since ${formatTime(tab.openedAt)} · '
@@ -476,13 +453,12 @@ class TabScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           if (lines.isNotEmpty)
             Card(
-              margin: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (final (i, l) in lines.indexed) ...[
                     if (i > 0) const Divider(height: 1),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: Row(
                         children: [
                           SizedBox(
@@ -498,7 +474,9 @@ class TabScreen extends ConsumerWidget {
                           ),
                           Text(
                             _plain(l.totalMinor),
-                            style: theme.textTheme.titleSmall,
+                            style: AppTypography.rowAmount(
+                              theme.colorScheme.onSurface,
+                            ),
                           ),
                         ],
                       ),
@@ -518,7 +496,9 @@ class TabScreen extends ConsumerWidget {
                         Text(
                           _kes(tab.totalMinor),
                           key: const Key('tab-total'),
-                          style: theme.textTheme.titleMedium,
+                          style: AppTypography.rowAmount(
+                            theme.colorScheme.onSurface,
+                          ),
                         ),
                       ],
                     ),
@@ -537,20 +517,21 @@ class TabScreen extends ConsumerWidget {
             child: const Text('Add to this tab'),
           ),
           if (lines.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            OutlinedButton(
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
               key: const Key('tab-print'),
               onPressed: () => _print(context, ref, tab, rows),
-              child: const Text('Print the bill'),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Print the bill'),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             FilledButton(
               key: const Key('tab-pay'),
               onPressed: () => _pay(context, ref, tab, lines),
               child: Text('Pay and close · ${_kes(tab.totalMinor)}'),
             ),
           ] else ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             TextButton(
               key: const Key('tab-drop'),
               onPressed: () async {

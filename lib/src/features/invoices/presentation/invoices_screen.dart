@@ -11,9 +11,15 @@ import '../../../domain/documents/invoice.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
@@ -48,7 +54,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final views = ref.watch(invoicesProvider).value;
+    final loaded = ref.watch(invoicesProvider);
+    final views = loaded.value;
     final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     String plain(int minor) =>
@@ -71,28 +78,6 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
           v,
     ];
 
-    Widget tile(String label, String value, {Key? key}) => Expanded(
-      child: Card(
-        key: key,
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.bodySmall!.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-              Text(value, style: theme.textTheme.titleLarge),
-            ],
-          ),
-        ),
-      ),
-    );
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invoices'),
@@ -100,29 +85,33 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
           TextButton(
             key: const Key('invoices-new'),
             onPressed: () => context.push(AppRoutes.newInvoice()),
-            child: Text('New', style: TextStyle(color: colors.link)),
+            child: const Text('New invoice'),
           ),
           const AmountsEye(),
           const SizedBox(width: 8),
         ],
       ),
       body: views == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? loaded.hasError
+                ? ErrorView(
+                    'Your invoices could not load.',
+                    onRetry: () => ref.invalidate(invoicesProvider),
+                  )
+                : const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
-                Row(
+                FigureRow(
                   children: [
-                    tile(
-                      'Waiting to be paid',
-                      plain(waiting),
+                    FigureTile(
                       key: const Key('invoices-waiting'),
+                      label: 'Waiting to be paid',
+                      value: plain(waiting),
                     ),
-                    const SizedBox(width: 10),
-                    tile(
-                      'Overdue',
-                      plain(overdue),
+                    FigureTile(
                       key: const Key('invoices-overdue'),
+                      label: 'Overdue',
+                      value: plain(overdue),
                     ),
                   ],
                 ),
@@ -141,28 +130,13 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (shown.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Text(
-                      'Invoices you make show here.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  )
+                  const EmptyNote('Invoices you make show here.')
                 else
-                  Card(
-                    margin: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (final (n, v) in shown.indexed) ...[
-                          if (n > 0)
-                            const Divider(height: 1, indent: 16, endIndent: 16),
-                          _InvoiceRow(v, plain: plain, today: today),
-                        ],
-                      ],
-                    ),
+                  GroupedSection(
+                    children: [
+                      for (final v in shown)
+                        _InvoiceRow(v, plain: plain, today: today),
+                    ],
                   ),
                 const SizedBox(height: 12),
                 Text(
@@ -201,10 +175,10 @@ class _InvoiceRow extends StatelessWidget {
       InvoiceStatus.unpaid =>
         i.dueOn == null ? 'Unpaid' : 'Due ${shortDate(i.dueOn!)}',
     };
-    final (fg, bg) = switch (view.status) {
-      InvoiceStatus.paid => (colors.successText, colors.success),
-      InvoiceStatus.overdue => (theme.colorScheme.primary, colors.brandSoft),
-      _ => (colors.warning, colors.warning),
+    final tone = switch (view.status) {
+      InvoiceStatus.paid => Tone.success,
+      InvoiceStatus.overdue => Tone.warning,
+      _ => Tone.info,
     };
     return InkWell(
       key: Key('invoice-${i.number}'),
@@ -234,22 +208,12 @@ class _InvoiceRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(plain(t.toPayMinor), style: theme.textTheme.titleMedium),
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bg.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    view.status.label,
-                    style: theme.textTheme.labelSmall!.copyWith(color: fg),
-                  ),
+                Text(
+                  plain(t.toPayMinor),
+                  style: AppTypography.rowAmount(theme.colorScheme.onSurface),
                 ),
+                const SizedBox(height: 2),
+                Tag(view.status.label, tone: tone),
               ],
             ),
           ],
@@ -262,22 +226,7 @@ class _InvoiceRow extends StatelessWidget {
 /// Save or share an invoice: one PDF or separate files, to the phone or
 /// through any app.
 Future<void> showShareInvoiceSheet(BuildContext context, InvoiceView view) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-            child: _ShareInvoice(view),
-          ),
-        ),
-      ),
-    );
+    showAppSheet<void>(context: context, builder: (_) => _ShareInvoice(view));
 
 class _ShareInvoice extends ConsumerStatefulWidget {
   const _ShareInvoice(this.view);
@@ -347,7 +296,6 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
   }
 
   Future<void> _go({required bool save}) async {
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     setState(() => _busy = true);
     try {
@@ -372,25 +320,22 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
       final doc = await sender.docFor(widget.view);
       if (save) {
         final saved = await sender.save(doc, one: _one);
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              saved == 0
-                  ? 'Nothing was saved.'
-                  : saved == 1
-                  ? 'Saved to your phone.'
-                  : '$saved files saved to your phone.',
-            ),
-          ),
-        );
+        if (mounted) {
+          showNote(
+            context,
+            saved == 0
+                ? 'The invoice was not saved. Try again.'
+                : saved == 1
+                ? 'Saved to your phone.'
+                : '$saved files saved to your phone.',
+          );
+        }
       } else {
         await sender.share(doc, one: _one);
       }
       navigator.pop();
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The invoice was not made. Try again.')),
-      );
+      if (mounted) showNote(context, 'The invoice was not made. Try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -425,19 +370,14 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
         (a.replaceFirst(RegExp(r'\.[A-Za-z0-9]+$'), ''), 'attached'),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SheetBody(
+      title: 'Invoice ${i.number}',
+      subtitle: [
+        i.client,
+        '${i.currency} ${plain(i.totals.toPayMinor)}',
+        if (i.dueOn case final due?) 'due ${shortDate(due)}',
+      ].join(' · '),
       children: [
-        Text('Invoice ${i.number}', style: theme.textTheme.headlineSmall),
-        Text(
-          [
-            i.client,
-            '${i.currency} ${plain(i.totals.toPayMinor)}',
-            if (i.dueOn case final due?) 'due ${shortDate(due)}',
-          ].join(' · '),
-          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: 12),
         Wrap(
           runSpacing: 8,
           children: [
@@ -475,22 +415,17 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            ChoiceChip(
-              key: const Key('invoice-one-pdf'),
-              label: const Text('One PDF'),
-              selected: _one,
-              onSelected: (_) => setState(() => _one = true),
-            ),
-            ChoiceChip(
-              key: const Key('invoice-separate'),
-              label: const Text('Separate files'),
-              selected: !_one,
-              onSelected: (_) => setState(() => _one = false),
-            ),
-          ],
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: AdaptiveSegmented<bool>(
+            key: const Key('invoice-send-as'),
+            name: 'Send as',
+            segments: const [(true, 'One PDF'), (false, 'Separate files')],
+            segmentKey: (one) =>
+                Key(one ? 'invoice-one-pdf' : 'invoice-separate'),
+            selected: _one,
+            onChanged: (one) => setState(() => _one = one),
+          ),
         ),
         const SizedBox(height: 12),
         PhoneField(
@@ -506,24 +441,17 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
           style: muted,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                key: const Key('invoice-save-phone'),
-                onPressed: _busy ? null : () => _go(save: true),
-                child: const Text('Save to phone'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                key: const Key('invoice-share'),
-                onPressed: _busy ? null : () => _go(save: false),
-                child: const Text('Share'),
-              ),
-            ),
-          ],
+        ButtonPair(
+          primary: FilledButton(
+            key: const Key('invoice-share'),
+            onPressed: _busy ? null : () => _go(save: false),
+            child: const Text('Share'),
+          ),
+          secondary: OutlinedButton(
+            key: const Key('invoice-save-phone'),
+            onPressed: _busy ? null : () => _go(save: true),
+            child: const Text('Save to phone'),
+          ),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(

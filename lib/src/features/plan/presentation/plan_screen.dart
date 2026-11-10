@@ -9,8 +9,13 @@ import '../../../domain/plan/plan_groups.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../debts/presentation/debts_screen.dart' show monthLabel;
 import '../application/plan_providers.dart';
@@ -42,22 +47,29 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            Layout.gutter,
+            16,
+            Layout.gutter,
+            Layout.tabBottom,
+          ),
           children: [
             _Header(month),
             if (month == current) const PaydayBanner(),
-            const SizedBox(height: 16),
             ...switch (view) {
               AsyncData(:final value) => _body(context, value, names),
               AsyncError() => [
-                const Text('Plan could not load. Pull down or reopen Plan.'),
-              ],
-              _ => [
-                const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator.adaptive()),
+                ErrorView(
+                  'Your plan could not load.',
+                  onRetry: () {
+                    if (ref.read(monthCloseProvider).hasError) {
+                      ref.invalidate(monthCloseProvider);
+                    }
+                    refreshPlan(ref);
+                  },
                 ),
               ],
+              _ => [const LoadingView(inList: true)],
             },
           ],
         ),
@@ -71,7 +83,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
     Map<int, String> names,
   ) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final rows = [
       for (final row in view.categoryRows)
         if (!_pendingOnly || row.status != PlanStatus.done) row,
@@ -79,20 +90,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
 
     return [
       _IncomeCard(view),
-      const SizedBox(height: 24),
-      Row(
-        children: [
-          Expanded(
-            child: Text('By category', style: theme.textTheme.titleLarge),
-          ),
-          TextButton(
-            onPressed: () => setState(() => _pendingOnly = !_pendingOnly),
-            style: TextButton.styleFrom(foregroundColor: colors.link),
-            child: Text(_pendingOnly ? 'Show all' : 'Pending only'),
-          ),
-        ],
+      SectionTitle(
+        'By category',
+        action: TextButton(
+          onPressed: () => setState(() => _pendingOnly = !_pendingOnly),
+          child: Text(_pendingOnly ? 'Show all' : 'Pending only'),
+        ),
       ),
-      const SizedBox(height: 8),
       _CategoryList(
         rows: rows,
         names: names,
@@ -101,16 +105,16 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                   'category is doing.'
             : 'Every category is done.',
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: Layout.cardGap),
       _SurplusCard(view),
-      const SizedBox(height: 24),
-      if (view.isClosed)
+      if (view.isClosed) ...[
+        const SizedBox(height: 24),
         Text(
           'This month is closed. Its figures were frozen at month end, and '
           'unpaid bills moved to the next month as arrears.',
           style: theme.textTheme.bodySmall,
-        )
-      else
+        ),
+      ] else
         _LinesSection(view: view, names: names),
     ];
   }
@@ -123,26 +127,24 @@ class _Header extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final notifier = ref.read(planMonthProvider.notifier);
-    return Row(
-      children: [
-        Expanded(
-          child: Semantics(
-            identifier: SemanticIds.titlePlan,
-            child: Text('Plan', style: theme.textTheme.headlineLarge),
-          ),
-        ),
-        _RoundButton(
+    return TabHeader(
+      'Plan',
+      semanticsId: SemanticIds.titlePlan,
+      actions: [
+        StepButton(
           tooltip: 'Previous month',
           icon: Icons.chevron_left,
           onPressed: () => notifier.show(month.previous),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(monthLabel(month), style: theme.textTheme.titleMedium),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            monthLabel(month),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
-        _RoundButton(
+        StepButton(
           tooltip: 'Next month',
           icon: Icons.chevron_right,
           onPressed: () => notifier.show(month.next),
@@ -153,55 +155,22 @@ class _Header extends ConsumerWidget {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon),
-      style: IconButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        side: BorderSide(color: colors.border),
-        minimumSize: const Size.square(BrandTokens.touchTarget),
-      ),
-    );
-  }
-}
-
 String _amount(BuildContext context, int minor) =>
     shownMoney(context, minor, withCurrency: false);
 
-class _OutlinedCard extends StatelessWidget {
-  const _OutlinedCard({required this.child, this.padding = 20});
+/// A card with [Layout.cardPadding] inside.
+class _PaddedCard extends StatelessWidget {
+  const _PaddedCard({required this.child});
 
   final Widget child;
-  final double padding;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
-      child: Padding(padding: EdgeInsets.all(padding), child: child),
-    );
-  }
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(Layout.cardPadding),
+      child: child,
+    ),
+  );
 }
 
 /// Colours for the income bar, darkest to lightest red, so neighbouring
@@ -242,7 +211,7 @@ class _IncomeCard extends StatelessWidget {
       note = null;
     }
 
-    return _OutlinedCard(
+    return _PaddedCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,10 +236,7 @@ class _IncomeCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _amount(context, planned),
-            style: AppTypography.amount(
-              size: 40,
-              color: theme.colorScheme.onSurface,
-            ),
+            style: AppTypography.headlineFigure(theme.colorScheme.onSurface),
           ),
           const SizedBox(height: 16),
           ExcludeSemantics(
@@ -356,26 +322,13 @@ class _CategoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    if (rows.isEmpty) {
-      return _OutlinedCard(
-        child: Text(emptyText, style: theme.textTheme.bodyMedium),
-      );
-    }
-    return _OutlinedCard(
-      padding: 0,
+    if (rows.isEmpty) return EmptyNote(emptyText);
+    return Card(
       child: Column(
         children: [
-          for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                indent: 20,
-                endIndent: 20,
-                color: colors.border,
-              ),
-            _CategoryTile(rows[i], _categoryName(rows[i].categoryId, names)),
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) const Divider(height: 1),
+            _CategoryTile(row, _categoryName(row.categoryId, names)),
           ],
         ],
       ),
@@ -398,15 +351,18 @@ class _CategoryTile extends StatelessWidget {
     final colors = PesaColors.of(context);
     final colour = switch (row.status) {
       PlanStatus.done => colors.successText,
-      PlanStatus.over => theme.colorScheme.primary,
-      PlanStatus.inProgress => colors.warning,
+      PlanStatus.over => colors.warning,
+      PlanStatus.inProgress => theme.colorScheme.primary,
     };
     final progress = row.plannedMinor <= 0
         ? 1.0
         : (row.actualMinor / row.plannedMinor).clamp(0.0, 1.0);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Layout.cardPadding,
+        vertical: 12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -426,7 +382,7 @@ class _CategoryTile extends StatelessWidget {
               minHeight: 8,
               color: colour,
               backgroundColor: colors.border,
-              borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
           const SizedBox(height: 10),
@@ -460,92 +416,73 @@ class _SurplusCard extends ConsumerWidget {
 
   final PlanView view;
 
+  static const _shares = [10000, 7500, 5000, 2500, 0];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final surplus = view.surplus;
     final short = surplus.shortfallMinor > 0;
+    final adjustable = !view.isClosed && view.hasDebt;
+    final share = view.debtShareBasisPoints;
+    final String? detail = short
+        ? 'The plan is more than expected income'
+        : adjustable
+        ? null
+        : surplusSplitLabel(share, hasDebt: view.hasDebt);
 
-    return _OutlinedCard(
-      padding: 16,
-      child: Row(
+    return _PaddedCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colors.brandSoft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.sync, color: theme.colorScheme.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  short
-                      ? 'Short by ${_amount(context, surplus.shortfallMinor)}'
-                      : 'Surplus ${_amount(context, surplus.surplusMinor)}',
-                  style: theme.textTheme.titleMedium,
-                ),
-                Text(
-                  short
-                      ? 'The plan is more than expected income'
-                      : surplusSplitLabel(
-                          view.debtShareBasisPoints,
-                          hasDebt: view.hasDebt,
+          Row(
+            children: [
+              const IconBadge(Icons.sync),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      short
+                          ? 'Short by ${_amount(context, surplus.shortfallMinor)}'
+                          : 'Surplus ${_amount(context, surplus.surplusMinor)}',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    if (detail != null)
+                      Text(
+                        detail,
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          color: colors.textMuted,
                         ),
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: colors.textMuted,
-                  ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (!view.isClosed && view.hasDebt)
-            TextButton(
-              onPressed: () => _adjust(context, ref),
-              style: TextButton.styleFrom(foregroundColor: colors.link),
-              child: const Text('Adjust'),
+          if (adjustable) ...[
+            const SizedBox(height: 12),
+            ChoiceMenu<int>(
+              key: const Key('plan-surplus-split'),
+              name: 'Split the surplus',
+              expand: true,
+              options: [
+                for (final option in {..._shares, share})
+                  (option, surplusSplitLabel(option, hasDebt: true)),
+              ],
+              value: share,
+              onChanged: (chosen) => _split(ref, chosen),
             ),
+          ],
         ],
       ),
     );
   }
 
-  Future<void> _adjust(BuildContext context, WidgetRef ref) async {
-    final chosen = await showModalBottomSheet<int>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => RadioGroup<int>(
-        groupValue: view.debtShareBasisPoints,
-        onChanged: (value) => Navigator.of(context).pop(value),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                child: Text(
-                  'Split the surplus',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              for (final share in const [10000, 7500, 5000, 2500, 0])
-                RadioListTile<int>(
-                  value: share,
-                  title: Text(surplusSplitLabel(share, hasDebt: true)),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (chosen == null || chosen == view.debtShareBasisPoints) return;
+  Future<void> _split(WidgetRef ref, int chosen) async {
+    if (chosen == view.debtShareBasisPoints) return;
     await ref
         .read(planRepositoryProvider)
         .setSurplusDebtShareBasisPoints(chosen);
@@ -562,64 +499,41 @@ class _LinesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
+    final month = view.plan.month;
     final lines = [...view.plan.lines]..sort(_byDue);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Bills, income and one-offs',
-                style: theme.textTheme.titleLarge,
-              ),
-            ),
-            TextButton.icon(
-              onPressed: () =>
-                  showPlanItemSheet(context, month: view.plan.month),
-              style: TextButton.styleFrom(foregroundColor: colors.link),
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
-            ),
-          ],
+        SectionTitle(
+          'Bills, income and one-offs',
+          action: TextButton(
+            onPressed: () => showPlanItemSheet(context, month: month),
+            child: Text('Add to ${monthLabel(month)}'),
+          ),
         ),
-        const SizedBox(height: 8),
         if (lines.isEmpty)
-          _OutlinedCard(
-            child: Text(
-              'Add what repeats, such as salary, rent and school fees, and '
-              'one-offs for this month only.',
-              style: theme.textTheme.bodyMedium,
-            ),
+          const EmptyNote(
+            'Add what repeats, such as salary, rent and school fees, and '
+            'one-offs for this month only.',
           )
         else
-          _OutlinedCard(
-            padding: 0,
+          Card(
             child: Column(
               children: [
-                for (var i = 0; i < lines.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: 20,
-                      endIndent: 20,
-                      color: colors.border,
-                    ),
+                for (final (i, line) in lines.indexed) ...[
+                  if (i > 0) const Divider(height: 1),
                   ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                    title: Text(lines[i].name),
-                    subtitle: Text(_describe(lines[i], names)),
+                    title: Text(line.name),
+                    subtitle: Text(_describe(line, names)),
                     trailing: Text(
-                      _amount(context, lines[i].amountMinor),
-                      style: theme.textTheme.titleSmall,
+                      _amount(context, line.amountMinor),
+                      style: AppTypography.rowAmount(
+                        theme.colorScheme.onSurface,
+                      ),
                     ),
-                    onTap: () => showPlanItemSheet(
-                      context,
-                      month: view.plan.month,
-                      line: lines[i],
-                    ),
+                    onTap: () =>
+                        showPlanItemSheet(context, month: month, line: line),
                   ),
                 ],
               ],

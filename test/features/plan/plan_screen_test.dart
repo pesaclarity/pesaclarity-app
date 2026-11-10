@@ -143,7 +143,7 @@ void main() {
     await tester.runAsync(() => seedNovember(db));
     await pumpScreen(tester, db, const PlanScreen());
 
-    await tapText(tester, 'Add');
+    await tapText(tester, 'Add to Nov 2026');
     await tester.tap(find.text('One-off'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Gift');
@@ -156,6 +156,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gift'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('34,500'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('34,500'), findsOneWidget);
   });
 

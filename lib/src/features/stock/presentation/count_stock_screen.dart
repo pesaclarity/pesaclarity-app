@@ -8,8 +8,10 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../sales/presentation/pay_sheet.dart';
 import '../application/stock_providers.dart';
 
 /// Count stock: what the records say against what is really there. Each
@@ -127,8 +129,20 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    final items = ref.watch(itemsProvider);
+    if (!items.hasValue) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Count stock')),
+        body: items.hasError
+            ? ErrorView(
+                'Your stock could not load.',
+                onRetry: () => ref.invalidate(itemsProvider),
+              )
+            : const LoadingView(),
+      );
+    }
     final products = [
-      for (final i in ref.watch(itemsProvider).value ?? const <Item>[])
+      for (final i in items.value ?? const <Item>[])
         if (i.isProduct) i,
     ];
     final changed = [
@@ -145,23 +159,19 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Count stock')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           Text(
             'Type what is really there. The difference is kept as spoiled, '
             'used or lost.',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
+            style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: 12),
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 for (final (i, item) in products.indexed) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  if (i > 0) const Divider(height: 1),
                   ListTile(
                     title: Text(item.name),
                     subtitle: Text(() {
@@ -195,9 +205,8 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
           for (final item in changed) ...[
             const SizedBox(height: 12),
             Card(
-              margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(Layout.cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -209,7 +218,7 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
                     const SizedBox(height: 8),
                     _reasonPicker(item),
                     const SizedBox(height: 8),
-                    InfoNote(
+                    Notice(
                       _reasonFor(item.id, _difference(item)!) ==
                               CountReason.miscounted
                           ? 'The records are corrected, with no cost.'

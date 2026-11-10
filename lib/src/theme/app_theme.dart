@@ -137,6 +137,8 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
+        // Keeps a tap's ripple inside the rounded corners.
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
           side: BorderSide(color: colors.border),

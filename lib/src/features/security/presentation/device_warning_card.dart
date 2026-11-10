@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/device_integrity_providers.dart';
 
@@ -27,7 +28,7 @@ class DeviceWarningCard extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

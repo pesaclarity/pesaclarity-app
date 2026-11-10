@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/app_lock_controller.dart';
 import '../domain/unlock_delay.dart';
@@ -68,8 +69,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     } else if (_wrong) {
       final left = freePinAttempts - lock.attempts.failed;
       message = left > 0
-          ? 'Wrong PIN. $left ${left == 1 ? 'try' : 'tries'} left before a wait.'
-          : 'Wrong PIN.';
+          ? "That PIN didn't match. $left ${left == 1 ? 'try' : 'tries'} "
+                'left before a wait.'
+          : "That PIN didn't match. Try again.";
     } else {
       message = null;
     }
@@ -178,26 +180,9 @@ class _LockFailedScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Pesa Clarity could not open its secure storage.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () =>
-                      ref.read(appLockControllerProvider.notifier).retry(),
-                  child: const Text('Try again'),
-                ),
-              ],
-            ),
-          ),
+        child: ErrorView(
+          'Pesa Clarity could not open its secure storage.',
+          onRetry: () => ref.read(appLockControllerProvider.notifier).retry(),
         ),
       ),
     );

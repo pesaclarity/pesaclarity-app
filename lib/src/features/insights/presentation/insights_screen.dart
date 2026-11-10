@@ -11,7 +11,11 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../home/application/health_index_provider.dart';
 import '../../statements/data/pdf_text_extractor.dart';
@@ -60,11 +64,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
           .read(reportSharerProvider)
           .sharePdf(bytes, fileName: report.fileName, subject: report.title);
     } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The report was not made. Try again.')),
-        );
-      }
+      if (mounted) showNote(context, 'The report was not made. Try again.');
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -80,71 +80,75 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
       ..watch(tagTotalsThisMonthProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          identifier: SemanticIds.titleInsights,
-          child: const Text('Insights'),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Tooltip(
-              message: 'Export monthly report as PDF',
-              child: OutlinedButton.icon(
-                onPressed: summary.hasValue && !_sharing ? _shareReport : null,
-                icon: _sharing
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.file_download_outlined, size: 18),
-                label: const Text('Report'),
-              ),
-            ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            Layout.gutter,
+            16,
+            Layout.gutter,
+            Layout.tabBottom,
           ),
-          const AmountsEye(),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: switch (summary) {
-        AsyncData(:final value) => _InsightsBody(value),
-        AsyncError() => const _Message(
-          'Insights did not load. Close the app and open it again.',
+          children: [
+            TabHeader(
+              'Insights',
+              semanticsId: SemanticIds.titleInsights,
+              actions: [
+                // Looks like the export button, but shares the report
+                // straight away.
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Tooltip(
+                    message: 'Export monthly report as PDF',
+                    child: OutlinedButton.icon(
+                      onPressed: summary.hasValue && !_sharing
+                          ? _shareReport
+                          : null,
+                      icon: _sharing
+                          ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator.adaptive(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.file_download_outlined, size: 20),
+                      label: const Text('Report'),
+                    ),
+                  ),
+                ),
+                const AmountsEye(),
+              ],
+            ),
+            ...switch (summary) {
+              AsyncData(:final value) => _insights(value),
+              AsyncError() => [
+                ErrorView(
+                  'Insights could not load.',
+                  onRetry: () => ref.invalidate(insightsSummaryProvider),
+                ),
+              ],
+              _ => [const LoadingView(inList: true)],
+            },
+          ],
         ),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
-      },
+      ),
     );
   }
-}
 
-class _InsightsBody extends StatelessWidget {
-  const _InsightsBody(this.summary);
-
-  final InsightsSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      children: [
-        if (!summary.hasData)
-          const _EmptyCard()
-        else ...[
-          const _FindingsSection(),
-          const _SectionTitle('Spending'),
-          SpendingChartsSection(trend: summary.trend),
-          const SizedBox(height: 12),
-          _LeakageCard(summary),
-          const _SectionTitle('Financial Health Index'),
-          const _HealthCard(),
-        ],
-        const SizedBox(height: 24),
-        const TagTotalsSection(),
-      ],
-    );
-  }
+  List<Widget> _insights(InsightsSummary summary) => [
+    if (!summary.hasData)
+      const _EmptyCard()
+    else ...[
+      const _FindingsSection(),
+      const SectionTitle('Spending'),
+      SpendingChartsSection(trend: summary.trend),
+      const SizedBox(height: Layout.cardGap),
+      _LeakageCard(summary),
+      const SectionTitle('Financial Health Index'),
+      const _HealthCard(),
+    ],
+    const TagTotalsSection(),
+  ];
 }
 
 /// This month's changes against the same days of last month; each opens
@@ -161,9 +165,8 @@ class _FindingsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionTitle('What changed'),
+        const SectionTitle('What changed'),
         Card(
-          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               for (final (i, f) in findings.indexed) ...[
@@ -212,35 +215,6 @@ String findingDetail(Finding f, {bool hidden = false}) => switch (f) {
   },
 };
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 10),
-    child: Semantics(
-      header: true,
-      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-    ),
-  );
-}
-
-class _Message extends StatelessWidget {
-  const _Message(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(text, textAlign: TextAlign.center),
-    ),
-  );
-}
-
 class _EmptyCard extends ConsumerWidget {
   const _EmptyCard();
 
@@ -250,7 +224,7 @@ class _EmptyCard extends ConsumerWidget {
     final canImport = ref.watch(statementImportAvailableProvider);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -300,14 +274,15 @@ class _LeakageCard extends StatelessWidget {
     );
 
     return Card(
+      // Picked out with a brand-coloured edge.
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
         side: BorderSide(
           color: theme.colorScheme.primary.withValues(alpha: .3),
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -324,10 +299,8 @@ class _LeakageCard extends StatelessWidget {
               children: [
                 Text(
                   _amount(context, current.leakageMinor),
-                  style: AppTypography.amount(
-                    size: 36,
-                    weight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
+                  style: AppTypography.headlineFigure(
+                    theme.colorScheme.onSurface,
                   ),
                 ),
                 if (share != null)
@@ -396,10 +369,7 @@ class _BarRow extends StatelessWidget {
               Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
               Text(
                 value,
-                style: AppTypography.amount(
-                  size: 15,
-                  color: theme.colorScheme.onSurface,
-                ),
+                style: AppTypography.rowAmount(theme.colorScheme.onSurface),
               ),
             ],
           ),
@@ -430,11 +400,13 @@ class _HealthCard extends ConsumerWidget {
     if (health == null) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Text(
             'Your score shows once a full month of transactions has been '
             'read.',
-            style: theme.textTheme.bodyMedium,
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: colors.textMuted,
+            ),
           ),
         ),
       );
@@ -444,7 +416,7 @@ class _HealthCard extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -470,9 +442,8 @@ class _HealthCard extends ConsumerWidget {
                 Text(
                   '${index.score}',
                   semanticsLabel: 'Score ${index.score} of 100',
-                  style: AppTypography.amount(
-                    size: 36,
-                    color: theme.colorScheme.onSurface,
+                  style: AppTypography.headlineFigure(
+                    theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -501,10 +472,10 @@ class _HealthCard extends ConsumerWidget {
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: colors.brandSoft,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(Layout.panelRadius),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(Layout.cardPadding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

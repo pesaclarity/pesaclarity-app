@@ -8,7 +8,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/backup/backup.dart';
 import '../../../core/time/clock.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_providers.dart';
 import '../data/backup_location.dart';
@@ -91,7 +93,7 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
         children: [
           Text(
             'Every backup is locked with this passphrase on your phone before '
-            'it goes anywhere. Pick one you will remember; you need it to '
+            'it goes anywhere. Choose one you will remember; you need it to '
             'restore.',
             style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
           ),
@@ -154,7 +156,7 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
         const SizedBox(height: 16),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(Layout.cardPadding),
             child: SelectableText(
               [
                 for (var i = 0; i < groups.length; i += 2)
@@ -178,7 +180,7 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
           children: [
             OutlinedButton.icon(
               onPressed: () => _savePdf(key),
-              icon: const Icon(Icons.download_outlined),
+              icon: const Icon(Icons.file_download_outlined, size: 20),
               label: const Text('Save as PDF'),
             ),
             OutlinedButton.icon(
@@ -188,7 +190,7 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
             ),
             OutlinedButton.icon(
               onPressed: () => _shareText(key),
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(Icons.ios_share),
               label: const Text('Share as text'),
             ),
           ],
@@ -210,34 +212,37 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
     );
   }
 
-  Future<void> _savePdf(RecoveryKey key) => _guard(() async {
-    final now = ref.read(clockProvider)();
-    final bytes = await recoveryKeyPdf(key, now);
-    final dir = await ref.read(recoveryKeyScratchDirectoryProvider);
-    final file = File(p.join(dir.path, 'recovery-key.pdf'));
-    await file.writeAsBytes(bytes, flush: true);
-    try {
-      final saved = await ref
-          .read(documentStorageProvider)
-          .saveAs(
-            file,
-            'Pesa Clarity recovery key.pdf',
-            mimeType: 'application/pdf',
-          );
-      if (saved) _tell('Recovery key saved.');
-    } finally {
-      await file.delete();
-    }
-  });
+  Future<void> _savePdf(RecoveryKey key) =>
+      _guard('The PDF was not saved. Try again.', () async {
+        final now = ref.read(clockProvider)();
+        final bytes = await recoveryKeyPdf(key, now);
+        final dir = await ref.read(recoveryKeyScratchDirectoryProvider);
+        final file = File(p.join(dir.path, 'recovery-key.pdf'));
+        await file.writeAsBytes(bytes, flush: true);
+        try {
+          final saved = await ref
+              .read(documentStorageProvider)
+              .saveAs(
+                file,
+                'Pesa Clarity recovery key.pdf',
+                mimeType: 'application/pdf',
+              );
+          if (saved) _tell('Recovery key saved.');
+        } finally {
+          await file.delete();
+        }
+      });
 
-  Future<void> _print(RecoveryKey key) => _guard(() async {
-    final bytes = await recoveryKeyPdf(key, ref.read(clockProvider)());
-    await ref
-        .read(documentPrinterProvider)
-        .printPdf(bytes, name: 'Pesa Clarity recovery key');
-  });
+  Future<void> _print(RecoveryKey key) =>
+      _guard('The key was not printed. Try again.', () async {
+        final bytes = await recoveryKeyPdf(key, ref.read(clockProvider)());
+        await ref
+            .read(documentPrinterProvider)
+            .printPdf(bytes, name: 'Pesa Clarity recovery key');
+      });
 
   Future<void> _shareText(RecoveryKey key) => _guard(
+    'The key was not shared. Try again.',
     () => ref
         .read(fileSharerProvider)
         .shareText(
@@ -246,19 +251,18 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
         ),
   );
 
-  Future<void> _guard(Future<void> Function() action) async {
+  /// Runs [action], saying [failed] if it stops.
+  Future<void> _guard(String failed, Future<void> Function() action) async {
     try {
       await action();
     } on BackupLocationException catch (e) {
       _tell(e.message);
     } on Exception {
-      _tell('That did not work. Try another option.');
+      _tell(failed);
     }
   }
 
   void _tell(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) showNote(context, message);
   }
 }

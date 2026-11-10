@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/institutions_repository.dart';
 import '../../../domain/spaces/line_routing.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/application/my_accounts_providers.dart';
 import '../../accounts/domain/institution.dart';
@@ -27,6 +29,12 @@ class BusinessOrPersonalScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final space = ref.watch(activeSpaceProvider);
+    final loads = [
+      ref.watch(selectedInstitutionIdsProvider),
+      ref.watch(personalLinesProvider),
+      ref.watch(routingRulesProvider),
+    ];
+    final failed = loads.any((l) => l.hasError && !l.hasValue);
     final inBusiness = ref.watch(selectedInstitutionIdsProvider).value;
     final inPersonal = ref.watch(personalLinesProvider).value;
     final rules = ref.watch(routingRulesProvider).value;
@@ -57,10 +65,20 @@ class BusinessOrPersonalScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Business or personal')),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
+      body: failed
+          ? ErrorView(
+              'Your accounts could not load.',
+              onRetry: () {
+                ref
+                  ..invalidate(selectedInstitutionIdsProvider)
+                  ..invalidate(personalLinesProvider)
+                  ..invalidate(routingRulesProvider);
+              },
+            )
+          : loading
+          ? const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 Text(
                   "Choose where each account's money goes. Shared accounts "
@@ -71,15 +89,15 @@ class BusinessOrPersonalScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 if (lines.isEmpty)
-                  Text(
+                  const EmptyNote(
                     'Add accounts in My accounts, then choose here.',
-                    style: theme.textTheme.bodyMedium,
                   )
                 else
                   Card(
                     child: Column(
                       children: [
-                        for (final line in lines)
+                        for (final (i, line) in lines.indexed) ...[
+                          if (i > 0) const Divider(height: 1),
                           ListTile(
                             key: Key('line-${line.id}'),
                             title: Text(line.name),
@@ -92,33 +110,31 @@ class BusinessOrPersonalScreen extends ConsumerWidget {
                               LineChoice.personal => 'Only Personal',
                               LineChoice.both => 'Used for both',
                             }),
-                            trailing: DropdownButton<LineChoice>(
-                              key: Key('line-choice-${line.id}'),
-                              value: lineChoiceOf(
-                                inBusiness: inBusiness.contains(line.id),
-                                inPersonal: inPersonal.contains(line.id),
-                                shared: shared.contains(line.id),
+                            trailing: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: _choiceWidth,
                               ),
-                              underline: const SizedBox.shrink(),
-                              onChanged: (choice) {
-                                if (choice != null) choose(line, choice);
-                              },
-                              items: [
-                                DropdownMenuItem(
-                                  value: LineChoice.thisBusiness,
-                                  child: Text(space.name),
+                              child: ChoiceMenu<LineChoice>(
+                                key: Key('line-choice-${line.id}'),
+                                name: line.name,
+                                value: lineChoiceOf(
+                                  inBusiness: inBusiness.contains(line.id),
+                                  inPersonal: inPersonal.contains(line.id),
+                                  shared: shared.contains(line.id),
                                 ),
-                                const DropdownMenuItem(
-                                  value: LineChoice.personal,
-                                  child: Text('Personal'),
+                                options: [
+                                  (LineChoice.thisBusiness, space.name),
+                                  (LineChoice.personal, 'Personal'),
+                                  (LineChoice.both, 'Both'),
+                                ],
+                                itemKey: (choice) => Key(
+                                  'line-choice-${line.id}-${choice.name}',
                                 ),
-                                const DropdownMenuItem(
-                                  value: LineChoice.both,
-                                  child: Text('Ask me'),
-                                ),
-                              ],
+                                onChanged: (choice) => choose(line, choice),
+                              ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -140,3 +156,7 @@ class BusinessOrPersonalScreen extends ConsumerWidget {
     );
   }
 }
+
+/// How wide a line's choice can grow before a long business name is cut
+/// short.
+const _choiceWidth = 160.0;

@@ -13,6 +13,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_providers.dart';
 import '../application/month_labels.dart';
@@ -161,7 +162,7 @@ class _BreakdownCard extends StatelessWidget {
     if (chart.slices.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Text(
             'Spending this ${_periodName(period)} shows here as it comes in.',
             style: theme.textTheme.bodyMedium!.copyWith(
@@ -207,11 +208,16 @@ class _BreakdownCard extends StatelessWidget {
                             color: colors.textMuted,
                           ),
                         ),
-                        Text(
-                          _amount(context, chart.totalMinor),
-                          style: AppTypography.amount(
-                            size: 18,
-                            color: theme.colorScheme.onSurface,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _amount(context, chart.totalMinor),
+                              style: AppTypography.tileFigure(
+                                theme.colorScheme.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                       ],

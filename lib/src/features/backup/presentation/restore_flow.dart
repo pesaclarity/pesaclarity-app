@@ -9,6 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/backup/backup.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_labels.dart';
 import '../application/backup_providers.dart';
@@ -30,9 +33,8 @@ Future<void> restoreFromLocation(
   BackupLocation location,
   String title,
 ) async {
-  final entry = await showModalBottomSheet<BackupEntry>(
+  final entry = await showAppSheet<BackupEntry>(
     context: context,
-    isScrollControlled: true,
     builder: (context) => _BackupListSheet(location: location, title: title),
   );
   if (entry == null || !context.mounted) return;
@@ -73,11 +75,7 @@ Future<void> _unlockAndRestore(
   if (file.existsSync()) await file.delete();
   if (manifest == null || !context.mounted) return;
   final when = backupTimeLabel(manifest.createdAt, ref.read(clockProvider)());
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(content: Text('Restored. Your data is from $when.')),
-    );
+  showNote(context, 'Restored. Your data is from $when.');
 }
 
 Future<T?> _withProgress<T>(
@@ -157,8 +155,10 @@ class _BackupListSheet extends ConsumerStatefulWidget {
 }
 
 class _BackupListSheetState extends ConsumerState<_BackupListSheet> {
+  late Future<List<BackupEntry>> _entries = _load();
+
   // Only this space's backups: a restore replaces the open space.
-  late final Future<List<BackupEntry>> _entries = widget.location.list().then(
+  Future<List<BackupEntry>> _load() => widget.location.list().then(
     (all) => [
       for (final e in all)
         if (e.space == ref.read(activeSpaceIdProvider)) e,
@@ -170,71 +170,47 @@ class _BackupListSheetState extends ConsumerState<_BackupListSheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final now = ref.watch(clockProvider)();
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+    return SheetBody(
+      title: widget.title,
+      children: [
+        FutureBuilder<List<BackupEntry>>(
+          future: _entries,
+          builder: (context, snapshot) {
+            if (snapshot.hasError &&
+                snapshot.connectionState == ConnectionState.done) {
+              return ErrorView(
+                restoreErrorMessage(snapshot.error!),
+                onRetry: () => setState(() => _entries = _load()),
+              );
+            }
+            final entries = snapshot.data;
+            if (entries == null) return const LoadingView(inList: true);
+            if (entries.isEmpty) {
+              return const EmptyNote(
+                'Backups you make here will show up here.',
+              );
+            }
+            return GroupedSection(
+              children: [
+                for (final entry in entries)
+                  ListTile(
+                    title: Text(backupTimeLabel(entry.createdAt, now)),
+                    subtitle: entry.sizeBytes == null
+                        ? null
+                        : Text(
+                            _size(entry.sizeBytes!),
+                            style: theme.textTheme.bodySmall!.copyWith(
+                              color: colors.textMuted,
+                            ),
+                          ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pop(entry),
+                  ),
+              ],
+            );
+          },
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Text(widget.title, style: theme.textTheme.titleLarge),
-            ),
-            Flexible(
-              child: FutureBuilder<List<BackupEntry>>(
-                future: _entries,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(restoreErrorMessage(snapshot.error!)),
-                    );
-                  }
-                  final entries = snapshot.data;
-                  if (entries == null) {
-                    return const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(
-                        child: CircularProgressIndicator.adaptive(),
-                      ),
-                    );
-                  }
-                  if (entries.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text('Backups you make here will show up here.'),
-                    );
-                  }
-                  return ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: entries.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final entry = entries[i];
-                      return ListTile(
-                        title: Text(backupTimeLabel(entry.createdAt, now)),
-                        subtitle: entry.sizeBytes == null
-                            ? null
-                            : Text(
-                                _size(entry.sizeBytes!),
-                                style: theme.textTheme.bodySmall!.copyWith(
-                                  color: colors.textMuted,
-                                ),
-                              ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.of(context).pop(entry),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
@@ -347,9 +323,7 @@ class _RestoreDialogState extends ConsumerState<RestoreDialog> {
                         _error = null;
                       }),
                 child: Text(
-                  _useRecoveryKey
-                      ? 'Use my passphrase'
-                      : 'Use my recovery key instead',
+                  _useRecoveryKey ? 'Use my passphrase' : 'Use my recovery key',
                 ),
               ),
               if (_busy) ...[
@@ -365,11 +339,11 @@ class _RestoreDialogState extends ConsumerState<RestoreDialog> {
           ),
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: _busy ? null : () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          DialogAction(
             onPressed: _busy ? null : _restore,
             child: const Text('Restore'),
           ),

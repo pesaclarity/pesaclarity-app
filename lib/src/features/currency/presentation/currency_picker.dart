@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../theme/pesa_colors.dart';
 
 /// A searchable list of every currency, with [suggested] (the phone
@@ -53,17 +54,6 @@ class _CurrencyPickerState extends State<CurrencyPicker> {
         if (!top.contains(code) && _matches(code)) code,
     ];
 
-    Widget label(String text) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-      child: Text(
-        text,
-        style: theme.textTheme.labelMedium!.copyWith(
-          color: colors.textMuted,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-
     Widget tile(String code) {
       final subtitle = widget.subtitleOf?.call(code);
       // Merged so the id lands on the node that carries the checked state.
@@ -108,15 +98,15 @@ class _CurrencyPickerState extends State<CurrencyPicker> {
             onChanged: (v) => setState(() => _query = v),
           ),
           if (top.isNotEmpty) ...[
-            label(
+            SectionLabel(
               suggested != null && top.contains(suggested)
-                  ? "FROM YOUR PHONE'S REGION"
-                  : 'YOUR CURRENCY',
+                  ? "From your phone's region"
+                  : 'Your currency',
             ),
             Card(child: Column(children: [for (final c in top) tile(c)])),
           ],
           if (rest.isNotEmpty) ...[
-            label('ALL CURRENCIES'),
+            const SectionLabel('All currencies'),
             Card(child: Column(children: [for (final c in rest) tile(c)])),
           ],
         ],

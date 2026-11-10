@@ -344,7 +344,7 @@ void main() {
 
     expect(api.revoked, {'old'});
     expect(find.text('Infinix Hot 30'), findsNothing);
-    expect(find.text('Infinix Hot 30 is signed out'), findsOneWidget);
+    expect(find.text('Infinix Hot 30 is signed out.'), findsOneWidget);
   });
 
   testAppWidgets('a saved session shows in Profile on launch', (tester) async {

@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/leakage.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
 import '../../sms/application/scan_range_provider.dart';
@@ -116,6 +119,8 @@ String _vsIncome(int spending, int income, String Function(int) kes) {
   return '${kes(-gap)} more than came in';
 }
 
+/// A figure tile; [highlight] outlines it and colours its note, for a
+/// figure worth a look such as leakages.
 class _Figure extends StatelessWidget {
   const _Figure({
     required this.label,
@@ -131,19 +136,22 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!highlight) {
+      return MergeSemantics(
+        child: FigureTile(label: label, value: value, note: note),
+      );
+    }
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     return Card(
-      shape: highlight
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: BorderSide(
-                color: theme.colorScheme.primary.withValues(alpha: .3),
-              ),
-            )
-          : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+        side: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: .3),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: MergeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,21 +163,20 @@ class _Figure extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                value,
-                style: AppTypography.amount(
-                  size: 28,
-                  color: theme.colorScheme.onSurface,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  value,
+                  style: AppTypography.tileFigure(theme.colorScheme.onSurface),
                 ),
               ),
               if (note != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   note!,
-                  style: theme.textTheme.labelLarge!.copyWith(
-                    color: highlight
-                        ? theme.colorScheme.primary
-                        : colors.textMuted,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
                 ),
               ],

@@ -350,7 +350,7 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    expect(find.text('How it is doing'), findsOneWidget);
+    expect(find.text('Insights'), findsWidgets);
     expect(find.text('KES 3,700'), findsOneWidget);
     expect(find.textContaining('Sales 7,200 · costs 3,500'), findsOneWidget);
     expect(find.text('How people pay'), findsOneWidget);
@@ -428,22 +428,21 @@ void main() {
           .value,
       isFalse,
     );
-    expect(
-      tester
-          .widget<ChoiceChip>(find.byKey(const Key('detail-totals')))
-          .selected,
-      isTrue,
-    );
+    ReportDetail detail() => tester
+        .widget<SegmentedButton<ReportDetail>>(
+          find.ancestor(
+            of: find.byKey(const Key('detail-totals')),
+            matching: find.byType(SegmentedButton<ReportDetail>),
+          ),
+        )
+        .selected
+        .single;
+    expect(detail(), ReportDetail.totals);
     await tester.tap(find.byKey(const Key('report-audience')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('audience-accountant')));
     await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<ChoiceChip>(find.byKey(const Key('detail-everyEntry')))
-          .selected,
-      isTrue,
-    );
+    expect(detail(), ReportDetail.everyEntry);
     expect(
       tester
           .widget<CheckboxListTile>(find.byKey(const Key('section-cashBook')))

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +9,7 @@ import '../../../domain/reader/message_reading.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../application/review_draft.dart';
@@ -18,18 +18,20 @@ import '../application/review_providers.dart';
 /// Below this, a suggested field is marked for checking.
 const _sureEnough = 0.7;
 
-/// The colour that marks [field] in the message and in its row.
+/// The colour that marks [field] in the message and in its row, from the
+/// app's palette.
 Color fieldColor(BuildContext context, ReaderField field) {
-  final Color color = switch (field) {
-    ReaderField.amount => Theme.of(context).colorScheme.primary,
-    ReaderField.counterparty => CupertinoColors.systemBlue,
-    ReaderField.date || ReaderField.time => CupertinoColors.systemGreen,
-    ReaderField.balance => CupertinoColors.systemPurple,
-    ReaderField.reference => CupertinoColors.systemOrange,
-    ReaderField.fee => CupertinoColors.systemTeal,
-    ReaderField.other => PesaColors.of(context).textMuted,
+  final scheme = Theme.of(context).colorScheme;
+  final colors = PesaColors.of(context);
+  return switch (field) {
+    ReaderField.amount => scheme.primary,
+    ReaderField.counterparty => scheme.onSurface,
+    ReaderField.date || ReaderField.time => colors.successText,
+    ReaderField.reference => colors.warning,
+    ReaderField.balance ||
+    ReaderField.fee ||
+    ReaderField.other => colors.textMuted,
   };
-  return color is CupertinoDynamicColor ? color.resolveFrom(context) : color;
 }
 
 /// One message: the text with its fields marked, the suggested values to
@@ -56,7 +58,9 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
     final navigator = Navigator.of(context);
     try {
       await action();
-      messenger.showSnackBar(SnackBar(content: Text(done)));
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(done)));
       navigator.pop();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -69,9 +73,9 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
     bool number = false,
   }) {
     final controller = TextEditingController(text: value ?? '');
-    return showDialog<String>(
+    return showAdaptiveDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text(title),
         content: TextField(
           key: const Key('review-edit-field'),
@@ -82,13 +86,13 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
               : TextInputType.text,
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          DialogAction(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Done'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -125,7 +129,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
     if (item == null || reading == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Check this message')),
-        body: const Center(child: CircularProgressIndicator.adaptive()),
+        body: const LoadingView(),
       );
     }
     final draft = _draft ??= ReviewDraft.fromReading(reading);
@@ -196,7 +200,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
                           ),
                       'Added to Activity.',
                     ),
-              child: const Text('Add transaction'),
+              child: const Text('Add a transaction'),
             ),
             const SizedBox(height: 8),
             TextButton(
@@ -207,7 +211,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
                       () => ref.read(reviewControllerProvider).dismiss(item),
                       'Checked.',
                     ),
-              child: const Text('Not a transaction'),
+              child: const Text("It's not money"),
             ),
           ],
         ),
@@ -339,7 +343,6 @@ class _FieldRow extends StatelessWidget {
             ),
         ],
       ),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }

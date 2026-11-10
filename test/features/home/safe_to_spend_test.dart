@@ -210,12 +210,12 @@ void main() {
     expect(find.byKey(const Key('until-next-money')), findsOneWidget);
     // 5,000 less a 500 buffer and 1,500 of rent, over 10 days.
     expect(find.text('KES 300'), findsOneWidget);
+    // The red card's caption: one line each.
     expect(
-      find.text('Until about Tue 24 Nov, when money usually comes'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('5,000 on hand · 1,500 set aside for bills'),
+      find.text(
+        'Until about Tue 24 Nov, when money usually comes\n'
+        '5,000 on hand · 1,500 set aside for bills',
+      ),
       findsOneWidget,
     );
     expect(find.text('On hand'), findsOneWidget);
@@ -234,7 +234,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('KES 300'), findsNothing);
     expect(
-      find.text('••••• on hand · ••••• set aside for bills'),
+      find.textContaining('••••• on hand · ••••• set aside for bills'),
       findsOneWidget,
     );
     expect(find.text('Money in · KES ••••• from Test Mum'), findsOneWidget);

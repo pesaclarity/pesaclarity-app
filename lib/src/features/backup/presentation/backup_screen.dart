@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_labels.dart';
 import '../application/backup_providers.dart';
@@ -48,7 +52,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await ref.read(backupControllerProvider.future),
     );
     if (active.isEmpty) {
-      _tell('Tick a place to back up to, or use Share a copy.');
+      _tell('Turn on a place to back up to, or use Share a copy.');
       return;
     }
     await _run('Backing up', () async {
@@ -99,10 +103,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   void _tell(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) showNote(context, message);
   }
 
   @override
@@ -115,15 +116,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           child: const Text('Backup and restore'),
         ),
       ),
-      body: settings == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
-          : _body(context, settings),
+      body: settings == null ? const LoadingView() : _body(context, settings),
     );
   }
 
   Widget _body(BuildContext context, BackupSettings settings) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final availability = ref.watch(backupAvailabilityProvider);
     final driveAllowed = ref.watch(driveAllowedProvider);
     final now = ref.watch(clockProvider)();
@@ -137,8 +134,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           const SizedBox(height: 12),
           const LinearProgressIndicator(),
         ],
-        const _SectionLabel('BACK UP TO'),
-        _Group(
+        const SectionLabel('Back up to'),
+        GroupedSection(
           children: [
             _DestinationTile(
               key: const Key('backup-vault'),
@@ -185,25 +182,21 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton(
-                onPressed: _busy ? null : () => _backUpNow(settings),
-                child: const Text('Back up now'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _busy ? null : () => _share(settings),
-                child: const Text('Share a copy'),
-              ),
-            ),
-          ],
+        ButtonPair(
+          primary: FilledButton(
+            onPressed: _busy ? null : () => _backUpNow(settings),
+            child: const Text('Back up now'),
+          ),
+          secondary: OutlinedButton(
+            onPressed: _busy ? null : () => _share(settings),
+            child: const Text('Share a copy'),
+          ),
         ),
-        const _SectionLabel('RESTORE FROM'),
-        _Group(
+        const SectionLabel('Restore from'),
+        GroupedSection(
+          footer:
+              'Restores need your passphrase or recovery key. Your current '
+              'data stays until the restore succeeds.',
           children: [
             _SourceTile(
               title: 'Vault',
@@ -250,14 +243,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
               onTap: _busy ? null : () => restoreFromPickedFile(context, ref),
             ),
           ],
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
-          child: Text(
-            'Restores need your passphrase or recovery key. Your current data '
-            'stays until the restore succeeds.',
-            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
-          ),
         ),
         const SizedBox(height: 8),
         if (settings.folder != null)
@@ -308,119 +293,45 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final scheme = theme.colorScheme;
     final last = settings.lastSuccessAt;
-
-    final (
-      Color background,
-      Color foreground,
-      IconData icon,
-      String title,
-      String body,
-    ) = switch ((settings.isSetUp, last)) {
+    final (Tone tone, IconData icon, String text) = switch ((
+      settings.isSetUp,
+      last,
+    )) {
       (_, final DateTime at) => (
-        colors.success.withValues(alpha: 0.1),
-        colors.successText,
+        Tone.success,
         Icons.check,
-        'Backed up ${backupTimeLabel(at, now)}',
-        'Encrypted with your passphrase before upload',
+        'Backed up ${backupTimeLabel(at, now)}. Encrypted with your '
+            'passphrase before upload.',
       ),
       (true, null) => (
-        colors.brandSoft,
-        scheme.onSurface,
+        Tone.info,
         Icons.lock_outline,
-        'Ready to back up',
-        'Every copy is encrypted with your passphrase on this phone',
+        'Ready to back up. Every copy is encrypted with your passphrase on '
+            'this phone.',
       ),
       (false, null) => (
-        colors.brandSoft,
-        scheme.onSurface,
+        Tone.info,
         Icons.lock_outline,
-        'Set up encrypted backups',
-        'Choose a passphrase and save your recovery key to start',
+        'Set up encrypted backups. Choose a passphrase and save your '
+            'recovery key to start.',
       ),
     };
 
-    return Container(
+    return Column(
       key: const Key('backup-status'),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: last == null ? scheme.primary : colors.success),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall!.copyWith(
-                    color: foreground,
-                  ),
-                ),
-                Text(
-                  body,
-                  style: theme.textTheme.bodySmall!.copyWith(color: foreground),
-                ),
-              ],
-            ),
-          ),
-          if (!settings.isSetUp)
-            TextButton(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Notice(text, tone: tone, icon: icon),
+        if (!settings.isSetUp)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
               onPressed: () => context.push<bool>(AppRoutes.backupSetup),
               child: const Text('Set up'),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelMedium!.copyWith(
-          color: colors.textMuted,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-  }
-}
-
-class _Group extends StatelessWidget {
-  const _Group({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const Divider(height: 1),
-            children[i],
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -442,9 +353,9 @@ class _DestinationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = PesaColors.of(context);
-    return CheckboxListTile(
+    return SwitchListTile.adaptive(
       value: value,
-      onChanged: onChanged == null ? null : (v) => onChanged!(v ?? false),
+      onChanged: onChanged,
       title: Text(
         title,
         style: Theme.of(context).textTheme.bodyMedium!
@@ -455,8 +366,6 @@ class _DestinationTile extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall!
             .copyWith(color: colors.textMuted),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      controlAffinity: ListTileControlAffinity.trailing,
     );
   }
 }
@@ -478,13 +387,15 @@ class _SourceTile extends StatelessWidget {
     final colors = PesaColors.of(context);
     return ListTile(
       title: Text(title, style: theme.textTheme.bodyMedium),
-      trailing: Text(
-        '$trailing ›',
-        style: theme.textTheme.bodyMedium!.copyWith(
-          color: colors.textMuted,
-          fontSize: 13,
-        ),
-      ),
+      // What a tap does, or why the row is off.
+      trailing: onTap == null
+          ? Text(
+              trailing,
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: colors.textMuted,
+              ),
+            )
+          : TrailingLink(trailing),
       enabled: onTap != null,
       onTap: onTap,
     );

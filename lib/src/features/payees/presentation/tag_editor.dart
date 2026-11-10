@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../domain/tags/tag_totals.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../theme/pesa_colors.dart';
 import '../application/payee_providers.dart';
 
 /// The tags on one transaction: remove any, add new ones or reuse earlier
@@ -59,7 +60,12 @@ class _TransactionTagsEditorState extends ConsumerState<TransactionTagsEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tags', style: theme.textTheme.titleSmall),
+        Text(
+          'Tags',
+          style: theme.textTheme.bodyMedium!.copyWith(
+            color: PesaColors.of(context).textMuted,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           'Tags group spending across categories, like #roadtrip.',
@@ -90,12 +96,11 @@ class _TransactionTagsEditorState extends ConsumerState<TransactionTagsEditor> {
           decoration: InputDecoration(
             prefixText: '#',
             hintText: 'Add a tag',
-            border: const OutlineInputBorder(),
             counterText: '',
             suffixIcon: typed == null
                 ? null
                 : IconButton(
-                    tooltip: 'Add tag',
+                    tooltip: 'Add a tag',
                     icon: const Icon(Icons.add),
                     onPressed: () => _add(_input.text),
                   ),

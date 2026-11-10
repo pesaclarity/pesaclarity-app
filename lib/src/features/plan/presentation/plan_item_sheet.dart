@@ -6,12 +6,14 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/plan_repository.dart';
-import '../../../domain/categories/default_categories.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/plan_inputs.dart' as plan;
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
-import '../../../shared/widgets/selector_field.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
+import '../../../theme/pesa_colors.dart';
 import '../../debts/presentation/debts_screen.dart' show monthLabel;
 import '../../payees/presentation/category_picker.dart';
 import '../application/plan_providers.dart';
@@ -32,10 +34,8 @@ Future<void> showPlanItemSheet(
     if (bill == null) return;
   }
   if (!context.mounted) return;
-  await showModalBottomSheet<void>(
+  await showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => PlanItemForm(month: month, line: line, bill: bill),
   );
 }
@@ -123,128 +123,99 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
       PlanLineSource.arrears => 'Edit carried-forward bill',
     };
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(title, style: theme.textTheme.titleLarge),
-                const SizedBox(height: 16),
-                if (!_isEditing) ...[
-                  AdaptiveSegmented<_Kind>(
-                    segments: const [
-                      (_Kind.repeats, 'Repeats'),
-                      (_Kind.oneOff, 'One-off'),
-                    ],
-                    selected: _kind,
-                    onChanged: (value) => setState(() => _kind = value),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                TextFormField(
-                  controller: _name,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  textCapitalization: TextCapitalization.sentences,
-                  maxLength: 80,
-                  validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Give it a name' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _amount,
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    prefixText: '${BaseCurrency.code} ',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (v) => parseMoneyMinor(v ?? '') == null
-                      ? 'Enter an amount, such as 15,000'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                CategorySelectorField(
-                  key: const Key('plan-item-category'),
-                  selectedId: categories.any((c) => c.id == _categoryId)
-                      ? _categoryId
-                      : null,
-                  noneLabel: uncategorisedName,
-                  onChanged: (v) => setState(() => _categoryId = v),
-                ),
-                const SizedBox(height: 16),
-                if (_kind == _Kind.repeats) ...[
-                  SelectorField(
-                    label: 'How often',
-                    value: _frequencyLabels[_frequency]!,
-                    onTap: () async {
-                      final picked = await showOptionSheet<RecurrenceFrequency>(
-                        context,
-                        title: 'How often',
-                        options: [
-                          for (final MapEntry(:key, :value)
-                              in _frequencyLabels.entries)
-                            (key, value),
-                        ],
-                        selected: _frequency,
-                      );
-                      if (picked != null) setState(() => _frequency = picked);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('First due date'),
-                    subtitle: Text(_dateLabel(_startDate)),
-                    trailing: const Icon(Icons.edit_calendar_outlined),
-                    onTap: _pickDate,
-                  ),
-                ] else
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Paid'),
-                    subtitle: const Text('Mark it paid, for example in cash'),
-                    value: _paid,
-                    onChanged: (v) => setState(() => _paid = v),
-                  ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: const Text('Save'),
-                ),
-                if (_isEditing) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _saving ? null : _delete,
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                ],
+    return Form(
+      key: _formKey,
+      child: SheetBody(
+        title: title,
+        children: [
+          if (!_isEditing) ...[
+            AdaptiveSegmented<_Kind>(
+              segments: const [
+                (_Kind.repeats, 'Repeats'),
+                (_Kind.oneOff, 'One-off'),
               ],
+              selected: _kind,
+              onChanged: (value) => setState(() => _kind = value),
             ),
+            const SizedBox(height: 16),
+          ],
+          TextFormField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Name'),
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: 80,
+            validator: (v) =>
+                (v ?? '').trim().isEmpty ? 'Enter a name, such as Rent.' : null,
           ),
-        ),
+          const SizedBox(height: 8),
+          AmountField(controller: _amount, label: 'Amount'),
+          const SizedBox(height: 16),
+          CategorySelectorField(
+            key: const Key('plan-item-category'),
+            selectedId: categories.any((c) => c.id == _categoryId)
+                ? _categoryId
+                : null,
+            onChanged: (v) => setState(() => _categoryId = v),
+          ),
+          const SizedBox(height: 16),
+          if (_kind == _Kind.repeats) ...[
+            Text(
+              'How often',
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: PesaColors.of(context).textMuted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ChoiceMenu<RecurrenceFrequency>(
+              key: const Key('plan-item-frequency'),
+              name: 'How often',
+              expand: true,
+              options: [
+                for (final MapEntry(:key, :value) in _frequencyLabels.entries)
+                  (key, value),
+              ],
+              value: _frequency,
+              onChanged: (value) => setState(() => _frequency = value),
+            ),
+            const SizedBox(height: 16),
+            DateField(
+              label: 'First due date',
+              value: _startDate,
+              firstDate: CalendarDate(2000, 1, 1),
+              lastDate: CalendarDate(2100, 12, 31),
+              onChanged: (date) {
+                if (date != null) setState(() => _startDate = date);
+              },
+            ),
+          ] else
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Paid'),
+              subtitle: const Text('Mark it paid, such as in cash.'),
+              value: _paid,
+              onChanged: (v) => setState(() => _paid = v),
+            ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: const Text('Save'),
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _saving ? null : _delete,
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: Text(switch (line?.source) {
+                PlanLineSource.recurring => 'Delete repeating item',
+                PlanLineSource.arrears => 'Delete carried-forward bill',
+                _ => 'Delete one-off',
+              }),
+            ),
+          ],
+        ],
       ),
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await pickDate(
-      context,
-      initialDate: DateTime(_startDate.year, _startDate.month, _startDate.day),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked == null) return;
-    setState(
-      () => _startDate = CalendarDate(picked.year, picked.month, picked.day),
     );
   }
 
@@ -253,7 +224,7 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
     setState(() => _saving = true);
     final repository = ref.read(planRepositoryProvider);
     final name = _name.text.trim();
-    final amount = parseMoneyMinor(_amount.text)!;
+    final amount = AmountField.amountFrom(_amount.text)!;
     final line = widget.line;
 
     if (_kind == _Kind.repeats) {
@@ -287,30 +258,15 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
   Future<void> _delete() async {
     final line = widget.line!;
     final recurring = line.source == PlanLineSource.recurring;
-    final confirmed = await showAdaptiveDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog.adaptive(
-        title: Text('Delete ${line.name}?'),
-        content: Text(
-          recurring
-              ? 'It leaves ${monthLabel(widget.month)} and later months. '
-                    'Earlier months keep it.'
-              : 'It leaves ${monthLabel(widget.month)}.',
-        ),
-        actions: [
-          DialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep'),
-          ),
-          DialogAction(
-            destructive: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDelete(
+      context,
+      title: 'Delete ${line.name}?',
+      body: recurring
+          ? 'It leaves ${monthLabel(widget.month)} and later months. '
+                'Earlier months keep it.'
+          : 'It leaves ${monthLabel(widget.month)}.',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _saving = true);
     final repository = ref.read(planRepositoryProvider);
     final id = line.sourceId!;
@@ -327,6 +283,3 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
     if (mounted) Navigator.of(context).pop();
   }
 }
-
-String _dateLabel(CalendarDate date) =>
-    '${date.day} ${monthLabel(date.yearMonth)}';

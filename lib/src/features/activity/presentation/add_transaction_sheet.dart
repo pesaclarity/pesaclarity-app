@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
@@ -11,18 +10,18 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
-import '../../../shared/format/date_labels.dart';
-import '../../../shared/widgets/selector_field.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
+import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../application/activity_providers.dart';
 
 /// Opens the sheet for adding a transaction by hand.
 Future<void> showAddTransactionSheet(BuildContext context) =>
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => const AddTransactionSheet(),
     );
 
@@ -39,13 +38,13 @@ class AddTransactionSheet extends ConsumerStatefulWidget {
 }
 
 class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
+  final _form = GlobalKey<FormState>();
   final _amount = TextEditingController();
   final _name = TextEditingController();
   var _direction = TransactionDirection.outflow;
   int? _accountId;
   int? _categoryId;
   CalendarDate? _date;
-  String? _amountError;
   var _saving = false;
 
   @override
@@ -63,16 +62,11 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   }
 
   Future<void> _save(CalendarDate today, Map<int, Account> accounts) async {
+    if (!_form.currentState!.validate()) return;
     final currency = _currency(accounts);
-    final amount = parseMoneyMinor(_amount.text, currency: currency);
-    if (amount == null) {
-      setState(() => _amountError = 'Enter an amount, such as 1,250');
-      return;
-    }
-    setState(() {
-      _amountError = null;
-      _saving = true;
-    });
+    // The field has checked it reads in the account's currency.
+    final amount = parseMoneyMinor(_amount.text, currency: currency)!;
+    setState(() => _saving = true);
 
     final now = ref.read(clockProvider)();
     final date = _date ?? today;
@@ -129,121 +123,92 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     String accountLabel(Account a) =>
         mixed ? '${a.name} · ${a.currency}' : a.name;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Add a transaction', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 16),
-            AdaptiveSegmented<TransactionDirection>(
-              segments: const [
-                (TransactionDirection.outflow, 'Money out'),
-                (TransactionDirection.inflow, 'Money in'),
-              ],
-              selected: _direction,
-              onChanged: (value) => setState(() {
-                _direction = value;
-                _categoryId = null;
-              }),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amount,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
-              ],
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Amount ($currency)',
-                errorText: _amountError,
-                helperText: inBase == null
-                    ? null
-                    : '≈ ${formatMoney(Money(inBase.baseMinor, currency: base))} '
-                          "at today's rate",
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: _direction == TransactionDirection.outflow
-                    ? 'Paid to'
-                    : 'Received from',
-              ),
-            ),
-            const SizedBox(height: 12),
-            CategorySelectorField(
-              key: const Key('add-transaction-category'),
-              selectedId: _categoryId,
-              allowType: (type) => _direction == TransactionDirection.inflow
-                  ? type != CategoryType.expense
-                  : type != CategoryType.income,
-              onChanged: (id) => setState(() => _categoryId = id),
-            ),
-            if (accounts.length > 1) ...[
-              const SizedBox(height: 12),
-              SelectorField(
-                label: 'Account',
-                value: accountLabel(
-                  accounts[_accountId ?? accounts.keys.first]!,
-                ),
-                onTap: () async {
-                  final id = await showOptionSheet<int>(
-                    context,
-                    title: 'Account',
-                    options: [
-                      for (final a in accounts.values) (a.id, accountLabel(a)),
-                    ],
-                    selected: _accountId ?? accounts.keys.first,
-                  );
-                  if (id != null) setState(() => _accountId = id);
-                },
-              ),
+    final muted = theme.textTheme.bodyMedium!.copyWith(
+      color: PesaColors.of(context).textMuted,
+    );
+
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: 'Add a transaction',
+        children: [
+          AdaptiveSegmented<TransactionDirection>(
+            segments: const [
+              (TransactionDirection.outflow, 'Money out'),
+              (TransactionDirection.inflow, 'Money in'),
             ],
+            selected: _direction,
+            onChanged: (value) => setState(() {
+              _direction = value;
+              _categoryId = null;
+            }),
+          ),
+          const SizedBox(height: 16),
+          AmountField(
+            key: const Key('add-transaction-amount'),
+            controller: _amount,
+            label: 'Amount',
+            currency: currency,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          if (inBase != null) ...[
             const SizedBox(height: 4),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.event_outlined),
-              title: Text(dayHeading(date, today: today)),
-              subtitle: const Text('Tap to change the day'),
-              onTap: () async {
-                final picked = await pickDate(
-                  context,
-                  initialDate: DateTime(date.year, date.month, date.day),
-                  firstDate: DateTime(today.year - 2),
-                  lastDate: DateTime(today.year, today.month, today.day),
-                );
-                if (picked != null) {
-                  setState(
-                    () => _date = CalendarDate(
-                      picked.year,
-                      picked.month,
-                      picked.day,
-                    ),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _saving ? null : () => _save(today, accounts),
-              child: const Text('Save'),
+            Text(
+              '≈ ${formatMoney(Money(inBase.baseMinor, currency: base))} '
+              "at today's rate",
+              style: theme.textTheme.bodySmall,
             ),
           ],
-        ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: _direction == TransactionDirection.outflow
+                  ? 'Paid to'
+                  : 'Received from',
+            ),
+          ),
+          const SizedBox(height: 12),
+          CategorySelectorField(
+            key: const Key('add-transaction-category'),
+            selectedId: _categoryId,
+            allowType: (type) => _direction == TransactionDirection.inflow
+                ? type != CategoryType.expense
+                : type != CategoryType.income,
+            onChanged: (id) => setState(() => _categoryId = id),
+          ),
+          if (accounts.length > 1) ...[
+            const SizedBox(height: 12),
+            Text('Account', style: muted),
+            const SizedBox(height: 4),
+            ChoiceMenu<int>(
+              key: const Key('add-transaction-account'),
+              name: 'Account',
+              expand: true,
+              options: [
+                for (final a in accounts.values) (a.id, accountLabel(a)),
+              ],
+              value: _accountId ?? accounts.keys.first,
+              onChanged: (id) => setState(() => _accountId = id),
+            ),
+          ],
+          const SizedBox(height: 12),
+          DateField(
+            key: const Key('add-transaction-date'),
+            label: 'Date',
+            value: date,
+            firstDate: CalendarDate(today.year - 2, 1, 1),
+            lastDate: today,
+            onChanged: (picked) => setState(() => _date = picked),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : () => _save(today, accounts),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

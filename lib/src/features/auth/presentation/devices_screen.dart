@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
@@ -58,16 +59,13 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _signingOut.add(device.id));
-    final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(authControllerProvider.notifier).signOutDevice(device.id);
-      messenger.showSnackBar(
-        SnackBar(content: Text('${device.name} is signed out')),
-      );
+      if (mounted) showNote(context, '${device.name} is signed out.');
     } on AuthFailure catch (failure) {
       // Already gone counts as done; the reload shows the current list.
-      if (failure.kind != AuthFailureKind.notFound) {
-        messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (failure.kind != AuthFailureKind.notFound && mounted) {
+        showNote(context, failure.message);
       }
     } finally {
       if (mounted) {
@@ -88,38 +86,28 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
         future: _devices,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator.adaptive(
-                semanticsLabel: 'Loading',
-              ),
-            );
+            return const LoadingView();
           }
           if (snapshot.hasError) {
             final error = snapshot.error;
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      error is AuthFailure
-                          ? error.message
-                          : const AuthFailure(AuthFailureKind.server).message,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    if (error is! AuthFailure ||
-                        error.kind != AuthFailureKind.sessionEnded)
-                      FilledButton(
-                        onPressed: _reload,
-                        child: const Text('Try again'),
-                      ),
-                  ],
+            final message = error is AuthFailure
+                ? error.message
+                : const AuthFailure(AuthFailureKind.server).message;
+            // Signed out: trying again cannot help.
+            if (error is AuthFailure &&
+                error.kind == AuthFailureKind.sessionEnded) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge,
+                  ),
                 ),
-              ),
-            );
+              );
+            }
+            return ErrorView(message, onRetry: _reload);
           }
           final devices = [...snapshot.data!]
             ..sort((a, b) {
@@ -132,7 +120,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               Text(
                 'Sign out a phone you no longer use or have lost. It loses '
                 'access to your backups on its next request.',
-                style: theme.textTheme.bodyMedium!.copyWith(
+                style: theme.textTheme.bodyLarge!.copyWith(
                   color: colors.textMuted,
                 ),
               ),

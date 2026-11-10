@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
-import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../application/sms_capture_providers.dart';
+import 'explain_text.dart';
 
 /// Onboarding: explains what reading SMS means before Android asks, then
 /// shows the first scan.
@@ -46,28 +46,28 @@ class SmsScanScreen extends ConsumerWidget {
                 identifier: SemanticIds.smsScanNotNow,
                 child: TextButton(
                   onPressed: busy ? null : finish,
-                  child: const Text('Not now'),
+                  child: const Text('Do this later'),
                 ),
               ),
             ],
             SmsScanStage.scanning => [
-              const _Heading('Reading your messages'),
+              const ExplainHeading('Reading your messages'),
               const SizedBox(height: 16),
               LinearProgressIndicator(
                 value: state.total == 0 ? null : state.done / state.total,
                 semanticsLabel: 'Scan progress',
               ),
               const SizedBox(height: 12),
-              _Body(
+              ExplainBody(
                 state.total == 0
                     ? 'Looking for messages from your accounts.'
                     : 'Read ${state.done} of ${state.total} messages.',
               ),
             ],
             SmsScanStage.finished => [
-              _Heading(_foundText(state.summary.added)),
+              ExplainHeading(_foundText(state.summary.added)),
               const SizedBox(height: 8),
-              _Body(
+              ExplainBody(
                 state.summary.forReview == 0
                     ? 'New messages from your accounts will be added as '
                           'they arrive.'
@@ -85,9 +85,9 @@ class SmsScanScreen extends ConsumerWidget {
               ),
             ],
             SmsScanStage.denied => [
-              const _Heading('Messages not shared'),
+              const ExplainHeading('Messages not shared'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Without access to messages, Pesa Clarity cannot see your '
                 'M-Pesa and bank transactions. You can still add them by '
                 'hand or from statements.',
@@ -104,16 +104,16 @@ class SmsScanScreen extends ConsumerWidget {
               ),
             ],
             SmsScanStage.blocked => [
-              const _Heading('Allow messages in Settings'),
+              const ExplainHeading('Allow messages in Settings'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Android needs you to switch this on yourself. It takes a '
                 'minute:',
               ),
               const SizedBox(height: 12),
               const _Steps(blockedSteps),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'On some phones the ⋮ menu is at the bottom of App info.',
               ),
               const SizedBox(height: 24),
@@ -133,9 +133,9 @@ class SmsScanScreen extends ConsumerWidget {
               ),
             ],
             SmsScanStage.unavailable => [
-              const _Heading('No messages on this device'),
+              const ExplainHeading('No messages on this device'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'This device cannot share its SMS. You can add transactions '
                 'by hand or from statements.',
               ),
@@ -143,9 +143,9 @@ class SmsScanScreen extends ConsumerWidget {
               FilledButton(onPressed: finish, child: const Text('Continue')),
             ],
             SmsScanStage.failed => [
-              const _Heading('The scan stopped'),
+              const ExplainHeading('The scan stopped'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Something went wrong while reading your messages. Nothing '
                 'was lost; try again.',
               ),
@@ -190,61 +190,18 @@ class _Explanation extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _Heading('Let Pesa Clarity read your account messages'),
-        const SizedBox(height: 8),
-        const _Body(
-          'Android will ask whether Pesa Clarity may read and receive SMS. '
-          'This is what that means:',
-        ),
-        const SizedBox(height: 16),
-        for (final point in _points)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 12),
-                  child: Icon(
-                    Icons.check_circle_outline,
-                    size: 20,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                Expanded(child: Text(point, style: theme.textTheme.bodyLarge)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(text, style: Theme.of(context).textTheme.headlineSmall);
-}
-
-class _Body extends StatelessWidget {
-  const _Body(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: Theme.of(context).textTheme.bodyLarge!
-        .copyWith(color: PesaColors.of(context).textMuted),
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ExplainHeading('Let Pesa Clarity read your account messages'),
+      SizedBox(height: 8),
+      ExplainBody(
+        'Android will ask whether Pesa Clarity may read and receive SMS. '
+        'This is what that means:',
+      ),
+      SizedBox(height: 16),
+      TickPoints(_points),
+    ],
   );
 }
 

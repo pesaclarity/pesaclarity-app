@@ -8,7 +8,10 @@ import '../../../domain/people/people.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/people/reminder_text.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../insights/application/report_sharer.dart';
@@ -22,21 +25,9 @@ import '../../spaces/application/spaces_providers.dart';
 /// owner can change, sent with WhatsApp or SMS to their number. The owner
 /// taps send in that app. Returns true once it was opened.
 Future<bool?> showRemindSheet(BuildContext context, CustomerAccount customer) =>
-    showModalBottomSheet<bool>(
+    showAppSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: _RemindSheet(customer),
-          ),
-        ),
-      ),
+      builder: (context) => _RemindSheet(customer),
     );
 
 class _RemindSheet extends ConsumerStatefulWidget {
@@ -144,7 +135,6 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
     final text = _message.text.trim();
     if (text.isEmpty) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final code = _code ?? callingCodes.first;
     final international = _number.text.trim().isEmpty
         ? null
@@ -203,11 +193,12 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
           opened = true;
         } on PlatformException {
           await Clipboard.setData(ClipboardData(text: text));
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Sharing is unavailable. The message is copied.'),
-            ),
-          );
+          if (mounted) {
+            showNote(
+              context,
+              'Sharing is unavailable. The message was copied.',
+            );
+          }
         }
       }
       navigator.pop(opened);
@@ -234,26 +225,16 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
     final setup = ref.watch(reminderSetupProvider).value;
     ref.watch(invoicesProvider);
     final invoice = _openInvoice();
-    if (setup == null) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator.adaptive()),
-      );
-    }
+    if (setup == null) return const LoadingView(inList: true);
     if (!_loaded) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _load(setup));
     }
     final app = _sendWith ?? setup.sendWith;
     final hasNumber = _number.text.trim().isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SheetBody(
+      title: 'Remind ${widget.customer.name}',
       children: [
-        Text(
-          'Remind ${widget.customer.name}',
-          style: theme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
         if (setup.templates.length > 2)
           ChoiceMenu<String>(
             key: const Key('remind-template'),
@@ -269,18 +250,14 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
             ),
           )
         else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final t in setup.templates)
-                ChoiceChip(
-                  key: Key('template-${t.id}'),
-                  label: Text(t.name),
-                  selected: _templateId == t.id,
-                  onSelected: (_) => _useTemplate(setup, t),
-                ),
-            ],
+          AdaptiveSegmented<String>(
+            segments: [for (final t in setup.templates) (t.id, t.name)],
+            selected: _templateId ?? _pickTemplate(setup).id,
+            segmentKey: (id) => Key('template-$id'),
+            onChanged: (id) => _useTemplate(
+              setup,
+              setup.templates.firstWhere((t) => t.id == id),
+            ),
           ),
         const SizedBox(height: 12),
         TextField(
@@ -299,17 +276,12 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final s in SendWith.values)
-              ChoiceChip(
-                key: Key('send-with-${s.name}'),
-                label: Text(s.label),
-                selected: app == s,
-                onSelected: (_) => setState(() => _sendWith = s),
-              ),
-          ],
+        AdaptiveSegmented<SendWith>(
+          key: const Key('send-with'),
+          segments: [for (final s in SendWith.values) (s, s.label)],
+          selected: app,
+          segmentKey: (s) => Key('send-with-${s.name}'),
+          onChanged: (s) => setState(() => _sendWith = s),
         ),
         const SizedBox(height: 16),
         PhoneField(
@@ -359,6 +331,9 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
   }
 }
 
+/// How wide the country code can grow before its name is cut short.
+const _codeWidth = 148.0;
+
 /// A phone number with its country code, and a button for the phone's own
 /// contact picker.
 class PhoneField extends StatelessWidget {
@@ -383,20 +358,18 @@ class PhoneField extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.end,
     children: [
-      DropdownButton<CallingCode>(
-        key: const Key('phone-code'),
-        value: code,
-        underline: const SizedBox.shrink(),
-        selectedItemBuilder: (context) => [
-          for (final c in callingCodes) Center(child: Text('+${c.code}')),
-        ],
-        items: [
-          for (final c in callingCodes)
-            DropdownMenuItem(value: c, child: Text('+${c.code}  ${c.country}')),
-        ],
-        onChanged: (c) {
-          if (c != null) onCode(c);
-        },
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _codeWidth),
+        child: ChoiceMenu<CallingCode>(
+          key: const Key('phone-code'),
+          name: 'Country code',
+          options: [
+            for (final c in callingCodes) (c, '+${c.code} ${c.country}'),
+          ],
+          value: code,
+          itemKey: (c) => Key('phone-code-${c.region}'),
+          onChanged: onCode,
+        ),
       ),
       const SizedBox(width: 8),
       Expanded(

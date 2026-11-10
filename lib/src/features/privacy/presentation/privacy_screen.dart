@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/privacy/consent.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/consent_controller.dart';
 import '../data/policy_source.dart';
@@ -30,10 +31,12 @@ class PrivacyScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          const PrivacySectionLabel('In plain words'),
+          const SectionLabel(
+            'In plain words',
+            padding: EdgeInsets.only(bottom: 8),
+          ),
           const PrivacyPromisesCard(),
-          const SizedBox(height: 24),
-          const PrivacySectionLabel('Your choices'),
+          const SectionLabel('Your choices'),
           ConsentSwitchesCard(
             values: record == null
                 ? null

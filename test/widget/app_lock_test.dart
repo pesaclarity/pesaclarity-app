@@ -126,7 +126,10 @@ void main() {
     expect(databaseOpened, isFalse);
 
     await enterPin(tester, '111111');
-    expect(find.text('Wrong PIN. 3 tries left before a wait.'), findsOneWidget);
+    expect(
+      find.text("That PIN didn't match. 3 tries left before a wait."),
+      findsOneWidget,
+    );
     expect(databaseOpened, isFalse);
 
     await enterPin(tester, _pin);
@@ -247,6 +250,8 @@ void main() {
     expect(store.values[KeyVault.biometricKeyName], isNotNull);
 
     await tapSetting(tester, 'Lock after');
+    await tester.tap(find.byKey(const Key('lock-after')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Immediately'));
     await tester.pumpAndSettle();
     await goToBackground(tester, const Duration(seconds: 1));

@@ -4,9 +4,9 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
-import '../../../theme/pesa_colors.dart';
-import '../../sales/presentation/pay_sheet.dart' show InfoNote;
+import '../../../shared/widgets/marks.dart';
 
 /// A way of selling or buying, as filled in, before it is saved; or, with
 /// [removed], the owner stopped using it.
@@ -45,26 +45,31 @@ Future<MeasureDraft?> showMeasureSheet(
   required int? unitPriceMinor,
   bool pack = false,
   MeasureDraft? existing,
-}) => showModalBottomSheet<MeasureDraft>(
+}) => showAppSheet<MeasureDraft>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: _MeasureSheet(
-          item: item,
-          unit: unit,
-          unitPriceMinor: unitPriceMinor,
-          pack: existing?.isPack ?? pack,
-          existing: existing,
-        ),
-      ),
-    ),
+  builder: (context) => _MeasureSheet(
+    item: item,
+    unit: unit,
+    unitPriceMinor: unitPriceMinor,
+    pack: existing?.isPack ?? pack,
+    existing: existing,
   ),
 );
+
+/// The row that adds another way to sell an item, such as a tot of a
+/// bottle: the same on an item's screen and in the sheet that adds one.
+class SellAnotherWayTile extends StatelessWidget {
+  const SellAnotherWayTile({required this.onTap, super.key});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.add),
+    title: const Text('Sell it another way'),
+    onTap: onTap,
+  );
+}
 
 class _MeasureSheet extends StatefulWidget {
   const _MeasureSheet({
@@ -111,7 +116,7 @@ class _MeasureSheetState extends State<_MeasureSheet> {
 
   String get _unit => widget.unit.trim().toLowerCase();
 
-  String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+  String _money(int minor) => formatMoney(Money(minor));
 
   void _done() {
     if (!(_form.currentState?.validate() ?? false)) return;
@@ -146,43 +151,30 @@ class _MeasureSheetState extends State<_MeasureSheet> {
     if (widget.pack) {
       final first = 'Each $word bought adds $count $units to stock.';
       if (price == null || price == 0 || whole == null) return first;
-      return '$first A $word sells for KES ${_plain(price)}, against '
-          'KES ${_plain(whole * count)} for $count $units.';
+      return '$first A $word sells for ${_money(price)}, against '
+          '${_money(whole * count)} for $count $units.';
     }
     final first = 'Each $word sold takes 1/$count of a $_unit out of stock.';
     if (price == null || price == 0) return first;
     final takings =
-        '$count ${plural(word, count)} bring in KES ${_plain(price * count)} '
+        '$count ${plural(word, count)} bring in ${_money(price * count)} '
         'a $_unit';
     return whole == null
         ? '$first $takings.'
-        : '$first $takings, against KES ${_plain(whole)} for the whole '
+        : '$first $takings, against ${_money(whole)} for the whole '
               '$_unit.';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final pack = widget.pack;
     final editing = widget.existing != null;
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: pack ? 'A pack size' : 'Sell it another way',
+        subtitle: '${widget.item} · counted in ${unitFor(_unit, 2 * milli)}',
         children: [
-          Text(
-            pack ? 'A pack size' : 'Sell it another way',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${widget.item} · counted in ${unitFor(_unit, 2 * milli)}',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 16),
           TextFormField(
             key: const Key('measure-name'),
             controller: _name,
@@ -236,7 +228,7 @@ class _MeasureSheetState extends State<_MeasureSheet> {
               null => const SizedBox.shrink(),
               final note => Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: InfoNote(note, key: const Key('measure-note')),
+                child: Notice(note, key: const Key('measure-note')),
               ),
             },
           ),
@@ -244,7 +236,7 @@ class _MeasureSheetState extends State<_MeasureSheet> {
           FilledButton(
             key: const Key('measure-save'),
             onPressed: _done,
-            child: Text(editing ? 'Save' : 'Add'),
+            child: const Text('Save'),
           ),
           if (editing)
             TextButton(

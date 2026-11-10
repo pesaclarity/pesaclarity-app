@@ -98,7 +98,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Saved so far'),
       '15000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add goal'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
 
     expect(find.text('School fees'), findsOneWidget);
@@ -131,9 +131,9 @@ void main() {
     await pumpGoals(tester, db: openTestDatabase());
     await tester.tap(find.text('Add a goal').first);
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Add goal'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
-    expect(find.text('Give the goal a name.'), findsOneWidget);
+    expect(find.text('Enter a name, such as School fees.'), findsOneWidget);
     expect(find.text('Enter an amount above 0.'), findsOneWidget);
   });
 

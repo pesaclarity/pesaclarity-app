@@ -10,11 +10,16 @@ import '../../../domain/documents/invoice.dart';
 import '../../../domain/hours/hours.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
-import '../../../domain/time/date_labels.dart' show dayLabel;
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
 import '../../hours/application/hours_providers.dart';
@@ -69,6 +74,11 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
   CalendarDate? _due;
   var _showAll = false;
   var _saving = false;
+  final _form = GlobalKey<FormState>();
+
+  /// Whether Save was tapped with something missing, so the form shows
+  /// what to fix as it changes.
+  var _checked = false;
 
   CalendarDate get _today => CalendarDate.local(ref.read(clockProvider)());
 
@@ -182,10 +192,8 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
 
   Future<void> _editWithholding(TaxPack pack, bool vatRegistered) async {
     final fees = _feeLines().fold(0, (sum, l) => sum + l.amountMinor);
-    final result = await showModalBottomSheet<(Withholding, bool, bool)>(
+    final result = await showAppSheet<(Withholding, bool, bool)>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => _WithholdingSheet(
         client: _client.text.trim(),
         feesMinor: fees,
@@ -238,17 +246,14 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
   }
 
   Future<void> _save({required bool share}) async {
+    if (!_form.currentState!.validate()) {
+      setState(() => _checked = true);
+      return;
+    }
     final client = _client.text.trim();
-    final messenger = ScaffoldMessenger.of(context);
     final pack = await ref.read(taxPackProvider.future);
     final tax = await ref.read(taxSettingsProvider.future);
     final fees = _feeLines();
-    if (client.isEmpty || fees.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Add the client and what to bill.')),
-      );
-      return;
-    }
     if (!mounted) return;
     final navigator = Navigator.of(context);
     setState(() => _saving = true);
@@ -294,18 +299,25 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final pack = ref.watch(taxPackProvider).value;
-    final tax = ref.watch(taxSettingsProvider).value;
+    final loadedPack = ref.watch(taxPackProvider);
+    final loadedTax = ref.watch(taxSettingsProvider);
+    final pack = loadedPack.value;
+    final tax = loadedTax.value;
     final clients = ref.watch(hourClientsProvider).value ?? const {};
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    TextStyle label() => theme.textTheme.labelLarge!.copyWith(
-      color: colors.textMuted,
-      letterSpacing: 1,
-    );
+    final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
     final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
     if (pack == null || tax == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator.adaptive()),
+      return Scaffold(
+        appBar: AppBar(title: const Text('New invoice')),
+        body: loadedPack.hasError || loadedTax.hasError
+            ? ErrorView(
+                'Your tax settings could not load.',
+                onRetry: () => ref
+                  ..invalidate(taxPackProvider)
+                  ..invalidate(taxSettingsProvider),
+              )
+            : const LoadingView(),
       );
     }
     final totals = _totals(pack, vatRegistered: tax.vatRegistered);
@@ -318,240 +330,299 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
     final w = _withholding ?? Withholding.none;
     final hours = _chosenHours.fold(0, (sum, e) => sum + e.minutes);
 
-    Widget dateBox(
+    Widget dateField(
       String text,
       CalendarDate? value,
       ValueChanged<CalendarDate> set,
     ) => Expanded(
-      child: InkWell(
-        onTap: () async {
-          final start = value ?? today;
-          final picked = await pickDate(
-            context,
-            initialDate: DateTime(start.year, start.month, start.day),
-            firstDate: DateTime(today.year - 2),
-            lastDate: DateTime(today.year + 1),
-          );
-          if (picked != null) {
-            set(CalendarDate(picked.year, picked.month, picked.day));
-          }
+      child: DateField(
+        label: text,
+        value: value,
+        firstDate: CalendarDate(today.year - 2, 1, 1),
+        lastDate: CalendarDate(today.year + 1, 1, 1),
+        onChanged: (d) {
+          if (d != null) set(d);
         },
-        child: InputDecorator(
-          decoration: InputDecoration(labelText: text),
-          child: Text(
-            value == null ? '—' : dayLabel(value, thisYear: today.year),
-          ),
-        ),
       ),
     );
 
     return Scaffold(
       appBar: AppBar(title: const Text('New invoice')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          Autocomplete<String>(
-            initialValue: TextEditingValue(text: _client.text),
-            optionsBuilder: (v) {
-              final q = v.text.trim().toLowerCase();
-              if (q.isEmpty) return const [];
-              return clients.keys.where(
-                (c) => c.toLowerCase().contains(q) && c.toLowerCase() != q,
-              );
-            },
-            onSelected: (c) {
-              _client.text = c;
-              _loadClient();
-            },
-            fieldViewBuilder: (context, controller, focus, submit) => TextField(
-              key: const Key('invoice-client'),
-              controller: controller,
-              focusNode: focus,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Client'),
-              onChanged: (t) {
-                _client.text = t;
-                _withholding = null;
+      body: Form(
+        key: _form,
+        autovalidateMode: _checked
+            ? AutovalidateMode.always
+            : AutovalidateMode.disabled,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Autocomplete<String>(
+              initialValue: TextEditingValue(text: _client.text),
+              optionsBuilder: (v) {
+                final q = v.text.trim().toLowerCase();
+                if (q.isEmpty) return const [];
+                return clients.keys.where(
+                  (c) => c.toLowerCase().contains(q) && c.toLowerCase() != q,
+                );
+              },
+              onSelected: (c) {
+                _client.text = c;
                 _loadClient();
               },
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Bill by',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final b in BillBy.values)
-                ChoiceChip(
-                  key: Key('bill-by-${b.name}'),
-                  label: Text(b.label),
-                  selected: _billBy == b,
-                  onSelected: (_) => setState(() {
-                    _billBy = b;
-                    if (b == BillBy.items && _items.isEmpty) {
-                      _items.add(_Typed());
-                    }
-                  }),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_billBy == BillBy.hours) ...[
-            Row(
-              children: [
-                dateBox('From', _from, (d) => setState(() => _from = d)),
-                const SizedBox(width: 12),
-                dateBox('To', _to, (d) => setState(() => _to = d)),
-              ],
+              fieldViewBuilder: (context, controller, focus, submit) =>
+                  TextFormField(
+                    key: const Key('invoice-client'),
+                    controller: controller,
+                    focusNode: focus,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Client'),
+                    validator: (t) => (t ?? '').trim().isEmpty
+                        ? 'Enter the client, such as Bidii Traders Ltd.'
+                        : null,
+                    onChanged: (t) {
+                      _client.text = t;
+                      _withholding = null;
+                      _loadClient();
+                    },
+                  ),
             ),
             const SizedBox(height: 16),
-            Text('HOURS NOT BILLED YET', style: label()),
-            const SizedBox(height: 8),
-            if (byProj.isEmpty)
-              Text(
-                _client.text.trim().isEmpty
-                    ? 'Choose the client to see their hours.'
-                    : 'Hours you log for this client show here.',
-                style: muted,
-              )
-            else
-              Card(
-                margin: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (final MapEntry(key: project, value: list)
-                        in byProj.entries)
-                      () {
-                        final m = list.fold(0, (sum, e) => sum + e.minutes);
-                        final days = {for (final e in list) e.day}.length;
-                        final rate = list
-                            .map((e) => e.rateMinor)
-                            .whereType<int>()
-                            .firstOrNull;
-                        final amount = list.fold(
-                          0,
-                          (sum, e) => sum + e.amountMinor,
-                        );
-                        return CheckboxListTile(
-                          key: Key('invoice-project-${project ?? 'none'}'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          value: _projects.contains(project),
-                          onChanged: (on) => setState(() {
-                            on ?? false
-                                ? _projects.add(project)
-                                : _projects.remove(project);
-                          }),
-                          title: Text(project ?? 'Hours'),
-                          subtitle: Text(
-                            [
-                              '${hoursText(m)} h on $days ${days == 1 ? 'day' : 'days'}',
-                              if (rate != null) '${_plain(rate)} an hour',
-                              if (rate != null)
-                                _plain(amount)
-                              else
-                                'bill later',
-                            ].join(' · '),
-                            style: muted,
-                          ),
-                        );
-                      }(),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 16),
-            Text('SHOW HOURS ON THE INVOICE', style: label()),
+            Text('Bill by', style: label),
             const SizedBox(height: 8),
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: ChoiceMenu<HoursDetail>(
-                key: const Key('hours-detail'),
-                name: 'Show hours on the invoice',
-                options: [for (final d in HoursDetail.values) (d, d.label)],
-                value: _detail,
-                itemKey: (d) => Key('hours-detail-${d.name}'),
-                onChanged: (d) => setState(() => _detail = d),
+              child: AdaptiveSegmented<BillBy>(
+                key: const Key('invoice-bill-by'),
+                name: 'Bill by',
+                segments: [for (final b in BillBy.values) (b, b.label)],
+                segmentKey: (b) => Key('bill-by-${b.name}'),
+                selected: _billBy,
+                onChanged: (b) => setState(() {
+                  _billBy = b;
+                  if (b == BillBy.items && _items.isEmpty) {
+                    _items.add(_Typed());
+                  }
+                }),
               ),
             ),
-            if (feeLines.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Card(
-                key: const Key('invoice-preview'),
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            const SizedBox(height: 12),
+            if (_billBy == BillBy.hours) ...[
+              Row(
+                children: [
+                  dateField('From', _from, (d) => setState(() => _from = d)),
+                  const SizedBox(width: 12),
+                  dateField('To', _to, (d) => setState(() => _to = d)),
+                ],
+              ),
+              const SectionLabel('Hours not billed yet'),
+              if (byProj.isEmpty)
+                Text(
+                  _client.text.trim().isEmpty
+                      ? 'Choose the client to see their hours.'
+                      : 'Hours you log for this client show here.',
+                  style: muted,
+                )
+              else
+                Card(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('PREVIEW', style: label()),
-                      for (final l in _showAll ? feeLines : feeLines.take(3))
-                        _Line(l.name, _plain(l.amountMinor), detail: l.detail),
-                      if (!_showAll && feeLines.length > 3)
-                        TextButton(
-                          onPressed: () => setState(() => _showAll = true),
-                          child: Text(
-                            '${feeLines.length - 3} more',
-                            style: TextStyle(color: colors.link),
-                          ),
-                        ),
+                      for (final MapEntry(key: project, value: list)
+                          in byProj.entries)
+                        () {
+                          final m = list.fold(0, (sum, e) => sum + e.minutes);
+                          final days = {for (final e in list) e.day}.length;
+                          final rate = list
+                              .map((e) => e.rateMinor)
+                              .whereType<int>()
+                              .firstOrNull;
+                          final amount = list.fold(
+                            0,
+                            (sum, e) => sum + e.amountMinor,
+                          );
+                          return CheckboxListTile(
+                            key: Key('invoice-project-${project ?? 'none'}'),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            value: _projects.contains(project),
+                            onChanged: (on) => setState(() {
+                              on ?? false
+                                  ? _projects.add(project)
+                                  : _projects.remove(project);
+                            }),
+                            title: Text(project ?? 'Hours'),
+                            subtitle: Text(
+                              [
+                                '${hoursText(m)} h on $days ${days == 1 ? 'day' : 'days'}',
+                                if (rate != null) '${_plain(rate)} an hour',
+                                if (rate != null)
+                                  _plain(amount)
+                                else
+                                  'bill later',
+                              ].join(' · '),
+                              style: muted,
+                            ),
+                          );
+                        }(),
                     ],
                   ),
                 ),
+              const SizedBox(height: 16),
+              Text('Show hours on the invoice', style: label),
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ChoiceMenu<HoursDetail>(
+                  key: const Key('hours-detail'),
+                  name: 'Show hours on the invoice',
+                  options: [for (final d in HoursDetail.values) (d, d.label)],
+                  value: _detail,
+                  itemKey: (d) => Key('hours-detail-${d.name}'),
+                  onChanged: (d) => setState(() => _detail = d),
+                ),
+              ),
+              if (feeLines.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Card(
+                  key: const Key('invoice-preview'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionLabel(
+                        'Preview',
+                        padding: EdgeInsets.fromLTRB(
+                          Layout.cardPadding,
+                          Layout.cardPadding,
+                          Layout.cardPadding,
+                          0,
+                        ),
+                      ),
+                      for (final l in _showAll ? feeLines : feeLines.take(3))
+                        LabelValueRow(
+                          label: l.name,
+                          value: _plain(l.amountMinor),
+                          detail: (l.detail ?? '').isEmpty ? null : l.detail,
+                        ),
+                      if (!_showAll && feeLines.length > 3)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: TextButton(
+                            onPressed: () => setState(() => _showAll = true),
+                            child: Text('${feeLines.length - 3} more'),
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              ],
+              SwitchListTile.adaptive(
+                key: const Key('invoice-timesheet'),
+                contentPadding: EdgeInsets.zero,
+                value: _timesheet,
+                onChanged: (on) => setState(() => _timesheet = on),
+                title: const Text('Add the full timesheet as a page'),
+                subtitle: Text(
+                  'Every entry, with day and project totals',
+                  style: muted,
+                ),
+              ),
+            ] else ...[
+              for (final (i, t) in _items.indexed) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        key: Key('item-name-$i'),
+                        controller: t.name,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(labelText: 'What'),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 56,
+                      child: TextField(
+                        key: Key('item-quantity-$i'),
+                        controller: t.quantity,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'How many',
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: AmountField(
+                        key: Key('item-price-$i'),
+                        controller: t.amount,
+                        label: 'Price',
+                        allowZero: true,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: const Key('invoice-add-item'),
+                  onPressed: () => setState(() => _items.add(_Typed())),
+                  child: const Text('Add a line'),
+                ),
               ),
             ],
-            CheckboxListTile(
-              key: const Key('invoice-timesheet'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _timesheet,
-              onChanged: (on) => setState(() => _timesheet = on ?? false),
-              title: const Text('Add the full timesheet as a page'),
-              subtitle: Text(
-                'Every entry, with day and project totals',
-                style: muted,
-              ),
+            FormField<void>(
+              key: const Key('invoice-what-to-bill'),
+              validator: (_) => feeLines.isNotEmpty
+                  ? null
+                  : _billBy == BillBy.hours
+                  ? 'Choose the hours to bill, or bill by items.'
+                  : 'Enter what to bill and its price, such as Strategy, '
+                        '15,000.',
+              builder: (field) => field.errorText == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        field.errorText!,
+                        style: theme.textTheme.bodySmall!.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
             ),
-          ] else ...[
-            for (final (i, t) in _items.indexed) ...[
+            const SizedBox(height: 8),
+            for (final (i, t) in _costs.indexed) ...[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     flex: 3,
                     child: TextField(
-                      key: Key('item-name-$i'),
+                      key: Key('cost-name-$i'),
                       controller: t.name,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(labelText: 'What'),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 56,
-                    child: TextField(
-                      key: Key('item-quantity-$i'),
-                      controller: t.quantity,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Cost passed on',
                       ),
-                      decoration: const InputDecoration(labelText: 'How many'),
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     flex: 2,
-                    child: TextField(
-                      key: Key('item-price-$i'),
+                    child: AmountField(
+                      key: Key('cost-amount-$i'),
                       controller: t.amount,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Price'),
+                      label: 'Amount',
+                      allowZero: true,
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
@@ -562,180 +633,128 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
-                key: const Key('invoice-add-item'),
-                onPressed: () => setState(() => _items.add(_Typed())),
-                child: Text('Add a line', style: TextStyle(color: colors.link)),
+                key: const Key('invoice-add-cost'),
+                onPressed: () => setState(() => _costs.add(_Typed())),
+                child: const Text(
+                  'Add a cost passed on, such as software for the work',
+                ),
               ),
             ),
-          ],
-          const SizedBox(height: 8),
-          for (final (i, t) in _costs.indexed) ...[
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    key: Key('cost-name-$i'),
-                    controller: t.name,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Cost passed on',
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
+            if (_attached.isNotEmpty) ...[
+              const SectionLabel(
+                'Attached',
+                padding: EdgeInsets.fromLTRB(0, 8, 0, 8),
+              ),
+              Card(
+                child: Column(
+                  children: [
+                    for (final a in _attached)
+                      ListTile(
+                        leading: Icon(
+                          a.mimeType == 'application/pdf'
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.image_outlined,
+                        ),
+                        title: Text(a.name),
+                        trailing: IconButton(
+                          tooltip: 'Remove ${a.name}',
+                          icon: const Icon(Icons.close),
+                          onPressed: () => setState(() => _attached.remove(a)),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    key: Key('cost-amount-$i'),
-                    controller: t.amount,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Amount'),
-                    onChanged: (_) => setState(() {}),
-                  ),
+              ),
+            ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                key: const Key('invoice-attach'),
+                onPressed: _attach,
+                child: const Text(
+                  'Attach a document, such as a receipt or the eTIMS invoice',
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              key: const Key('invoice-add-cost'),
-              onPressed: () => setState(() => _costs.add(_Typed())),
-              child: Text(
-                'Add a cost passed on, such as software for the work',
-                style: TextStyle(color: colors.link),
               ),
             ),
-          ),
-          if (_attached.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('ATTACHED', style: label()),
+            Text('Due', style: label),
             const SizedBox(height: 8),
+            DueDateChips(
+              today: today,
+              value: _due,
+              onChanged: (d) => setState(() => _due = d),
+            ),
+            const SizedBox(height: 12),
             Card(
-              margin: EdgeInsets.zero,
               child: Column(
                 children: [
-                  for (final a in _attached)
-                    ListTile(
-                      leading: Icon(
-                        a.mimeType == 'application/pdf'
-                            ? Icons.picture_as_pdf_outlined
-                            : Icons.image_outlined,
-                      ),
-                      title: Text(a.name),
-                      trailing: IconButton(
-                        tooltip: 'Leave it out',
-                        icon: const Icon(Icons.close),
-                        onPressed: () => setState(() => _attached.remove(a)),
-                      ),
+                  LabelValueRow(
+                    label: 'Fees',
+                    value: _plain(totals.feesShownMinor),
+                    detail: _billBy == BillBy.hours
+                        ? '${hoursText(hours)} hours'
+                        : '${feeLines.length} ${feeLines.length == 1 ? 'line' : 'lines'}',
+                  ),
+                  if (costLines.isNotEmpty)
+                    LabelValueRow(
+                      label: 'Costs',
+                      value: _plain(totals.costsMinor),
+                      detail: costLines.map((l) => l.name).join(', '),
                     ),
+                  if (totals.vatMinor > 0)
+                    LabelValueRow(
+                      label: 'VAT (${rateText(pack.vatRate)})',
+                      value: _plain(totals.vatMinor),
+                    ),
+                  LabelValueRow(
+                    label: 'Withholding tax',
+                    value: totals.withheldMinor == 0
+                        ? 'None'
+                        : '-${_plain(totals.withheldMinor)}',
+                    key: const Key('invoice-withholding'),
+                    detail: switch (w) {
+                      Withholding.none => 'Tap to set it for this client',
+                      Withholding.deducts =>
+                        'Client deducts ${rateText(pack.withholdingRate)} of fees',
+                      Withholding.onTop =>
+                        'Client pays ${rateText(pack.withholdingRate)} on top',
+                    },
+                    onTap: () => _editWithholding(pack, tax.vatRegistered),
+                  ),
+                  LabelValueRow(
+                    label: 'To pay',
+                    value: _plain(totals.toPayMinor),
+                    key: const Key('invoice-to-pay'),
+                    strong: true,
+                    valueColor: colors.successText,
+                  ),
                 ],
               ),
             ),
-          ],
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              key: const Key('invoice-attach'),
-              onPressed: _attach,
-              child: Text(
-                'Attach a document, such as a receipt or the eTIMS invoice',
-                style: TextStyle(color: colors.link),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('invoice-notes'),
+              controller: _notes,
+              minLines: 1,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+            ),
+            const SizedBox(height: 16),
+            ButtonPair(
+              primary: FilledButton(
+                key: const Key('invoice-preview-share'),
+                onPressed: _saving ? null : () => _save(share: true),
+                child: const Text('Preview and share'),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Due',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DueDateChips(
-            today: today,
-            value: _due,
-            onChanged: (d) => setState(() => _due = d),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _Row(
-                  'Fees',
-                  _plain(totals.feesShownMinor),
-                  detail: _billBy == BillBy.hours
-                      ? '${hoursText(hours)} hours'
-                      : '${feeLines.length} ${feeLines.length == 1 ? 'line' : 'lines'}',
-                ),
-                if (costLines.isNotEmpty)
-                  _Row(
-                    'Costs',
-                    _plain(totals.costsMinor),
-                    detail: costLines.map((l) => l.name).join(', '),
-                  ),
-                if (totals.vatMinor > 0)
-                  _Row(
-                    'VAT (${rateText(pack.vatRate)})',
-                    _plain(totals.vatMinor),
-                  ),
-                _Row(
-                  'Withholding tax',
-                  totals.withheldMinor == 0
-                      ? 'None'
-                      : '− ${_plain(totals.withheldMinor)}',
-                  key: const Key('invoice-withholding'),
-                  detail: switch (w) {
-                    Withholding.none => 'Tap to set it for this client',
-                    Withholding.deducts =>
-                      'Client deducts ${rateText(pack.withholdingRate)} of fees',
-                    Withholding.onTop =>
-                      'Client pays ${rateText(pack.withholdingRate)} on top',
-                  },
-                  onTap: () => _editWithholding(pack, tax.vatRegistered),
-                ),
-                _Row(
-                  'To pay',
-                  _plain(totals.toPayMinor),
-                  key: const Key('invoice-to-pay'),
-                  color: colors.successText,
-                  bold: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('invoice-notes'),
-            controller: _notes,
-            minLines: 1,
-            maxLines: 4,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Notes (optional)'),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  key: const Key('invoice-preview-share'),
-                  onPressed: _saving ? null : () => _save(share: true),
-                  child: const Text('Preview and share'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton(
+              secondary: OutlinedButton(
                 key: const Key('invoice-save'),
                 onPressed: _saving ? null : () => _save(share: false),
                 child: const Text('Save'),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -746,97 +765,6 @@ int minutesFromQuantity(String text) {
   final v = double.tryParse(text.trim().replaceAll(',', '.'));
   if (v == null || v <= 0) return 1000;
   return (v * 1000).round();
-}
-
-class _Line extends StatelessWidget {
-  const _Line(this.name, this.amount, {this.detail});
-
-  final String name;
-  final String amount;
-  final String? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: theme.textTheme.titleMedium),
-                if (detail case final d? when d.isNotEmpty)
-                  Text(
-                    d,
-                    style: theme.textTheme.bodySmall!.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Text(amount, style: theme.textTheme.titleMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row(
-    this.name,
-    this.amount, {
-    this.detail,
-    this.color,
-    this.bold = false,
-    this.onTap,
-    super.key,
-  });
-
-  final String name;
-  final String amount;
-  final String? detail;
-  final Color? color;
-  final bool bold;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final style = theme.textTheme.titleMedium!.copyWith(
-      fontWeight: bold ? FontWeight.w700 : null,
-    );
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: style),
-                  if (detail case final d?)
-                    Text(
-                      d,
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Text(amount, style: style.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Withholding tax on this invoice: none, deducted by the client, or paid
@@ -908,84 +836,68 @@ class _WithholdingSheetState extends State<_WithholdingSheet> {
             '${_plain(onTop.withheldMinor)} you still get ${_plain(fees)}.',
       ),
     ];
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Withholding tax', style: theme.textTheme.headlineSmall),
-            Text(
-              'Fees of ${_plain(fees)} for $client',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 12),
-            RadioGroup<Withholding>(
-              groupValue: _value,
-              onChanged: (v) => setState(() => _value = v ?? _value),
-              child: Column(
-                children: [
-                  for (final (value, title, detail) in options)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: _value == value
-                                ? theme.colorScheme.primary
-                                : colors.border,
-                            width: _value == value ? 2 : 1,
-                          ),
-                        ),
-                        child: RadioListTile<Withholding>(
-                          key: Key('withholding-${value.name}'),
-                          value: value,
-                          title: Text(title),
-                          subtitle: Text(detail),
-                        ),
+    return SheetBody(
+      title: 'Withholding tax',
+      subtitle: 'Fees of ${_plain(fees)} for $client',
+      children: [
+        RadioGroup<Withholding>(
+          groupValue: _value,
+          onChanged: (v) => setState(() => _value = v ?? _value),
+          child: Column(
+            children: [
+              for (final (value, title, detail) in options)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Layout.panelRadius),
+                      side: BorderSide(
+                        color: _value == value
+                            ? theme.colorScheme.primary
+                            : colors.border,
+                        width: _value == value ? 2 : 1,
                       ),
                     ),
-                ],
-              ),
-            ),
-            CheckboxListTile(
-              key: const Key('withholding-remember'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _remember,
-              onChanged: (on) => setState(() => _remember = on ?? false),
-              title: Text('Remember for $client'),
-            ),
-            CheckboxListTile(
-              key: const Key('withholding-vat'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _vat && widget.vatRegistered,
-              onChanged: widget.vatRegistered
-                  ? (on) => setState(() => _vat = on ?? false)
-                  : null,
-              title: Text('Add VAT (${rateText(widget.vatRate)})'),
-              subtitle: Text(
-                widget.vatRegistered
-                    ? 'For VAT-registered businesses.'
-                    : 'For VAT-registered businesses. Turn it on in Tax '
-                          'settings.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              key: const Key('withholding-done'),
-              onPressed: () =>
-                  Navigator.pop(context, (_value, _vat, _remember)),
-              child: const Text('Done'),
-            ),
-          ],
+                    child: RadioListTile<Withholding>(
+                      key: Key('withholding-${value.name}'),
+                      value: value,
+                      title: Text(title),
+                      subtitle: Text(detail),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
+        SwitchListTile.adaptive(
+          key: const Key('withholding-remember'),
+          contentPadding: EdgeInsets.zero,
+          value: _remember,
+          onChanged: (on) => setState(() => _remember = on),
+          title: Text('Remember for $client'),
+        ),
+        SwitchListTile.adaptive(
+          key: const Key('withholding-vat'),
+          contentPadding: EdgeInsets.zero,
+          value: _vat && widget.vatRegistered,
+          onChanged: widget.vatRegistered
+              ? (on) => setState(() => _vat = on)
+              : null,
+          title: Text('Add VAT (${rateText(widget.vatRate)})'),
+          subtitle: Text(
+            widget.vatRegistered
+                ? 'For VAT-registered businesses.'
+                : 'For VAT-registered businesses. Turn it on in Tax '
+                      'settings.',
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          key: const Key('withholding-done'),
+          onPressed: () => Navigator.pop(context, (_value, _vat, _remember)),
+          child: const Text('Done'),
+        ),
+      ],
     );
   }
 }

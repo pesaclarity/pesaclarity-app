@@ -5,7 +5,9 @@ import '../../../domain/income/week_by_week.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/income_providers.dart';
 
@@ -24,8 +26,11 @@ class WeekByWeekScreen extends ConsumerWidget {
       ),
       body: switch (plan) {
         AsyncData(:final value) => _Body(value),
-        AsyncError() => const Center(child: Text('Could not open it.')),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        AsyncError() => ErrorView(
+          'Week by week could not load.',
+          onRetry: () => ref.invalidate(weekByWeekProvider),
+        ),
+        _ => const LoadingView(),
       },
     );
   }
@@ -66,7 +71,7 @@ class _Body extends ConsumerWidget {
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(Layout.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -121,7 +126,7 @@ class _Body extends ConsumerWidget {
         Card(
           key: const Key('rainy-day-fund'),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(Layout.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -137,7 +142,9 @@ class _Body extends ConsumerWidget {
                       target > 0
                           ? '${_plain(context, fund)} of ${_plain(context, target)}'
                           : _plain(context, fund),
-                      style: theme.textTheme.titleMedium,
+                      style: AppTypography.rowAmount(
+                        theme.colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
@@ -168,7 +175,7 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: 12),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(Layout.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -212,10 +219,7 @@ class _Figure extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall!
             .copyWith(color: PesaColors.of(context).textMuted),
       ),
-      Text(
-        _plain(context, minor),
-        style: AppTypography.amount(size: 24, color: color),
-      ),
+      Text(_plain(context, minor), style: AppTypography.tileFigure(color)),
     ],
   );
 }

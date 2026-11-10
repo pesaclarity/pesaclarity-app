@@ -5,6 +5,10 @@ import '../../../data/repositories/payday_repository.dart';
 import '../../../domain/plan/payday.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../application/plan_providers.dart';
 import 'plan_screen.dart' show dayLabel;
 
@@ -20,27 +24,21 @@ class PaydayScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Payday')),
       body: switch (proposal) {
         AsyncData(value: final p?) => _Checklist(p),
-        AsyncData() => const _Message(
-          'Your payday checklist shows here when your salary lands, or on '
-          'the day Plan expects it.',
+        AsyncData() => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: Layout.gutter),
+          child: EmptyNote(
+            'Your payday checklist shows here when your salary lands, or '
+            'on the day Plan expects it.',
+          ),
         ),
-        AsyncError() => const _Message('The checklist could not load.'),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        AsyncError() => ErrorView(
+          'Your payday checklist could not load.',
+          onRetry: () => ref.invalidate(paydayProvider),
+        ),
+        _ => const LoadingView(),
       },
     );
   }
-}
-
-class _Message extends StatelessWidget {
-  const _Message(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
-  );
 }
 
 class _Checklist extends ConsumerWidget {
@@ -70,7 +68,12 @@ class _Checklist extends ConsumerWidget {
     caption.write('$done of ${tasks.length} done.');
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        Layout.gutter,
+        8,
+        Layout.gutter,
+        Layout.screenBottom,
+      ),
       children: [
         HeroFigureCard(
           label: 'This payday',
@@ -84,8 +87,7 @@ class _Checklist extends ConsumerWidget {
         ),
         for (final kind in PaydayTaskKind.values)
           if (tasks.any((t) => t.kind == kind)) ...[
-            const SizedBox(height: 16),
-            Text(kind.label, style: theme.textTheme.titleMedium),
+            SectionTitle(kind.label),
             for (final task in tasks.where((t) => t.kind == kind))
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -96,7 +98,7 @@ class _Checklist extends ConsumerWidget {
                     : Text('Due ${dayLabel(task.dueDate!)}'),
                 secondary: Text(
                   shownMoney(context, task.amountMinor, withCurrency: false),
-                  style: theme.textTheme.titleSmall,
+                  style: AppTypography.rowAmount(theme.colorScheme.onSurface),
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (value) async {

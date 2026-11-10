@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/exchange_rates.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
 import '../data/rates_client.dart';
@@ -62,7 +64,7 @@ class PaymentRateCard extends ConsumerWidget {
     return Card(
       key: const Key('payment-rate'),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -145,7 +147,7 @@ Future<void> showRateGotDialog(
   required TransactionRecord record,
   required String base,
   double? current,
-}) => showDialog<void>(
+}) => showAdaptiveDialog<void>(
   context: context,
   builder: (context) =>
       _RateGotDialog(record: record, base: base, current: current),
@@ -167,13 +169,13 @@ class _RateGotDialog extends ConsumerStatefulWidget {
 }
 
 class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final bool _baseFirst = (widget.current ?? 1) >= 1;
   late final _rate = TextEditingController(
     text: widget.current == null
         ? ''
         : formatRate(_baseFirst ? widget.current! : 1 / widget.current!),
   );
-  String? _error;
 
   @override
   void dispose() {
@@ -181,12 +183,14 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     super.dispose();
   }
 
+  static double? _parse(String? text) {
+    final value = double.tryParse((text ?? '').replaceAll(',', '').trim());
+    return value == null || value <= 0 ? null : value;
+  }
+
   Future<void> _save() async {
-    final value = double.tryParse(_rate.text.replaceAll(',', '').trim());
-    if (value == null || value <= 0) {
-      setState(() => _error = 'Enter a rate above 0');
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
+    final value = _parse(_rate.text)!;
     final navigator = Navigator.of(context);
     await ref
         .read(transactionsRepositoryProvider)
@@ -204,24 +208,28 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     final (one, other) = _baseFirst ? (widget.base, code) : (code, widget.base);
     return AlertDialog(
       title: const Text('The rate I got'),
-      content: TextField(
-        key: const Key('rate-got-field'),
-        controller: _rate,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          labelText: '1 $one bought how much $other?',
-          suffixText: other,
-          errorText: _error,
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const Key('rate-got-field'),
+          controller: _rate,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: '1 $one bought how much $other?',
+            suffixText: other,
+          ),
+          validator: (v) =>
+              _parse(v) == null ? 'Enter a rate, such as 129.5.' : null,
+          onFieldSubmitted: (_) => _save(),
         ),
-        onSubmitted: (_) => _save(),
       ),
       actions: [
-        TextButton(
+        DialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        DialogAction(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

@@ -60,7 +60,7 @@ class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Pick all that fit. Pesa Clarity plans around them, and learns '
+              'Choose all that fit. Pesa Clarity plans around them, and learns '
               'from your messages too.',
               style: theme.textTheme.bodyLarge!.copyWith(
                 color: colors.textMuted,
@@ -110,7 +110,7 @@ class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
             const SizedBox(height: 8),
             Text(
               picked.isEmpty
-                  ? 'Pick at least one to continue.'
+                  ? 'Choose at least one to continue.'
                   : 'You can change this any time in Profile.',
               style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,

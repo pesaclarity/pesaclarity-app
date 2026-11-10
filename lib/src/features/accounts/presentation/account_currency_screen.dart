@@ -5,6 +5,8 @@ import '../../../core/money/exchange_rates.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../currency/application/currency_controller.dart';
@@ -25,7 +27,6 @@ class AccountCurrencyScreen extends ConsumerWidget {
     String code,
   ) async {
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     if (code == account.currency) {
       navigator.pop();
       return;
@@ -36,32 +37,24 @@ class AccountCurrencyScreen extends ConsumerWidget {
     if (count > 0) {
       final base =
           ref.read(currencyControllerProvider).value?.base ?? BaseCurrency.code;
-      final confirmed = await showModalBottomSheet<bool>(
+      final confirmed = await showAdaptiveDialog<bool>(
         context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (context) => SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: _ChangeCurrencySheet(
-              account: account,
-              to: code,
-              base: base,
-              count: count,
-            ),
-          ),
+        builder: (context) => _ChangeCurrencyDialog(
+          account: account,
+          to: code,
+          base: base,
+          count: count,
         ),
       );
       if (confirmed != true) return;
     }
     if (!await repository.setCurrency(account.id, code)) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Add a rate for $code first: refresh the rates, or set your own.',
-          ),
-        ),
-      );
+      if (context.mounted) {
+        showNote(
+          context,
+          'Add a rate for $code first: refresh the rates, or set your own.',
+        );
+      }
       return;
     }
     navigator.pop();
@@ -75,7 +68,7 @@ class AccountCurrencyScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text('${account?.name ?? 'Account'} currency')),
       body: account == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? const LoadingView()
           : CurrencyPicker(
               selected: account.currency,
               suggested: currencyOfRegion(region),
@@ -93,8 +86,8 @@ class AccountCurrencyScreen extends ConsumerWidget {
 
 /// Count a hand-added account in another currency? What was added before
 /// keeps its currency.
-class _ChangeCurrencySheet extends StatelessWidget {
-  const _ChangeCurrencySheet({
+class _ChangeCurrencyDialog extends StatelessWidget {
+  const _ChangeCurrencyDialog({
     required this.account,
     required this.to,
     required this.base,
@@ -114,36 +107,36 @@ class _ChangeCurrencySheet extends StatelessWidget {
     final before = count == 1
         ? 'The 1 you added before stays in $from.'
         : 'The $count you added before stay in $from.';
-    return Column(
+    return AlertDialog.adaptive(
       key: const Key('account-currency-change'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Count ${account.name} in $to?',
-          style: theme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'New amounts you add to ${account.name} will be in $to. $before',
-          style: theme.textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Totals keep adding each amount in your base currency, $base, at '
-          'the rate of its day.',
-          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          key: const Key('account-currency-use'),
-          onPressed: () => Navigator.pop(context, true),
-          child: Text('Use $to'),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton(
+      title: Text('Count ${account.name} in $to?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'New amounts you add to ${account.name} will be in $to. $before',
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Totals keep adding each amount in your base currency, $base, at '
+            'the rate of its day.',
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: colors.textMuted,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        DialogAction(
           key: const Key('account-currency-keep'),
           onPressed: () => Navigator.pop(context, false),
-          child: Text('Keep $from'),
+          child: const Text('Cancel'),
+        ),
+        DialogAction(
+          key: const Key('account-currency-use'),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('Switch to $to'),
         ),
       ],
     );

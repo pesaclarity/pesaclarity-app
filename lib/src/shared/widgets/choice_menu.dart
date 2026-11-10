@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/brand_tokens.dart';
 import '../../theme/pesa_colors.dart';
 
 /// One choice of more than two, as a drop-down: a pill showing the current
@@ -84,7 +85,9 @@ class ChoiceMenu<T> extends StatelessWidget {
           child: InkWell(
             onTap: () => menu.isOpen ? menu.close() : menu.open(),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 40),
+              constraints: const BoxConstraints(
+                minHeight: BrandTokens.touchTarget,
+              ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
                 child: Row(

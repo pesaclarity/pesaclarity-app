@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/privacy_policy.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../data/policy_source.dart';
 import 'privacy_widgets.dart';
@@ -24,10 +25,11 @@ class PolicyScreen extends ConsumerWidget {
             label: const Text('Email me a copy'),
           ),
         ),
-        AsyncError() => const Center(
-          child: Text('The policy could not be opened. Try again later.'),
+        AsyncError() => ErrorView(
+          'The privacy policy could not load.',
+          onRetry: () => ref.invalidate(privacyPolicyProvider),
         ),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        _ => const LoadingView(),
       },
     );
   }
@@ -44,10 +46,11 @@ class TermsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Terms')),
       body: switch (terms) {
         AsyncData(:final value) => PolicyText(policy: value),
-        AsyncError() => const Center(
-          child: Text('The terms could not be opened. Try again later.'),
+        AsyncError() => ErrorView(
+          'The terms could not load.',
+          onRetry: () => ref.invalidate(termsProvider),
         ),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        _ => const LoadingView(),
       },
     );
   }

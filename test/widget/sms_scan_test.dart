@@ -97,13 +97,13 @@ void main() {
     expect(find.text('Found 1 transaction'), findsOneWidget);
   });
 
-  testAppWidgets('Not now skips the scan', (tester) async {
+  testAppWidgets('Do this later skips the scan', (tester) async {
     final sms = FakeSmsSource(current: SmsAccess.denied);
     addTearDown(sms.close);
     await pumpApp(tester, db: openTestDatabase(), sms: sms);
     await toScan(tester);
 
-    await tapText(tester, 'Not now');
+    await tapText(tester, 'Do this later');
     expect(find.text(_home), findsOneWidget);
     expect(sms.permissionRequests, 0);
   });

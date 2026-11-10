@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
 
@@ -20,21 +23,9 @@ typedef Attached = ({
 /// Attach documents from the phone's files: receipts for costs, the eTIMS
 /// invoice, a contract. Returns what to attach, or null.
 Future<List<Attached>?> showAttachSheet(BuildContext context) =>
-    showModalBottomSheet<List<Attached>>(
+    showAppSheet<List<Attached>>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: const SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
-            child: _AttachSheet(),
-          ),
-        ),
-      ),
+      builder: (context) => const _AttachSheet(),
     );
 
 class _Picked {
@@ -80,15 +71,17 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
   }
 
   Future<void> _photo() async {
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final photo = await ref.read(documentPickerProvider).takePhoto();
       if (!mounted || photo == null) return;
       setState(() => _picked.add(_Picked(photo)));
     } on PlatformException {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The camera is not available.')),
-      );
+      if (mounted) {
+        showNote(
+          context,
+          'The camera did not open. Choose a file on this phone instead.',
+        );
+      }
     }
   }
 
@@ -103,19 +96,13 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
     final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
     String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Attach a document', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(
+    return SheetBody(
+      title: 'Attach a document',
+      subtitle:
           'Receipts for costs, the eTIMS invoice from the KRA site, a '
           'contract. They go after the invoice in the same PDF.',
-          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: 12),
+      children: [
         Card(
-          margin: EdgeInsets.zero,
           child: ListTile(
             key: const Key('attach-files'),
             leading: const Icon(Icons.folder_open_outlined),
@@ -130,7 +117,6 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
         ),
         const SizedBox(height: 8),
         Card(
-          margin: EdgeInsets.zero,
           child: ListTile(
             key: const Key('attach-photo'),
             leading: const Icon(Icons.photo_camera_outlined),
@@ -143,9 +129,8 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
         for (final p in _picked) ...[
           const SizedBox(height: 12),
           Card(
-            margin: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.all(Layout.cardPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -171,7 +156,7 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Leave it out',
+                        tooltip: 'Remove ${p.file.name}',
                         icon: const Icon(Icons.close),
                         onPressed: () => setState(() {
                           _picked.remove(p);
@@ -180,12 +165,11 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                       ),
                     ],
                   ),
-                  CheckboxListTile(
+                  SwitchListTile.adaptive(
                     key: Key('attach-charge-${p.file.name}'),
                     contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
                     value: p.charge,
-                    onChanged: (on) => setState(() => p.charge = on ?? false),
+                    onChanged: (on) => setState(() => p.charge = on),
                     title: const Text('Charge it to the client'),
                     subtitle: p.charge
                         ? Text(
@@ -196,12 +180,11 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                         : null,
                   ),
                   if (p.charge)
-                    CheckboxListTile(
+                    SwitchListTile.adaptive(
                       key: Key('attach-record-${p.file.name}'),
                       contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
                       value: p.record,
-                      onChanged: (on) => setState(() => p.record = on ?? false),
+                      onChanged: (on) => setState(() => p.record = on),
                       title: const Text('Record it as a business cost'),
                       subtitle: Text(
                         "If it isn't in Money already",
@@ -226,13 +209,11 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
-                          child: TextField(
+                          child: AmountField(
                             key: Key('attach-amount-${p.file.name}'),
                             controller: p.amount,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Amount',
-                            ),
+                            label: 'Amount',
+                            allowZero: true,
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
