@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
-import '../../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart' hide Tag;
 import '../../../domain/ledger/activity_lines.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
@@ -11,8 +11,11 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../payees/presentation/transaction_sheet.dart';
@@ -51,24 +54,14 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    identifier: SemanticIds.titleMoney,
-                    child: Text(
-                      'Money in and out',
-                      style: theme.textTheme.headlineLarge,
-                    ),
-                  ),
-                ),
+            TabHeader(
+              'Money in and out',
+              semanticsId: SemanticIds.titleMoney,
+              actions: [
                 TextButton(
                   key: const Key('money-close-day'),
                   onPressed: () => context.push(AppRoutes.closeDay),
-                  child: Text(
-                    'Close the day',
-                    style: TextStyle(color: colors.link),
-                  ),
+                  child: const Text('Close the day'),
                 ),
                 IconButton(
                   key: const Key('money-search'),
@@ -79,73 +72,47 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                 const AmountsEye(),
               ],
             ),
-            const SizedBox(height: 16),
-            if (book == null)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator.adaptive()),
+            if (book == null && loaded.hasError)
+              ErrorView(
+                'Money in and out could not load.',
+                onRetry: () => ref.invalidate(cashBookProvider(from)),
               )
+            else if (book == null)
+              const LoadingView(inList: true)
             else ...[
               if (book.balances.isNotEmpty)
-                Row(
+                FigureRow(
                   children: [
-                    for (final (i, MapEntry(:key, :value))
-                        in book.balances.entries.indexed) ...[
-                      if (i > 0) const SizedBox(width: 10),
-                      Expanded(
-                        child: _BalanceChip(
-                          key: Key('money-balance-${key.name}'),
-                          label: key.label,
-                          value: plain(value),
-                        ),
+                    for (final MapEntry(:key, :value) in book.balances.entries)
+                      FigureTile(
+                        key: Key('money-balance-${key.name}'),
+                        label: key.label,
+                        value: plain(value),
                       ),
-                    ],
                   ],
                 ),
               if (book.days.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Text(
-                    'Sales and costs show here once your messages are read, '
-                    'or when you add one with +.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
+                const EmptyNote(
+                  'Sales and costs show here once your messages are read, '
+                  'or when you add one with +.',
                 )
               else
                 for (final day in book.days) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            dayHeading(day.date, today: today).toUpperCase(),
-                            style: theme.textTheme.labelLarge!.copyWith(
-                              color: colors.textMuted,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          'In ${plain(day.inMinor)} · '
-                          'Out ${plain(day.outMinor)}',
-                          style: theme.textTheme.bodyMedium!.copyWith(
-                            color: colors.textMuted,
-                          ),
-                        ),
-                      ],
+                  SectionLabel(
+                    dayHeading(day.date, today: today),
+                    trailing: Text(
+                      'In ${plain(day.inMinor)} · '
+                      'Out ${plain(day.outMinor)}',
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: colors.textMuted,
+                      ),
                     ),
                   ),
                   Card(
-                    margin: EdgeInsets.zero,
                     child: Column(
                       children: [
                         for (final (i, line) in day.lines.indexed) ...[
-                          if (i > 0)
-                            const Divider(height: 1, indent: 16, endIndent: 16),
+                          if (i > 0) const Divider(height: 1),
                           CashBookRow(
                             line: line,
                             accounts: accounts,
@@ -161,10 +128,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => setState(() => _pages++),
-                  child: Text(
-                    'Show older',
-                    style: TextStyle(color: colors.link),
-                  ),
+                  child: const Text('Show older'),
                 ),
               ),
             ],
@@ -182,56 +146,8 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
   }
 }
 
-class _BalanceChip extends StatelessWidget {
-  const _BalanceChip({required this.label, required this.value, super.key});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                style: AppTypography.amount(
-                  size: 20,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// One cash book line: what it was, the account it moved through and when,
 /// and the amount in or out.
-/// One cash book line: what it was, the account, the time, and the amount.
 class CashBookRow extends StatelessWidget {
   const CashBookRow({
     required this.line,
@@ -272,7 +188,7 @@ class CashBookRow extends StatelessWidget {
         when: formatTime(shown.occurredAt),
         amount: Text(
           plain(shown.amountMinor),
-          style: AppTypography.amount(size: 18, color: colors.textMuted),
+          style: AppTypography.rowAmount(colors.textMuted),
         ),
       ),
       DailyNoiseLine() && final noise => _row(
@@ -319,26 +235,7 @@ class CashBookRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.border,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            account,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelMedium!.copyWith(
-                              color: colors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ),
+                      Flexible(child: Tag(account)),
                       const SizedBox(width: 8),
                       Text(
                         when,
@@ -364,11 +261,8 @@ class CashBookRow extends StatelessWidget {
     final inflow = signedMinor > 0;
     return Text(
       inflow ? '+${plain(signedMinor)}' : '-${plain(-signedMinor)}',
-      style: AppTypography.amount(
-        size: 18,
-        color: inflow
-            ? colors.successText
-            : Theme.of(context).colorScheme.onSurface,
+      style: AppTypography.rowAmount(
+        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
       ),
     );
   }

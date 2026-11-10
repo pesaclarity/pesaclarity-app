@@ -7,31 +7,23 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/hours_repository.dart';
 import '../../../domain/hours/hours.dart';
 import '../../../domain/time/calendar.dart';
-import '../../../domain/time/date_labels.dart' show dayLabel;
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/hours_providers.dart';
 
-/// Log hours for a client, or change [entry]. Starts on [day].
+/// Log hours for a client, or edit [entry]. Starts on [day].
 Future<void> showLogHoursSheet(
   BuildContext context, {
   HourEntry? entry,
   CalendarDate? day,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: _LogHours(entry: entry, day: day),
-      ),
-    ),
-  ),
+  builder: (context) => _LogHours(entry: entry, day: day),
 );
 
 class _LogHours extends ConsumerStatefulWidget {
@@ -61,6 +53,11 @@ class _LogHoursState extends ConsumerState<_LogHours> {
   int? _savedRate;
   var _editRate = false;
   var _saving = false;
+  final _form = GlobalKey<FormState>();
+
+  /// Whether Save was tapped with something missing, so the fields show
+  /// what to fix as they change.
+  var _checked = false;
 
   @override
   void initState() {
@@ -103,13 +100,8 @@ class _LogHoursState extends ConsumerState<_LogHours> {
     final client = _client.text.trim();
     final what = _what.text.trim();
     final minutes = minutesFrom(_hours.text);
-    final messenger = ScaffoldMessenger.of(context);
-    if (client.isEmpty || what.isEmpty || minutes == null) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Add the client, what you did and the hours.'),
-        ),
-      );
+    if (!_form.currentState!.validate() || minutes == null) {
+      setState(() => _checked = true);
       return;
     }
     final typed = _rate.text.trim().isEmpty
@@ -149,6 +141,7 @@ class _LogHoursState extends ConsumerState<_LogHours> {
       }
       if (_another && widget.entry == null) {
         setState(() {
+          _checked = false;
           _what.clear();
           _hours.clear();
           // The rate just used is the one saved for this client now.
@@ -158,9 +151,7 @@ class _LogHoursState extends ConsumerState<_LogHours> {
             _editRate = false;
           }
         });
-        messenger.showSnackBar(
-          SnackBar(content: Text('${hoursText(minutes)} h logged.')),
-        );
+        if (mounted) showNote(context, '${hoursText(minutes)} h logged.');
       } else {
         navigator.pop();
       }
@@ -169,9 +160,18 @@ class _LogHoursState extends ConsumerState<_LogHours> {
     }
   }
 
-  Future<void> _remove() async {
+  Future<void> _delete() async {
+    final entry = widget.entry!;
     final navigator = Navigator.of(context);
-    await ref.read(hoursRepositoryProvider).remove(widget.entry!.id);
+    final yes = await confirmDelete(
+      context,
+      title: 'Delete these hours?',
+      body:
+          'This takes ${hoursText(entry.minutes)} h off '
+          '${weekdayName(entry.day)} ${shortDate(entry.day)}.',
+    );
+    if (!yes) return;
+    await ref.read(hoursRepositoryProvider).remove(entry.id);
     navigator.pop();
   }
 
@@ -188,150 +188,143 @@ class _LogHoursState extends ConsumerState<_LogHours> {
     final client = _client.text.trim();
     final showRate = _bill && (_savedRate == null || _editRate);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          widget.entry == null ? 'Log hours' : 'Change hours',
-          style: theme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Suggest(
-                key: const Key('hours-client'),
-                controller: _client,
-                label: 'Client',
-                options: clients.keys.toList(),
-                onChanged: () => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _Suggest(
-                key: const Key('hours-project'),
-                controller: _project,
-                label: 'Project',
-                options: projects,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          key: const Key('hours-what'),
-          controller: _what,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'What you did'),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: InkWell(
-                key: const Key('hours-day'),
-                onTap: () async {
-                  final picked = await pickDate(
-                    context,
-                    initialDate: DateTime(_day.year, _day.month, _day.day),
-                    firstDate: DateTime(today.year - 2),
-                    lastDate: DateTime(today.year + 1),
-                  );
-                  if (picked == null) return;
-                  setState(
-                    () => _day = CalendarDate(
-                      picked.year,
-                      picked.month,
-                      picked.day,
-                    ),
-                  );
-                },
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Day'),
-                  child: Text(
-                    '${weekdayName(_day).substring(0, 3)} '
-                    '${dayLabel(_day, thisYear: today.year)}',
-                  ),
+    return Form(
+      key: _form,
+      autovalidateMode: _checked
+          ? AutovalidateMode.onUserInteraction
+          : AutovalidateMode.disabled,
+      child: SheetBody(
+        title: widget.entry == null ? 'Log hours' : 'Edit hours',
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _Suggest(
+                  key: const Key('hours-client'),
+                  controller: _client,
+                  label: 'Client',
+                  options: clients.keys.toList(),
+                  onChanged: () => setState(() {}),
+                  validator: (t) => (t ?? '').trim().isEmpty
+                      ? 'Enter the client, such as Bidii Traders Ltd.'
+                      : null,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                key: const Key('hours-hours'),
-                controller: _hours,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Hours',
-                  hintText: '1.5',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Suggest(
+                  key: const Key('hours-project'),
+                  controller: _project,
+                  label: 'Project',
+                  options: projects,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        CheckboxListTile(
-          key: const Key('hours-bill'),
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          value: _bill,
-          onChanged: (on) => setState(() => _bill = on ?? false),
-          title: const Text('Bill this to the client'),
-          subtitle: _bill && _savedRate != null && !_editRate
-              ? Text(
-                  'At ${_plain(_savedRate!)} an hour, saved for '
-                  '${client.isEmpty ? 'this client' : client}',
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    color: colors.textMuted,
-                  ),
-                )
-              : null,
-          secondary: _bill && _savedRate != null && !_editRate
-              ? TextButton(
-                  onPressed: () => setState(() => _editRate = true),
-                  child: Text('Change', style: TextStyle(color: colors.link)),
-                )
-              : null,
-        ),
-        if (showRate)
-          AmountField(
-            key: const Key('hours-rate'),
-            controller: _rate,
-            label: 'Rate an hour',
-            allowZero: true,
+            ],
           ),
-        if (widget.entry == null) ...[
-          const Divider(height: 1),
-          CheckboxListTile(
-            key: const Key('hours-another'),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('hours-what'),
+            controller: _what,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(labelText: 'What you did'),
+            validator: (t) => (t ?? '').trim().isEmpty
+                ? 'Enter what you did, such as Design review.'
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: DateField(
+                  key: const Key('hours-day'),
+                  label: 'Day',
+                  value: _day,
+                  firstDate: CalendarDate(today.year - 2, 1, 1),
+                  lastDate: CalendarDate(today.year + 1, 1, 1),
+                  onChanged: (d) {
+                    if (d != null) setState(() => _day = d);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  key: const Key('hours-hours'),
+                  controller: _hours,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Hours',
+                    hintText: '1.5',
+                  ),
+                  validator: (t) => minutesFrom(t ?? '') == null
+                      ? 'Enter the hours, such as 1.5.'
+                      : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            key: const Key('hours-bill'),
             contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            value: _another,
-            onChanged: (on) => setState(() => _another = on ?? false),
-            title: const Text('Log another for the same day'),
+            value: _bill,
+            onChanged: (on) => setState(() => _bill = on),
+            title: const Text('Bill this to the client'),
           ),
-        ],
-        const SizedBox(height: 16),
-        FilledButton(
-          key: const Key('hours-save'),
-          onPressed: _saving ? null : _save,
-          child: const Text('Save'),
-        ),
-        if (widget.entry != null)
-          TextButton(
-            key: const Key('hours-remove'),
-            onPressed: _remove,
-            child: Text(
-              'Remove these hours',
-              style: TextStyle(color: colors.textMuted),
+          if (_bill && _savedRate != null && !_editRate)
+            ListTile(
+              key: const Key('hours-change-rate'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'At ${_plain(_savedRate!)} an hour, saved for '
+                '${client.isEmpty ? 'this client' : client}',
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+              trailing: const TrailingLink('Change'),
+              onTap: () => setState(() => _editRate = true),
             ),
+          if (showRate)
+            AmountField(
+              key: const Key('hours-rate'),
+              controller: _rate,
+              label: 'Rate an hour',
+              allowZero: true,
+            ),
+          if (widget.entry == null) ...[
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              key: const Key('hours-another'),
+              contentPadding: EdgeInsets.zero,
+              value: _another,
+              onChanged: (on) => setState(() => _another = on),
+              title: const Text('Log another for the same day'),
+            ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('hours-save'),
+            onPressed: _saving ? null : _save,
+            child: const Text('Save'),
           ),
-      ],
+          if (widget.entry != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              key: const Key('hours-remove'),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              onPressed: _delete,
+              child: const Text('Delete these hours'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -343,6 +336,7 @@ class _Suggest extends StatefulWidget {
     required this.label,
     required this.options,
     this.onChanged,
+    this.validator,
     super.key,
   });
 
@@ -350,6 +344,7 @@ class _Suggest extends StatefulWidget {
   final String label;
   final List<String> options;
   final VoidCallback? onChanged;
+  final FormFieldValidator<String>? validator;
 
   @override
   State<_Suggest> createState() => _SuggestState();
@@ -380,18 +375,24 @@ class _SuggestState extends State<_Suggest> {
       );
     },
     onSelected: (_) => onChanged?.call(),
-    fieldViewBuilder: (context, controller, focus, onSubmit) => TextField(
+    fieldViewBuilder: (context, controller, focus, onSubmit) => TextFormField(
       controller: controller,
       focusNode: focus,
       textCapitalization: TextCapitalization.words,
       onChanged: (_) => onChanged?.call(),
+      validator: widget.validator,
       decoration: InputDecoration(labelText: label),
     ),
     optionsViewBuilder: (context, onSelected, options) => Align(
       alignment: Alignment.topLeft,
       child: Material(
         elevation: 4,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: PesaColors.of(context).border),
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
           child: ListView(

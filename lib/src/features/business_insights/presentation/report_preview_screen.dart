@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
+import '../../../shared/widgets/states.dart';
 import '../../printing/presentation/print_sheet.dart';
 import '../application/report_content.dart';
 import '../application/report_maker.dart';
@@ -24,7 +25,6 @@ class _ReportPreviewScreenState extends ConsumerState<ReportPreviewScreen> {
   var _busy = false;
 
   Future<void> _share({required bool csv}) async {
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
     try {
       final maker = ref.read(reportMakerProvider);
@@ -34,9 +34,7 @@ class _ReportPreviewScreenState extends ConsumerState<ReportPreviewScreen> {
         await maker.sharePdf(widget.doc);
       }
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The report was not shared. Try again.')),
-      );
+      if (mounted) showNote(context, 'The report was not shared. Try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
