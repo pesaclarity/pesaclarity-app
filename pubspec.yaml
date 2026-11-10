@@ -36,7 +36,7 @@ dependencies:
   # imported; its build hooks bundle the PDFium library into the app.
   # tool/prepare_foss.sh deletes this comment and the next two lines for F-Droid.
   pdfrx_engine: ^0.8.0
-  pdfium_flutter: ^0.4.0
+  pdfium_flutter: ^0.4.1
   file_selector: ^1.1.0
   crypto: ^3.0.7
   local_auth: ^3.0.2
