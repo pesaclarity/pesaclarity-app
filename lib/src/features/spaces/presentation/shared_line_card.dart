@@ -5,6 +5,8 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../shared/names.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../theme/layout.dart';
 import '../application/routing_providers.dart';
 import '../application/spaces_providers.dart';
 
@@ -64,36 +66,25 @@ class _SharedLineCardState extends ConsumerState<SharedLineCard> {
       child: Card(
         key: const Key('home-shared-line'),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(text, style: theme.textTheme.bodyLarge),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      key: const Key('shared-line-business'),
-                      onPressed: _busy
-                          ? null
-                          : () => _answer(q, forBusiness: true),
-                      child: Text(
-                        q.isInflow ? 'Business sale' : 'Business cost',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      key: const Key('shared-line-personal'),
-                      onPressed: _busy
-                          ? null
-                          : () => _answer(q, forBusiness: false),
-                      child: const Text('Personal'),
-                    ),
-                  ),
-                ],
+              ButtonPair(
+                primary: FilledButton(
+                  key: const Key('shared-line-business'),
+                  onPressed: _busy ? null : () => _answer(q, forBusiness: true),
+                  child: Text(q.isInflow ? 'Business sale' : 'Business cost'),
+                ),
+                secondary: OutlinedButton(
+                  key: const Key('shared-line-personal'),
+                  onPressed: _busy
+                      ? null
+                      : () => _answer(q, forBusiness: false),
+                  child: const Text('Personal'),
+                ),
               ),
               if (q.personKey != null && name != null)
                 CheckboxListTile(

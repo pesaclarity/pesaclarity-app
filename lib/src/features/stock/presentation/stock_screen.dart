@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart' hide Tag;
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
-import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../application/stock_providers.dart';
 import 'item_sheet.dart';
@@ -30,12 +32,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final hidden = AmountsHidden.of(context);
     final services =
         ref.watch(businessSetupProvider).value?.sells == BusinessSells.services;
-    final items = ref.watch(itemsProvider).value;
+    final itemsAsync = ref.watch(itemsProvider);
+    final items = itemsAsync.value;
     final shown = [
       for (final i in items ?? const <Item>[])
         if (_kind == null || i.kind == _kind) i,
@@ -53,55 +54,49 @@ class _StockScreenState extends ConsumerState<StockScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    services ? 'Services' : 'Stock',
-                    style: theme.textTheme.headlineLarge,
-                  ),
-                ),
+            TabHeader(
+              services ? 'Services' : 'Stock',
+              semanticsId: SemanticIds.titleStock,
+              actions: [
                 if (services)
                   TextButton(
                     key: const Key('services-hours'),
                     onPressed: () => context.push(AppRoutes.hours),
-                    child: Text('Hours', style: TextStyle(color: colors.link)),
+                    child: const Text('Hours'),
                   ),
                 if (products.isNotEmpty)
                   TextButton(
                     key: const Key('count-stock'),
                     onPressed: () => context.push(AppRoutes.countStock),
-                    child: Text(
-                      'Count stock',
-                      style: TextStyle(color: colors.link),
-                    ),
+                    child: const Text('Count stock'),
                   ),
                 const AmountsEye(),
               ],
             ),
-            const SizedBox(height: 12),
-            if (items == null)
-              const Center(child: CircularProgressIndicator.adaptive())
+            if (itemsAsync.hasError && !itemsAsync.hasValue)
+              ErrorView(
+                services
+                    ? 'Your services could not load.'
+                    : 'Your stock could not load.',
+                onRetry: () => ref.invalidate(itemsProvider),
+              )
+            else if (items == null)
+              const LoadingView(inList: true)
             else ...[
               if (products.isNotEmpty) ...[
-                Row(
+                FigureRow(
                   children: [
-                    Expanded(
-                      child: _Tile(
-                        'Stock value',
-                        moneyOrHidden(
-                          value,
-                          hidden: hidden,
-                          withCurrency: false,
-                        ),
+                    FigureTile(
+                      label: 'Stock value',
+                      value: moneyOrHidden(
+                        value,
+                        hidden: hidden,
+                        withCurrency: false,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _Tile(
-                        'Running low',
-                        low == 1 ? '1 item' : '$low items',
-                      ),
+                    FigureTile(
+                      label: 'Running low',
+                      value: low == 1 ? '1 item' : '$low items',
                     ),
                   ],
                 ),
@@ -126,29 +121,20 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                 ),
               const SizedBox(height: 12),
               if (items.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    services
-                        ? 'Add what you offer and your rates, and Sell shows '
-                              'them as tiles.'
-                        : 'Add what you sell, and Sell shows each item as a '
-                              'tile. Stock goes down as you sell and up as '
-                              'you restock.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
+                EmptyNote(
+                  services
+                      ? 'Add what you offer and your rates, and Sell shows '
+                            'them as tiles.'
+                      : 'Add what you sell, and Sell shows each item as a '
+                            'tile. Stock goes down as you sell and up as '
+                            'you restock.',
                 )
               else
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       for (final (i, item) in shown.indexed) ...[
-                        if (i > 0)
-                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        if (i > 0) const Divider(height: 1),
                         _ItemRow(
                           item,
                           measures:
@@ -180,71 +166,19 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: AppTypography.amount(
-                size: 20,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A small tag beside a name: Running low, Service.
+/// A small tag beside a name. Kept only until Sell uses [Tag]; delete it
+/// then.
+@Deprecated('Use Tag from shared/widgets/marks.dart')
 class StockTag extends StatelessWidget {
+  @Deprecated('Use Tag from shared/widgets/marks.dart')
   const StockTag(this.text, {this.warning = false, super.key});
 
   final String text;
   final bool warning;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: warning ? colors.warning.withValues(alpha: 0.12) : colors.border,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelSmall!
-            .copyWith(color: warning ? colors.warning : colors.textMuted),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      Tag(text, tone: warning ? Tone.warning : Tone.info);
 }
 
 class _ItemRow extends StatelessWidget {
@@ -269,11 +203,11 @@ class _ItemRow extends StatelessWidget {
           Flexible(child: Text(item.name, overflow: TextOverflow.ellipsis)),
           if (item.isLow) ...[
             const SizedBox(width: 8),
-            const StockTag('Running low', warning: true),
+            const Tag('Running low', tone: Tone.warning),
           ],
           if (!item.isProduct) ...[
             const SizedBox(width: 8),
-            const StockTag('Service'),
+            const Tag('Service'),
           ],
         ],
       ),
@@ -283,6 +217,7 @@ class _ItemRow extends StatelessWidget {
                   '${shownMoney(context, item.averageCostMinor, withCurrency: false)}'
             : sells,
       ),
+      // A quantity, not an amount: it keeps the row title's size.
       trailing: item.isProduct
           ? Text(
               stockInMeasures(

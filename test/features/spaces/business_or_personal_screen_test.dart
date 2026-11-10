@@ -51,7 +51,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('line-choice-mpesa')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ask me').last);
+    await tester.tap(find.byKey(const Key('line-choice-mpesa-both')));
     await tester.pumpAndSettle();
 
     expect(find.text('Used for both'), findsOneWidget);

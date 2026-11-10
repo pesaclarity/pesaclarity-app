@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/people/reminder_text.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/business_reminders.dart';
 import '../../reminders/application/reminders_controller.dart';
@@ -21,7 +22,7 @@ class ReminderMessagesScreen extends ConsumerWidget {
     ReminderSetup setup, {
     ReminderTemplate? template,
   }) async {
-    final edited = await showDialog<ReminderTemplate>(
+    final edited = await showAdaptiveDialog<ReminderTemplate>(
       context: context,
       builder: (context) => _TemplateDialog(template: template),
     );
@@ -37,35 +38,63 @@ class ReminderMessagesScreen extends ConsumerWidget {
     );
   }
 
+  /// Deletes [template] once the owner confirms.
+  Future<void> _delete(
+    BuildContext context,
+    WidgetRef ref,
+    ReminderSetup setup,
+    ReminderTemplate template,
+  ) async {
+    final yes = await confirmDelete(
+      context,
+      title: 'Delete ${template.name}?',
+      body: 'Remind stops offering this message.',
+    );
+    if (!yes) return;
+    await _save(
+      ref,
+      setup.copyWith(
+        templates: [
+          for (final x in setup.templates)
+            if (x.id != template.id) x,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final setup = ref.watch(reminderSetupProvider).value;
+    final loaded = ref.watch(reminderSetupProvider);
+    final setup = loaded.value;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reminder messages')),
-      body: setup == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+      body: loaded.hasError && !loaded.hasValue
+          ? ErrorView(
+              'Your reminder messages could not load.',
+              onRetry: () => ref.invalidate(reminderSetupProvider),
+            )
+          : setup == null
+          ? const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 Text(
                   'Fields fill in on their own: {name}, {amount}, {what}, '
                   '{due}, {date}, {business} and {till}. A sentence whose '
                   'field is empty is left out.',
-                  style: theme.textTheme.bodyMedium!.copyWith(
+                  style: theme.textTheme.bodyLarge!.copyWith(
                     color: colors.textMuted,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       for (final (i, t) in setup.templates.indexed) ...[
-                        if (i > 0)
-                          const Divider(height: 1, indent: 16, endIndent: 16),
+                        if (i > 0) const Divider(height: 1),
                         ListTile(
                           key: Key('message-${t.id}'),
                           title: Text(t.name),
@@ -77,17 +106,10 @@ class ReminderMessagesScreen extends ConsumerWidget {
                           onTap: () => _edit(context, ref, setup, template: t),
                           trailing: setup.templates.length > 1
                               ? IconButton(
-                                  tooltip: 'Remove ${t.name}',
+                                  tooltip: 'Delete ${t.name}',
                                   icon: const Icon(Icons.delete_outline),
-                                  onPressed: () => _save(
-                                    ref,
-                                    setup.copyWith(
-                                      templates: [
-                                        for (final x in setup.templates)
-                                          if (x.id != t.id) x,
-                                      ],
-                                    ),
-                                  ),
+                                  onPressed: () =>
+                                      _delete(context, ref, setup, t),
                                 )
                               : null,
                         ),
@@ -101,10 +123,7 @@ class ReminderMessagesScreen extends ConsumerWidget {
                   child: TextButton(
                     key: const Key('add-message'),
                     onPressed: () => _edit(context, ref, setup),
-                    child: Text(
-                      'Add a message',
-                      style: TextStyle(color: colors.link),
-                    ),
+                    child: const Text('Add a message'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -115,17 +134,12 @@ class ReminderMessagesScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final s in SendWith.values)
-                      ChoiceChip(
-                        label: Text(s.label),
-                        selected: setup.sendWith == s,
-                        onSelected: (_) =>
-                            _save(ref, setup.copyWith(sendWith: s)),
-                      ),
-                  ],
+                AdaptiveSegmented<SendWith>(
+                  key: const Key('reminders-send-with'),
+                  segments: [for (final s in SendWith.values) (s, s.label)],
+                  selected: setup.sendWith,
+                  segmentKey: (s) => Key('reminders-send-with-${s.name}'),
+                  onChanged: (s) => _save(ref, setup.copyWith(sendWith: s)),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -142,10 +156,9 @@ class ReminderMessagesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         key: const Key('nudge'),
                         title: const Text('Tell me who is due each day'),
                         subtitle: const Text(
@@ -270,7 +283,7 @@ class _TemplateDialogState extends State<_TemplateDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AlertDialog.adaptive(
     title: Text(widget.template == null ? 'Add a message' : 'Edit message'),
     content: SingleChildScrollView(
       child: Column(
@@ -295,11 +308,11 @@ class _TemplateDialogState extends State<_TemplateDialog> {
       ),
     ),
     actions: [
-      TextButton(
+      DialogAction(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      TextButton(
+      DialogAction(
         key: const Key('message-save'),
         onPressed: () {
           final name = _name.text.trim();

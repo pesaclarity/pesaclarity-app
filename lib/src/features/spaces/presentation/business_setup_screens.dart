@@ -6,6 +6,8 @@ import '../../../domain/enums.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/business_setup_providers.dart';
 
@@ -56,7 +58,8 @@ class _WhatYouSellScreenState extends ConsumerState<WhatYouSellScreen> {
               },
               child: Column(
                 children: [
-                  for (final s in BusinessSells.values)
+                  for (final (i, s) in BusinessSells.values.indexed) ...[
+                    if (i > 0) const SizedBox(height: Layout.cardGap),
                     Card(
                       child: RadioListTile<BusinessSells>(
                         key: Key('sells-${s.name}'),
@@ -65,10 +68,11 @@ class _WhatYouSellScreenState extends ConsumerState<WhatYouSellScreen> {
                         subtitle: Text(s.hint),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Layout.cardGap),
             Card(
               child: ListTile(
                 title: Text(switch (picked) {
@@ -163,7 +167,8 @@ class _StartRecordsScreenState extends ConsumerState<StartRecordsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final lines = ref.watch(openingLinesProvider).value;
+    final loaded = ref.watch(openingLinesProvider);
+    final lines = loaded.value;
 
     String labelFor(OpeningLine line) => switch (line.type) {
       AccountType.mpesa => 'On the business M-Pesa or till',
@@ -173,8 +178,13 @@ class _StartRecordsScreenState extends ConsumerState<StartRecordsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Start your records')),
       body: SafeArea(
-        child: lines == null
-            ? const Center(child: CircularProgressIndicator())
+        child: loaded.hasError && !loaded.hasValue
+            ? ErrorView(
+                'Your accounts could not load.',
+                onRetry: () => ref.invalidate(openingLinesProvider),
+              )
+            : lines == null
+            ? const LoadingView()
             : Form(
                 key: _form,
                 child: ListView(
@@ -224,6 +234,7 @@ class _StartRecordsScreenState extends ConsumerState<StartRecordsScreen> {
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => context.push(AppRoutes.lending),
                           ),
+                          const Divider(height: 1),
                           ListTile(
                             key: const Key('start-suppliers'),
                             title: const Text('Suppliers you owe'),

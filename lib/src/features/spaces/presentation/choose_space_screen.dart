@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/spaces_providers.dart';
 
@@ -49,6 +50,7 @@ class ChooseSpaceScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+            if (list == null) const LoadingView(inList: true),
             for (final space in list ?? const <Space>[])
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -70,7 +72,7 @@ class ChooseSpaceScreen extends ConsumerWidget {
               ),
             const SizedBox(height: 24),
             Text(
-              'Change this in Your spaces › Open the app in.',
+              'Change this in Your spaces, under Open the app in.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall!.copyWith(
                 color: colors.textMuted,
