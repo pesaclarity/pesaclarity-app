@@ -91,12 +91,17 @@ class LabelValueRow extends StatelessWidget {
     required this.value,
     this.detail,
     this.strong = false,
+    this.valueColor,
     this.onTap,
     super.key,
   });
 
   final String label;
   final String? detail;
+
+  /// The value's colour when it means something, such as
+  /// `colors.successText` for money owed to you; the text colour otherwise.
+  final Color? valueColor;
 
   /// Already formatted, and masked while amounts are hidden.
   final String value;
@@ -135,7 +140,9 @@ class LabelValueRow extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             value,
-            style: AppTypography.rowAmount(theme.colorScheme.onSurface),
+            style: AppTypography.rowAmount(
+              valueColor ?? theme.colorScheme.onSurface,
+            ),
           ),
         ],
       ),

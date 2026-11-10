@@ -38,6 +38,8 @@ class Tag extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall!.copyWith(color: ink),
       ),
     );

@@ -132,10 +132,14 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
     required this.onChanged,
     this.showSelectedIcon = true,
     this.name,
+    this.segmentKey,
     super.key,
   });
 
   final List<(T, String)> segments;
+
+  /// A key for each choice, for tests and UI flows.
+  final Key Function(T value)? segmentKey;
 
   /// What is being chosen, such as `Period`, for screen readers when it
   /// shows as a drop-down.
@@ -155,13 +159,17 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
             options: segments,
             value: selected,
             onChanged: onChanged,
+            itemKey: segmentKey,
           ),
         )
       : SegmentedButton<T>(
           showSelectedIcon: showSelectedIcon,
           segments: [
             for (final (value, label) in segments)
-              ButtonSegment(value: value, label: Text(label)),
+              ButtonSegment(
+                value: value,
+                label: Text(label, key: segmentKey?.call(value)),
+              ),
           ],
           selected: {selected},
           onSelectionChanged: (values) => onChanged(values.single),

@@ -17,11 +17,16 @@ class AmountField extends StatelessWidget {
     this.currency,
     this.hint,
     this.onChanged,
+    this.validator,
     super.key,
   });
 
   final TextEditingController controller;
   final String label;
+
+  /// A further check once the amount itself is fine, such as "Enter a
+  /// price for each line." Gets the amount in minor units.
+  final String? Function(int amountMinor)? validator;
 
   /// Shown before the amount; the base currency by default.
   final String? currency;
@@ -53,7 +58,7 @@ class AmountField extends StatelessWidget {
         if (max != null && value > max) {
           return 'Up to ${formatMoney(Money(max))}.';
         }
-        return null;
+        return validator?.call(value);
       },
     );
   }
@@ -75,7 +80,7 @@ class DateField extends StatelessWidget {
     required this.onChanged,
     required this.firstDate,
     required this.lastDate,
-    this.emptyText = 'Pick a date',
+    this.emptyText = 'Choose a date',
     this.clearable = false,
     super.key,
   });
