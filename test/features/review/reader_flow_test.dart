@@ -192,7 +192,7 @@ void main() {
     expect(find.text('Example Grocers'), findsOneWidget);
     expect(find.text('QW12ER34TY'), findsOneWidget);
 
-    await tapText(tester, 'Add transaction');
+    await tapText(tester, 'Add a transaction');
     final row = await tester.runAsync(
       () => db.select(db.transactions).getSingle(),
     );
@@ -233,10 +233,10 @@ void main() {
     await finishOnboarding(tester);
     await tester.tap(find.byKey(const Key('home-review')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Suggested: Not a transaction'), findsOneWidget);
+    expect(find.textContaining('Suggested: A notice'), findsOneWidget);
     await tester.tap(find.textContaining('verification code'));
     await tester.pumpAndSettle();
-    await tapText(tester, 'Not a transaction');
+    await tapText(tester, "It's not money");
     expect(find.byKey(const Key('home-review')), findsNothing);
     expect(
       await tester.runAsync(() => db.select(db.transactions).get()),

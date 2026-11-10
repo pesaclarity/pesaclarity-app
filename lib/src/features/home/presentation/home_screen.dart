@@ -24,9 +24,13 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../business_insights/application/business_report_providers.dart';
@@ -40,7 +44,6 @@ import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../sales/presentation/waiting_payments_card.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../spaces/presentation/business_setup_card.dart';
@@ -55,13 +58,10 @@ import '../application/upcoming_bills_provider.dart';
 /// Bills shown under Coming up before "See all".
 const _billsShown = 3;
 
-String _kes(BuildContext context, int minor) => AmountsHidden.of(context)
-    ? '${BaseCurrency.code} $maskedDigits'
-    : formatMoney(Money(minor));
+String _kes(BuildContext context, int minor) => shownMoney(context, minor);
 
-String _plain(BuildContext context, int minor) => AmountsHidden.of(context)
-    ? maskedDigits
-    : formatMoney(Money(minor), withCurrency: false);
+String _plain(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
 
 /// Home tab: how am I doing today?
 class HomeScreen extends ConsumerWidget {
@@ -163,6 +163,7 @@ class HomeScreen extends ConsumerWidget {
                     caption:
                         'Shows once your messages have been read and Plan has '
                         'a day-to-day budget.',
+                    showEye: true,
                   )
                 else
                   _SafeToSpendCard(
@@ -177,41 +178,29 @@ class HomeScreen extends ConsumerWidget {
                 const _WhatWasThisCard(),
                 if (untilNext != null) _MoneyInCard(untilNext, today: today),
                 if (untilNext != null && sources.irregular) const _WeekCard(),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _StatTile(
-                          label: untilNext != null
-                              ? 'On hand'
-                              : 'Left this month',
-                          value: untilNext != null
-                              ? _plain(context, untilNext.onHandMinor)
-                              : safeToSpend == null
-                              ? '—'
-                              : _plain(context, safeToSpend.leftThisMonthMinor),
-                          onTap: safeToSpend == null
-                              ? null
-                              : () => openActivity(
-                                  thisMonth.copyWith(
-                                    type: ActivityType.dayToDay,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatTile(
-                          label: 'Runway at this pace',
-                          value: _runwayLabel(forecast),
-                          onTap: forecast == null
-                              ? null
-                              : () => openActivity(paceWindow),
-                        ),
-                      ),
-                    ],
-                  ),
+                FigureRow(
+                  children: [
+                    FigureTile(
+                      label: untilNext != null ? 'On hand' : 'Left this month',
+                      value: untilNext != null
+                          ? _plain(context, untilNext.onHandMinor)
+                          : safeToSpend == null
+                          ? '—'
+                          : _plain(context, safeToSpend.leftThisMonthMinor),
+                      onTap: safeToSpend == null
+                          ? null
+                          : () => openActivity(
+                              thisMonth.copyWith(type: ActivityType.dayToDay),
+                            ),
+                    ),
+                    FigureTile(
+                      label: 'Runway at this pace',
+                      value: _runwayLabel(forecast),
+                      onTap: forecast == null
+                          ? null
+                          : () => openActivity(paceWindow),
+                    ),
+                  ],
                 ),
                 if (forecast != null) ...[
                   const SizedBox(height: 12),
@@ -268,37 +257,36 @@ Future<void> _showAddMenu(BuildContext context, {bool business = false}) async {
     context,
     listen: false,
   ).read(statementImportAvailableProvider);
-  final choice = await showModalBottomSheet<_AddChoice>(
+  final choice = await showAppSheet<_AddChoice>(
     context: context,
-    showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    builder: (context) => SheetBody(
+      title: business ? 'More' : 'Add or import',
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.add_circle_outline),
+          title: const Text('Add a transaction'),
+          subtitle: const Text('Cash or anything a message missed'),
+          onTap: () => Navigator.pop(context, _AddChoice.manual),
+        ),
+        if (business)
           ListTile(
-            leading: const Icon(Icons.edit_note),
-            title: const Text('Add a transaction'),
-            subtitle: const Text('Cash or anything a message missed'),
-            onTap: () => Navigator.pop(context, _AddChoice.manual),
+            key: const Key('add-pay-yourself'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Pay yourself'),
+            subtitle: const Text('Move money to Personal as income'),
+            onTap: () => Navigator.pop(context, _AddChoice.payYourself),
           ),
-          if (business)
-            ListTile(
-              key: const Key('add-pay-yourself'),
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Pay yourself'),
-              subtitle: const Text('Move money to Personal as income'),
-              onTap: () => Navigator.pop(context, _AddChoice.payYourself),
-            ),
-          if (canImport)
-            ListTile(
-              leading: const Icon(Icons.upload_file),
-              title: const Text('Import a statement'),
-              subtitle: const Text('M-Pesa or bank PDF, for older history'),
-              onTap: () => Navigator.pop(context, _AddChoice.import),
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        if (canImport)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.upload_file_outlined),
+            title: const Text('Import a statement'),
+            subtitle: const Text('M-Pesa or bank PDF, for older history'),
+            onTap: () => Navigator.pop(context, _AddChoice.import),
+          ),
+      ],
     ),
   );
   if (!context.mounted) return;
@@ -387,10 +375,6 @@ class _SafeToSpendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final onBrand = textTheme.bodyMedium!.copyWith(color: scheme.onPrimary);
-
     final today = result.today;
     final String detail;
     if (result.isBudgetUsedUp) {
@@ -412,59 +396,17 @@ class _SafeToSpendCard extends StatelessWidget {
         ? 0.0
         : ((budget - result.leftThisMonthMinor) / budget).clamp(0.0, 1.0);
 
-    return Card(
-      color: scheme.primary,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
+    return HeroFigureCard(
+      label: 'Safe to spend today · ${today.isWeekend ? 'Weekend' : 'Weekday'}',
+      figure: _kes(context, result.leftTodayMinor),
+      caption: '$detail$payday',
+      footer: HeroProgress(
+        value: used,
+        label: '${(used * 100).round()}% of this month\'s spending plan used',
       ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Safe to spend today · '
-                      '${today.isWeekend ? 'Weekend' : 'Weekday'}',
-                      style: textTheme.labelLarge!.copyWith(
-                        color: scheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  AmountsEye(color: scheme.onPrimary),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _kes(context, result.leftTodayMinor),
-                style: AppTypography.amount(size: 44, color: scheme.onPrimary),
-              ),
-              const SizedBox(height: 10),
-              Text('$detail$payday', style: onBrand),
-              const SizedBox(height: 18),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
-                child: LinearProgressIndicator(
-                  value: used,
-                  minHeight: 8,
-                  color: scheme.onPrimary,
-                  backgroundColor: scheme.onPrimary.withValues(alpha: 0.25),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '${(used * 100).round()}% of this month\'s spending plan used',
-                style: onBrand,
-              ),
-            ],
-          ),
-        ),
-      ),
+      // The figure is already masked while hidden: keep the eye to show it.
+      showEye: true,
+      onTap: onTap,
     );
   }
 }
@@ -486,9 +428,6 @@ class _UntilNextMoneyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final onBrand = textTheme.bodyMedium!.copyWith(color: scheme.onPrimary);
     final next = result.nextMoney;
     final lasts = result.lastsUntil;
     final String when;
@@ -515,48 +454,13 @@ class _UntilNextMoneyCard extends StatelessWidget {
         ' · ${_plain(context, rainyDayMinor)} in your rainy day fund',
     ].join();
 
-    return Card(
+    return HeroFigureCard(
       key: const Key('until-next-money'),
-      color: scheme.primary,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      result.pinned
-                          ? 'Your plan for today'
-                          : 'Safe to spend today',
-                      style: textTheme.labelLarge!.copyWith(
-                        color: scheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  AmountsEye(color: scheme.onPrimary),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _kes(context, result.leftTodayMinor),
-                style: AppTypography.amount(size: 44, color: scheme.onPrimary),
-              ),
-              const SizedBox(height: 10),
-              Text(when, style: onBrand),
-              const SizedBox(height: 10),
-              Text('$onHand$setAside', style: onBrand),
-            ],
-          ),
-        ),
-      ),
+      label: result.pinned ? 'Your plan for today' : 'Safe to spend today',
+      figure: _kes(context, result.leftTodayMinor),
+      caption: '$when\n$onHand$setAside',
+      showEye: true,
+      onTap: onTap,
     );
   }
 }
@@ -571,52 +475,6 @@ String _daysTo(int days) => switch (days) {
   _ => '$days days',
 };
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value, this.onTap});
-
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: AppTypography.amount(
-                  size: 28,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// The cash-flow forecast: when the money runs out at this pace, and any
 /// known charge the balance would not cover.
 class _ForecastCard extends StatelessWidget {
@@ -629,22 +487,16 @@ class _ForecastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = AmountsHidden.of(context);
     final messages = [
-      for (final m in forecast.messages) maskAmountsIf(hidden, m),
+      for (final m in forecast.messages) shownAmounts(context, m),
     ];
     final runsOut = forecast.zeroDate != null;
 
     return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -715,15 +567,10 @@ class _HealthIndexCard extends StatelessWidget {
     final action = index.bestAction;
 
     return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Row(
             children: [
               SizedBox.square(
@@ -739,11 +586,16 @@ class _HealthIndexCard extends StatelessWidget {
                         backgroundColor: colors.brandSoft,
                       ),
                     ),
-                    Text(
-                      '${index.score}',
-                      style: AppTypography.amount(
-                        size: 20,
-                        color: theme.colorScheme.onSurface,
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${index.score}',
+                          style: AppTypography.tileFigure(
+                            theme.colorScheme.onSurface,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -798,27 +650,19 @@ class _ComingUp extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text('Coming up', style: theme.textTheme.titleLarge),
-            ),
-            TextButton(
-              onPressed: () => context.go(AppRoutes.plan),
-              child: Text('See all', style: TextStyle(color: colors.link)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-            side: BorderSide(color: colors.border),
+        // The space above comes from the cards before it.
+        SectionTitle(
+          'Coming up',
+          padding: const EdgeInsets.only(bottom: 8),
+          action: TextButton(
+            onPressed: () => context.go(AppRoutes.plan),
+            child: const Text('See all'),
           ),
+        ),
+        Card(
           child: shown.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(Layout.cardPadding),
                   child: Text(
                     'Bills due in the next two weeks show here. '
                     'Add them in Plan.',
@@ -830,7 +674,7 @@ class _ComingUp extends StatelessWidget {
               : Column(
                   children: [
                     for (final (i, bill) in shown.indexed) ...[
-                      if (i > 0) Divider(height: 1, color: colors.border),
+                      if (i > 0) const Divider(height: 1),
                       _BillRow(bill: bill, today: today),
                     ],
                   ],
@@ -859,29 +703,17 @@ class _BillRow extends StatelessWidget {
 
     return ListTile(
       onTap: () => context.go(AppRoutes.plan),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: colors.brandSoft,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(Icons.receipt_long_outlined, color: colors.link),
-      ),
+      leading: const IconBadge(Icons.receipt_long_outlined),
       title: Text(bill.name, style: theme.textTheme.titleMedium),
       subtitle: Text(
         when,
         style: theme.textTheme.bodyMedium!.copyWith(
-          color: overdue ? colors.link : colors.textMuted,
+          color: overdue ? colors.warning : colors.textMuted,
         ),
       ),
       trailing: Text(
         _plain(context, bill.amountMinor),
-        style: AppTypography.amount(
-          size: 18,
-          color: theme.colorScheme.onSurface,
-        ),
+        style: AppTypography.rowAmount(theme.colorScheme.onSurface),
       ),
     );
   }
@@ -906,10 +738,7 @@ class _ReviewCard extends ConsumerWidget {
           title: Text(
             count == 1 ? '1 message to check' : '$count messages to check',
           ),
-          trailing: Text(
-            'Check',
-            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
-          ),
+          trailing: const TrailingLink('Check'),
           onTap: () => context.push(AppRoutes.review),
         ),
       ),
@@ -946,10 +775,7 @@ class _WhatWasThisCard extends ConsumerWidget {
               if (queue.length > 1) '${queue.length - 1} more',
             ].join(' · '),
           ),
-          trailing: Text(
-            'Answer',
-            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
-          ),
+          trailing: const TrailingLink('Answer'),
           onTap: () => showWhatWasThis(
             context,
             transactionId: first.id,
@@ -979,7 +805,6 @@ class _MoneyInCard extends ConsumerWidget {
         (pin != null && pin.arrivalId == arrival.id)) {
       return const SizedBox.shrink();
     }
-    final colors = PesaColors.of(context);
     final from = arrival.payeeName ?? arrival.counterpartyName;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -993,10 +818,7 @@ class _MoneyInCard extends ConsumerWidget {
             ].join(' '),
           ),
           subtitle: Text('Make it last until ${_dayLabel(plan.lastDay)}'),
-          trailing: Text(
-            'Plan',
-            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
-          ),
+          trailing: const TrailingLink('Plan'),
           onTap: () => showMakeItLast(
             context,
             arrivalId: arrival.id,
@@ -1107,13 +929,13 @@ class _QuickButtons extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < buttons.length; i += 2) ...[
-          if (i > 0) const SizedBox(height: 10),
+          if (i > 0) const SizedBox(height: Layout.cardGap),
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: buttons[i]),
-                const SizedBox(width: 10),
+                const SizedBox(width: Layout.cardGap),
                 Expanded(child: buttons[i + 1]),
               ],
             ),
@@ -1124,9 +946,8 @@ class _QuickButtons extends StatelessWidget {
           child: TextButton(
             key: const Key('quick-more'),
             onPressed: other,
-            child: Text(
+            child: const Text(
               'More: cash in or out, pay yourself, a statement',
-              style: TextStyle(color: PesaColors.of(context).link),
             ),
           ),
         ),
@@ -1148,16 +969,10 @@ class _QuickButton extends StatelessWidget {
     final colors = PesaColors.of(context);
     return Card(
       key: Key('quick-${title.toLowerCase().replaceAll(' ', '-')}'),
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1190,6 +1005,7 @@ class _SalesTodayCard extends ConsumerWidget {
       return HeroFigureCard(
         label: 'Sales today',
         figure: '${BaseCurrency.code} —',
+        showEye: true,
       );
     }
     final ways = [
@@ -1209,6 +1025,7 @@ class _SalesTodayCard extends ConsumerWidget {
         if (ways.isEmpty) 'Tap + to sell' else ways,
         ?compared,
       ].join('\n'),
+      showEye: true,
     );
   }
 }
@@ -1265,12 +1082,11 @@ class _SpaceSummaryCard extends StatelessWidget {
         label: kind.label,
         figure: '${BaseCurrency.code} —',
         caption: 'Shows once this space has transactions.',
+        showEye: true,
       );
     }
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     final colors = PesaColors.of(context);
-    final onBrand = textTheme.bodyMedium!.copyWith(color: scheme.onPrimary);
     final inLabel = switch (kind) {
       SpaceKind.business || SpaceKind.farm => 'Sales',
       SpaceKind.rentalProperty => 'Rent',
@@ -1314,51 +1130,18 @@ class _SpaceSummaryCard extends StatelessWidget {
               subtitle: Text(detail),
               trailing: Text(
                 _plain(context, summary.figureMinor),
-                style: textTheme.titleMedium!.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTypography.rowAmount(onSurface),
               ),
             ),
           )
         else
-          Card(
+          HeroFigureCard(
             key: const Key('space-summary'),
-            color: scheme.primary,
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
-            ),
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      summary.headline,
-                      style: textTheme.labelLarge!.copyWith(
-                        color: scheme.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _kes(context, summary.figureMinor),
-                      style: AppTypography.amount(
-                        size: 44,
-                        color: scheme.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(detail, style: onBrand),
-                    if (since != null) ...[
-                      const SizedBox(height: 6),
-                      Text(since, style: onBrand),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+            label: summary.headline,
+            figure: _kes(context, summary.figureMinor),
+            caption: [detail, ?since].join('\n'),
+            showEye: true,
+            onTap: onTap,
           ),
         if (kind.makesProfit && summary.rows.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -1371,9 +1154,8 @@ class _SpaceSummaryCard extends StatelessWidget {
                     title: Text(row.name),
                     trailing: Text(
                       _plain(context, row.amountMinor),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: row.isIncome ? colors.successText : null,
+                      style: AppTypography.rowAmount(
+                        row.isIncome ? colors.successText : onSurface,
                       ),
                     ),
                   ),
@@ -1394,7 +1176,7 @@ class _SpaceSummaryCard extends StatelessWidget {
               ),
               trailing: Text(
                 _plain(context, summary.paidYourselfMinor),
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: AppTypography.rowAmount(onSurface),
               ),
             ),
           ),
@@ -1421,10 +1203,10 @@ class _HoursCards extends ConsumerWidget {
     }
     final unbilledMinutes = unbilled.fold(0, (sum, e) => sum + e.minutes);
     final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
+    final figure = AppTypography.rowAmount(theme.colorScheme.onSurface);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
-        margin: EdgeInsets.zero,
         child: Column(
           children: [
             ListTile(
@@ -1438,21 +1220,18 @@ class _HoursCards extends ConsumerWidget {
                 ].join(' · '),
                 style: muted,
               ),
-              trailing: Text(
-                _plain(context, week.amountMinor),
-                style: theme.textTheme.titleMedium,
-              ),
+              trailing: Text(_plain(context, week.amountMinor), style: figure),
               onTap: () => context.push(AppRoutes.hoursWeek),
             ),
             if (unbilledMinutes > 0) ...[
-              const Divider(height: 1, indent: 16, endIndent: 16),
+              const Divider(height: 1),
               ListTile(
                 key: const Key('today-hours-unbilled'),
-                title: const Text('Not billed yet'),
+                title: const Text('To bill'),
                 subtitle: Text('Since your last invoices', style: muted),
                 trailing: Text(
                   '${hoursText(unbilledMinutes)} h',
-                  style: theme.textTheme.titleMedium,
+                  style: figure,
                 ),
                 onTap: () => context.push(AppRoutes.hoursWeek),
               ),

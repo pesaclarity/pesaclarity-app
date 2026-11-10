@@ -13,14 +13,18 @@ import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
+import '../../../domain/payees/payee_identifier.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/categoriser_providers.dart';
@@ -28,11 +32,11 @@ import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../payees/application/tag_filter.dart';
+import '../../payees/presentation/payee_sheet.dart';
 import '../../payees/presentation/transaction_sheet.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
-import 'name_payee_sheet.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
 
@@ -90,8 +94,6 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = _filter.from ?? today.addDays(-activityPageDays * _pages);
     final loaded = ref.watch(activityEntriesProvider(from));
@@ -132,22 +134,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      identifier: SemanticIds.titleActivity,
-                      child: Text(
-                        'Activity',
-                        style: theme.textTheme.headlineLarge,
-                      ),
-                    ),
-                  ),
-                  const AmountsEye(),
-                  const ActivityExportButton(),
-                ],
+              const TabHeader(
+                'Activity',
+                semanticsId: SemanticIds.titleActivity,
+                actions: [ActivityExportButton(), AmountsEye()],
               ),
-              const SizedBox(height: 16),
               TextField(
                 controller: _search,
                 onChanged: (q) => _update((f) => f.copyWith(query: q)),
@@ -183,36 +174,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               _WeekCard(week, code: code, others: others),
               const SizedBox(height: 8),
               if (loaded.isLoading && !loaded.hasValue)
-                const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator.adaptive()),
-                )
+                const LoadingView(inList: true)
               else if (days.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Text(
-                    entries.isEmpty
-                        ? 'Transactions show here once your messages are read, '
-                              'or when you add one with + on Home.'
-                        : 'Nothing matches these filters.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
+                EmptyNote(
+                  entries.isEmpty
+                      ? 'Transactions show here once your messages are read, '
+                            'or when you add one with + on Home.'
+                      : 'Nothing matches these filters.',
                 )
               else
                 for (final day in days) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-                    child: Text(
-                      dayHeading(day.date, today: today).toUpperCase(),
-                      style: theme.textTheme.labelLarge!.copyWith(
-                        color: colors.textMuted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
+                  SectionLabel(dayHeading(day.date, today: today)),
                   for (final line in day.lines)
                     _ActivityRow(
                       line: line,
@@ -231,10 +203,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 Center(
                   child: TextButton(
                     onPressed: () => setState(() => _pages++),
-                    child: Text(
-                      'Show older',
-                      style: TextStyle(color: colors.link),
-                    ),
+                    child: const Text('Show older'),
                   ),
                 ),
               ],
@@ -339,13 +308,16 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    // A long amount with its code shrinks to fit rather than wrapping.
+    Widget figure(String text, Color color, AlignmentGeometry alignment) =>
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: Text(text, style: AppTypography.tileFigure(color)),
+        );
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -356,7 +328,7 @@ class _WeekCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Out this week', style: label),
-                      Text(
+                      figure(
                         _orHidden(
                           context,
                           code == null
@@ -365,36 +337,35 @@ class _WeekCard extends StatelessWidget {
                                   Money(week.outMinor, currency: code),
                                 ),
                         ),
-                        style: AppTypography.amount(
-                          size: code == null ? 26 : 20,
-                          color: theme.colorScheme.onSurface,
-                        ),
+                        theme.colorScheme.onSurface,
+                        AlignmentDirectional.centerStart,
                       ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('In this week', style: label),
-                    Text(
-                      week.inMinor > 0
-                          ? _orHidden(
-                              context,
-                              _signed(week.inMinor, code: code),
-                            )
-                          : '0',
-                      style: AppTypography.amount(
-                        size: code == null ? 26 : 20,
-                        color: colors.successText,
+                const SizedBox(width: Layout.cardGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('In this week', style: label),
+                      figure(
+                        week.inMinor > 0
+                            ? _orHidden(
+                                context,
+                                _signed(week.inMinor, code: code),
+                              )
+                            : '0',
+                        colors.successText,
+                        AlignmentDirectional.centerEnd,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
             if (code != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 'Totals are in $code, your base currency. '
                 '${_list(others)} amounts count at the rate of their day.',
@@ -457,7 +428,15 @@ class _ActivityRow extends StatelessWidget {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.warning),
         ),
         amount: _entryAmount(context, entry),
-        onTap: () => showNamePayeeSheet(context, entry),
+        onTap: () => showPayeeSheet(
+          context,
+          identifier: PayeeIdentifier.stored(
+            entry.counterpartyKind!,
+            entry.counterpartyValue!,
+          ),
+          suggestedName: entry.counterpartyName,
+          moneyIn: entry.isInflow,
+        ),
       ),
       EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
         context,
@@ -487,7 +466,7 @@ class _ActivityRow extends StatelessWidget {
       ),
       DailyNoiseLine() && final noise => _row(
         context,
-        avatar: _Avatar.icon(Icons.layers_outlined, colors: colors),
+        avatar: const IconBadge(Icons.layers_outlined),
         title: noiseTitle(noise.group),
         subtitle: Text(
           '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'} · '
@@ -544,7 +523,10 @@ class _ActivityRow extends StatelessWidget {
   }
 
   String _categoryLabel(LedgerEntry entry) {
-    if (roleOf(entry) == LedgerRole.awaitingPayee) return 'Not named yet';
+    // Money in from someone unnamed counts once they say what it was.
+    if (roleOf(entry) == LedgerRole.awaitingPayee) {
+      return 'Gift, loan or repayment?';
+    }
     final name = categoryName(entry) ?? 'Uncategorised';
     if (entry.categoryIsAuto && entry.categoryId != null) {
       return '$name (Auto)';
@@ -596,11 +578,8 @@ class _ActivityRow extends StatelessWidget {
     final inflow = signedMinor > 0;
     return Text(
       _orHidden(context, _signed(signedMinor, code: code)),
-      style: AppTypography.amount(
-        size: 18,
-        color: inflow
-            ? colors.successText
-            : Theme.of(context).colorScheme.onSurface,
+      style: AppTypography.rowAmount(
+        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -628,9 +607,8 @@ class _ActivityRow extends StatelessWidget {
           ? _signed(signed, code: code)
           : _signed(signed, code: ownCode),
     );
-    final style = AppTypography.amount(
-      size: 18,
-      color: transfer
+    final style = AppTypography.rowAmount(
+      transfer
           ? colors.textMuted
           : inflow
           ? colors.successText
@@ -683,6 +661,8 @@ String _initials(String name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+/// A row's initials, or an own transfer's arrow, in a square the size and
+/// shape of an [IconBadge].
 class _Avatar extends StatelessWidget {
   const _Avatar.text(this.text, {required this.colors, this.warning = false})
     : icon = null;
@@ -709,10 +689,12 @@ class _Avatar extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isTransfer
-            ? colors.success.withValues(alpha: 0.12)
+        color: warning
+            ? colors.warningSoft
+            : isTransfer
+            ? colors.successSoft
             : colors.brandSoft,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: icon != null
           ? Icon(icon, color: foreground, size: 22)
@@ -760,18 +742,19 @@ class _FixedNote extends ConsumerWidget {
               '${notice.currency}. ${n == 1 ? 'It is' : 'They are'} now in '
               '${account.name}, counted in ${notice.currency}.'
         : '$amounts at $bank ${n == 1 ? 'is' : 'are'} now in ${account.name}.';
+    // A success Notice's box, with a title and two buttons.
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Container(
         key: const Key('recheck-note'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         decoration: BoxDecoration(
-          color: colors.success.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          color: colors.successSoft,
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
           border: Border.all(color: colors.success.withValues(alpha: 0.25)),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Amounts fixed from your messages',
@@ -780,23 +763,20 @@ class _FixedNote extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(body, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                FilledButton(
-                  key: const Key('recheck-see'),
-                  onPressed: () {
-                    onSeeThem(account.id);
-                    unawaited(_close(ref));
-                  },
-                  child: const Text('See them'),
-                ),
-                OutlinedButton(
-                  key: const Key('recheck-ok'),
-                  onPressed: () => _close(ref),
-                  child: const Text('OK'),
-                ),
-              ],
+            ButtonPair(
+              primary: FilledButton(
+                key: const Key('recheck-see'),
+                onPressed: () {
+                  onSeeThem(account.id);
+                  unawaited(_close(ref));
+                },
+                child: const Text('See them'),
+              ),
+              secondary: OutlinedButton(
+                key: const Key('recheck-ok'),
+                onPressed: () => _close(ref),
+                child: const Text('OK'),
+              ),
             ),
           ],
         ),

@@ -14,6 +14,9 @@ import '../../../domain/export/export_tables.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/presentation/payment_rate_card.dart';
@@ -28,10 +31,8 @@ import 'tag_editor.dart';
 /// Opens the detail sheet for one transaction, where its payee is named,
 /// its category set and its tags edited.
 Future<void> showTransactionSheet(BuildContext context, int transactionId) =>
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -63,9 +64,14 @@ class TransactionSheet extends ConsumerWidget {
     final detail = ref.watch(transactionDetailProvider(transactionId));
     return switch (detail) {
       AsyncData(value: final d?) => _Body(d, controller),
-      AsyncData() => const Center(child: Text('This transaction is gone.')),
-      AsyncError() => const Center(child: Text('Could not open it.')),
-      _ => const Center(child: CircularProgressIndicator.adaptive()),
+      AsyncData() => const Center(
+        child: Text('This transaction was moved or deleted.'),
+      ),
+      AsyncError() => ErrorView(
+        'This transaction could not load.',
+        onRetry: () => ref.invalidate(transactionDetailProvider(transactionId)),
+      ),
+      _ => const LoadingView(),
     };
   }
 }
@@ -138,7 +144,7 @@ class _Body extends ConsumerWidget {
       controller: controller,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       children: [
-        Text(title, style: theme.textTheme.titleLarge),
+        Text(title, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 4),
         Text(
           [
@@ -151,9 +157,8 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: 12),
         Text(
           amount,
-          style: AppTypography.amount(
-            size: 32,
-            color: isIn ? colors.successText : theme.colorScheme.onSurface,
+          style: AppTypography.headlineFigure(
+            isIn ? colors.successText : theme.colorScheme.onSurface,
           ),
         ),
         BaseAmountLine(r),
@@ -207,13 +212,7 @@ class _Body extends ConsumerWidget {
                   subtitle: const Text(
                     'Their money has meant different things',
                   ),
-                  trailing: Text(
-                    'Answer',
-                    style: TextStyle(
-                      color: colors.link,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  trailing: const TrailingLink('Answer'),
                   onTap: () => showWhatWasThis(
                     context,
                     transactionId: r.id,
@@ -228,7 +227,7 @@ class _Body extends ConsumerWidget {
                 title: const Text('Category'),
                 subtitle: Text(
                   [
-                    detail.category?.name ?? uncategorisedName,
+                    detail.category?.name ?? 'Choose later',
                     ?categoryNote,
                   ].join(' · '),
                 ),
@@ -266,32 +265,21 @@ class _MoveToSpace extends ConsumerWidget {
     WidgetRef ref,
     List<Space> others,
   ) async {
-    final target = await showModalBottomSheet<Space>(
+    final target = await showAppSheet<Space>(
       context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                'Move to',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+      builder: (context) => SheetBody(
+        title: 'Move to',
+        children: [
+          for (final space in others)
+            ListTile(
+              key: Key('move-to-${space.id}'),
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(child: Text(space.initial)),
+              title: Text(space.name),
+              subtitle: Text(space.kind.label),
+              onTap: () => Navigator.of(context).pop(space),
             ),
-            for (final space in others)
-              ListTile(
-                key: Key('move-to-${space.id}'),
-                leading: CircleAvatar(child: Text(space.initial)),
-                title: Text(space.name),
-                subtitle: Text(space.kind.label),
-                onTap: () => Navigator.of(context).pop(space),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
+        ],
       ),
     );
     if (target == null || !context.mounted) return;
@@ -299,7 +287,10 @@ class _MoveToSpace extends ConsumerWidget {
     final navigator = Navigator.of(context);
     await ref.read(spaceMoveRepositoryProvider).move(transactionId, target.id);
     navigator.pop();
-    messenger?.showSnackBar(SnackBar(content: Text('Moved to ${target.name}')));
+    // The sheet closes with the move, so the note goes to the screen below.
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Moved to ${target.name}.')));
   }
 
   @override
@@ -345,7 +336,7 @@ class _ShareReceipt extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 12),
       child: OutlinedButton.icon(
         key: const Key('transaction-receipt'),
-        icon: const Icon(Icons.receipt_long_outlined),
+        icon: const Icon(Icons.ios_share),
         label: const Text('Share receipt'),
         onPressed: () => showReceiptSheet(context, saleId, justSaved: false),
       ),
@@ -372,7 +363,7 @@ class _EtimsSwitch extends ConsumerWidget {
     }
     final has = ref.watch(_etimsProvider).value?.contains(transactionId);
     if (has == null) return const SizedBox.shrink();
-    return SwitchListTile(
+    return SwitchListTile.adaptive(
       key: const Key('transaction-etims'),
       contentPadding: EdgeInsets.zero,
       title: const Text('Has an eTIMS invoice'),

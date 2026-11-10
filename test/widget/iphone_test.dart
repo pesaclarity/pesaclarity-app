@@ -180,7 +180,8 @@ void main() {
         findsOneWidget,
       );
 
-      await tapText(tester, 'Tap to change the day');
+      await tester.tap(find.byKey(const Key('add-transaction-date')));
+      await tester.pumpAndSettle();
       expect(find.byType(DatePickerDialog), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

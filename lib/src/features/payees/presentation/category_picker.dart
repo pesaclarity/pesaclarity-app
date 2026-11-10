@@ -5,9 +5,11 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/selector_field.dart';
-import '../../../theme/pesa_colors.dart';
 import '../application/payee_providers.dart';
 
 /// What the person picked in [pickCategory].
@@ -39,20 +41,22 @@ Future<CategoryChoice?> pickCategory(
   String? payeeName,
   String? payeeCategoryName,
   bool Function(CategoryType type)? allowType,
-}) => showModalBottomSheet<CategoryChoice>(
+}) => showAppSheet<CategoryChoice>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => DraggableScrollableSheet(
-    expand: false,
-    initialChildSize: 0.75,
-    maxChildSize: 0.95,
-    builder: (context, controller) => CategoryPicker(
-      controller: controller,
-      selectedId: selectedId,
-      payeeName: payeeName,
-      payeeCategoryName: payeeCategoryName,
-      allowType: allowType,
+  // Stays above the keyboard while the search box is in use.
+  builder: (context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      builder: (context, controller) => CategoryPicker(
+        controller: controller,
+        selectedId: selectedId,
+        payeeName: payeeName,
+        payeeCategoryName: payeeCategoryName,
+        allowType: allowType,
+      ),
     ),
   ),
 );
@@ -141,7 +145,6 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final all = [
       for (final c in ref.watch(categoriesProvider).value ?? const <Category>[])
         if (widget.allowType?.call(c.type) ?? true) c,
@@ -172,9 +175,7 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
 
     Widget tile(Category c) => ListTile(
       title: Text(c.name),
-      trailing: c.id == widget.selectedId
-          ? Icon(Icons.check, color: theme.colorScheme.primary)
-          : null,
+      trailing: c.id == widget.selectedId ? const Icon(Icons.check) : null,
       onTap: () => Navigator.of(context).pop(ChosenCategory(c.id)),
     );
 
@@ -182,15 +183,14 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
       controller: widget.controller,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       children: [
-        Text('Choose a category', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 12),
+        Text('Choose a category', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 16),
         TextField(
           controller: _query,
           textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
             hintText: 'Find or add a category',
-            border: OutlineInputBorder(),
           ),
           onSubmitted: (_) {
             if (canCreate) _create(clean);
@@ -221,22 +221,18 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
                       onChanged: (t) => setState(() => _newType = t),
                     )
                   else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final type in types)
-                          ChoiceChip(
-                            label: Text(categoryTypeLabel(type)),
-                            selected: _newType == type,
-                            onSelected: (_) => setState(() => _newType = type),
-                          ),
+                    AdaptiveSegmented<CategoryType>(
+                      key: const Key('new-category-type'),
+                      segments: [
+                        for (final t in types) (t, categoryTypeLabel(t)),
                       ],
+                      selected: _newType,
+                      onChanged: (t) => setState(() => _newType = t),
                     ),
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: _creating ? null : () => _create(clean),
-                    child: const Text('Add category'),
+                    child: const Text('Add a category'),
                   ),
                 ],
               ),
@@ -256,22 +252,13 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
             title: const Text(uncategorisedName),
             subtitle: const Text('Still counts in your totals'),
             trailing: widget.selectedId == null
-                ? Icon(Icons.check, color: theme.colorScheme.primary)
+                ? const Icon(Icons.check)
                 : null,
             onTap: () => Navigator.of(context).pop(const ChosenCategory(null)),
           ),
         ],
         if (mostUsed != null) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 16, bottom: 4),
-            child: Text(
-              'MOST USED',
-              style: theme.textTheme.labelMedium!.copyWith(
-                color: colors.textMuted,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
+          const SectionLabel('Most used'),
           for (final c in mostUsed) tile(c),
           const SizedBox(height: 8),
           TextButton.icon(
@@ -283,16 +270,7 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
         ] else
           for (final type in CategoryType.values)
             if (groups[type] case final list?) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 4),
-                child: Text(
-                  categoryTypeLabel(type).toUpperCase(),
-                  style: theme.textTheme.labelMedium!.copyWith(
-                    color: colors.textMuted,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
+              SectionLabel(categoryTypeLabel(type)),
               for (final c in list) tile(c),
             ],
       ],
