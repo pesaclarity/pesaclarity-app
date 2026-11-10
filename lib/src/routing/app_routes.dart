@@ -43,6 +43,8 @@ abstract final class AppRoutes {
   static const backup = '/home/profile/backup';
   static const backupSetup = '/home/profile/backup/setup';
   static const privacy = '/home/profile/privacy';
+  static const support = '/home/profile/support';
+  static const supportGifts = '/home/profile/support/gifts';
   static const signIn = '/home/profile/sign-in';
   static const devices = '/home/profile/devices';
   static const privacyPolicy = '/home/profile/privacy/policy';
