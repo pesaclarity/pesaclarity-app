@@ -296,10 +296,12 @@ class _PillButton extends StatelessWidget {
       child: busy
           ? SizedBox.square(
               dimension: 20,
-              child: CircularProgressIndicator(
+              child: CircularProgressIndicator.adaptive(
                 strokeWidth: 2,
                 semanticsLabel: 'Working',
-                color: theme.colorScheme.onSurfaceVariant,
+                valueColor: AlwaysStoppedAnimation(
+                  PesaColors.of(context).textMuted,
+                ),
               ),
             )
           : Text(label),

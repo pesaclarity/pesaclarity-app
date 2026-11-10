@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/consent.dart';
 import '../../../domain/privacy/privacy_policy.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/consent_controller.dart';
 import '../data/policy_source.dart';
@@ -40,15 +41,17 @@ class _PolicyReviewScreenState extends ConsumerState<PolicyReviewScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          Text('Our privacy policy changed', style: theme.textTheme.titleLarge),
+          Text(
+            'Our privacy policy changed',
+            style: theme.textTheme.headlineSmall,
+          ),
           const SizedBox(height: 8),
           Text(
             'Here is what changed. Check your choices, then agree to carry on. '
             'Optional uses of your data stay paused until you do.',
-            style: theme.textTheme.bodyLarge,
+            style: theme.textTheme.bodyLarge!.copyWith(color: muted),
           ),
-          const SizedBox(height: 24),
-          const PrivacySectionLabel('What changed'),
+          const SectionLabel('What changed'),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -86,8 +89,7 @@ class _PolicyReviewScreenState extends ConsumerState<PolicyReviewScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          const PrivacySectionLabel('Your choices'),
+          const SectionLabel('Your choices'),
           ConsentSwitchesCard(
             values: values,
             onChanged: (kind, value) =>

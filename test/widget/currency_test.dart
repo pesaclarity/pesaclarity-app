@@ -102,7 +102,7 @@ void main() {
     await tester.tap(find.text('US Dollar'));
     await tester.pumpAndSettle();
     expect(find.text('Count in USD?'), findsOneWidget);
-    await tester.tap(find.text('Keep KES'));
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(BaseCurrency.code, 'KES');
 

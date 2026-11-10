@@ -2,30 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/consent.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/auth_models.dart';
 import '../data/policy_source.dart';
 import 'email_policy_sheet.dart';
-
-/// A small capitalised label above a group of cards, such as `YOUR CHOICES`.
-class PrivacySectionLabel extends StatelessWidget {
-  const PrivacySectionLabel(this.text, {super.key});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-    child: Text(
-      text.toUpperCase(),
-      style: Theme.of(context).textTheme.labelMedium!.copyWith(
-        color: PesaColors.of(context).textMuted,
-        letterSpacing: 0.6,
-      ),
-    ),
-  );
-}
 
 /// The plain-language promises, each with a tick.
 class PrivacyPromisesCard extends StatelessWidget {
@@ -44,7 +27,7 @@ class PrivacyPromisesCard extends StatelessWidget {
     final colors = PesaColors.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           children: [
             for (final promise in promises)
@@ -55,7 +38,11 @@ class PrivacyPromisesCard extends StatelessWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 2, right: 12),
-                      child: Icon(Icons.check, size: 18, color: colors.success),
+                      child: Icon(
+                        Icons.check,
+                        size: 18,
+                        color: colors.successText,
+                      ),
                     ),
                     Expanded(
                       child: Text(promise, style: theme.textTheme.bodyLarge),
@@ -124,7 +111,6 @@ class ConsentSwitchesCard extends StatelessWidget {
 
 /// Opens the person's email app with the bundled policy as a draft.
 Future<void> emailPolicyCopy(BuildContext context, WidgetRef ref) async {
-  final messenger = ScaffoldMessenger.of(context);
   final policy = await ref.read(privacyPolicyProvider.future);
   var opened = false;
   try {
@@ -150,9 +136,7 @@ Future<void> emailPolicyCopy(BuildContext context, WidgetRef ref) async {
     );
     return;
   }
-  messenger.showSnackBar(
-    const SnackBar(
-      content: Text('Set up an email app on this phone to send a copy.'),
-    ),
-  );
+  if (context.mounted) {
+    showNote(context, 'Set up an email app on this phone to send a copy.');
+  }
 }

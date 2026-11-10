@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/privacy_policy.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/auth_models.dart';
@@ -12,10 +14,8 @@ Future<void> showEmailPolicySheet(
   BuildContext context,
   PrivacyPolicy policy, {
   String? suggestedEmail,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (_) =>
       EmailPolicySheet(policy: policy, suggestedEmail: suggestedEmail),
 );
@@ -53,7 +53,7 @@ class _EmailPolicySheetState extends ConsumerState<EmailPolicySheet> {
 
   static String _message(AuthFailure failure) => switch (failure.kind) {
     AuthFailureKind.invalidEmail =>
-      'Enter your email address, for example name@example.com.',
+      'Enter your email address, such as name@example.com.',
     AuthFailureKind.rateLimited =>
       "You have had today's copies. Try again tomorrow.",
     AuthFailureKind.unavailable => 'Emailed copies arrive in a later update.',
@@ -68,8 +68,6 @@ class _EmailPolicySheetState extends ConsumerState<EmailPolicySheet> {
       _sending = true;
       _error = null;
     });
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final navigator = Navigator.of(context);
     try {
       await ref
           .read(authControllerProvider.notifier)
@@ -86,10 +84,9 @@ class _EmailPolicySheetState extends ConsumerState<EmailPolicySheet> {
       }
       return;
     }
-    navigator.pop();
-    messenger?.showSnackBar(
-      const SnackBar(content: Text('Sent. Check your inbox for the copy.')),
-    );
+    if (!mounted) return;
+    showNote(context, 'Sent. Check your inbox for the copy.');
+    Navigator.of(context).pop();
   }
 
   @override
@@ -97,56 +94,35 @@ class _EmailPolicySheetState extends ConsumerState<EmailPolicySheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final canSend = _email.text.trim().isNotEmpty && !_sending;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
+    return SheetBody(
+      title: 'Email me a copy',
+      subtitle:
+          'There is no email app on this phone, so we can send the '
+          'privacy policy for you, as text and a PDF.',
+      children: [
+        TextField(
+          key: const Key('email-policy-address'),
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
+          decoration: InputDecoration(
+            labelText: 'Send it to',
+            errorText: _error,
+            errorMaxLines: 3,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Email me a copy', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              'There is no email app on this phone, so we can send the '
-              'privacy policy for you, as text and a PDF.',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('email-policy-address'),
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: const [AutofillHints.email],
-              decoration: InputDecoration(
-                labelText: 'Send it to',
-                border: const OutlineInputBorder(),
-                errorText: _error,
-                errorMaxLines: 3,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'We use this address once, to send the copy, and do not keep '
-              'it.',
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              key: const Key('email-policy-send'),
-              onPressed: canSend ? _send : null,
-              child: const Text('Send'),
-            ),
-          ],
+        const SizedBox(height: 8),
+        Text(
+          'We use this address once, to send the copy, and do not keep it.',
+          style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
-      ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('email-policy-send'),
+          onPressed: canSend ? _send : null,
+          child: const Text('Send'),
+        ),
+      ],
     );
   }
 }

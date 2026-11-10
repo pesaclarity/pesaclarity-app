@@ -8,6 +8,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../../statements/data/pdf_text_extractor.dart';
@@ -55,7 +56,7 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
 
   static const _steps = [
     ('Open Shortcuts, then Automation', 'Tap + and choose Message.'),
-    ('Pick the senders', 'MPESA and your bank, then Run Immediately.'),
+    ('Choose the senders', 'MPESA and your bank, then Run Immediately.'),
     (
       'Add "Add transaction from message"',
       'Pass it the message content and sender. Done.',
@@ -106,9 +107,9 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            Text('Connect your messages', style: theme.textTheme.headlineLarge),
+            Text('Connect your messages', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
               'A Shortcuts automation sends each M-Pesa or bank message to '
@@ -118,13 +119,21 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _Status(
+            Semantics(
               key: const Key('connect-status'),
-              title: connected ? 'Connected' : 'Waiting for your first message',
-              detail: connected
-                  ? 'Last message ${arrivalLabel(last, now)}'
-                  : 'Set up the automation below, once.',
-              connected: connected,
+              container: true,
+              liveRegion: true,
+              child: connected
+                  ? Notice(
+                      'Connected. Last message ${arrivalLabel(last, now)}.',
+                      tone: Tone.success,
+                      icon: Icons.check_circle_outline,
+                    )
+                  : const Notice(
+                      'Waiting for your first message. Set up the '
+                      'automation below, once.',
+                      icon: Icons.schedule_outlined,
+                    ),
             ),
             GroupedSection(
               header: 'Three steps, once',
@@ -133,12 +142,12 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
                 for (final (i, (title, detail)) in _steps.indexed)
                   ListTile(
                     leading: CircleAvatar(
-                      radius: 14,
+                      radius: 12,
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: theme.colorScheme.onPrimary,
                       child: Text(
                         '${i + 1}',
-                        style: theme.textTheme.titleSmall!.copyWith(
+                        style: theme.textTheme.labelMedium!.copyWith(
                           color: theme.colorScheme.onPrimary,
                         ),
                       ),
@@ -159,7 +168,7 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
               ),
             if (widget.onboarding &&
                 ref.watch(statementImportAvailableProvider)) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               GroupedSection(
                 header: 'Past months',
                 footer:
@@ -187,61 +196,6 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Status extends StatelessWidget {
-  const _Status({
-    required this.title,
-    required this.detail,
-    required this.connected,
-    super.key,
-  });
-
-  final String title;
-  final String detail;
-  final bool connected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final tone = connected ? colors.successText : colors.textMuted;
-    return Semantics(
-      container: true,
-      liveRegion: true,
-      child: Card(
-        color: connected ? colors.success.withValues(alpha: 0.12) : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                connected ? Icons.check_circle : Icons.schedule,
-                size: 20,
-                color: tone,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium!.copyWith(color: tone),
-                    ),
-                    Text(
-                      detail,
-                      style: theme.textTheme.bodyMedium!.copyWith(color: tone),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

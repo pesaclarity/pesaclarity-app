@@ -93,10 +93,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 24, 12, 0),
-                    child: _PrivacyNote(
-                      color: colors.textMuted,
-                      link: colors.link,
-                    ),
+                    child: _PrivacyNote(color: colors.textMuted),
                   ),
                 ],
               ),
@@ -141,10 +138,9 @@ class _AppMark extends StatelessWidget {
 }
 
 class _PrivacyNote extends StatelessWidget {
-  const _PrivacyNote({required this.color, required this.link});
+  const _PrivacyNote({required this.color});
 
   final Color color;
-  final Color link;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +157,6 @@ class _PrivacyNote extends StatelessWidget {
             context,
           ).push(MaterialPageRoute<void>(builder: (_) => const PolicyScreen())),
           style: TextButton.styleFrom(
-            foregroundColor: link,
             textStyle: base.copyWith(decoration: TextDecoration.underline),
           ),
           child: const Text('Read our privacy policy'),
@@ -171,7 +166,6 @@ class _PrivacyNote extends StatelessWidget {
             context,
           ).push(MaterialPageRoute<void>(builder: (_) => const TermsScreen())),
           style: TextButton.styleFrom(
-            foregroundColor: link,
             textStyle: base.copyWith(decoration: TextDecoration.underline),
           ),
           child: const Text('Read the terms'),

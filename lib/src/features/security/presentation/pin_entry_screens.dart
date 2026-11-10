@@ -90,7 +90,7 @@ class _ConfirmPinScreenState extends ConsumerState<ConfirmPinScreen> {
         message: waiting
             ? 'Too many wrong PINs. Try again later.'
             : _last == PinCheck.wrong
-            ? 'Wrong PIN.'
+            ? "That PIN didn't match. Try again."
             : null,
         messageIsError: waiting || _last == PinCheck.wrong,
         enabled: !waiting,
