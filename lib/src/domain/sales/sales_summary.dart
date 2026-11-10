@@ -1,6 +1,7 @@
 import '../books/book_account.dart';
 import '../books/books.dart';
 import '../enums.dart';
+import '../time/business_day.dart';
 import '../time/calendar.dart';
 
 /// One day's sales, by how people paid.
@@ -19,16 +20,18 @@ class SalesDay {
 /// Sales on [date] from [books]: everything filed under [salesCategoryId],
 /// by where the money went (cash, M-Pesa, bank) or credit for what a
 /// customer owes. Money sent back under sales takes from the way it went.
+/// The day ends as [business] says.
 SalesDay salesOn(
   Books books,
   CalendarDate date, {
   required int salesCategoryId,
   required Map<int, AccountType> accountTypes,
   required String currency,
+  BusinessDay business = BusinessDay.midnight,
 }) {
   final sales = BookAccount.category(salesCategoryId, income: true);
-  final from = date.startInstant;
-  final to = date.addDays(1).startInstant;
+  final from = business.startOf(date);
+  final to = business.endOf(date);
   final byWay = <SalePaymentMethod, int>{};
   for (final e in books.entries) {
     if (e.currency != currency || e.at.isBefore(from) || !e.at.isBefore(to)) {
@@ -84,6 +87,7 @@ int? usualSalesFor(
   required int salesCategoryId,
   required Map<int, AccountType> accountTypes,
   required String currency,
+  BusinessDay business = BusinessDay.midnight,
 }) {
   final totals = [
     for (var week = 1; week <= usualDayWeeks; week++)
@@ -93,6 +97,7 @@ int? usualSalesFor(
         salesCategoryId: salesCategoryId,
         accountTypes: accountTypes,
         currency: currency,
+        business: business,
       ).totalMinor,
   ].where((t) => t > 0).toList();
   if (totals.length < 2) return null;

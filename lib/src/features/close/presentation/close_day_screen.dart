@@ -14,7 +14,7 @@ import '../../../domain/people/people.dart';
 import '../../../domain/printing/slip.dart';
 import '../../../domain/printing/slips.dart';
 import '../../../domain/sales/sales_summary.dart';
-import '../../../domain/time/calendar.dart';
+import '../../../domain/time/business_day.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
@@ -26,30 +26,31 @@ import '../../printing/presentation/print_sheet.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../application/business_day_providers.dart';
 
 /// Today's drawer: what it should hold from the records.
 final todayCashProvider = FutureProvider<DayCash>((ref) async {
   ref.watch(ledgerChangesProvider);
-  final now = ref.watch(clockProvider)();
-  final today = CalendarDate.local(now);
+  final business = await ref.watch(businessDayProvider.future);
+  final today = business.dayOf(ref.watch(clockProvider)());
   final cash = [
     for (final a in await ref.watch(accountsRepositoryProvider).openings())
       if (a.type == AccountType.cash) a,
   ];
   final entries = await ref
       .watch(transactionsRepositoryProvider)
-      .ledgerEntries(
-        from: DateTime.utc(1970),
-        to: today.addDays(1).startInstant,
-      );
-  return dayCash(cash, entries, day: today);
+      .ledgerEntries(from: DateTime.utc(1970), to: business.endOf(today));
+  return dayCash(cash, entries, day: today, business: business);
 });
 
 /// Money in today with no record yet.
-final unmatchedTodayProvider = FutureProvider<List<LedgerEntry>>((ref) {
+final unmatchedTodayProvider = FutureProvider<List<LedgerEntry>>((ref) async {
   ref.watch(ledgerChangesProvider);
-  final today = CalendarDate.local(ref.watch(clockProvider)());
-  return ref.watch(salesControllerProvider).unmatchedOn(today);
+  final business = await ref.watch(businessDayProvider.future);
+  final today = business.dayOf(ref.watch(clockProvider)());
+  return ref
+      .watch(salesControllerProvider)
+      .unmatchedOn(today, business: business);
 });
 
 /// What happens to a difference between the drawer and the records.
@@ -88,6 +89,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
     setState(() => _saving = true);
     try {
       final now = ref.read(clockProvider)();
+      final business = await ref.read(businessDayProvider.future);
       final gap = counted - cash.expectedMinor;
       if (gap != 0 && _difference == _Difference.book) {
         await ref.read(salesControllerProvider).bookCashDifference(gap);
@@ -97,7 +99,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
           .read(dayClosesRepositoryProvider)
           .save(
             DayClose(
-              day: CalendarDate.local(now),
+              day: business.dayOf(now),
               expectedMinor: cash.expectedMinor,
               countedMinor: counted,
               note: note.isEmpty ? null : note,
@@ -170,7 +172,9 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final today = CalendarDate.local(ref.watch(clockProvider)());
+    final business =
+        ref.watch(businessDayProvider).value ?? BusinessDay.midnight;
+    final today = business.dayOf(ref.watch(clockProvider)());
     final cash = ref.watch(todayCashProvider).value;
     final unmatched = ref.watch(unmatchedTodayProvider).value ?? const [];
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
@@ -184,7 +188,11 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
                 Text(
-                  longDate(today),
+                  business.endsAtHour == 0
+                      ? longDate(today)
+                      : '${longDate(today)} · business day until '
+                            '${business.endLabel}',
+                  key: const Key('close-day-date'),
                   style: theme.textTheme.bodyLarge!.copyWith(
                     color: colors.textMuted,
                   ),
@@ -390,8 +398,10 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
   Future<void> _print(DayCash cash, SalesDay? sales) async {
     final settings = await ref.read(documentSettingsProvider.future);
     if (!mounted) return;
+    final business = await ref.read(businessDayProvider.future);
+    if (!mounted) return;
     final now = ref.read(clockProvider)();
-    final today = CalendarDate.local(now);
+    final today = business.dayOf(now);
     final counted = _counted.text.trim().isEmpty
         ? null
         : AmountField.amountFrom(_counted.text);
