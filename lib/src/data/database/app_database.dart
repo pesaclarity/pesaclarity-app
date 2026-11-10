@@ -47,7 +47,10 @@ part 'app_database.g.dart';
     QuickRecords,
     Items,
     StockMoves,
+    ItemMeasures,
     SaleLines,
+    Tabs,
+    TabLines,
     Contacts,
     DayCloses,
     WithheldTaxes,
@@ -63,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -238,6 +241,14 @@ class AppDatabase extends _$AppDatabase {
         await _addColumnIfMissing(m, accounts, accounts.reference);
         await customStatement('DROP INDEX IF EXISTS accounts_institution');
         await m.createIndex(accountsInstitution);
+      }
+      if (from < 31) {
+        await m.createTable(itemMeasures);
+        await _addColumnIfMissing(m, saleLines, saleLines.measureId);
+      }
+      if (from < 32) {
+        await m.createTable(tabs);
+        await m.createTable(tabLines);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

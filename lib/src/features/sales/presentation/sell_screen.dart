@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../core/time/clock.dart';
 import '../../../data/repositories/stock_repository.dart';
+import '../../../data/repositories/tabs_repository.dart';
+import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_shell.dart';
 import '../../../shared/widgets/choice_menu.dart';
@@ -11,22 +14,38 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../stock/application/stock_providers.dart';
 import '../../stock/presentation/stock_screen.dart' show StockTag;
+import '../../tabs/application/tabs_providers.dart';
+import '../../tabs/presentation/tab_screens.dart';
 import 'pay_sheet.dart';
 
 /// Sell: tiles of what the business sells, or a number pad for the amount
 /// when it has no items yet; then Pay.
 class SellScreen extends ConsumerWidget {
-  const SellScreen({this.billed = false, super.key});
+  const SellScreen({this.billed = false, this.tab, super.key});
 
   /// Work done for a client to pay later: Billed, with credit to start.
   final bool billed;
+
+  /// The open tab a round goes on, instead of paying now.
+  final ({int id, String name})? tab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (billed) return const AmountPadScreen(billed: true);
     final items = ref.watch(itemsProvider);
+    final measures = ref.watch(measuresProvider).value ?? const {};
+    final held = ref.watch(heldOnTabsProvider).value ?? const {};
     return switch (items) {
-      AsyncData(:final value) when value.isNotEmpty => _TilesSell(value),
+      AsyncData(:final value) when value.isNotEmpty => _TilesSell(
+        [
+          // What is on open tabs is still on the shelf but already sold.
+          for (final i in value)
+            held[i.id] == null ? i : i.withStock(i.stockMilli - held[i.id]!),
+        ],
+        measures: measures,
+        tab: tab,
+        openTabs: ref.watch(openTabsProvider).value?.length ?? 0,
+      ),
       AsyncData() || AsyncError() => const AmountPadScreen(),
       _ => const Scaffold(
         body: Center(child: CircularProgressIndicator.adaptive()),
@@ -293,17 +312,33 @@ class _PayBar extends StatelessWidget {
 
 /// Sell with items: a tile for each, a tap adds one; Other sale types an
 /// amount. The total sits where the tab bar was.
-class _TilesSell extends StatefulWidget {
-  const _TilesSell(this.items);
+class _TilesSell extends ConsumerStatefulWidget {
+  const _TilesSell(
+    this.items, {
+    required this.measures,
+    required this.tab,
+    required this.openTabs,
+  });
 
   final List<Item> items;
 
+  /// Other ways each item sells, by item.
+  final Map<int, List<Measure>> measures;
+
+  /// The tab this round goes on, instead of paying now.
+  final ({int id, String name})? tab;
+
+  /// How many tabs are open.
+  final int openTabs;
+
   @override
-  State<_TilesSell> createState() => _TilesSellState();
+  ConsumerState<_TilesSell> createState() => _TilesSellState();
 }
 
-class _TilesSellState extends State<_TilesSell> {
-  final _counts = <int, int>{};
+class _TilesSellState extends ConsumerState<_TilesSell> {
+  /// How much of each item is in the sale, by item and way of selling (null
+  /// for its own unit), in thousandths.
+  final _counts = <(int, int?), int>{};
   final _other = <SaleLine>[];
   final _search = TextEditingController();
   String? _group;
@@ -314,21 +349,75 @@ class _TilesSellState extends State<_TilesSell> {
     super.dispose();
   }
 
+  /// The ways [item] sells besides its own unit.
+  List<Measure> _ways(Item item) => [
+    for (final m in widget.measures[item.id] ?? const <Measure>[])
+      if (m.sells) m,
+  ];
+
   List<SaleLine> get _lines => [
-    for (final item in widget.items)
-      if ((_counts[item.id] ?? 0) > 0)
+    for (final item in widget.items) ...[
+      if ((_counts[(item.id, null)] ?? 0) > 0)
         SaleLine(
           itemId: item.id,
           name: item.unit == null ? item.name : '${item.name}, ${item.unit}',
-          quantityMilli: _counts[item.id]!,
-          totalMinor: costOf(_counts[item.id]!, item.priceMinor ?? 0),
+          quantityMilli: _counts[(item.id, null)]!,
+          totalMinor: costOf(_counts[(item.id, null)]!, item.priceMinor ?? 0),
         ),
+      for (final m in _ways(item))
+        if ((_counts[(item.id, m.id)] ?? 0) > 0)
+          SaleLine(
+            itemId: item.id,
+            measureId: m.id,
+            name: '${item.name} · ${m.name}',
+            quantityMilli: _counts[(item.id, m.id)]!,
+            totalMinor: costOf(_counts[(item.id, m.id)]!, m.priceMinor!),
+          ),
+    ],
     ..._other,
   ];
 
+  /// How many of [item] are in the sale, whichever way.
+  int _countOf(Item item) => _counts.entries
+      .where((e) => e.key.$1 == item.id)
+      .fold(0, (sum, e) => sum + e.value);
+
   Future<void> _tap(Item item) async {
+    final ways = _ways(item);
+    if (ways.isNotEmpty) {
+      final picked = await showModalBottomSheet<Map<int?, int>>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: _WaysSheet(
+              item: item,
+              ways: ways,
+              measures: widget.measures[item.id] ?? const [],
+              counts: {
+                for (final e in _counts.entries)
+                  if (e.key.$1 == item.id) e.key.$2: e.value ~/ milli,
+              },
+            ),
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        _counts.removeWhere((key, _) => key.$1 == item.id);
+        for (final MapEntry(:key, :value) in picked.entries) {
+          if (value > 0) _counts[(item.id, key)] = value * milli;
+        }
+      });
+      return;
+    }
     if (item.priceMinor != null) {
-      setState(() => _counts[item.id] = (_counts[item.id] ?? 0) + milli);
+      setState(
+        () =>
+            _counts[(item.id, null)] = (_counts[(item.id, null)] ?? 0) + milli,
+      );
       return;
     }
     // A price that varies is typed each time.
@@ -366,6 +455,26 @@ class _TilesSellState extends State<_TilesSell> {
     );
   }
 
+  /// Puts the lines on a tab, the one this screen is for or one chosen.
+  Future<void> _toTab() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final lines = _lines;
+    final tab = widget.tab;
+    final String? name;
+    if (tab != null) {
+      await ref
+          .read(tabsRepositoryProvider)
+          .add(tab.id, lines, at: ref.read(clockProvider)());
+      name = tab.name;
+    } else {
+      name = await showAddToTabSheet(context, lines: lines);
+    }
+    if (name == null || !mounted) return;
+    navigator.pop();
+    messenger.showSnackBar(SnackBar(content: Text('Added to $name.')));
+  }
+
   Future<void> _pay() async {
     final lines = _lines;
     final saved = await showPaySheet(
@@ -396,8 +505,26 @@ class _TilesSellState extends State<_TilesSell> {
     final total = lines.fold(0, (sum, l) => sum + l.totalMinor);
     final count = lines.length;
 
+    final tab = widget.tab;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sell')),
+      appBar: AppBar(
+        title: Text(tab == null ? 'Sell' : 'Add to ${tab.name}'),
+        actions: [
+          if (tab == null && widget.openTabs > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: OutlinedButton(
+                key: const Key('sell-open-tabs'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OpenTabsScreen(),
+                  ),
+                ),
+                child: Text('Open tabs · ${widget.openTabs}'),
+              ),
+            ),
+        ],
+      ),
       body: SafeArea(
         bottom: false,
         child: ListView(
@@ -458,7 +585,9 @@ class _TilesSellState extends State<_TilesSell> {
                 for (final item in shown)
                   _Tile(
                     item: item,
-                    count: _counts[item.id] ?? 0,
+                    ways: _ways(item),
+                    measures: widget.measures[item.id] ?? const [],
+                    count: _countOf(item),
                     onTap: () => _tap(item),
                   ),
                 _OtherTile(onTap: _otherSale),
@@ -469,11 +598,40 @@ class _TilesSellState extends State<_TilesSell> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-        child: _PayBar(
-          what: count == 1 ? '1 item' : '$count items',
-          amount: formatMoney(Money(total)),
-          onPay: total > 0 ? _pay : null,
-        ),
+        child: tab != null
+            ? _PayBar(
+                what: count == 1 ? '1 item' : '$count items',
+                amount: formatMoney(Money(total)),
+                action: 'Add',
+                onPay: total > 0 ? _toTab : null,
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    height: PillNavigationBar.height,
+                    child: OutlinedButton(
+                      key: const Key('sell-add-to-tab'),
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      onPressed: total > 0 ? _toTab : null,
+                      child: const Text('Add to a tab'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _PayBar(
+                      what: count == 1 ? '1 item' : '$count items',
+                      amount: formatMoney(Money(total)),
+                      onPay: total > 0 ? _pay : null,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -482,13 +640,40 @@ class _TilesSellState extends State<_TilesSell> {
 String _plainMoney(int minor) => formatMoney(Money(minor), withCurrency: false);
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.item, required this.count, required this.onTap});
+  const _Tile({
+    required this.item,
+    required this.ways,
+    required this.measures,
+    required this.count,
+    required this.onTap,
+  });
 
   final Item item;
+
+  /// Other ways it sells, such as a tot.
+  final List<Measure> ways;
+
+  /// Every other way it is sold or bought, for how its stock reads.
+  final List<Measure> measures;
 
   /// How much is in the sale, in thousandths.
   final int count;
   final VoidCallback onTap;
+
+  /// `From 150` when a smaller way sells for less, else its own price.
+  String _price() {
+    final cheapest = [for (final w in ways) w.priceMinor!]
+        .fold<int?>(null, (low, p) => low == null || p < low ? p : low);
+    final own = item.priceMinor;
+    if (cheapest != null && (own == null || cheapest < own)) {
+      return 'From ${_plainMoney(cheapest)}';
+    }
+    return priceText(item, _plainMoney);
+  }
+
+  String _stock() =>
+      stockInMeasures(item.stockMilli, unit: item.unit, measures: measures) ??
+      stockText(item);
 
   @override
   Widget build(BuildContext context) {
@@ -522,18 +707,15 @@ class _Tile extends StatelessWidget {
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    priceText(item, _plainMoney),
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  Text(_price(), style: theme.textTheme.titleSmall),
                   const Spacer(),
                   if (!item.isProduct)
                     const StockTag('Service')
                   else if (item.isLow)
-                    StockTag(stockText(item), warning: true)
+                    StockTag(_stock(), warning: true)
                   else
                     Text(
-                      stockText(item),
+                      _stock(),
                       style: theme.textTheme.bodySmall!.copyWith(
                         color: colors.textMuted,
                       ),
@@ -596,3 +778,133 @@ class _OtherTile extends StatelessWidget {
     );
   }
 }
+
+/// Choose how many of each way to sell [item]: tots, doubles or bottles.
+/// Returns the count of each way, by measure (null for its own unit).
+class _WaysSheet extends StatefulWidget {
+  const _WaysSheet({
+    required this.item,
+    required this.ways,
+    required this.measures,
+    required this.counts,
+  });
+
+  final Item item;
+  final List<Measure> ways;
+  final List<Measure> measures;
+  final Map<int?, int> counts;
+
+  @override
+  State<_WaysSheet> createState() => _WaysSheetState();
+}
+
+class _WaysSheetState extends State<_WaysSheet> {
+  late final _counts = {...widget.counts};
+
+  /// Each way with its name and price, smallest first.
+  List<(int?, String, int)> get _rows {
+    final item = widget.item;
+    final own = item.priceMinor;
+    final unit = item.unit ?? 'Each';
+    final rows = [
+      for (final w in widget.ways) (w.id, w.name, w.priceMinor!, w.size),
+      if (own != null) (null, _capital(unit), own, 1.0),
+    ]..sort((a, b) => a.$4.compareTo(b.$4));
+    return [for (final r in rows) (r.$1, r.$2, r.$3)];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final item = widget.item;
+    final stock =
+        stockInMeasures(
+          item.stockMilli,
+          unit: item.unit,
+          measures: widget.measures,
+        ) ??
+        stockText(item);
+    final rows = _rows;
+    final total = rows.fold(0, (sum, r) => sum + (_counts[r.$1] ?? 0) * r.$3);
+    return Column(
+      key: const Key('sell-ways'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(item.name, style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 4),
+        Text(
+          stock.endsWith('left') ? stock : '$stock left',
+          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final (i, (id, name, price)) in rows.indexed) ...[
+                if (i > 0) const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: theme.textTheme.titleSmall),
+                            Text(
+                              'KES ${_plainMoney(price)}',
+                              style: theme.textTheme.bodySmall!.copyWith(
+                                color: colors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton.outlined(
+                        key: Key('way-fewer-${id ?? 'unit'}'),
+                        tooltip: 'One fewer',
+                        onPressed: (_counts[id] ?? 0) > 0
+                            ? () =>
+                                  setState(() => _counts[id] = _counts[id]! - 1)
+                            : null,
+                        icon: const Icon(Icons.remove),
+                      ),
+                      SizedBox(
+                        width: 36,
+                        child: Text(
+                          '${_counts[id] ?? 0}',
+                          key: Key('way-count-${id ?? 'unit'}'),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                      IconButton.outlined(
+                        key: Key('way-more-${id ?? 'unit'}'),
+                        tooltip: 'One more',
+                        onPressed: () => setState(
+                          () => _counts[id] = (_counts[id] ?? 0) + 1,
+                        ),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('sell-ways-add'),
+          onPressed: () => Navigator.of(context).pop(_counts),
+          child: Text(total > 0 ? 'Add · KES ${_plainMoney(total)}' : 'Done'),
+        ),
+      ],
+    );
+  }
+}
+
+String _capital(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';

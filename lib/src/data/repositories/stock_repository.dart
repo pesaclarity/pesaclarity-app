@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/books/books.dart';
 import '../../domain/books/business_report.dart';
+import '../../domain/stock/measure.dart';
 import '../../domain/stock/stock.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
@@ -14,12 +15,18 @@ class SaleLine {
     required this.quantityMilli,
     required this.totalMinor,
     this.itemId,
+    this.measureId,
   });
 
   final int? itemId;
   final String name;
+
+  /// Thousandths of the item's unit, or of [measureId] when sold that way.
   final int quantityMilli;
   final int totalMinor;
+
+  /// The way it was sold, such as a tot; null for the item's own unit.
+  final int? measureId;
 }
 
 /// A change to an item's stock, for its history.
@@ -75,6 +82,26 @@ abstract interface class StockRepository {
 
   /// Takes sold [lines] of sale [saleId] out of stock at the average cost.
   Future<void> sold(int saleId, List<SaleLine> lines, {required DateTime at});
+
+  /// Every other way each item sells or is bought, by item, smallest
+  /// first.
+  Future<Map<int, List<Measure>>> measures();
+
+  /// Adds a way to sell or buy [itemId]: [units] of it make [bases] of the
+  /// item's unit.
+  Future<int> addMeasure(
+    int itemId, {
+    required String name,
+    required int units,
+    required int bases,
+    int? priceMinor,
+  });
+
+  /// Saves [measure]'s name, size and price.
+  Future<void> updateMeasure(Measure measure);
+
+  /// Stops selling or buying [measureId]; past sales keep it.
+  Future<void> removeMeasure(int measureId);
 
   /// The counted stock of [itemId] is [countedMilli]; the difference is kept
   /// for [reason].
@@ -254,27 +281,104 @@ class DriftStockRepository implements StockRepository {
                   name: line.name,
                   quantityMilli: line.quantityMilli,
                   totalMinor: line.totalMinor,
+                  measureId: Value(line.measureId),
                 ),
               );
           final id = line.itemId;
           if (id == null) continue;
           final r = await _row(id);
           if (r == null || r.kind != ItemKind.product) continue;
+          final taken = await _taken(line);
           await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
-            ItemsCompanion(
-              stockMilli: Value(r.stockMilli - line.quantityMilli),
-            ),
+            ItemsCompanion(stockMilli: Value(r.stockMilli - taken)),
           );
           await _move(
             id,
             at: at,
             kind: StockMoveKind.sold,
-            quantityMilli: -line.quantityMilli,
-            costMinor: costOf(line.quantityMilli, r.averageCostMinor),
+            quantityMilli: -taken,
+            costMinor: costOf(taken, r.averageCostMinor),
             saleId: saleId,
           );
         }
       });
+
+  /// Thousandths of the item's unit that [line] takes out of stock, keeping
+  /// its measure's remainder for the next sale.
+  Future<int> _taken(SaleLine line) async {
+    final measureId = line.measureId;
+    if (measureId == null) return line.quantityMilli;
+    final m = await (_db.select(
+      _db.itemMeasures,
+    )..where((x) => x.id.equals(measureId))).getSingleOrNull();
+    if (m == null) return line.quantityMilli;
+    final take = _measure(m).take(line.quantityMilli, carry: m.carry);
+    await (_db.update(_db.itemMeasures)..where((x) => x.id.equals(m.id))).write(
+      ItemMeasuresCompanion(carry: Value(take.carry)),
+    );
+    return take.takeMilli;
+  }
+
+  Measure _measure(MeasureRecord r) => Measure(
+    id: r.id,
+    itemId: r.itemId,
+    name: r.name,
+    units: r.units,
+    bases: r.bases,
+    priceMinor: r.priceMinor,
+  );
+
+  @override
+  Future<Map<int, List<Measure>>> measures() async {
+    final out = <int, List<Measure>>{};
+    for (final r in await (_db.select(
+      _db.itemMeasures,
+    )..where((m) => m.archived.equals(false))).get()) {
+      (out[r.itemId] ??= []).add(_measure(r));
+    }
+    for (final list in out.values) {
+      list.sort((a, b) => a.size.compareTo(b.size));
+    }
+    return out;
+  }
+
+  @override
+  Future<int> addMeasure(
+    int itemId, {
+    required String name,
+    required int units,
+    required int bases,
+    int? priceMinor,
+  }) => _db
+      .into(_db.itemMeasures)
+      .insert(
+        ItemMeasuresCompanion.insert(
+          itemId: itemId,
+          name: name.trim(),
+          units: units,
+          bases: bases,
+          priceMinor: Value(priceMinor),
+        ),
+      );
+
+  @override
+  Future<void> updateMeasure(Measure measure) =>
+      (_db.update(
+        _db.itemMeasures,
+      )..where((m) => m.id.equals(measure.id))).write(
+        ItemMeasuresCompanion(
+          name: Value(measure.name.trim()),
+          units: Value(measure.units),
+          bases: Value(measure.bases),
+          priceMinor: Value(measure.priceMinor),
+          carry: const Value(0),
+        ),
+      );
+
+  @override
+  Future<void> removeMeasure(int measureId) =>
+      (_db.update(_db.itemMeasures)..where((m) => m.id.equals(measureId)))
+          .write(const ItemMeasuresCompanion(archived: Value(true)));
 
   @override
   Future<void> count(
@@ -287,6 +391,9 @@ class DriftStockRepository implements StockRepository {
     if (r == null) return;
     final difference = countedMilli - r.stockMilli;
     if (difference == 0) return;
+    // A count sets stock exactly, so no part of a thousandth is owed.
+    await (_db.update(_db.itemMeasures)..where((m) => m.itemId.equals(itemId)))
+        .write(const ItemMeasuresCompanion(carry: Value(0)));
     await (_db.update(_db.items)..where((i) => i.id.equals(itemId))).write(
       ItemsCompanion(stockMilli: Value(countedMilli)),
     );
@@ -363,34 +470,45 @@ class DriftStockRepository implements StockRepository {
           _db.sales.soldAt.isBiggerOrEqualValue(from) &
               _db.sales.soldAt.isSmallerThanValue(to),
         );
-    final rows = await query.get();
-    final costs = <(int, int), int>{};
+    final rows = await (query..orderBy([OrderingTerm.asc(_db.saleLines.id)]))
+        .get();
+    // Each sold line made one move, in the same order: what it took from
+    // stock and what that cost.
+    final taken = <(int, int), List<StockMoveRecord>>{};
     for (final m
-        in await (_db.select(_db.stockMoves)..where(
-              (m) =>
-                  m.kind.equalsValue(StockMoveKind.sold) &
-                  m.at.isBiggerOrEqualValue(from) &
-                  m.at.isSmallerThanValue(to),
-            ))
+        in await (_db.select(_db.stockMoves)
+              ..where(
+                (m) =>
+                    m.kind.equalsValue(StockMoveKind.sold) &
+                    m.at.isBiggerOrEqualValue(from) &
+                    m.at.isSmallerThanValue(to),
+              )
+              ..orderBy([(m) => OrderingTerm.asc(m.id)]))
             .get()) {
-      final key = (m.saleId ?? 0, m.itemId);
-      costs[key] = (costs[key] ?? 0) + m.costMinor;
+      (taken[(m.saleId ?? 0, m.itemId)] ??= []).add(m);
     }
     return [
       for (final row in rows)
         () {
           final line = row.readTable(_db.saleLines);
           final item = row.readTableOrNull(_db.items);
+          final queue = line.itemId == null
+              ? null
+              : taken[(line.saleId, line.itemId!)];
+          final move = queue == null || queue.isEmpty
+              ? null
+              : queue.removeAt(0);
           return SoldLine(
             itemId: line.itemId,
             name: item?.name ?? line.name,
             unit: item?.unit,
             service: item?.kind == ItemKind.service,
-            quantityMilli: line.quantityMilli,
+            // In the item's own unit, so ways of selling add up.
+            quantityMilli: move == null
+                ? line.quantityMilli
+                : -move.quantityMilli,
             amountMinor: line.totalMinor,
-            costMinor: line.itemId == null
-                ? 0
-                : costs.remove((line.saleId, line.itemId!)) ?? 0,
+            costMinor: move?.costMinor ?? 0,
           );
         }(),
     ];

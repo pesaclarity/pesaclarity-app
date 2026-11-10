@@ -6,7 +6,8 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/repositories/stock_repository.dart' show StockMove;
+import '../../../data/repositories/stock_repository.dart';
+import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
@@ -15,6 +16,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../application/stock_providers.dart';
+import 'measure_sheet.dart';
 import 'stock_screen.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
@@ -44,6 +46,7 @@ class ItemScreen extends ConsumerWidget {
         body: const Center(child: CircularProgressIndicator.adaptive()),
       );
     }
+    final measures = ref.watch(measuresProvider).value?[itemId] ?? const [];
     final days = daysLeft(item, soldMilliPerDay: pace);
     final unit = item.unit;
     final per = unit == null ? 'each' : 'per $unit';
@@ -53,7 +56,9 @@ class ItemScreen extends ConsumerWidget {
         if (m.kind == StockMoveKind.sold && !m.at.isBefore(weekStart)) m,
     ];
     final soldWeek = week.fold(0, (sum, m) => sum - m.quantityMilli);
-    final weekAmount = item.priceMinor == null
+    // Sold several ways, the week's takings are not one price times one
+    // amount.
+    final weekAmount = item.priceMinor == null || measures.any((m) => m.sells)
         ? null
         : costOf(soldWeek, item.priceMinor!);
 
@@ -86,7 +91,12 @@ class ItemScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      stockText(item),
+                      stockInMeasures(
+                            item.stockMilli,
+                            unit: unit,
+                            measures: measures,
+                          ) ??
+                          stockText(item),
                       style: AppTypography.amount(
                         size: 32,
                         color: theme.colorScheme.onSurface,
@@ -145,6 +155,35 @@ class ItemScreen extends ConsumerWidget {
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
+                for (final m in measures) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    key: Key('item-way-${m.id}'),
+                    title: Text(m.name),
+                    subtitle: Text(
+                      m.isPack
+                          ? '${m.bases ~/ m.units} '
+                                '${unitFor(unit!.toLowerCase(), 2 * milli)}'
+                          : '${m.units ~/ m.bases} in a ${unit!.toLowerCase()}',
+                    ),
+                    trailing: Text(
+                      m.priceMinor == null
+                          ? 'Bought only'
+                          : _plain(m.priceMinor!),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    onTap: () => _way(context, ref, item, existing: m),
+                  ),
+                ],
+                if (item.isProduct && unit != null) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    key: const Key('item-add-way'),
+                    leading: const Icon(Icons.add),
+                    title: const Text('Sell it another way'),
+                    onTap: () => _way(context, ref, item),
+                  ),
+                ],
                 if (item.isProduct) ...[
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   ListTile(
@@ -216,6 +255,54 @@ class ItemScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Adds a way to sell [item], or changes or stops [existing].
+Future<void> _way(
+  BuildContext context,
+  WidgetRef ref,
+  Item item, {
+  Measure? existing,
+}) async {
+  final draft = await showMeasureSheet(
+    context,
+    item: item.name,
+    unit: item.unit!,
+    unitPriceMinor: item.priceMinor,
+    existing: existing == null
+        ? null
+        : MeasureDraft(
+            name: existing.name,
+            units: existing.units,
+            bases: existing.bases,
+            priceMinor: existing.priceMinor,
+          ),
+  );
+  if (draft == null) return;
+  final stock = ref.read(stockRepositoryProvider);
+  if (existing == null) {
+    await stock.addMeasure(
+      item.id,
+      name: draft.name,
+      units: draft.units,
+      bases: draft.bases,
+      priceMinor: draft.priceMinor,
+    );
+  } else if (draft.removed) {
+    await stock.removeMeasure(existing.id);
+  } else {
+    await stock.updateMeasure(
+      Measure(
+        id: existing.id,
+        itemId: item.id,
+        name: draft.name,
+        units: draft.units,
+        bases: draft.bases,
+        priceMinor: draft.priceMinor,
+      ),
+    );
+  }
+  ref.invalidate(measuresProvider);
 }
 
 /// How many moves the history shows.

@@ -703,6 +703,75 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 31 database: open tabs', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE tab_lines');
+      await old.customStatement('DROP TABLE tabs');
+      await old.customStatement('PRAGMA user_version = 31');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final tab = await db
+          .into(db.tabs)
+          .insert(
+            TabsCompanion.insert(
+              name: 'Table 4',
+              openedAt: DateTime.utc(2026, 11, 13),
+            ),
+          );
+      await db
+          .into(db.tabLines)
+          .insert(
+            TabLinesCompanion.insert(
+              tabId: tab,
+              at: DateTime.utc(2026, 11, 13),
+              name: 'Lager',
+              quantityMilli: 2000,
+              totalMinor: 40000,
+            ),
+          );
+      expect(await db.select(db.tabLines).get(), hasLength(1));
+    });
+
+    test('migrates a version 30 database: tots, doubles and crates', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement(
+        'ALTER TABLE sale_lines DROP COLUMN measure_id',
+      );
+      await old.customStatement('DROP TABLE item_measures');
+      await old.customStatement('PRAGMA user_version = 30');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final item = await db
+          .into(db.items)
+          .insert(
+            ItemsCompanion.insert(kind: ItemKind.product, name: 'Whisky'),
+          );
+      await db
+          .into(db.itemMeasures)
+          .insert(
+            ItemMeasuresCompanion.insert(
+              itemId: item,
+              name: 'Tot',
+              units: 30,
+              bases: 1,
+            ),
+          );
+      expect(await db.select(db.itemMeasures).get(), hasLength(1));
+      final columns = await db
+          .customSelect('PRAGMA table_info(sale_lines)')
+          .get();
+      expect(
+        columns.map((c) => c.read<String>('name')),
+        contains('measure_id'),
+      );
+    });
+
     test('migrates a version 29 database: accounts by number', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('ALTER TABLE accounts DROP COLUMN reference');

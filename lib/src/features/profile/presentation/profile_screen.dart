@@ -11,14 +11,17 @@ import '../../../core/time/clock.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/look/look_settings.dart';
 import '../../../domain/spaces/space.dart';
+import '../../../domain/time/business_day.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
+import '../../close/application/business_day_providers.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
@@ -188,11 +191,32 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push(AppRoutes.documentSettings),
     );
+    final businessDay =
+        ref.watch(businessDayProvider).value ?? BusinessDay.midnight;
+    final dayEnds = ListTile(
+      key: const Key('profile-day-ends'),
+      leading: const RowIcon(Icons.nights_stay_outlined),
+      title: const Text('Day ends at'),
+      subtitle: const Text('For sales today and Close the day'),
+      trailing: ChoiceMenu<int>(
+        name: 'Day ends at',
+        options: [
+          for (final hour in BusinessDay.choices)
+            (hour, BusinessDay.labelFor(hour)),
+        ],
+        value: businessDay.endsAtHour,
+        itemKey: (hour) => Key('day-ends-$hour'),
+        onChanged: (hour) => ref
+            .read(businessDayProvider.notifier)
+            .save(BusinessDay(endsAtHour: hour)),
+      ),
+    );
     final money = [
       myAccounts,
       if (ref.watch(activeSpaceProvider).kind == SpaceKind.business) ...[
         businessRouting,
         documents,
+        dayEnds,
       ],
       if (ios) connect,
       income,
