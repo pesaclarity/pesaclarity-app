@@ -702,6 +702,26 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 28 database: rates by day', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE rate_snapshots');
+      await old.customStatement(
+        'ALTER TABLE transactions DROP COLUMN fx_rate_currency',
+      );
+      await old.customStatement('PRAGMA user_version = 28');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.rateSnapshots).get(), isEmpty);
+      final columns = await db
+          .customSelect("SELECT name FROM pragma_table_info('transactions')")
+          .map((row) => row.read<String>('name'))
+          .get();
+      expect(columns, contains('fx_rate_currency'));
+    });
+
     test('migrates a version 27 database: eTIMS costs', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE etims_costs');

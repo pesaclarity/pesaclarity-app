@@ -17,6 +17,7 @@ import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../currency/presentation/payment_rate_card.dart';
 import '../../documents/presentation/receipt_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -154,6 +155,7 @@ class _Body extends ConsumerWidget {
             color: isIn ? colors.successText : theme.colorScheme.onSurface,
           ),
         ),
+        BaseAmountLine(r),
         if (r.feeMinor > 0)
           Text(
             'Fee ${formatMoney(Money(r.feeMinor, currency: r.currency))}',
@@ -162,6 +164,7 @@ class _Body extends ConsumerWidget {
         if (r.transferPairId != null)
           Text('Own transfer, not spending', style: theme.textTheme.bodySmall),
         const SizedBox(height: 16),
+        PaymentRateCard(r),
         Card(
           child: Column(
             children: [

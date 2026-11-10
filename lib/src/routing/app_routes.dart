@@ -48,6 +48,7 @@ abstract final class AppRoutes {
   static const terms = '/home/profile/privacy/terms';
   static const payees = '/home/profile/payees';
   static const baseCurrency = '/home/profile/currency';
+  static const converter = '/home/profile/currency/converter';
   static const incomeSources = '/home/profile/income';
   static const subscriptions = '/home/profile/subscriptions';
 

@@ -202,8 +202,12 @@ class Transactions extends Table {
   TextColumn get currency =>
       text().withLength(min: 3, max: 3).withDefault(const Constant('KES'))();
 
-  /// Exchange rate to the account currency in millionths, for foreign income.
+  /// The rate the person got for this transaction, in millionths: one
+  /// [fxRateCurrency] bought this much of [currency]. Null uses the rates of
+  /// the transaction's day.
   IntColumn get fxRateMicros => integer().nullable()();
+  TextColumn get fxRateCurrency =>
+      text().withLength(min: 3, max: 3).nullable()();
   IntColumn get payeeId => integer().nullable().references(Payees, #id)();
 
   /// The other party's raw identifier, normalised by `PayeeIdentifier`, so
@@ -425,6 +429,20 @@ class MovedTransactions extends Table {
 
   @override
   Set<Column> get primaryKey => {accountId, dedupeKey};
+}
+
+/// Exchange rates as first fetched each day, so each transaction converts at
+/// the rates of its day.
+@DataClassName('RateSnapshotRecord')
+class RateSnapshots extends Table {
+  /// The local date, as `2026-11-03`.
+  TextColumn get day => text().withLength(min: 10, max: 10)();
+
+  /// The rates as `ExchangeRates.toJson` writes them.
+  TextColumn get rates => text()();
+
+  @override
+  Set<Column> get primaryKey => {day};
 }
 
 class AppSettings extends Table {

@@ -16,6 +16,7 @@ import '../features/business_insights/presentation/insights_tab.dart';
 import '../features/business_insights/presentation/make_report_screen.dart';
 import '../features/close/presentation/close_day_screen.dart';
 import '../features/currency/presentation/base_currency_screen.dart';
+import '../features/currency/presentation/converter_screen.dart';
 import '../features/currency/presentation/setup_currency_screen.dart';
 import '../features/debts/presentation/debts_screen.dart';
 import '../features/documents/presentation/document_settings_screen.dart';
@@ -232,6 +233,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'currency',
                         builder: (context, state) => const BaseCurrencyScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'converter',
+                            builder: (context, state) =>
+                                const ConverterScreen(),
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'income',

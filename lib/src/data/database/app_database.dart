@@ -56,13 +56,14 @@ part 'app_database.g.dart';
     Invoices,
     InvoiceLines,
     EtimsCosts,
+    RateSnapshots,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -225,6 +226,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 28 && !await _exists('table', etimsCosts.actualTableName)) {
         await m.createTable(etimsCosts);
+      }
+      if (from < 29) {
+        await _addColumnIfMissing(m, transactions, transactions.fxRateCurrency);
+        if (!await _exists('table', rateSnapshots.actualTableName)) {
+          await m.createTable(rateSnapshots);
+        }
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

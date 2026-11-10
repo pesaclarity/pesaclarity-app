@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
+import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
@@ -12,6 +13,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/selector_field.dart';
+import '../../currency/application/currency_controller.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../application/activity_providers.dart';
 
@@ -26,18 +28,6 @@ Future<void> showAddTransactionSheet(BuildContext context) =>
 
 /// Name of the account made for hand-added money when there is none yet.
 const cashAccountName = 'Cash';
-
-/// Parses a typed amount such as `1,250` or `99.50` into minor units; null
-/// when it is not a positive amount.
-int? parseAmountMinor(String text) {
-  final cleaned = text.replaceAll(',', '').trim();
-  final match = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(cleaned);
-  if (match == null) return null;
-  final major = int.parse(match[1]!);
-  final minor = int.parse((match[2] ?? '0').padRight(2, '0'));
-  final total = major * 100 + minor;
-  return total > 0 ? total : null;
-}
 
 /// A form for cash spending, or anything the messages missed.
 class AddTransactionSheet extends ConsumerStatefulWidget {
@@ -65,8 +55,16 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     super.dispose();
   }
 
+  /// The currency of the account the money is in: the base currency for
+  /// the cash account made when there is none.
+  String _currency(Map<int, Account> accounts) {
+    final id = _accountId ?? accounts.keys.firstOrNull;
+    return accounts[id]?.currency ?? ref.read(baseCurrencyProvider);
+  }
+
   Future<void> _save(CalendarDate today, Map<int, Account> accounts) async {
-    final amount = parseAmountMinor(_amount.text);
+    final currency = _currency(accounts);
+    final amount = parseMoneyMinor(_amount.text, currency: currency);
     if (amount == null) {
       setState(() => _amountError = 'Enter an amount, such as 1,250');
       return;
@@ -85,6 +83,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
           AccountsCompanion.insert(
             name: cashAccountName,
             type: AccountType.cash,
+            currency: Value(currency),
             openingDate: today.startInstant,
           ),
         );
@@ -99,7 +98,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 ? now
                 : date.startInstant.add(const Duration(hours: 12)),
             amountMinor: amount,
-            currency: Value(BaseCurrency.code),
+            // The account's currency: an M-Pesa payment is in KES whatever
+            // the base currency.
+            currency: Value(currency),
             direction: _direction,
             source: TransactionSource.manual,
             counterpartyName: Value(name.isEmpty ? null : name),
@@ -115,6 +116,18 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final date = _date ?? today;
+    final base = ref.watch(baseCurrencyProvider);
+    final currency = _currency(accounts);
+    final typed = parseMoneyMinor(_amount.text, currency: currency);
+    final inBase = typed == null || currency == base
+        ? null
+        : ref
+              .watch(currencyConverterProvider)
+              .convert(typed, currency, ref.read(clockProvider)());
+    // Accounts in more than one currency show theirs.
+    final mixed = accounts.values.map((a) => a.currency).toSet().length > 1;
+    String accountLabel(Account a) =>
+        mixed ? '${a.name} · ${a.currency}' : a.name;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -151,9 +164,14 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
               ],
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: 'Amount (${BaseCurrency.code})',
+                labelText: 'Amount ($currency)',
                 errorText: _amountError,
+                helperText: inBase == null
+                    ? null
+                    : '≈ ${formatMoney(Money(inBase.baseMinor, currency: base))} '
+                          "at today's rate",
               ),
             ),
             const SizedBox(height: 12),
@@ -179,12 +197,16 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
               const SizedBox(height: 12),
               SelectorField(
                 label: 'Account',
-                value: accounts[_accountId ?? accounts.keys.first]!.name,
+                value: accountLabel(
+                  accounts[_accountId ?? accounts.keys.first]!,
+                ),
                 onTap: () async {
                   final id = await showOptionSheet<int>(
                     context,
                     title: 'Account',
-                    options: [for (final a in accounts.values) (a.id, a.name)],
+                    options: [
+                      for (final a in accounts.values) (a.id, accountLabel(a)),
+                    ],
                     selected: _accountId ?? accounts.keys.first,
                   );
                   if (id != null) setState(() => _accountId = id);

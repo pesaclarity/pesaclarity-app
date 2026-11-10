@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/exchange_rates.dart';
+import '../../core/money/money.dart';
 import '../../domain/ledger/balances.dart';
 import '../../features/currency/application/currency_controller.dart';
 import '../database/app_database.dart';
@@ -99,6 +100,8 @@ class DriftAccountsRepository implements AccountsRepository {
       AccountsCompanion.insert(
         name: name,
         type: AccountType.cash,
+        // Cash in hand counts in the base currency.
+        currency: Value(_converter?.base ?? BaseCurrency.code),
         openingDate: openingDate,
       ),
     );
@@ -107,7 +110,10 @@ class DriftAccountsRepository implements AccountsRepository {
   @override
   Future<List<AccountOpening>> openings() async => [
     for (final a in await _db.select(_db.accounts).get())
-      if (_converter?.toBase(a.openingBalanceMinor, a.currency)
+      // At the rates of the day the account opened.
+      if (_converter
+              ?.convert(a.openingBalanceMinor, a.currency, a.openingDate)
+              ?.baseMinor
           case final inBase? when a.currency != _converter!.base)
         AccountOpening(
           id: a.id,
