@@ -394,9 +394,15 @@ const _weekdayNames = [
   'Sunday',
 ];
 
+/// Days of sales in a period before the best day is named: from fewer, one
+/// busy day decides it.
+const bestDayAfterSalesDays = 14;
+
 /// Short, plain sentences about a period, each from the records.
+/// [salesDays] is how many days in it had sales.
 List<String> businessInsights({
   required List<int> byWeekday,
+  required int salesDays,
   required ProfitAndLoss pnl,
   required List<SoldLine> sold,
   required int moneyInMinor,
@@ -410,7 +416,7 @@ List<String> businessInsights({
 }) {
   final out = <String>[];
   final total = byWeekday.fold(0, (sum, v) => sum + v);
-  if (total > 0) {
+  if (total > 0 && salesDays >= bestDayAfterSalesDays) {
     var best = 0;
     for (var i = 1; i < 7; i++) {
       if (byWeekday[i] > byWeekday[best]) best = i;

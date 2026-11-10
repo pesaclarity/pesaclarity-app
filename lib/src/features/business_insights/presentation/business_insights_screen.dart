@@ -93,13 +93,12 @@ class BusinessInsightsScreen extends ConsumerWidget {
               ],
               if (report.byWeekday.any((v) => v > 0)) ...[
                 const SizedBox(height: 12),
-                _SalesByDay(report.byWeekday),
+                _SalesByDay(
+                  report.byWeekday,
+                  bestDayWaits: _salesDays(report) < bestDayAfterSalesDays,
+                ),
               ],
-              // A best day or a share of sales means little from a few
-              // days, so the sentences wait for two weeks of sales.
-              if (_salesDays(report) < _sentencesAfterDays)
-                const EmptyNote('Insights show after two weeks of sales.')
-              else if (report.insights.isNotEmpty) ...[
+              if (report.insights.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _Sentences(report.insights),
               ],
@@ -118,10 +117,6 @@ class BusinessInsightsScreen extends ConsumerWidget {
     );
   }
 }
-
-/// Days of sales in a period before Insights says anything about them,
-/// such as the best day.
-const _sentencesAfterDays = 14;
 
 /// The days in [report]'s period that have sales.
 int _salesDays(BusinessReport report) =>
@@ -367,10 +362,13 @@ class _BestSellers extends StatelessWidget {
 }
 
 class _SalesByDay extends StatelessWidget {
-  const _SalesByDay(this.byWeekday);
+  const _SalesByDay(this.byWeekday, {required this.bestDayWaits});
 
   /// Monday first.
   final List<int> byWeekday;
+
+  /// Whether there are too few days of sales yet to name the best day.
+  final bool bestDayWaits;
 
   static const _letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   static const _names = [
@@ -436,6 +434,15 @@ class _SalesByDay extends StatelessWidget {
                 ],
               ),
             ),
+            if (bestDayWaits) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Your best day shows after two weeks of sales.',
+                style: theme.textTheme.bodyMedium!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
           ],
         ),
       ),

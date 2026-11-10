@@ -404,7 +404,12 @@ class _Settings extends ConsumerWidget {
         children: [
           ListTile(
             title: const Text('You file as'),
-            subtitle: Text('Changes the rates used', style: muted),
+            subtitle: Text(
+              settings.company
+                  ? 'The company rate'
+                  : 'Individual rates and relief',
+              style: muted,
+            ),
             trailing: ChoiceMenu<bool>(
               key: const Key('tax-file-as'),
               name: 'You file as',
