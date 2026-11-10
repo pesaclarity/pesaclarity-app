@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
 
 void main() {
   test('money shows as dots while hidden, with or without the code', () {
@@ -62,6 +64,29 @@ void main() {
     await tester.pump();
     expect(find.text('KES 4,850'), findsOneWidget);
     expect(find.byTooltip('Hide balances'), findsNWidgets(2));
+  });
+  testWidgets('a long category shortens; the account always shows whole', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            child: DetailLine('Groceries and household supplies', 'M-Pesa'),
+          ),
+        ),
+      ),
+    );
+    final tail = tester.renderObject<RenderParagraph>(find.text(' · M-Pesa'));
+    expect(tail.didExceedMaxLines, isFalse);
+    expect(tester.getSize(find.text(' · M-Pesa')).height, lessThan(30));
+    final line = tester.widget<DetailLine>(find.byType(DetailLine));
+    expect(
+      '${line.lead} · ${line.tail}',
+      'Groceries and household supplies · M-Pesa',
+    );
+    expect(tester.takeException(), isNull);
   });
 }
 

@@ -145,7 +145,7 @@ void main() {
     expect(find.text('TODAY'), findsOneWidget);
     expect(find.text('YESTERDAY'), findsOneWidget);
     expect(find.text('Naivas Juja City'), findsOneWidget);
-    expect(find.text('Groceries and household · M-Pesa'), findsOneWidget);
+    expect(findDetailLine('Groceries and household · M-Pesa'), findsOneWidget);
     expect(find.text('-1,440'), findsOneWidget);
 
     // The transfer shows once, as not spending.
