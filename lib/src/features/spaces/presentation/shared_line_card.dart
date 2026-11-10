@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../shared/names.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../application/routing_providers.dart';
 import '../application/spaces_providers.dart';
 
@@ -49,7 +50,10 @@ class _SharedLineCardState extends ConsumerState<SharedLineCard> {
     final name = q.name == null || q.name!.trim().isEmpty
         ? null
         : titleCase(q.name);
-    final amount = formatMoney(Money(q.amountMinor, currency: q.currency));
+    final amount = shownAmounts(
+      context,
+      formatMoney(Money(q.amountMinor, currency: q.currency)),
+    );
     final who = name ?? 'Someone';
     final text = q.isInflow
         ? '$who sent you $amount. Was this for the business?'

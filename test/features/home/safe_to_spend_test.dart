@@ -223,6 +223,22 @@ void main() {
     expect(find.text('Money in · KES 5,000 from Test Mum'), findsOneWidget);
     expect(find.text('Make it last until Mon 23 Nov'), findsOneWidget);
     expect(find.text('KES 3,000 from Test Wanjiku'), findsOneWidget);
+
+    // The eye on the card hides every amount on Home.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('until-next-money')),
+        matching: find.byKey(const Key('amounts-eye')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('KES 300'), findsNothing);
+    expect(
+      find.text('••••• on hand · ••••• set aside for bills'),
+      findsOneWidget,
+    );
+    expect(find.text('Money in · KES ••••• from Test Mum'), findsOneWidget);
+    expect(find.text('KES ••••• from Test Wanjiku'), findsOneWidget);
   });
 }
 

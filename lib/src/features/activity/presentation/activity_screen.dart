@@ -17,6 +17,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -28,11 +29,16 @@ import '../../currency/application/currency_controller.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../payees/application/tag_filter.dart';
 import '../../payees/presentation/transaction_sheet.dart';
+import '../../security/application/balance_visibility.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
 import 'name_payee_sheet.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+
+/// [amount] as written, or dots while amounts are hidden.
+String _orHidden(BuildContext context, String amount) =>
+    AmountsHidden.of(context) ? maskedDigits : amount;
 
 /// [minor] with a sign for money in, and the currency code when [code] is
 /// set: lists show codes once they hold more than one currency.
@@ -122,115 +128,119 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    identifier: SemanticIds.titleActivity,
-                    child: Text(
-                      'Activity',
-                      style: theme.textTheme.headlineLarge,
-                    ),
-                  ),
-                ),
-                const ActivityExportButton(),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _search,
-              onChanged: (q) => _update((f) => f.copyWith(query: q)),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search payee, amount, note',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _filter.query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          _search.clear();
-                          _update((f) => f.copyWith(query: ''));
-                        },
+        child: AmountsHidden(
+          hidden: ref.watch(balancesHiddenProvider),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      identifier: SemanticIds.titleActivity,
+                      child: Text(
+                        'Activity',
+                        style: theme.textTheme.headlineLarge,
                       ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _Filters(
-              filter: _filter,
-              accounts: accounts,
-              categories: categories,
-              onChanged: _update,
-            ),
-            _FixedNote(
-              accounts: accounts,
-              onSeeThem: (id) =>
-                  _update((f) => f.copyWith(accountId: () => id)),
-            ),
-            const SizedBox(height: 16),
-            _WeekCard(week, code: code, others: others),
-            const SizedBox(height: 8),
-            if (loaded.isLoading && !loaded.hasValue)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator.adaptive()),
-              )
-            else if (days.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Text(
-                  entries.isEmpty
-                      ? 'Transactions show here once your messages are read, '
-                            'or when you add one with + on Home.'
-                      : 'Nothing matches these filters.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: colors.textMuted,
+                    ),
                   ),
+                  const AmountsEye(),
+                  const ActivityExportButton(),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _search,
+                onChanged: (q) => _update((f) => f.copyWith(query: q)),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'Search payee, amount, note',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _filter.query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear search',
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _search.clear();
+                            _update((f) => f.copyWith(query: ''));
+                          },
+                        ),
                 ),
-              )
-            else
-              for (final day in days) ...[
+              ),
+              const SizedBox(height: 12),
+              _Filters(
+                filter: _filter,
+                accounts: accounts,
+                categories: categories,
+                onChanged: _update,
+              ),
+              _FixedNote(
+                accounts: accounts,
+                onSeeThem: (id) =>
+                    _update((f) => f.copyWith(accountId: () => id)),
+              ),
+              const SizedBox(height: 16),
+              _WeekCard(week, code: code, others: others),
+              const SizedBox(height: 8),
+              if (loaded.isLoading && !loaded.hasValue)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
+                )
+              else if (days.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+                  padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Text(
-                    dayHeading(day.date, today: today).toUpperCase(),
-                    style: theme.textTheme.labelLarge!.copyWith(
+                    entries.isEmpty
+                        ? 'Transactions show here once your messages are read, '
+                              'or when you add one with + on Home.'
+                        : 'Nothing matches these filters.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium!.copyWith(
                       color: colors.textMuted,
-                      letterSpacing: 1,
+                    ),
+                  ),
+                )
+              else
+                for (final day in days) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
+                    child: Text(
+                      dayHeading(day.date, today: today).toUpperCase(),
+                      style: theme.textTheme.labelLarge!.copyWith(
+                        color: colors.textMuted,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  for (final line in day.lines)
+                    _ActivityRow(
+                      line: line,
+                      accounts: accounts,
+                      categoryName: categoryName,
+                      categories: categories,
+                      suggest: (e) => suggester?.suggest(e),
+                      onAccept: (e, s) =>
+                          confirmCategory(ref, e, s.categoryId, s),
+                      base: base,
+                      code: code,
+                    ),
+                ],
+              if (_filter.from == null && entries.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () => setState(() => _pages++),
+                    child: Text(
+                      'Show older',
+                      style: TextStyle(color: colors.link),
                     ),
                   ),
                 ),
-                for (final line in day.lines)
-                  _ActivityRow(
-                    line: line,
-                    accounts: accounts,
-                    categoryName: categoryName,
-                    categories: categories,
-                    suggest: (e) => suggester?.suggest(e),
-                    onAccept: (e, s) =>
-                        confirmCategory(ref, e, s.categoryId, s),
-                    base: base,
-                    code: code,
-                  ),
               ],
-            if (_filter.from == null && entries.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () => setState(() => _pages++),
-                  child: Text(
-                    'Show older',
-                    style: TextStyle(color: colors.link),
-                  ),
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -348,9 +358,14 @@ class _WeekCard extends StatelessWidget {
                     children: [
                       Text('Out this week', style: label),
                       Text(
-                        code == null
-                            ? _plain(week.outMinor)
-                            : formatMoney(Money(week.outMinor, currency: code)),
+                        _orHidden(
+                          context,
+                          code == null
+                              ? _plain(week.outMinor)
+                              : formatMoney(
+                                  Money(week.outMinor, currency: code),
+                                ),
+                        ),
                         style: AppTypography.amount(
                           size: code == null ? 26 : 20,
                           color: theme.colorScheme.onSurface,
@@ -365,7 +380,10 @@ class _WeekCard extends StatelessWidget {
                     Text('In this week', style: label),
                     Text(
                       week.inMinor > 0
-                          ? _signed(week.inMinor, code: code)
+                          ? _orHidden(
+                              context,
+                              _signed(week.inMinor, code: code),
+                            )
                           : '0',
                       style: AppTypography.amount(
                         size: code == null ? 26 : 20,
@@ -578,7 +596,7 @@ class _ActivityRow extends StatelessWidget {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0;
     return Text(
-      _signed(signedMinor, code: code),
+      _orHidden(context, _signed(signedMinor, code: code)),
       style: AppTypography.amount(
         size: 18,
         color: inflow
@@ -605,9 +623,12 @@ class _ActivityRow extends StatelessWidget {
         ? entry.amountMinor
         : entry.originalAmountMinor!;
     final signed = transfer || inflow ? ownMinor : -ownMinor;
-    final main = ownCode == null
-        ? _signed(signed, code: code)
-        : _signed(signed, code: ownCode);
+    final main = _orHidden(
+      context,
+      ownCode == null
+          ? _signed(signed, code: code)
+          : _signed(signed, code: ownCode),
+    );
     final style = AppTypography.amount(
       size: 18,
       color: transfer
@@ -617,7 +638,7 @@ class _ActivityRow extends StatelessWidget {
           : Theme.of(context).colorScheme.onSurface,
     );
     final under = original != null
-        ? '≈ ${formatMoney(Money(entry.amountMinor, currency: entry.currency))}'
+        ? '≈ ${_orHidden(context, formatMoney(Money(entry.amountMinor, currency: entry.currency)))}'
         : ownCode != null
         ? 'Not in totals yet'
         : null;

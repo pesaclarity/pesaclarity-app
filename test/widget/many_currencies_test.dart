@@ -124,6 +124,16 @@ void main() {
     expect(find.text('Use the rate I got'), findsOneWidget);
   });
 
+  testAppWidgets('Activity hides amounts behind its eye', (tester) async {
+    await pump(tester, const ActivityScreen());
+    expect(find.text('-KES 25,000'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('amounts-eye')));
+    await tester.pumpAndSettle();
+    expect(find.text('-KES 25,000'), findsNothing);
+    expect(find.text('≈ USD 193.50'), findsNothing);
+    expect(find.text('≈ •••••'), findsWidgets);
+  });
+
   testAppWidgets('says what moved after messages were read again', (
     tester,
   ) async {
