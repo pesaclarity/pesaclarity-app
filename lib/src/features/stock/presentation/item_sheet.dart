@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/money/money.dart';
+import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../theme/pesa_colors.dart';
+import 'measure_sheet.dart';
 
 /// Add an item: a product with its price, unit, cost and stock, or a
 /// service with its price. With [servicesOnly], it is always a service.
@@ -72,6 +76,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
   final _warn = TextEditingController();
   final _group = TextEditingController();
   late var _kind = widget.servicesOnly ? ItemKind.service : ItemKind.product;
+  final _measures = <MeasureDraft>[];
   var _saving = false;
 
   @override
@@ -89,23 +94,214 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     try {
       final product = _kind == ItemKind.product;
       final price = AmountField.amountFrom(_price.text);
-      await ref
-          .read(stockRepositoryProvider)
-          .add(
-            kind: _kind,
-            name: _name.text,
-            at: ref.read(clockProvider)(),
-            unit: _unit.text,
-            priceMinor: price == null || price == 0 ? null : price,
-            costMinor: product ? AmountField.amountFrom(_cost.text) ?? 0 : 0,
-            stockMilli: product ? quantityFrom(_stock.text) ?? 0 : 0,
-            warnBelowMilli: product ? quantityFrom(_warn.text) : null,
-            grouping: _group.text.trim().isEmpty ? null : _group.text.trim(),
+      final stock = ref.read(stockRepositoryProvider);
+      final id = await stock.add(
+        kind: _kind,
+        name: _name.text,
+        at: ref.read(clockProvider)(),
+        unit: _unit.text,
+        priceMinor: price == null || price == 0 ? null : price,
+        costMinor: product ? AmountField.amountFrom(_cost.text) ?? 0 : 0,
+        stockMilli: product ? quantityFrom(_stock.text) ?? 0 : 0,
+        warnBelowMilli: product ? quantityFrom(_warn.text) : null,
+        grouping: _group.text.trim().isEmpty ? null : _group.text.trim(),
+      );
+      if (product && _unit.text.trim().isNotEmpty) {
+        for (final m in _measures) {
+          await stock.addMeasure(
+            id,
+            name: m.name,
+            units: m.units,
+            bases: m.bases,
+            priceMinor: m.priceMinor,
           );
+        }
+      }
       navigator.pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+
+  Future<void> _measure({MeasureDraft? existing, bool pack = false}) async {
+    final unit = _unit.text.trim();
+    final price = AmountField.amountFrom(_price.text);
+    final draft = await showMeasureSheet(
+      context,
+      item: _name.text.trim().isEmpty ? 'This item' : _name.text.trim(),
+      unit: unit,
+      unitPriceMinor: price == null || price == 0 ? null : price,
+      pack: pack,
+      existing: existing,
+    );
+    if (draft == null || !mounted) return;
+    setState(() {
+      final at = existing == null ? -1 : _measures.indexOf(existing);
+      if (draft.removed) {
+        if (at >= 0) _measures.removeAt(at);
+      } else if (at >= 0) {
+        _measures[at] = draft;
+      } else {
+        _measures.add(draft);
+      }
+    });
+  }
+
+  /// A product: what it is counted in, its stock, every way it sells, and
+  /// what it costs.
+  List<Widget> _product(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextFormField(
+              key: const Key('item-unit'),
+              controller: _unit,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'You count it in',
+                hintText: 'Bottle, kg, bunch',
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: QuantityField(
+              key: const Key('item-stock'),
+              controller: _stock,
+              label: 'In stock now',
+              optional: true,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(
+          'SOLD AS',
+          style: theme.textTheme.labelLarge!.copyWith(
+            color: colors.textMuted,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      Card(
+        margin: EdgeInsets.zero,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _capital(_unit.text.trim()).isEmpty
+                              ? 'Each'
+                              : _capital(_unit.text.trim()),
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        Text('The unit you count', style: muted),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: 150,
+                    child: AmountField(
+                      key: const Key('item-price'),
+                      controller: _price,
+                      label: 'Sells for',
+                      allowZero: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            for (final m in _measures) ...[
+              const Divider(height: 1),
+              ListTile(
+                key: Key('item-measure-${m.name}'),
+                title: Text(m.name),
+                subtitle: Text(_size(m), style: muted),
+                trailing: Text(
+                  m.priceMinor == null
+                      ? 'Bought only'
+                      : 'KES ${_plain(m.priceMinor!)}',
+                  style: theme.textTheme.titleSmall,
+                ),
+                onTap: () => _measure(existing: m),
+              ),
+            ],
+          ],
+        ),
+      ),
+      if (_unit.text.trim().isNotEmpty)
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            key: const Key('item-add-measure'),
+            onPressed: _measure,
+            icon: const Icon(Icons.add),
+            label: const Text('Sell it another way'),
+          ),
+        )
+      else
+        const SizedBox(height: 12),
+      AmountField(
+        key: const Key('item-cost'),
+        controller: _cost,
+        label: _unit.text.trim().isEmpty
+            ? 'You pay about, each'
+            : 'You pay about, a ${_unit.text.trim().toLowerCase()}',
+        allowZero: true,
+      ),
+      const SizedBox(height: 4),
+      ListenableBuilder(
+        listenable: _cost,
+        builder: (context, _) =>
+            Text(_costNote(), key: const Key('item-cost-note'), style: muted),
+      ),
+      const SizedBox(height: 12),
+      QuantityField(
+        key: const Key('item-warn'),
+        controller: _warn,
+        label: 'Warn me below',
+        optional: true,
+      ),
+    ];
+  }
+
+  /// `30 in a bottle`, or for a pack `24 bottles`.
+  String _size(MeasureDraft m) {
+    final unit = _unit.text.trim().toLowerCase();
+    return m.isPack
+        ? '${m.bases} ${unitFor(unit, m.bases * milli)}'
+        : '${m.units} in a $unit';
+  }
+
+  /// What the smallest way of selling costs, once the cost is known.
+  String _costNote() {
+    final cost = AmountField.amountFrom(_cost.text);
+    final parts = [
+      for (final m in _measures)
+        if (!m.isPack) m,
+    ]..sort((a, b) => b.units.compareTo(a.units));
+    if (cost == null || cost == 0 || parts.isEmpty) {
+      return 'Updated from what you pay each time you restock.';
+    }
+    final finest = parts.first;
+    final word = finest.name.split(',').first.trim().toLowerCase();
+    return 'Each $word then costs you about '
+        'KES ${_plain((cost * finest.bases / finest.units / 100).round() * 100)}.';
   }
 
   @override
@@ -155,52 +351,22 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
                 : null,
           ),
           const SizedBox(height: 12),
-          two(
-            AmountField(
-              key: const Key('item-price'),
-              controller: _price,
-              label: product ? 'Sells for' : 'Price (empty if it varies)',
-              allowZero: true,
-            ),
-            TextFormField(
-              key: const Key('item-unit'),
-              controller: _unit,
-              decoration: InputDecoration(
-                labelText: product
-                    ? 'Per (kg, bunch, piece)'
-                    : 'Per (optional)',
-              ),
-            ),
-          ),
-          if (product) ...[
-            const SizedBox(height: 12),
-            AmountField(
-              key: const Key('item-cost'),
-              controller: _cost,
-              label: 'You pay about, a unit',
-              allowZero: true,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Updated from what you pay each time you restock.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
+          if (product)
+            ..._product(context)
+          else
             two(
-              QuantityField(
-                key: const Key('item-stock'),
-                controller: _stock,
-                label: 'In stock now',
-                optional: true,
+              AmountField(
+                key: const Key('item-price'),
+                controller: _price,
+                label: 'Price (empty if it varies)',
+                allowZero: true,
               ),
-              QuantityField(
-                key: const Key('item-warn'),
-                controller: _warn,
-                label: 'Warn me below',
-                optional: true,
+              TextFormField(
+                key: const Key('item-unit'),
+                controller: _unit,
+                decoration: const InputDecoration(labelText: 'Per (optional)'),
               ),
             ),
-          ],
           const SizedBox(height: 12),
           TextFormField(
             key: const Key('item-group'),
@@ -221,3 +387,6 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     );
   }
 }
+
+String _capital(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';

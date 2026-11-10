@@ -133,6 +133,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         : (line.totalMinor * milli / line.quantityMilli).round();
     return SaleLine(
       itemId: line.itemId,
+      measureId: line.measureId,
       name: line.name,
       quantityMilli: quantityMilli,
       totalMinor: costOf(quantityMilli, unitPrice),

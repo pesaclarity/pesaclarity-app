@@ -161,7 +161,10 @@ class DriftDocumentsRepository implements DocumentsRepository {
           name: r.readTable(_db.saleLines).name,
           totalMinor: r.readTable(_db.saleLines).totalMinor,
           quantityMilli: r.readTable(_db.saleLines).quantityMilli,
-          unit: r.readTableOrNull(_db.items)?.unit,
+          // A tot or a crate is named in the line itself.
+          unit: r.readTable(_db.saleLines).measureId == null
+              ? r.readTableOrNull(_db.items)?.unit
+              : null,
         ),
     ];
     final payRows = await (_db.select(_db.salePayments).join([
