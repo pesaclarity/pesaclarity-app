@@ -21,6 +21,11 @@ abstract final class BrandTokens {
   static const danger = Color(0xFFC8102E);
   static const onBrand = Color(0xFFFFFFFF);
 
+  /// Only for marking the parts of a message: who, the balance, the fee.
+  static const markBlue = Color(0xFF1D4ED8);
+  static const markPurple = Color(0xFF6D28D9);
+  static const markTeal = Color(0xFF0F766E);
+
   static const darkBackground = Color(0xFF1A1214);
   static const darkSurface = Color(0xFF251B1E);
   static const darkBorder = Color(0xFF3D2E32);
@@ -34,6 +39,9 @@ abstract final class BrandTokens {
   static const darkSuccessText = Color(0xFF6EE7B7);
   static const darkWarning = Color(0xFFFBBF24);
   static const darkDanger = Color(0xFFFF6B7A);
+  static const darkMarkBlue = Color(0xFF60A5FA);
+  static const darkMarkPurple = Color(0xFFA78BFA);
+  static const darkMarkTeal = Color(0xFF2DD4BF);
 
   static const cardRadius = 24.0;
 

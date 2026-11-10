@@ -222,6 +222,7 @@ void main() {
   test('insights speak from the records', () {
     final lines = businessInsights(
       byWeekday: [100, 100, 100, 100, 100, 500, 0],
+      salesDays: 14,
       pnl: const ProfitAndLoss(income: [], costs: []),
       sold: const [],
       moneyInMinor: 3200000,
@@ -240,5 +241,24 @@ void main() {
       'Onions is running low.',
       'Your drawer matched 5 of the last 6 closes.',
     ]);
+  });
+
+  test('the best day waits for two weeks of sales', () {
+    List<String> lines(int days) => businessInsights(
+      byWeekday: [100, 0, 0, 0, 0, 500, 0],
+      salesDays: days,
+      pnl: const ProfitAndLoss(income: [], costs: []),
+      sold: const [],
+      moneyInMinor: 60000,
+      moneyOutMinor: 0,
+      customersOverTwoWeeks: 0,
+      owedOverTwoWeeksMinor: 0,
+      closes: 0,
+      closesMatched: 0,
+      runningLow: const [],
+      plain: (m) => '${m ~/ 100}',
+    );
+    expect(lines(13), ['Money in 600 and out 0, so you are 600 ahead.']);
+    expect(lines(14).first, 'Saturday is your best day, with 83% of sales.');
   });
 }

@@ -25,11 +25,11 @@ Color fieldColor(BuildContext context, ReaderField field) {
   final colors = PesaColors.of(context);
   return switch (field) {
     ReaderField.amount => scheme.primary,
-    ReaderField.counterparty => scheme.onSurface,
+    ReaderField.counterparty => colors.markBlue,
     ReaderField.date || ReaderField.time => colors.successText,
     ReaderField.reference => colors.warning,
-    ReaderField.balance ||
-    ReaderField.fee ||
+    ReaderField.balance => colors.markPurple,
+    ReaderField.fee => colors.markTeal,
     ReaderField.other => colors.textMuted,
   };
 }

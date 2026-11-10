@@ -13,6 +13,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
     required this.success,
     required this.successText,
     required this.warning,
+    required this.markBlue,
+    required this.markPurple,
+    required this.markTeal,
   });
 
   static const light = PesaColors(
@@ -23,6 +26,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: BrandTokens.success,
     successText: BrandTokens.successText,
     warning: BrandTokens.warning,
+    markBlue: BrandTokens.markBlue,
+    markPurple: BrandTokens.markPurple,
+    markTeal: BrandTokens.markTeal,
   );
 
   static const dark = PesaColors(
@@ -33,6 +39,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: BrandTokens.darkSuccess,
     successText: BrandTokens.darkSuccessText,
     warning: BrandTokens.darkWarning,
+    markBlue: BrandTokens.darkMarkBlue,
+    markPurple: BrandTokens.darkMarkPurple,
+    markTeal: BrandTokens.darkMarkTeal,
   );
 
   final Color brandSoft;
@@ -42,6 +51,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
   final Color success;
   final Color successText;
   final Color warning;
+
+  /// Only for marking the parts of a message, each its own colour.
+  final Color markBlue;
+  final Color markPurple;
+  final Color markTeal;
 
   /// A light fill behind good news, such as a matched payment.
   Color get successSoft => success.withValues(alpha: 0.10);
@@ -61,6 +75,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
     Color? success,
     Color? successText,
     Color? warning,
+    Color? markBlue,
+    Color? markPurple,
+    Color? markTeal,
   }) => PesaColors(
     brandSoft: brandSoft ?? this.brandSoft,
     link: link ?? this.link,
@@ -69,6 +86,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: success ?? this.success,
     successText: successText ?? this.successText,
     warning: warning ?? this.warning,
+    markBlue: markBlue ?? this.markBlue,
+    markPurple: markPurple ?? this.markPurple,
+    markTeal: markTeal ?? this.markTeal,
   );
 
   @override
@@ -82,6 +102,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
       success: Color.lerp(success, other.success, t)!,
       successText: Color.lerp(successText, other.successText, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
+      markBlue: Color.lerp(markBlue, other.markBlue, t)!,
+      markPurple: Color.lerp(markPurple, other.markPurple, t)!,
+      markTeal: Color.lerp(markTeal, other.markTeal, t)!,
     );
   }
 }

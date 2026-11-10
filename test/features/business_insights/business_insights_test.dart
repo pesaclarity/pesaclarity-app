@@ -380,16 +380,18 @@ void main() {
     expect(profit('0'), findsOneWidget);
   });
 
-  testAppWidgets('Insights sentences wait for two weeks of sales', (
+  testAppWidgets('only the best day waits for two weeks of sales', (
     tester,
   ) async {
-    // Two sale days this month: too few to say which day is best.
+    // Two sale days this month: too few to say which day is best, but the
+    // other sentences show at once.
     await pump(tester);
     expect(
-      find.text('Insights show after two weeks of sales.'),
+      find.text('Your best day shows after two weeks of sales.'),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('insights-sentences')), findsNothing);
+    expect(find.byKey(const Key('insights-sentences')), findsOneWidget);
+    expect(find.textContaining('is your best day'), findsNothing);
   });
 
   testAppWidgets('after two weeks of sales, Insights says the best day', (
@@ -422,7 +424,10 @@ void main() {
 
     expect(find.byKey(const Key('insights-sentences')), findsOneWidget);
     expect(find.textContaining('is your best day'), findsOneWidget);
-    expect(find.text('Insights show after two weeks of sales.'), findsNothing);
+    expect(
+      find.text('Your best day shows after two weeks of sales.'),
+      findsNothing,
+    );
   });
 
   testAppWidgets('Full records shows the books and shares them', (

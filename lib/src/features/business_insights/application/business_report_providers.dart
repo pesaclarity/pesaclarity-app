@@ -155,6 +155,12 @@ final businessReportProvider =
           if (c.overTwoWeeksMinor > 0) c,
       ];
       String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+      final byDay = salesByDay(
+        books,
+        period,
+        salesCategoryId: salesId,
+        currency: currency,
+      );
 
       return BusinessReport(
         period: period,
@@ -162,12 +168,7 @@ final businessReportProvider =
         previousProfitMinor: previous.profitMinor,
         previousPnl: previous,
         previousLabel: compared.label,
-        byDay: salesByDay(
-          books,
-          period,
-          salesCategoryId: salesId,
-          currency: currency,
-        ),
+        byDay: byDay,
         items: items,
         byWay: salesByWay(
           books,
@@ -186,6 +187,7 @@ final businessReportProvider =
         suppliers: suppliers,
         insights: businessInsights(
           byWeekday: byWeekday,
+          salesDays: byDay.where((sold) => sold > 0).length,
           pnl: pnl,
           sold: sold,
           moneyInMinor: moneyIn,

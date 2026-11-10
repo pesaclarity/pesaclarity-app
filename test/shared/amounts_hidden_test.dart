@@ -65,7 +65,7 @@ void main() {
     expect(find.text('KES 4,850'), findsOneWidget);
     expect(find.byTooltip('Hide balances'), findsNWidgets(2));
   });
-  testWidgets('a long category shortens; the account always shows whole', (
+  testWidgets('a long category wraps; the account always shows whole', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -81,6 +81,28 @@ void main() {
     final tail = tester.renderObject<RenderParagraph>(find.text(' · M-Pesa'));
     expect(tail.didExceedMaxLines, isFalse);
     expect(tester.getSize(find.text(' · M-Pesa')).height, lessThan(30));
+    // With a little more room, the category takes two lines rather than
+    // cutting short, and the account sits on the last of them.
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            child: DetailLine('Groceries and household supplies', 'M-Pesa'),
+          ),
+        ),
+      ),
+    );
+    final lead = find.text('Groceries and household supplies');
+    expect(
+      tester.renderObject<RenderParagraph>(lead).didExceedMaxLines,
+      isFalse,
+    );
+    expect(tester.getSize(lead).height, greaterThan(30));
+    expect(
+      tester.getBottomLeft(find.text(' · M-Pesa')).dy,
+      tester.getBottomLeft(lead).dy,
+    );
     final line = tester.widget<DetailLine>(find.byType(DetailLine));
     expect(
       '${line.lead} · ${line.tail}',

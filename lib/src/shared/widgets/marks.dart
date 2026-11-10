@@ -234,9 +234,9 @@ class ButtonPair extends StatelessWidget {
   );
 }
 
-/// A row's detail line on one line: [lead], such as the category, shortens
-/// with "…" when there is not room, and [tail], such as the account
-/// ("M-Pesa"), always shows whole after a " · ".
+/// A row's detail line: [lead], such as the category, wraps onto a second
+/// line and only then shortens with "…", and [tail], such as the account
+/// ("M-Pesa"), always shows whole after a " · " on the last line.
 class DetailLine extends StatelessWidget {
   const DetailLine(this.lead, this.tail, {this.style, super.key});
 
@@ -249,11 +249,12 @@ class DetailLine extends StatelessWidget {
     label: '$lead · $tail',
     excludeSemantics: true,
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Flexible(
           child: Text(
             lead,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: style,
           ),
