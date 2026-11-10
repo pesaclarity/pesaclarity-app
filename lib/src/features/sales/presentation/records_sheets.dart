@@ -16,8 +16,11 @@ import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../../people/application/people_providers.dart';
@@ -37,22 +40,7 @@ const _paidNow = [
 ];
 
 Future<bool?> _sheet(BuildContext context, Widget child) =>
-    showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: child,
-          ),
-        ),
-      ),
-    );
+    showAppSheet<bool>(context: context, builder: (_) => child);
 
 /// Bought: stock or a cost, paid now or later. With [costOnly], as for a
 /// services business, there is no stock to choose.
@@ -88,23 +76,19 @@ Future<bool?> showPaidSheet(BuildContext context, {int? debtId}) =>
     _sheet(context, _PaidSheet(debtId: debtId));
 
 void _saved(
-  NavigatorState navigator,
-  ScaffoldMessengerState messenger, {
+  NavigatorState navigator, {
   required SalePaymentMethod method,
   required String what,
 }) {
   navigator.pop(true);
   final waits =
       method == SalePaymentMethod.mpesa || method == SalePaymentMethod.bank;
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(
-        waits
-            ? '$what saved. It will match the ${methodName(method)} message '
-                  'when it comes.'
-            : '$what saved.',
-      ),
-    ),
+  showNote(
+    navigator.context,
+    waits
+        ? '$what saved. It will match the ${methodName(method)} message '
+              'when it comes.'
+        : '$what saved.',
   );
 }
 
@@ -120,7 +104,7 @@ Widget _label(BuildContext context, String text) => Padding(
 Widget _waitNote(SalePaymentMethod method, int amountMinor) => switch (method) {
   SalePaymentMethod.mpesa || SalePaymentMethod.bank => Padding(
     padding: const EdgeInsets.only(top: 12),
-    child: InfoNote(
+    child: Notice(
       'It will match the ${methodName(method)} message for '
       '${formatMoney(Money(amountMinor))} when it comes.',
     ),
@@ -184,7 +168,6 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
   Future<void> _save() async {
     if (!(_form.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
       final category = _stock
@@ -204,7 +187,7 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             itemId: _stock ? _itemId : null,
             quantityMilli: _stock && _itemId != null ? _boughtMilli() : null,
           );
-      _saved(navigator, messenger, method: _method, what: 'Bought');
+      _saved(navigator, method: _method, what: 'Bought');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -264,40 +247,31 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
         : null;
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: 'Bought',
         children: [
-          Text('Bought', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 16),
           if (!widget.costOnly) ...[
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  key: const Key('bought-stock'),
-                  label: const Text('Stock'),
-                  selected: _stock,
-                  onSelected: (_) => setState(() => _stock = true),
-                ),
-                ChoiceChip(
-                  key: const Key('bought-cost'),
-                  label: const Text('A cost'),
-                  selected: !_stock,
-                  onSelected: (_) => setState(() => _stock = false),
-                ),
-              ],
+            AdaptiveSegmented<bool>(
+              key: const Key('bought-kind'),
+              segments: const [(true, 'Stock'), (false, 'A cost')],
+              selected: _stock,
+              segmentKey: (stock) =>
+                  Key(stock ? 'bought-stock' : 'bought-cost'),
+              onChanged: (stock) => setState(() => _stock = stock),
             ),
             const SizedBox(height: 12),
           ],
           if (!_stock) ...[
             FormField<int>(
-              validator: (_) => _costId == null ? 'Choose what it was.' : null,
+              validator: (_) => _costId == null
+                  ? 'Choose a category, such as Transport.'
+                  : null,
               builder: (field) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   CategorySelectorField(
                     key: const Key('bought-category'),
-                    label: 'What it was',
+                    // It is needed to save, so not "Choose later".
                     noneLabel: 'Choose',
                     selectedId: _costId,
                     allowType: (type) => type == CategoryType.expense,
@@ -432,18 +406,18 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
                   final word = unit.toLowerCase();
                   return Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: InfoNote(
+                    child: Notice(
                       key: const Key('bought-average'),
                       'Stock goes to ${inPacks(after, pack, unit: unit)} '
                       '(${quantityText(after)} ${unitFor(word, after)}). '
-                      'Each $word now costs you about KES '
-                      '${formatMoney(Money((average / 100).round() * 100), withCurrency: false)}.',
+                      'Each $word now costs you about '
+                      '${formatMoney(Money((average / 100).round() * 100))}.',
                     ),
                   );
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: InfoNote(
+                  child: Notice(
                     key: const Key('bought-average'),
                     'Stock goes to ${quantityText(after)}'
                     '${unit == null ? '' : ' ${unitFor(unit, after)}'}. '
@@ -564,7 +538,6 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
   Future<void> _save(int owed) async {
     if (!(_form.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
       await ref
@@ -574,7 +547,7 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
             amountMinor: AmountField.amountFrom(_amount.text)!,
             method: _method,
           );
-      _saved(navigator, messenger, method: _method, what: 'Payment');
+      _saved(navigator, method: _method, what: 'Payment');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -603,11 +576,9 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
 
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: 'Got paid',
         children: [
-          Text('Got paid', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
           if (owing.isEmpty)
             Text(
               'Customers who owe you show here. Sell on credit and they '
@@ -716,7 +687,6 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
     if (!(_form.currentState?.validate() ?? false)) return;
     final debt = _debt!;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
       await ref
@@ -727,7 +697,7 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
             amountMinor: AmountField.amountFrom(_amount.text)!,
             method: _method,
           );
-      _saved(navigator, messenger, method: _method, what: 'Payment');
+      _saved(navigator, method: _method, what: 'Payment');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -751,11 +721,9 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
     }
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: 'Paid a supplier',
         children: [
-          Text('Paid a supplier', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
           if (owed.isEmpty)
             Text(
               'Suppliers you owe show here. Buy with Pay later in Bought, '
@@ -862,7 +830,7 @@ class DueDateChips extends StatelessWidget {
           _Due.date,
           choice == _Due.date
               ? dayLabel(due!, thisYear: today.year)
-              : 'Pick a date',
+              : 'Choose a date',
         ),
       ],
       value: choice,
@@ -917,7 +885,6 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
   Future<void> _save() async {
     if (!(_form.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
       await ref
@@ -927,7 +894,7 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
             method: _method,
             as: _as,
           );
-      _saved(navigator, messenger, method: _method, what: 'Pay');
+      _saved(navigator, method: _method, what: 'Pay');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -935,23 +902,15 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final profit = ref.watch(spaceSummaryProvider).value?.figureMinor;
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Pay yourself', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 6),
-          Text(
+      child: SheetBody(
+        title: 'Pay yourself',
+        subtitle:
             'Money you take for yourself. It leaves the business and shows '
             'as income in Personal.',
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: PesaColors.of(context).textMuted,
-            ),
-          ),
-          const SizedBox(height: 16),
+        children: [
           AmountField(
             key: const Key('pay-yourself-amount'),
             controller: _amount,
@@ -977,18 +936,13 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
           ),
           const SizedBox(height: 16),
           _label(context, 'Into Personal as'),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final a in PersonalPayAs.values)
-                ChoiceChip(
-                  key: Key('pay-yourself-as-${a.name}'),
-                  label: Text(a.label),
-                  selected: _as == a,
-                  onSelected: (_) => setState(() => _as = a),
-                ),
-            ],
+          AdaptiveSegmented<PersonalPayAs>(
+            key: const Key('pay-yourself-as'),
+            name: 'Into Personal as',
+            segments: [for (final a in PersonalPayAs.values) (a, a.label)],
+            selected: _as,
+            segmentKey: (a) => Key('pay-yourself-as-${a.name}'),
+            onChanged: (a) => setState(() => _as = a),
           ),
           if (profit != null)
             ListenableBuilder(
@@ -998,7 +952,7 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
                 final left = profit - amount;
                 return Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: InfoNote(
+                  child: Notice(
                     'Your business profit this month is '
                     '${formatMoney(Money(profit), withCurrency: false)}.'
                     '${amount > 0 && left >= 0 ? ' After this, ${formatMoney(Money(left), withCurrency: false)} stays in the business.' : ''}',

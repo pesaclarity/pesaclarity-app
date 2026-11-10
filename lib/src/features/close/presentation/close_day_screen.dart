@@ -16,8 +16,14 @@ import '../../../domain/printing/slips.dart';
 import '../../../domain/sales/sales_summary.dart';
 import '../../../domain/sales/tab.dart';
 import '../../../domain/time/business_day.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../documents/application/document_providers.dart';
@@ -88,7 +94,6 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
     final counted = AmountField.amountFrom(_counted.text);
     if (counted == null) return;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     try {
       final now = ref.read(clockProvider)();
@@ -110,13 +115,12 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
             at: now,
           );
       navigator.pop();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            gap == 0 ? 'Day closed. The drawer matches.' : 'Day closed.',
-          ),
-        ),
-      );
+      if (navigator.mounted) {
+        showNote(
+          navigator.context,
+          gap == 0 ? 'Day closed. The drawer matches.' : 'Day closed.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -129,36 +133,39 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
           in ref.read(customersProvider).value ?? const <CustomerAccount>[])
         if (c.owedMinor > 0) c,
     ];
-    final choice = await showModalBottomSheet<Object>(
+    final choice = await showAppSheet<Object>(
       context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              key: const Key('match-sale'),
-              leading: const Icon(Icons.point_of_sale),
-              title: const Text('A sale'),
-              onTap: () => Navigator.pop(context, 'sale'),
-            ),
-            for (final c in customers)
+      builder: (context) => SheetBody(
+        title: 'What was this payment?',
+        subtitle:
+            '${e.payeeName ?? e.counterpartyName ?? 'Payment'} · '
+            '${formatMoney(Money(e.amountMinor))}',
+        children: [
+          GroupedSection(
+            children: [
               ListTile(
-                key: Key('match-customer-${c.name}'),
-                leading: const Icon(Icons.person_outline),
-                title: Text('${c.name} paying what they owe'),
-                subtitle: Text('Owes ${_plain(c.owedMinor)}'),
-                onTap: () => Navigator.pop(context, c),
+                key: const Key('match-sale'),
+                leading: const Icon(Icons.point_of_sale_outlined),
+                title: const Text('A sale'),
+                onTap: () => Navigator.pop(context, 'sale'),
               ),
-            ListTile(
-              key: const Key('match-other'),
-              leading: const Icon(Icons.savings_outlined),
-              title: const Text('Other income'),
-              onTap: () => Navigator.pop(context, 'other'),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+              for (final c in customers)
+                ListTile(
+                  key: Key('match-customer-${c.name}'),
+                  leading: const Icon(Icons.person_outline),
+                  title: Text('${c.name} paying what they owe'),
+                  subtitle: Text('Owes ${_plain(c.owedMinor)}'),
+                  onTap: () => Navigator.pop(context, c),
+                ),
+              ListTile(
+                key: const Key('match-other'),
+                leading: const Icon(Icons.savings_outlined),
+                title: const Text('Other income'),
+                onTap: () => Navigator.pop(context, 'other'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
     switch (choice) {
@@ -186,9 +193,9 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Close the day')),
       body: cash == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 Text(
                   business.endsAtHour == 0
@@ -202,7 +209,6 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                 ),
                 const SizedBox(height: 12),
                 Card(
-                  margin: EdgeInsets.zero,
                   child: Column(
                     children: [
                       ListTile(
@@ -214,12 +220,14 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                         ),
                         trailing: Text(
                           _plain(cash.expectedMinor),
-                          style: theme.textTheme.titleMedium,
+                          style: AppTypography.rowAmount(
+                            theme.colorScheme.onSurface,
+                          ),
                         ),
                       ),
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const Divider(height: 1),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                         child: AmountField(
                           key: const Key('close-counted'),
                           controller: _counted,
@@ -241,7 +249,10 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                     if (gap == 0) {
                       return const Padding(
                         padding: EdgeInsets.only(top: 12),
-                        child: InfoNote('The drawer matches the records.'),
+                        child: Notice(
+                          'The drawer matches the records.',
+                          tone: Tone.success,
+                        ),
                       );
                     }
                     return Padding(
@@ -249,35 +260,29 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          InfoNote(
+                          Notice(
                             key: const Key('close-gap'),
                             '${_plain(gap.abs())} ${gap > 0 ? 'more' : 'less'} '
                             'than the records. Add a missed sale or cost '
                             'with + if you know it, or keep it below.',
+                            tone: Tone.warning,
                           ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              ChoiceChip(
-                                key: const Key('close-note'),
-                                label: const Text('Keep a note'),
-                                selected: _difference == _Difference.note,
-                                onSelected: (_) => setState(
-                                  () => _difference = _Difference.note,
-                                ),
-                              ),
-                              ChoiceChip(
-                                key: const Key('close-book'),
-                                label: const Text('Book a cash difference'),
-                                selected: _difference == _Difference.book,
-                                onSelected: (_) => setState(
-                                  () => _difference = _Difference.book,
-                                ),
-                              ),
+                          const SizedBox(height: 12),
+                          AdaptiveSegmented<_Difference>(
+                            key: const Key('close-difference'),
+                            name: 'The difference',
+                            segments: const [
+                              (_Difference.note, 'Keep a note'),
+                              (_Difference.book, 'Book a cash difference'),
                             ],
+                            selected: _difference,
+                            segmentKey: (d) => Key(switch (d) {
+                              _Difference.note => 'close-note',
+                              _Difference.book => 'close-book',
+                            }),
+                            onChanged: (d) => setState(() => _difference = d),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           TextField(
                             key: const Key('close-note-text'),
                             controller: _note,
@@ -292,23 +297,12 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                   },
                 ),
                 if (unmatched.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-                    child: Text(
-                      'PAYMENTS NOT MATCHED TO A SALE',
-                      style: theme.textTheme.labelLarge!.copyWith(
-                        color: colors.textMuted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
+                  const SectionLabel('Payments not matched to a sale'),
                   Card(
-                    margin: EdgeInsets.zero,
                     child: Column(
                       children: [
                         for (final (i, e) in unmatched.indexed) ...[
-                          if (i > 0)
-                            const Divider(height: 1, indent: 16, endIndent: 16),
+                          if (i > 0) const Divider(height: 1),
                           ListTile(
                             key: Key('unmatched-${e.id}'),
                             title: Text(
@@ -323,14 +317,13 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                               children: [
                                 Text(
                                   _plain(e.amountMinor),
-                                  style: theme.textTheme.titleMedium,
+                                  style: AppTypography.rowAmount(
+                                    theme.colorScheme.onSurface,
+                                  ),
                                 ),
                                 TextButton(
                                   onPressed: () => _match(e),
-                                  child: Text(
-                                    'Match',
-                                    style: TextStyle(color: colors.link),
-                                  ),
+                                  child: const Text('Match'),
                                 ),
                               ],
                             ),
@@ -339,7 +332,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Match a payment to a sale, a customer who owes you, or '
                     'keep it as other income.',
@@ -351,7 +344,6 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                 if (sales != null) ...[
                   const SizedBox(height: 16),
                   Card(
-                    margin: EdgeInsets.zero,
                     child: ListTile(
                       title: const Text('Total sales today'),
                       subtitle: sales.byWay.isEmpty
@@ -365,9 +357,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                             ),
                       trailing: Text(
                         _plain(sales.totalMinor),
-                        style: theme.textTheme.titleMedium!.copyWith(
-                          color: colors.successText,
-                        ),
+                        style: AppTypography.rowAmount(colors.successText),
                       ),
                     ),
                   ),
@@ -391,7 +381,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                     child: const Text('Close the day'),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   key: const Key('close-print'),
                   onPressed: () => _print(cash, sales),
@@ -446,49 +436,34 @@ class _OpenTabsNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final total = tabs.fold(0, (sum, t) => sum + t.totalMinor);
+    final total = formatMoney(
+      Money(tabs.fold(0, (sum, t) => sum + t.totalMinor)),
+    );
     final names = [for (final t in tabs) t.name];
     final who = names.length == 1
         ? names.single
         : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
     final one = tabs.length == 1;
-    return Container(
+    return Column(
       key: const Key('close-open-tabs'),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      decoration: BoxDecoration(
-        color: colors.warning.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            one
-                ? '1 tab is still open · ${formatMoney(Money(total))}'
-                : '${tabs.length} tabs are still open · '
-                      '${formatMoney(Money(total))}',
-            style: theme.textTheme.titleSmall,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Notice(
+          one
+              ? '1 tab is still open, $total: $who. Settle it, or keep it '
+                    'open for the next day.'
+              : '${tabs.length} tabs are still open, $total: $who. Settle '
+                    'them, or keep them open for the next day.',
+          tone: Tone.warning,
+        ),
+        TextButton(
+          key: const Key('close-see-tabs'),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const OpenTabsScreen()),
           ),
-          const SizedBox(height: 4),
-          Text(
-            one
-                ? '$who. Settle it, or keep it open for the next day.'
-                : '$who. Settle them, or keep them open for the next day.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          TextButton(
-            key: const Key('close-see-tabs'),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const OpenTabsScreen()),
-            ),
-            child: const Text('See the tabs'),
-          ),
-        ],
-      ),
+          child: const Text('See the tabs'),
+        ),
+      ],
     );
   }
 }

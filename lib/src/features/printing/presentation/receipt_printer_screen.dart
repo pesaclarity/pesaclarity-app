@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/printing/slip.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/printing_providers.dart';
 import '../data/counter_printer.dart';
@@ -36,19 +38,17 @@ class ReceiptPrinterScreen extends ConsumerWidget {
   ]);
 
   Future<void> _test(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(slipPrinterProvider).onCounter(testSlip);
-      messenger.showSnackBar(const SnackBar(content: Text('Test printed.')));
+      if (context.mounted) showNote(context, 'Test printed.');
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Turn the printer on and keep it close to the phone, then try '
-            'again.',
-          ),
-        ),
-      );
+      if (context.mounted) {
+        showNote(
+          context,
+          'Turn the printer on and keep it close to the phone, then try '
+          'again.',
+        );
+      }
     }
   }
 
@@ -63,21 +63,10 @@ class ReceiptPrinterScreen extends ConsumerWidget {
     final controller = ref.read(printerSettingsProvider.notifier);
     final printers = ref.read(counterPrintersProvider);
 
-    Widget label(String text) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Text(
-        text,
-        style: theme.textTheme.labelMedium!.copyWith(
-          color: colors.textMuted,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-
     return Scaffold(
       appBar: AppBar(title: const Text('Receipt printer')),
       body: settings == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? const LoadingView()
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
@@ -95,10 +84,9 @@ class ReceiptPrinterScreen extends ConsumerWidget {
                   ),
                 ),
                 if (supported) ...[
-                  label('PAIRED PRINTERS'),
+                  const SectionLabel('Paired printers'),
                   switch (paired) {
                     AsyncData(value: null) => Card(
-                      margin: EdgeInsets.zero,
                       child: ListTile(
                         key: const Key('printer-allow'),
                         title: const Text('Allow Nearby devices'),
@@ -114,7 +102,6 @@ class ReceiptPrinterScreen extends ConsumerWidget {
                       ),
                     ),
                     AsyncData(:final value?) when value.isEmpty => Card(
-                      margin: EdgeInsets.zero,
                       child: ListTile(
                         title: const Text('Pair your printer first'),
                         subtitle: const Text(
@@ -126,7 +113,6 @@ class ReceiptPrinterScreen extends ConsumerWidget {
                       ),
                     ),
                     AsyncData(:final value?) => Card(
-                      margin: EdgeInsets.zero,
                       child: RadioGroup<String>(
                         groupValue: settings.address,
                         onChanged: (address) {
@@ -160,14 +146,13 @@ class ReceiptPrinterScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    _ => const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(
-                        child: CircularProgressIndicator.adaptive(),
-                      ),
+                    AsyncError() => ErrorView(
+                      'Paired printers could not load.',
+                      onRetry: () => ref.invalidate(pairedPrintersProvider),
                     ),
+                    _ => const LoadingView(inList: true),
                   },
-                  label('PAPER WIDTH'),
+                  const SectionLabel('Paper width'),
                   AdaptiveSegmented<int>(
                     key: const Key('printer-paper'),
                     segments: const [(58, '58 mm'), (80, '80 mm')],
@@ -177,8 +162,7 @@ class ReceiptPrinterScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Card(
-                    margin: EdgeInsets.zero,
-                    child: SwitchListTile(
+                    child: SwitchListTile.adaptive(
                       key: const Key('printer-after-sale'),
                       title: const Text('Print after each sale'),
                       subtitle: const Text(
