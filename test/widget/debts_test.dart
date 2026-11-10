@@ -74,7 +74,7 @@ void main() {
     expect(find.text('Debt-free by'), findsOneWidget);
     expect(find.text('Remaining'), findsNothing);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Add a debt'));
+    await tester.tap(find.byTooltip('Add a debt'));
     await settle(tester);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Lender'),
@@ -92,7 +92,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Minimum each month'),
       '2,000',
     );
-    await tester.tap(find.text('Add debt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
 
     expect(find.text('Remaining'), findsOneWidget);
@@ -157,7 +157,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Payment'),
       '1,500',
     );
-    await tester.tap(find.text('Record payment'));
+    await tester.tap(find.text('Record a payment'));
     await settle(tester);
 
     expect(find.text('KES 3,500'), findsOneWidget);
@@ -169,10 +169,10 @@ void main() {
 
     await tester.tap(find.text('Test Bank'));
     await settle(tester);
-    await tester.ensureVisible(find.text('Remove this debt'));
-    await tester.tap(find.text('Remove this debt'));
+    await tester.ensureVisible(find.text('Delete debt'));
+    await tester.tap(find.text('Delete debt'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await settle(tester);
 
     expect(find.text('Test Bank'), findsNothing);

@@ -10,7 +10,12 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../goals/application/goals_overview_provider.dart';
 import '../application/lending_providers.dart';
@@ -34,18 +39,16 @@ class LendingScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showLoanSheet(context, today: today),
         icon: const Icon(Icons.add),
-        label: const Text('Add'),
+        label: const Text('Add a loan'),
       ),
       body: switch (overview) {
         AsyncData(:final value) => _LendingBody(value),
-        AsyncError() => Center(
-          child: TextButton(
-            onPressed: () =>
-                refreshGoals(ProviderScope.containerOf(context, listen: false)),
-            child: const Text('This list could not load. Tap to try again.'),
-          ),
+        AsyncError() => ErrorView(
+          'Your loans could not load.',
+          onRetry: () =>
+              refreshGoals(ProviderScope.containerOf(context, listen: false)),
         ),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        _ => const LoadingView(),
       },
     );
   }
@@ -58,31 +61,51 @@ class _LendingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final today = overview.today;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+      // Clear of the round add button.
+      padding: const EdgeInsets.fromLTRB(
+        Layout.gutter,
+        8,
+        Layout.gutter,
+        Layout.tabBottom,
+      ),
       children: [
-        _TotalsCard(overview),
-        if (overview.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text(
-              'Record money you lend to or borrow from friends and family. '
-              'Add part payments as they come, and send a polite reminder '
-              'on WhatsApp when one is due.',
-              style: theme.textTheme.bodyMedium,
+        FigureRow(
+          children: [
+            FigureTile(
+              label: 'Owed to you',
+              value: shownMoney(
+                context,
+                overview.owedToYouMinor,
+                withCurrency: false,
+              ),
             ),
+            FigureTile(
+              label: 'You owe',
+              value: shownMoney(
+                context,
+                overview.youOweMinor,
+                withCurrency: false,
+              ),
+            ),
+          ],
+        ),
+        if (overview.isEmpty)
+          const EmptyNote(
+            'Record money you lend to or borrow from friends and family. '
+            'Add part payments as they come, and send a polite reminder '
+            'on WhatsApp when one is due.',
           ),
         if (overview.lent.isNotEmpty) ...[
-          const _Header('You lent'),
+          const SectionTitle('You lent'),
           _LoanList([
             for (final loan in overview.lent)
               _LoanView.lent(loan, today, hidden: AmountsHidden.of(context)),
           ]),
         ],
         if (overview.borrowed.isNotEmpty) ...[
-          const _Header('You borrowed'),
+          const SectionTitle('You borrowed'),
           _LoanList([
             for (final loan in overview.borrowed)
               _LoanView.borrowed(
@@ -95,57 +118,6 @@ class _LendingBody extends StatelessWidget {
       ],
     );
   }
-}
-
-class _TotalsCard extends StatelessWidget {
-  const _TotalsCard(this.overview);
-
-  final LendingOverview overview;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    Widget figure(String label, int minor) => Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: theme.textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(
-            shownMoney(context, minor, withCurrency: false),
-            style: AppTypography.amount(
-              size: 22,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            figure('Owed to you', overview.owedToYouMinor),
-            figure('You owe', overview.youOweMinor),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 22, bottom: 10),
-    child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-  );
 }
 
 /// One loan as a row shows it, whichever side it is on.
@@ -233,20 +205,11 @@ class _LoanList extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           for (var i = 0; i < loans.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                indent: 16,
-                endIndent: 16,
-                color: colors.border,
-              ),
+            if (i > 0) const Divider(height: 1),
             ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               title: Text(loans[i].person),
               subtitle: Text(
                 loans[i].caption,
@@ -260,17 +223,14 @@ class _LoanList extends StatelessWidget {
                   loans[i].remainingMinor,
                   withCurrency: false,
                 ),
-                style: AppTypography.amount(
-                  size: 16,
-                  color: loans[i].remainingMinor == 0
+                style: AppTypography.rowAmount(
+                  loans[i].remainingMinor == 0
                       ? colors.textMuted
                       : theme.colorScheme.onSurface,
                 ),
               ),
-              onTap: () => showModalBottomSheet<void>(
+              onTap: () => showAppSheet<void>(
                 context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
                 builder: (_) => _LoanActions(loans[i], screenContext: context),
               ),
             ),
@@ -313,29 +273,14 @@ class _LoanActions extends StatelessWidget {
     }
 
     Future<void> remove() async {
-      final confirmed = await showAdaptiveDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog.adaptive(
-          title: Text('Delete ${loan.person}?'),
-          content: Text(
-            lent != null
-                ? 'The loan and its payments are removed.'
-                : 'The loan is removed from Debts too.',
-          ),
-          actions: [
-            DialogAction(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Keep'),
-            ),
-            DialogAction(
-              destructive: true,
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
+      final confirmed = await confirmDelete(
+        context,
+        title: 'Delete ${loan.person}?',
+        body: lent != null
+            ? 'The loan and its payments are removed.'
+            : 'The loan is removed from Debts too.',
       );
-      if (confirmed != true) return;
+      if (!confirmed) return;
       if (lent != null) {
         await container.read(lendingRepositoryProvider).remove(lent.id);
       } else {
@@ -345,81 +290,73 @@ class _LoanActions extends StatelessWidget {
       if (context.mounted) Navigator.of(context).pop();
     }
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(loan.person, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              open
-                  ? '${shownMoney(context, loan.remainingMinor)} left. '
-                        '${loan.caption}.'
-                  : '${loan.caption}.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            if (open && lent != null)
-              FilledButton.icon(
-                onPressed: () async {
-                  final message = lentReminderMessage(lent, today: today);
-                  Navigator.of(context).pop();
-                  await confirmReminder(
-                    screenContext,
-                    container.read(reminderSharerProvider),
-                    lent.person,
-                    message,
-                  );
-                },
-                icon: const Icon(Icons.chat_outlined),
-                label: const Text('Send a reminder'),
-              ),
-            if (open) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                  await showPaymentSheet(
-                    screenContext,
-                    person: loan.person,
-                    remainingMinor: loan.remainingMinor,
-                    firstDate:
-                        lent?.lentOn ?? CalendarDate(today.year - 10, 1, 1),
-                    today: today,
-                    now: now,
-                    onSave: recordPayment,
-                  );
-                },
-                child: const Text('Record a payment'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () async {
-                  await recordPayment(loan.remainingMinor, now);
-                  if (context.mounted) Navigator.of(context).pop();
-                },
-                child: Text(
-                  lent != null ? 'Mark as paid back' : 'Mark as paid',
-                ),
-              ),
-            ],
-            if (lent != null) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  showLoanSheet(screenContext, today: today, lent: lent);
-                },
-                child: const Text('Edit'),
-              ),
-            ],
-            TextButton(onPressed: remove, child: const Text('Delete')),
-          ],
+    final actions = <Widget>[
+      if (open && lent != null)
+        FilledButton.icon(
+          onPressed: () async {
+            final message = lentReminderMessage(lent, today: today);
+            Navigator.of(context).pop();
+            await confirmReminder(
+              screenContext,
+              container.read(reminderSharerProvider),
+              lent.person,
+              message,
+            );
+          },
+          icon: const Icon(Icons.chat_outlined),
+          label: const Text('Send a reminder'),
         ),
+      if (open) ...[
+        OutlinedButton(
+          onPressed: () async {
+            Navigator.of(context).pop();
+            await showPaymentSheet(
+              screenContext,
+              person: loan.person,
+              remainingMinor: loan.remainingMinor,
+              firstDate: lent?.lentOn ?? CalendarDate(today.year - 10, 1, 1),
+              today: today,
+              now: now,
+              onSave: recordPayment,
+            );
+          },
+          child: const Text('Record a payment'),
+        ),
+        OutlinedButton(
+          onPressed: () async {
+            await recordPayment(loan.remainingMinor, now);
+            if (context.mounted) Navigator.of(context).pop();
+          },
+          child: Text(lent != null ? 'Mark as paid back' : 'Mark as paid'),
+        ),
+      ],
+      if (lent != null)
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            showLoanSheet(screenContext, today: today, lent: lent);
+          },
+          child: const Text('Edit'),
+        ),
+      TextButton(
+        onPressed: remove,
+        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+        child: const Text('Delete loan'),
       ),
+    ];
+
+    return SheetBody(
+      title: loan.person,
+      subtitle: open
+          ? '${shownMoney(context, loan.remainingMinor)} left. '
+                '${loan.caption}.'
+          : '${loan.caption}.',
+      children: [
+        for (final (i, action) in actions.indexed) ...[
+          if (i > 0) const SizedBox(height: 8),
+          action,
+        ],
+      ],
     );
   }
 }
@@ -455,11 +392,7 @@ Future<void> confirmReminder(
   } on PlatformException {
     await Clipboard.setData(ClipboardData(text: message));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sharing is unavailable. The message is copied.'),
-        ),
-      );
+      showNote(context, 'Sharing is unavailable. The message is copied.');
     }
   }
 }

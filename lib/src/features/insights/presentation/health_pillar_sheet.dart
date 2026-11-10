@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/health/health_index.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_report.dart';
 import '../application/month_labels.dart';
@@ -22,10 +23,8 @@ Future<void> showHealthPillar(
   BuildContext context,
   HealthIndex index,
   HealthPillar pillar,
-) => showModalBottomSheet<void>(
+) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (_) => HealthPillarSheet(index: index, pillar: pillar),
 );
 
@@ -49,84 +48,70 @@ class HealthPillarSheet extends StatelessWidget {
         if (s.indicator.pillar == pillar) s,
     ];
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(pillar.label, style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              '${pillarPoints(index, pillar)} of 25 points in '
-              '${monthName(month)}',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            for (final s in scores) ...[
-              const Divider(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      s.indicator.label,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ),
-                  Text(
-                    '${pointsLabel(s.centipoints)} of '
-                    '${pointsLabel(indicatorMaxCentipoints)}',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: s.centipoints / indicatorMaxCentipoints,
-                  minHeight: 8,
-                  color: theme.colorScheme.primary,
-                  backgroundColor: colors.border,
+    return SheetBody(
+      title: pillar.label,
+      subtitle:
+          '${pillarPoints(index, pillar)} of 25 points in ${monthName(month)}',
+      children: [
+        for (final (i, s) in scores.indexed) ...[
+          if (i > 0) const Divider(height: 28),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  s.indicator.label,
+                  style: theme.textTheme.titleSmall,
                 ),
               ),
-              const SizedBox(height: 8),
-              if (index.actionFor(s.indicator) case final action?)
-                Text(action.message, style: theme.textTheme.bodyMedium)
-              else
-                Text(
-                  'Full marks',
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: colors.successText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              Text(
+                '${pointsLabel(s.centipoints)} of '
+                '${pointsLabel(indicatorMaxCentipoints)}',
+                style: theme.textTheme.titleSmall,
+              ),
             ],
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: s.centipoints / indicatorMaxCentipoints,
+              minHeight: 8,
+              color: theme.colorScheme.primary,
+              backgroundColor: colors.border,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (index.actionFor(s.indicator) case final action?)
+            Text(action.message, style: theme.textTheme.bodyMedium)
+          else
             Text(
-              'Each pillar is worth 25 points, two indicators of '
-              '${pointsLabel(indicatorMaxCentipoints)}.',
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: colors.textMuted,
+              'Full marks',
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: colors.successText,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              key: const Key('pillar-transactions'),
-              onPressed: () {
-                Navigator.pop(context);
-                context.go(
-                  AppRoutes.activityWith(
-                    ActivityFilter(from: month.firstDay, to: month.lastDay),
-                  ),
-                );
-              },
-              child: Text("See ${monthName(month)}'s transactions"),
-            ),
-          ],
+        ],
+        const SizedBox(height: 16),
+        Text(
+          'Each pillar is worth 25 points, two indicators of '
+          '${pointsLabel(indicatorMaxCentipoints)}.',
+          style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
-      ),
+        const SizedBox(height: 16),
+        OutlinedButton(
+          key: const Key('pillar-transactions'),
+          onPressed: () {
+            Navigator.pop(context);
+            context.go(
+              AppRoutes.activityWith(
+                ActivityFilter(from: month.firstDay, to: month.lastDay),
+              ),
+            );
+          },
+          child: Text("See ${monthName(month)}'s transactions"),
+        ),
+      ],
     );
   }
 }

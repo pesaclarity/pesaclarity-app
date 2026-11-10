@@ -57,7 +57,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Amount paid'),
       '6,000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Record payment'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
     await settle(tester);
     expect(find.text('Up to KES 5,000.'), findsOneWidget);
 
@@ -65,7 +65,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Amount paid'),
       '2,000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Record payment'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
     await settle(tester);
     expect(find.text('3,000'), findsNWidgets(2));
     expect(find.textContaining('KES 2,000 paid'), findsOneWidget);
@@ -85,7 +85,7 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db, location: AppRoutes.lending);
 
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Add a loan'));
     await settle(tester);
     await tester.tap(find.text('I borrowed'));
     await settle(tester);
@@ -97,7 +97,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Amount'),
       '21,000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
 
     expect(find.text('You borrowed'), findsOneWidget);
@@ -116,7 +116,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Amount paid'),
       '1,000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Record payment'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
     await settle(tester);
     expect(find.text('20,000'), findsNWidgets(2));
   });
@@ -125,7 +125,7 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db, location: AppRoutes.lending);
 
-    await tester.tap(find.text('Add'));
+    await tester.tap(find.text('Add a loan'));
     await settle(tester);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Lent to'),
@@ -135,16 +135,16 @@ void main() {
       find.widgetWithText(TextFormField, 'Amount'),
       '1,500',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
     expect(find.text('You lent'), findsOneWidget);
     expect(find.text('1,500'), findsNWidgets(2));
 
     await tester.tap(find.text('John'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.tap(find.widgetWithText(TextButton, 'Delete loan'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(TextButton, 'Delete').last);
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await settle(tester);
     expect(find.text('John'), findsNothing);
     expect(await tester.runAsync(DriftLendingRepository(db).lent), isEmpty);
