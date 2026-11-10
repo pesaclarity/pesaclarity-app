@@ -34,6 +34,9 @@ void main() {
       'successText': BrandTokens.successText,
       'warning': BrandTokens.warning,
       'danger': BrandTokens.danger,
+      'markBlue': BrandTokens.markBlue,
+      'markPurple': BrandTokens.markPurple,
+      'markTeal': BrandTokens.markTeal,
     };
     final names = (tokens['color']! as Map<String, Object?>).keys.toSet();
     expect(app.keys.toSet(), names, reason: 'every light token is used');
@@ -57,6 +60,9 @@ void main() {
       'successText': BrandTokens.darkSuccessText,
       'warning': BrandTokens.darkWarning,
       'danger': BrandTokens.darkDanger,
+      'markBlue': BrandTokens.darkMarkBlue,
+      'markPurple': BrandTokens.darkMarkPurple,
+      'markTeal': BrandTokens.darkMarkTeal,
     };
     final names = (tokens['dark']! as Map<String, Object?>).keys.toSet();
     expect(app.keys.toSet(), names, reason: 'every dark token is used');
@@ -73,6 +79,7 @@ void main() {
     expect(colors.brandSoft, token('dark', 'brandSoft'));
     expect(colors.border, token('dark', 'border'));
     expect(colors.warning, token('dark', 'warning'));
+    expect(colors.markPurple, token('dark', 'markPurple'));
     expect(theme.colorScheme.error, token('dark', 'danger'));
     expect(theme.colorScheme.onPrimary, token('dark', 'onBrand'));
   });

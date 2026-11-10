@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/money.dart';
 import '../../core/money/money_format.dart';
+import '../../core/time/clock.dart';
 import '../../domain/time/calendar.dart';
-import '../../domain/time/date_labels.dart';
 import '../adaptive/adaptive.dart';
+import '../format/date_labels.dart';
 
 /// A text field for an amount, read with [parseMoneyMinor]. Every typed
 /// amount uses it.
@@ -77,8 +79,10 @@ class AmountField extends StatelessWidget {
   }
 }
 
-/// A tappable row that picks a day with the date picker.
-class DateField extends StatelessWidget {
+/// A tappable row that picks a day with the date picker. It reads the
+/// way people say the day: `Today`, `Yesterday`, `Mon 3 Nov`, with the
+/// year only when it isn't this year.
+class DateField extends ConsumerWidget {
   const DateField({
     required this.label,
     required this.value,
@@ -101,8 +105,9 @@ class DateField extends StatelessWidget {
   final bool clearable;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = value;
+    final today = CalendarDate.local(ref.watch(clockProvider)());
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () async {
@@ -133,8 +138,14 @@ class DateField extends StatelessWidget {
                 )
               : const Icon(Icons.calendar_today_outlined),
         ),
-        child: Text(date == null ? emptyText : dateLabel(date)),
+        child: Text(date == null ? emptyText : _say(date, today)),
       ),
     );
   }
+}
+
+/// `Today`, `Yesterday`, `Mon 3 Nov`, or `Mon 3 Nov 2025` in another year.
+String _say(CalendarDate date, CalendarDate today) {
+  final day = dayHeading(date, today: today);
+  return date.year == today.year ? day : '$day ${date.year}';
 }

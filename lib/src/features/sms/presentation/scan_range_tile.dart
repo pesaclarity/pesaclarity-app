@@ -25,7 +25,9 @@ class ScanRangeTile extends ConsumerWidget {
     return Card(
       child: ListTile(
         title: const Text('Read messages from'),
-        subtitle: const Text('New messages are always added'),
+        subtitle: const Text(
+          'For every account you ticked. New messages are always added.',
+        ),
         trailing: ChoiceMenu<ScanPeriod>(
           key: const Key('scan-range'),
           name: 'Read messages from',
