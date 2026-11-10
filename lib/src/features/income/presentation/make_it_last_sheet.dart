@@ -176,6 +176,7 @@ class _MakeItLastSheetState extends ConsumerState<MakeItLastSheet> {
               key: const Key('make-it-last-amount'),
               controller: _daily,
               label: 'Each day',
+              autofocus: true,
               onChanged: (_) => setState(() {}),
             ),
           ],

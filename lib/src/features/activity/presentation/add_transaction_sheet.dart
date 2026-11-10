@@ -149,12 +149,8 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
             controller: _amount,
             label: 'Amount',
             currency: currency,
+            autofocus: true,
             onChanged: (_) => setState(() {}),
-            // More decimal places than the account's currency has.
-            validator: (_) =>
-                parseMoneyMinor(_amount.text, currency: currency) == null
-                ? 'Enter the amount in $currency, such as 5,000.'
-                : null,
           ),
           if (inBase != null) ...[
             const SizedBox(height: 4),

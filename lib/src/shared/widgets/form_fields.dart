@@ -18,8 +18,12 @@ class AmountField extends StatelessWidget {
     this.hint,
     this.onChanged,
     this.validator,
+    this.autofocus = false,
     super.key,
   });
+
+  /// Opens the keyboard on this field when the form shows.
+  final bool autofocus;
 
   final TextEditingController controller;
   final String label;
@@ -49,26 +53,27 @@ class AmountField extends StatelessWidget {
         prefixText: '${currency ?? BaseCurrency.code} ',
       ),
       onChanged: onChanged,
+      autofocus: autofocus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (text) {
-        final value = amountFrom(text ?? '');
+        final value = amountFrom(text ?? '', currency: currency);
         if (value == null) return 'Enter an amount, such as 5,000.';
         if (!allowZero && value == 0) return 'Enter an amount above 0.';
         final max = maxMinor;
         if (max != null && value > max) {
-          return 'Up to ${formatMoney(Money(max))}.';
+          return 'Up to ${formatMoney(Money(max, currency: currency))}.';
         }
         return validator?.call(value);
       },
     );
   }
 
-  /// The amount in [text] in minor units: 0 for an empty field or 0, null
-  /// when it is not an amount.
-  static int? amountFrom(String text) {
+  /// The amount in [text] in minor units of [currency] (the base currency
+  /// by default): 0 for an empty field or 0, null when it is not an amount.
+  static int? amountFrom(String text, {String? currency}) {
     final clean = text.trim();
     if (clean.isEmpty || RegExp(r'^0+(\.0*)?$').hasMatch(clean)) return 0;
-    return parseMoneyMinor(clean);
+    return parseMoneyMinor(clean, currency: currency);
   }
 }
 
