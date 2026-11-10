@@ -18,8 +18,10 @@ import '../../../domain/sales/sale_matching.dart';
 import '../../../domain/sales/sales_summary.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/spaces/space_categories.dart';
+import '../../../domain/time/business_day.dart';
 import '../../../domain/time/calendar.dart';
 import '../../books/application/books_providers.dart';
+import '../../close/application/business_day_providers.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 
@@ -326,10 +328,13 @@ class SalesController {
 
   /// Money in that has no record yet: on M-Pesa or bank on [day], not
   /// matched to a sale or payment, and not filed by the owner.
-  Future<List<LedgerEntry>> unmatchedOn(CalendarDate day) async {
+  Future<List<LedgerEntry>> unmatchedOn(
+    CalendarDate day, {
+    BusinessDay business = BusinessDay.midnight,
+  }) async {
     final entries = await _ref
         .read(transactionsRepositoryProvider)
-        .ledgerEntries(from: day.startInstant, to: day.addDays(1).startInstant);
+        .ledgerEntries(from: business.startOf(day), to: business.endOf(day));
     final types = {
       for (final a in await _ref.read(accountsRepositoryProvider).openings())
         a.id: a.type,
@@ -471,7 +476,8 @@ class SalesToday {
 }
 
 final salesTodayProvider = FutureProvider<SalesToday>((ref) async {
-  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final business = await ref.watch(businessDayProvider.future);
+  final today = business.dayOf(ref.watch(clockProvider)());
   final books = await ref.watch(booksProvider.future);
   final accounts = {
     for (final a in await ref.watch(accountsRepositoryProvider).openings())
@@ -485,6 +491,7 @@ final salesTodayProvider = FutureProvider<SalesToday>((ref) async {
       salesCategoryId: category,
       accountTypes: accounts,
       currency: BaseCurrency.code,
+      business: business,
     ),
     usualMinor: usualSalesFor(
       books,
@@ -492,6 +499,7 @@ final salesTodayProvider = FutureProvider<SalesToday>((ref) async {
       salesCategoryId: category,
       accountTypes: accounts,
       currency: BaseCurrency.code,
+      business: business,
     ),
   );
 });
