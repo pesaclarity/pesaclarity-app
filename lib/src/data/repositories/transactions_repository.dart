@@ -322,6 +322,8 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.stockMoves,
       _db.itemMeasures,
       _db.saleLines,
+      _db.tabs,
+      _db.tabLines,
       _db.withheldTaxes,
       _db.hourEntries,
       _db.invoices,

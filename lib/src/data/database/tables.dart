@@ -698,6 +698,43 @@ class SaleLines extends Table {
   )();
 }
 
+/// A tab: rounds added for a table or a person, paid together at the end.
+@DataClassName('TabRecord')
+class Tabs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Such as Table 4 or a name.
+  TextColumn get name => text().withLength(min: 1, max: 40)();
+  DateTimeColumn get openedAt => dateTime()();
+
+  /// When it was paid and closed; null while open.
+  DateTimeColumn get closedAt => dateTime().nullable()();
+}
+
+/// One line of a round on a tab. Stock leaves when the tab is paid.
+@DataClassName('TabLineRecord')
+class TabLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get tabId =>
+      integer().references(Tabs, #id, onDelete: KeyAction.cascade)();
+
+  /// When the round was added.
+  DateTimeColumn get at => dateTime()();
+  IntColumn get itemId => integer().nullable().references(
+    Items,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get measureId => integer().nullable().references(
+    ItemMeasures,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get name => text()();
+  IntColumn get quantityMilli => integer()();
+  IntColumn get totalMinor => integer()();
+}
+
 /// A customer's or supplier's phone and how to remind them, by name, as
 /// the People tab groups them.
 @DataClassName('ContactRecord')
