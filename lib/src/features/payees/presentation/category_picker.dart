@@ -5,6 +5,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/selector_field.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/payee_providers.dart';
@@ -105,10 +106,14 @@ class CategoryPicker extends ConsumerStatefulWidget {
 
 class _CategoryPickerState extends ConsumerState<CategoryPicker> {
   final _query = TextEditingController();
-  late CategoryType _newType = CategoryType.values.firstWhere(
-    (t) => widget.allowType?.call(t) ?? true,
-    orElse: () => CategoryType.expense,
-  );
+  // Spending when it is allowed: most new categories are.
+  late CategoryType _newType =
+      (widget.allowType?.call(CategoryType.expense) ?? true)
+      ? CategoryType.expense
+      : CategoryType.values.firstWhere(
+          (t) => widget.allowType?.call(t) ?? true,
+          orElse: () => CategoryType.expense,
+        );
   bool _creating = false;
   bool _showAll = false;
 
@@ -151,6 +156,10 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
     final clean = cleanCategoryName(query);
     final canCreate =
         clean != null && !all.any((c) => categoryNameKey(c.name) == key);
+    final types = [
+      for (final t in CategoryType.values)
+        if (widget.allowType?.call(t) ?? true) t,
+    ];
 
     final groups = <CategoryType, List<Category>>{};
     for (final c in shown) {
@@ -200,19 +209,30 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final type in CategoryType.values)
-                        if (widget.allowType?.call(type) ?? true)
+                  if (types.length > 2)
+                    ChoiceMenu<CategoryType>(
+                      key: const Key('new-category-type'),
+                      name: 'Category type',
+                      options: [
+                        for (final t in types) (t, categoryTypeLabel(t)),
+                      ],
+                      value: _newType,
+                      itemKey: (t) => Key('new-category-type-${t.name}'),
+                      onChanged: (t) => setState(() => _newType = t),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final type in types)
                           ChoiceChip(
                             label: Text(categoryTypeLabel(type)),
                             selected: _newType == type,
                             onSelected: (_) => setState(() => _newType = type),
                           ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: _creating ? null : () => _create(clean),

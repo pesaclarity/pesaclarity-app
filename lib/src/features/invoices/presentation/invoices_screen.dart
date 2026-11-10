@@ -12,6 +12,7 @@ import '../../../domain/people/phone_number.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
@@ -20,7 +21,15 @@ import '../../security/application/balance_visibility.dart';
 import '../application/invoice_providers.dart';
 import '../application/invoice_sender.dart';
 
-enum _Filter { all, unpaid, paid }
+enum _Filter {
+  all('All'),
+  unpaid('Unpaid'),
+  paid('Paid');
+
+  const _Filter(this.label);
+
+  final String label;
+}
 
 /// Invoices: what is waiting to be paid and overdue, then each invoice
 /// with its status, which changes when a payment message matches.
@@ -115,21 +124,17 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final (f, label) in [
-                      (_Filter.all, 'All'),
-                      (_Filter.unpaid, 'Unpaid'),
-                      (_Filter.paid, 'Paid'),
-                    ])
-                      ChoiceChip(
-                        key: Key('invoices-${f.name}'),
-                        label: Text(label),
-                        selected: _filter == f,
-                        onSelected: (_) => setState(() => _filter = f),
-                      ),
-                  ],
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ChoiceMenu<_Filter>(
+                    key: const Key('invoices-filter'),
+                    name: 'Show',
+                    options: [for (final f in _Filter.values) (f, f.label)],
+                    value: _filter,
+                    highlight: _filter != _Filter.all,
+                    itemKey: (f) => Key('invoices-${f.name}'),
+                    onChanged: (f) => setState(() => _filter = f),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (shown.isEmpty)

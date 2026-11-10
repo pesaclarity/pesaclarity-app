@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/tags_repository.dart';
 import '../../../domain/tags/tag_totals.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../application/payee_providers.dart';
 
 /// The tags on one transaction: remove any, add new ones or reuse earlier
@@ -122,8 +123,8 @@ class _TransactionTagsEditorState extends ConsumerState<TransactionTagsEditor> {
   }
 }
 
-/// Chips that filter Activity to one tag, with All first. Shows nothing
-/// until a tag exists.
+/// Filters Activity to one tag, with All first: a drop-down once there are
+/// two tags or more, else two chips. Shows nothing until a tag exists.
 class TagFilterChips extends ConsumerWidget {
   const TagFilterChips({
     required this.selectedTagId,
@@ -141,6 +142,22 @@ class TagFilterChips extends ConsumerWidget {
         if (u.count > 0) u.tag,
     ];
     if (tags.isEmpty) return const SizedBox.shrink();
+    if (tags.length > 1) {
+      final known = tags.any((t) => t.id == selectedTagId);
+      return ChoiceMenu<int?>(
+        key: const Key('tag-filter'),
+        name: 'Tag',
+        options: [
+          (null, 'All tags'),
+          for (final tag in tags) (tag.id, '#${tag.name}'),
+        ],
+        value: known ? selectedTagId : null,
+        highlight: known,
+        itemKey: (id) => Key('tag-filter-${id ?? 'all'}'),
+        onChanged: onSelected,
+      );
+    }
+    final tag = tags.single;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -150,14 +167,12 @@ class TagFilterChips extends ConsumerWidget {
             selected: selectedTagId == null,
             onSelected: (_) => onSelected(null),
           ),
-          for (final tag in tags) ...[
-            const SizedBox(width: 8),
-            ChoiceChip(
-              label: Text('#${tag.name}'),
-              selected: selectedTagId == tag.id,
-              onSelected: (selected) => onSelected(selected ? tag.id : null),
-            ),
-          ],
+          const SizedBox(width: 8),
+          ChoiceChip(
+            label: Text('#${tag.name}'),
+            selected: selectedTagId == tag.id,
+            onSelected: (selected) => onSelected(selected ? tag.id : null),
+          ),
         ],
       ),
     );

@@ -183,6 +183,7 @@ class _StrategyPicker extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AdaptiveSegmented<PayoffStrategy>(
+          name: 'Payoff order',
           showSelectedIcon: false,
           segments: const [
             (PayoffStrategy.avalanche, 'Avalanche'),

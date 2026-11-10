@@ -13,6 +13,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart' show dayLabel;
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
@@ -466,18 +467,16 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
             const SizedBox(height: 16),
             Text('SHOW HOURS ON THE INVOICE', style: label()),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final d in HoursDetail.values)
-                  ChoiceChip(
-                    key: Key('hours-detail-${d.name}'),
-                    label: Text(d.label),
-                    selected: _detail == d,
-                    onSelected: (_) => setState(() => _detail = d),
-                  ),
-              ],
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ChoiceMenu<HoursDetail>(
+                key: const Key('hours-detail'),
+                name: 'Show hours on the invoice',
+                options: [for (final d in HoursDetail.values) (d, d.label)],
+                value: _detail,
+                itemKey: (d) => Key('hours-detail-${d.name}'),
+                onChanged: (d) => setState(() => _detail = d),
+              ),
             ),
             if (feeLines.isNotEmpty) ...[
               const SizedBox(height: 12),

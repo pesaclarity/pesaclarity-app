@@ -13,6 +13,8 @@ import 'package:pesaclarity/src/domain/spaces/space_categories.dart';
 import 'package:pesaclarity/src/features/books/application/books_providers.dart';
 import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/features/sales/presentation/sell_screen.dart';
+import 'package:pesaclarity/src/features/stock/presentation/count_stock_screen.dart';
+import 'package:pesaclarity/src/features/stock/presentation/stock_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
@@ -140,6 +142,156 @@ void main() {
     expect(books.balanceOf(BookAccount.stockLosses, currency: 'KES'), 8000);
     expect((await repo.items()).single.stockMilli, 5500);
     expect(await repo.moves(id), hasLength(3));
+  });
+
+  group('Stock and counting', () {
+    Future<ProviderContainer> pump(WidgetTester tester, Widget screen) async {
+      tester.view.physicalSize = const Size(900, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = ProviderContainer(overrides: overrides());
+      addTearDown(c.dispose);
+      await tester.runAsync(() async {
+        await tomatoes(c);
+        await c
+            .read(stockRepositoryProvider)
+            .add(
+              kind: ItemKind.service,
+              name: 'Delivery',
+              priceMinor: 5000,
+              at: now,
+            );
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.of(context)
+                      .push(MaterialPageRoute<void>(builder: (_) => screen)),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await settleFrames(tester);
+      return c;
+    }
+
+    testAppWidgets('Stock shows all, or products or services', (tester) async {
+      await pump(tester, const StockScreen());
+      expect(find.text('Tomatoes'), findsOneWidget);
+      expect(find.text('Delivery'), findsOneWidget);
+
+      Future<void> show(String kind) async {
+        await tester.tap(find.byKey(const Key('stock-kind')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('stock-kind-$kind')));
+        await tester.pumpAndSettle();
+      }
+
+      await show('service');
+      expect(find.text('Tomatoes'), findsNothing);
+      expect(find.text('Delivery'), findsOneWidget);
+      await show('product');
+      expect(find.text('Tomatoes'), findsOneWidget);
+      expect(find.text('Delivery'), findsNothing);
+      await show('all');
+      expect(find.text('Tomatoes'), findsOneWidget);
+      expect(find.text('Delivery'), findsOneWidget);
+    });
+
+    testAppWidgets('a count keeps why: chosen from a menu when less', (
+      tester,
+    ) async {
+      final c = await pump(tester, const CountStockScreen());
+      final id = (await tester.runAsync(
+        () => c.read(stockRepositoryProvider).items(),
+      ))!.firstWhere((i) => i.name == 'Tomatoes').id;
+
+      // More than the records: miscounted is the one reason.
+      await tester.enterText(find.byKey(Key('count-$id')), '7');
+      await tester.pump();
+      expect(find.byKey(Key('reason-$id')), findsNothing);
+      expect(find.byKey(Key('reason-$id-miscounted')), findsOneWidget);
+
+      await tester.enterText(find.byKey(Key('count-$id')), '5');
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byKey(Key('reason-$id')),
+          matching: find.text('Spoiled'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(Key('reason-$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('reason-$id-lost')));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(Key('reason-$id')),
+          matching: find.text('Lost'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('count-save')));
+      await settleFrames(tester);
+      final moves = await tester.runAsync(
+        () => c.read(stockRepositoryProvider).moves(id),
+      );
+      expect(moves!.map((m) => m.reason), contains(CountReason.lost));
+      expect(
+        (await tester.runAsync(() => c.read(stockRepositoryProvider).items()))!
+            .firstWhere((i) => i.id == id)
+            .stockMilli,
+        5000,
+      );
+    });
+
+    testAppWidgets('a count that turns into more is kept as miscounted', (
+      tester,
+    ) async {
+      final c = await pump(tester, const CountStockScreen());
+      final id = (await tester.runAsync(
+        () => c.read(stockRepositoryProvider).items(),
+      ))!.firstWhere((i) => i.name == 'Tomatoes').id;
+
+      await tester.enterText(find.byKey(Key('count-$id')), '5');
+      await tester.pump();
+      await tester.tap(find.byKey(Key('reason-$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('reason-$id-lost')));
+      await tester.pumpAndSettle();
+      // Then there turns out to be more than the records.
+      await tester.enterText(find.byKey(Key('count-$id')), '7');
+      await tester.pump();
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(Key('reason-$id-miscounted')))
+            .selected,
+        isTrue,
+      );
+      expect(
+        find.text('The records are corrected, with no cost.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('count-save')));
+      await settleFrames(tester);
+      final moves = await tester.runAsync(
+        () => c.read(stockRepositoryProvider).moves(id),
+      );
+      expect(moves!.map((m) => m.reason), contains(CountReason.miscounted));
+      expect(moves.map((m) => m.reason), isNot(contains(CountReason.lost)));
+    });
   });
 
   group('Sell with items', () {

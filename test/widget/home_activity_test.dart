@@ -167,13 +167,19 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await _pumpActivity(tester, db);
 
-    await tester.tap(find.text('Spending only'));
-    await tester.pumpAndSettle();
+    Future<void> show(String type) async {
+      await tester.tap(find.byKey(const Key('activity-types')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('activity-type-$type')));
+      await tester.pumpAndSettle();
+    }
+
+    await show('spending');
     expect(find.text('I&M → M-Pesa'), findsNothing);
     expect(find.text('Employer Ltd'), findsNothing);
     expect(find.text('Naivas Juja City'), findsOneWidget);
 
-    await tester.tap(find.text('Spending only'));
+    await show('all');
     await tester.tap(find.byKey(const Key('activity-accounts')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('I&M').last);

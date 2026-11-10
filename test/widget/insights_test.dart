@@ -10,11 +10,13 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/health/health_index.dart';
 import 'package:pesaclarity/src/domain/health/health_inputs.dart';
+import 'package:pesaclarity/src/domain/insights/spending_charts.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/insights/application/insights_report.dart';
 import 'package:pesaclarity/src/features/insights/application/report_sharer.dart';
 import 'package:pesaclarity/src/features/insights/presentation/insights_screen.dart';
+import 'package:pesaclarity/src/shared/widgets/choice_menu.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../domain/fixtures.dart';
@@ -352,7 +354,10 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await pumpInsights(tester);
 
-    await tester.tap(find.text('Week'));
+    // Three periods: a drop-down.
+    await tester.tap(find.byType(ChoiceMenu<ChartPeriod>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Week').last);
     await tester.pumpAndSettle();
     // Monday the 26th: nothing spent yet this week, nothing last week.
     expect(find.text('This week so far'), findsOneWidget);
@@ -361,7 +366,9 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Year'));
+    await tester.tap(find.byType(ChoiceMenu<ChartPeriod>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Year').last);
     await tester.pumpAndSettle();
     expect(find.text('This year so far'), findsOneWidget);
     expect(

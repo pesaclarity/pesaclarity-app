@@ -17,6 +17,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
@@ -254,26 +255,38 @@ class _Filters extends StatelessWidget {
     final from = filter.from;
     final to = filter.to;
     final mixed = accounts.values.map((a) => a.currency).toSet().length > 1;
+    final sorted = accounts.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         if (accounts.length > 1)
-          _AccountMenu(
-            accounts: accounts,
-            selected: filter.accountId,
-            mixed: mixed,
-            onSelected: (id) =>
+          ChoiceMenu<int?>(
+            key: const Key('activity-accounts'),
+            name: 'Account',
+            options: [
+              (null, 'All accounts'),
+              for (final a in sorted)
+                (a.id, mixed ? '${a.name} · ${a.currency}' : a.name),
+            ],
+            value: accounts.containsKey(filter.accountId)
+                ? filter.accountId
+                : null,
+            highlight: accounts.containsKey(filter.accountId),
+            itemKey: (id) => Key('activity-account-${id ?? 'all'}'),
+            onChanged: (id) =>
                 onChanged((f) => f.copyWith(accountId: () => id)),
           ),
-        for (final type in ActivityType.values.skip(1))
-          _Chip(
-            label: type.label,
-            selected: filter.type == type,
-            onTap: () => onChanged(
-              (f) => f.copyWith(type: f.type == type ? ActivityType.all : type),
-            ),
-          ),
+        ChoiceMenu<ActivityType>(
+          key: const Key('activity-types'),
+          name: 'Show',
+          options: [for (final t in ActivityType.values) (t, t.label)],
+          value: filter.type,
+          highlight: filter.type != ActivityType.all,
+          itemKey: (t) => Key('activity-type-${t.name}'),
+          onChanged: (t) => onChanged((f) => f.copyWith(type: t)),
+        ),
         if (filter.hasCategory)
           InputChip(
             key: const Key('activity-category'),
@@ -297,113 +310,6 @@ class _Filters extends StatelessWidget {
                 onChanged((f) => f.copyWith(from: () => null, to: () => null)),
           ),
       ],
-    );
-  }
-}
-
-/// Which account to show, as one drop-down: All accounts, or one of them
-/// with its currency when they differ.
-class _AccountMenu extends StatelessWidget {
-  const _AccountMenu({
-    required this.accounts,
-    required this.selected,
-    required this.mixed,
-    required this.onSelected,
-  });
-
-  final Map<int, Account> accounts;
-  final int? selected;
-  final bool mixed;
-  final ValueChanged<int?> onSelected;
-
-  String _label(Account a) => mixed ? '${a.name} · ${a.currency}' : a.name;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final chosen = accounts[selected];
-    final label = chosen == null ? 'All accounts' : _label(chosen);
-    final sorted = accounts.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    final colors = PesaColors.of(context);
-    return MenuAnchor(
-      alignmentOffset: const Offset(0, 4),
-      style: MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(scheme.surface),
-        elevation: const WidgetStatePropertyAll(4),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colors.border),
-          ),
-        ),
-      ),
-      menuChildren: [
-        for (final (id, text) in [
-          (null, 'All accounts'),
-          for (final a in sorted) (a.id, _label(a)),
-        ])
-          MenuItemButton(
-            key: Key('activity-account-${id ?? 'all'}'),
-            leadingIcon: Icon(
-              Icons.check,
-              size: 18,
-              color: id == selected ? scheme.primary : Colors.transparent,
-            ),
-            onPressed: () => onSelected(id),
-            child: Text(text),
-          ),
-      ],
-      builder: (context, menu, _) => Semantics(
-        button: true,
-        label: 'Account: $label. Change',
-        excludeSemantics: true,
-        child: ActionChip(
-          key: const Key('activity-accounts'),
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
-              const SizedBox(width: 2),
-              Icon(
-                Icons.arrow_drop_down,
-                size: 20,
-                color: chosen == null ? null : scheme.onPrimary,
-              ),
-            ],
-          ),
-          backgroundColor: chosen == null ? null : scheme.primary,
-          labelStyle: TextStyle(
-            color: chosen == null ? null : scheme.onPrimary,
-          ),
-          onPressed: () => menu.isOpen ? menu.close() : menu.open(),
-        ),
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      selectedColor: scheme.primary,
-      labelStyle: TextStyle(color: selected ? scheme.onPrimary : null),
-      onSelected: (_) => onTap(),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../../data/database/app_database.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
@@ -105,20 +106,21 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                 const SizedBox(height: 12),
               ],
               if (!services && items.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final (kind, label) in [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ChoiceMenu<ItemKind?>(
+                    key: const Key('stock-kind'),
+                    name: 'Show',
+                    options: const [
                       (null, 'All'),
                       (ItemKind.product, 'Products'),
                       (ItemKind.service, 'Services'),
-                    ])
-                      ChoiceChip(
-                        label: Text(label),
-                        selected: _kind == kind,
-                        onSelected: (_) => setState(() => _kind = kind),
-                      ),
-                  ],
+                    ],
+                    value: _kind,
+                    highlight: _kind != null,
+                    itemKey: (kind) => Key('stock-kind-${kind?.name ?? 'all'}'),
+                    onChanged: (kind) => setState(() => _kind = kind),
+                  ),
                 ),
               const SizedBox(height: 12),
               if (items.isEmpty)

@@ -359,9 +359,19 @@ void main() {
     expect(find.text('300 bunches · profit 15 / bunch'), findsOneWidget);
     expect(find.byKey(const Key('insights-by-day')), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('range')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('range-dates')), findsNothing);
     await tester.tap(find.byKey(const Key('range-lastMonth')));
     await settleFrames(tester);
     expect(find.text('Profit last month'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('range')),
+        matching: find.text('Last month'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('KES 0'), findsOneWidget);
   });
 
@@ -376,12 +386,17 @@ void main() {
     expect(find.text('Customers owe you'), findsOneWidget);
     expect(find.text('Cash, credit'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('records-cashBook')));
-    await settleFrames(tester);
+    Future<void> show(String view) async {
+      await tester.tap(find.byKey(const Key('records-view')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('records-$view')));
+      await settleFrames(tester);
+    }
+
+    await show('cashBook');
     expect(find.textContaining('In 6,000'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('records-customers')));
-    await settleFrames(tester);
+    await show('customers');
     expect(find.text('Otieno'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('records-share-pdf')));
@@ -402,6 +417,11 @@ void main() {
   ) async {
     final c = await pump(tester, path: AppRoutes.makeReport);
     expect(find.text('Make a report'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('range')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('range-dates')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('range-thisMonth')));
+    await tester.pumpAndSettle();
     expect(
       tester
           .widget<CheckboxListTile>(find.byKey(const Key('section-cashBook')))
@@ -414,8 +434,10 @@ void main() {
           .selected,
       isTrue,
     );
+    await tester.tap(find.byKey(const Key('report-audience')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('audience-accountant')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(
       tester
           .widget<ChoiceChip>(find.byKey(const Key('detail-everyEntry')))
@@ -471,8 +493,10 @@ void main() {
     expect(find.text('The usual look'), findsOneWidget);
     await tester.tap(find.byKey(const Key('report-style')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('style-cover')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('style-cover-band')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('style-words-formal')));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('style-compare')));

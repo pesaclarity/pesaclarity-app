@@ -257,4 +257,103 @@ void main() {
     );
     expect(left, isEmpty);
   });
+
+  testAppWidgets('paid more: the menu keeps it with the sale', (tester) async {
+    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    final w = await tester.runAsync(() async {
+      final w = await sell(c, 18000);
+      await message(20000);
+      return w;
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showChoosePaymentsSheet(context, w!),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await settleFrames(tester);
+    await tester.tap(find.text('Grace W. · 200'));
+    await tester.pump();
+    expect(find.text('That is 20 more than the sale.'), findsOneWidget);
+    Finder showing(String text) => find.descendant(
+      of: find.byKey(const Key('choose-over')),
+      matching: find.text(text),
+    );
+    expect(showing('Gave change in cash'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('choose-over')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('over-keepWithSale')));
+    await tester.pumpAndSettle();
+    expect(showing('Keep it with the sale'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('choose-save')));
+    await settleFrames(tester);
+    final sales = await tester.runAsync(() => db.select(db.sales).get());
+    expect(sales!.single.totalMinor, 20000);
+  });
+
+  testAppWidgets('paid less: the menu says what the rest was', (tester) async {
+    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = ProviderContainer(overrides: overrides());
+    addTearDown(c.dispose);
+    final w = await tester.runAsync(() async {
+      final w = await sell(c, 18000);
+      await message(10000);
+      return w;
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showChoosePaymentsSheet(context, w!),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await settleFrames(tester);
+    await tester.tap(find.text('Grace W. · 100'));
+    await tester.pump();
+    // They owe it, to start with: who owes it and when.
+    expect(find.byKey(const Key('choose-customer')), findsOneWidget);
+    expect(find.byKey(const Key('due')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('choose-short')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('short-restInCash')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('choose-customer')), findsNothing);
+    await tester.tap(find.byKey(const Key('choose-save')));
+    await settleFrames(tester);
+    final saved = await tester.runAsync(
+      () async => (
+        await db.select(db.sales).getSingle(),
+        await db.select(db.lentLoans).get(),
+      ),
+    );
+    expect(saved!.$1.totalMinor, 18000);
+    expect(saved.$2, isEmpty);
+  });
 }
