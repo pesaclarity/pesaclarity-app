@@ -124,14 +124,18 @@ void main() {
     );
     await tapId(tester, SemanticIds.profileMyAccounts);
     expectId(SemanticIds.titleProfileMyAccounts);
+    await tapId(tester, SemanticIds.myAccountsChoose);
+    expectId(SemanticIds.titleChooseAccounts);
     expect(
       tester.getSemantics(
         find.bySemanticsIdentifier(SemanticIds.institution('mpesa')),
       ),
       isSemantics(hasToggledState: true, isToggled: true),
     );
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 2; i++) {
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+    }
 
     await scrollTo(
       tester,

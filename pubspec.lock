@@ -1134,11 +1134,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "70db4fc0b09122841f863e4bf057e2c181f4024d"
-      resolved-ref: "70db4fc0b09122841f863e4bf057e2c181f4024d"
+      ref: "79b08ed02bb29c7faa54c0a8e99dd7cee65cfc85"
+      resolved-ref: "79b08ed02bb29c7faa54c0a8e99dd7cee65cfc85"
       url: "https://github.com/pesaclarity/ujumbe-parsers.git"
     source: git
-    version: "0.1.0"
+    version: "0.2.0"
   url_launcher:
     dependency: "direct main"
     description:

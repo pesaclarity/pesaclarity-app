@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:ujumbe/ujumbe.dart' show dedupeKeyFor;
 
+import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/payees/payee_identifier.dart';
 import '../../../domain/reader/field_values.dart';
@@ -21,6 +22,7 @@ class ReviewDraft {
     this.reference,
     this.feeMinor,
     this.phoneNumber,
+    this.currency,
   });
 
   factory ReviewDraft.fromReading(MessageReading reading) {
@@ -35,6 +37,7 @@ class ReviewDraft {
       balanceMinor: _maybe(text(ReaderField.balance), amountMinorFrom),
       reference: text(ReaderField.reference),
       feeMinor: _maybe(text(ReaderField.fee), amountMinorFrom),
+      currency: _maybe(text(ReaderField.amount), currencyFrom),
       phoneNumber: party == null
           ? null
           : RegExp(r'[0-9]{2,4}\s*\*+\s*[0-9]+|0[17][0-9]{8}')
@@ -59,6 +62,9 @@ class ReviewDraft {
 
   /// A phone number printed with the payee, masked or not.
   final String? phoneNumber;
+
+  /// The currency printed with the amount; null when it shows none.
+  final String? currency;
 
   /// Whether it can be added to the ledger.
   bool get isComplete =>
@@ -90,10 +96,12 @@ class ReviewDraft {
     reference: reference ?? this.reference,
     feeMinor: feeMinor,
     phoneNumber: phoneNumber,
+    currency: currency,
   );
 
-  /// The ledger row for the institution's account [accountId]. Keeps the
-  /// values and the message hash, never the message text.
+  /// The ledger row for the institution's account [accountId], in
+  /// [currency]: the one printed with the amount, else the institution's.
+  /// Keeps the values and the message hash, never the message text.
   TransactionsCompanion toTransaction({
     required int accountId,
     required DateTime receivedAt,
@@ -102,6 +110,12 @@ class ReviewDraft {
   }) {
     final when = occurredAt(receivedAt);
     final out = kind == MessageKind.moneyOut;
+    // Read amounts are in hundredths; some currencies have other minor units.
+    int inCurrency(int hundredths) => rescaleMinor(
+      hundredths,
+      fromDigits: 2,
+      toDigits: minorUnitDigits(currency),
+    );
     final name = counterparty;
     // A phone number in the payee lets a named payee apply; a printed name
     // alone is kept as the name only.
@@ -111,12 +125,12 @@ class ReviewDraft {
     return TransactionsCompanion.insert(
       accountId: accountId,
       occurredAt: when,
-      amountMinor: amountMinor!,
+      amountMinor: inCurrency(amountMinor!),
       direction: out
           ? TransactionDirection.outflow
           : TransactionDirection.inflow,
       kind: Value(out ? TransactionKind.sent : TransactionKind.received),
-      feeMinor: Value(feeMinor ?? 0),
+      feeMinor: Value(inCurrency(feeMinor ?? 0)),
       currency: Value(currency),
       counterpartyKind: Value(phone?.kind),
       counterpartyValue: Value(phone?.value),
@@ -127,7 +141,9 @@ class ReviewDraft {
       dedupeKey: Value(
         dedupeKeyFor(receipt: reference, amountMinor: amountMinor!, time: when),
       ),
-      balanceAfterMinor: Value(balanceMinor),
+      balanceAfterMinor: Value(
+        balanceMinor == null ? null : inCurrency(balanceMinor!),
+      ),
     );
   }
 }

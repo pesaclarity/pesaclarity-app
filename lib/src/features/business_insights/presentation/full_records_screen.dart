@@ -11,6 +11,7 @@ import '../../../domain/spaces/space_categories.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../books/presentation/money_screen.dart';
@@ -93,18 +94,16 @@ class _FullRecordsScreenState extends ConsumerState<FullRecordsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final v in _View.values)
-                ChoiceChip(
-                  key: Key('records-${v.name}'),
-                  label: Text(v.label),
-                  selected: _view == v,
-                  onSelected: (_) => setState(() => _view = v),
-                ),
-            ],
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ChoiceMenu<_View>(
+              key: const Key('records-view'),
+              name: 'Show',
+              options: [for (final v in _View.values) (v, v.label)],
+              value: _view,
+              itemKey: (v) => Key('records-${v.name}'),
+              onChanged: (v) => setState(() => _view = v),
+            ),
           ),
           const SizedBox(height: 16),
           Text(

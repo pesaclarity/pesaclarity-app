@@ -1,3 +1,4 @@
+import '../../core/money/currency_data.dart';
 import 'message_reading.dart';
 import 'reader_tokens.dart';
 
@@ -11,6 +12,11 @@ class RuleMessageReader implements MessageReader {
   static const _confidence = 0.5;
   static const _currencies = {'kes', 'ksh', 'kshs', 'sh', 'shs'};
   static const _balanceWords = {'bal', 'balance'};
+
+  /// A currency code in capitals, such as `USD` or `EUR`.
+  static bool _isCode(String text) =>
+      RegExp(r'^[A-Z]{3}$').hasMatch(text) &&
+      currencyCatalogue.containsKey(text);
   static const _feeWords = {'cost', 'fee', 'fees', 'charge', 'charges'};
   static const _referenceWords = {'ref', 'reference', 'txn', 'trx', 'id'};
   static const _partyStarts = {'to', 'from', 'at', 'by', 'payee', 'merchant'};
@@ -85,7 +91,7 @@ class RuleMessageReader implements MessageReader {
 
     // Money: a currency word, an optional dot, then a number.
     for (var i = 0; i < tokens.length; i++) {
-      if (!_currencies.contains(keys[i])) continue;
+      if (!_currencies.contains(keys[i]) && !_isCode(tokens[i].text)) continue;
       final n = i + 1 < tokens.length && keys[i + 1] == '.' ? i + 2 : i + 1;
       if (!isMoney(n)) continue;
       final field = near(i, _balanceWords)

@@ -174,8 +174,18 @@ void main() {
     await settleFrames(tester);
     await tester.tap(find.byKey(const Key('phone-contacts')));
     await settleFrames(tester);
+    // Three messages: a drop-down, starting on Due today.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('remind-template')),
+        matching: find.text('Due today'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('remind-template')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('template-friendly')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('remind-send')));
     await settleFrames(tester);
     final (app, number, text) = launcher.opened.single;

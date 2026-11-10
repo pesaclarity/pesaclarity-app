@@ -85,6 +85,7 @@ class SpendingChartsSection extends ConsumerWidget {
       children: [
         AdaptiveSegmented<ChartPeriod>(
           key: const Key('chart-period'),
+          name: 'Period',
           showSelectedIcon: false,
           segments: const [
             (ChartPeriod.week, 'Week'),

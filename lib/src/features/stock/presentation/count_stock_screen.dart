@@ -7,6 +7,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/stock.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../application/stock_providers.dart';
@@ -57,7 +58,7 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
         await repo.count(
           item.id,
           countedMilli: item.stockMilli + d,
-          reason: _reasons[item.id] ?? _defaultReason(d),
+          reason: _reasonFor(item.id, d),
           at: at,
         );
       }
@@ -69,6 +70,58 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
 
   static CountReason _defaultReason(int difference) =>
       difference < 0 ? CountReason.spoiled : CountReason.miscounted;
+
+  /// The reason chosen for [itemId], while it fits [difference]: more stock
+  /// than the records can only be miscounted.
+  CountReason _reasonFor(int itemId, int difference) {
+    final chosen = _reasons[itemId];
+    if (chosen == null) return _defaultReason(difference);
+    if (difference > 0 && chosen != CountReason.miscounted) {
+      return CountReason.miscounted;
+    }
+    return chosen;
+  }
+
+  /// Why [item]'s count differs: a menu of spoiled, used, lost or
+  /// miscounted when there is less, and miscounted alone when there is more.
+  Widget _reasonPicker(Item item) {
+    final difference = _difference(item)!;
+    final chosen = _reasonFor(item.id, difference);
+    final reasons = [
+      if (difference < 0) ...[
+        (CountReason.spoiled, 'Spoiled'),
+        (CountReason.used, 'Used'),
+        (CountReason.lost, 'Lost'),
+      ],
+      (CountReason.miscounted, 'Miscounted'),
+    ];
+    void choose(CountReason reason) =>
+        setState(() => _reasons[item.id] = reason);
+    Key rowKey(CountReason reason) => Key('reason-${item.id}-${reason.name}');
+    if (reasons.length > 2) {
+      return ChoiceMenu<CountReason>(
+        key: Key('reason-${item.id}'),
+        name: 'Reason',
+        options: reasons,
+        value: chosen,
+        itemKey: rowKey,
+        onChanged: choose,
+      );
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final (reason, label) in reasons)
+          ChoiceChip(
+            key: rowKey(reason),
+            label: Text(label),
+            selected: chosen == reason,
+            onSelected: (_) => choose(reason),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,34 +207,10 @@ class _CountStockScreenState extends ConsumerState<CountStockScreen> {
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final (reason, label) in [
-                          if (_difference(item)! < 0) ...[
-                            (CountReason.spoiled, 'Spoiled'),
-                            (CountReason.used, 'Used'),
-                            (CountReason.lost, 'Lost'),
-                          ],
-                          (CountReason.miscounted, 'Miscounted'),
-                        ])
-                          ChoiceChip(
-                            key: Key('reason-${item.id}-${reason.name}'),
-                            label: Text(label),
-                            selected:
-                                (_reasons[item.id] ??
-                                    _defaultReason(_difference(item)!)) ==
-                                reason,
-                            onSelected: (_) =>
-                                setState(() => _reasons[item.id] = reason),
-                          ),
-                      ],
-                    ),
+                    _reasonPicker(item),
                     const SizedBox(height: 8),
                     InfoNote(
-                      (_reasons[item.id] ??
-                                  _defaultReason(_difference(item)!)) ==
+                      _reasonFor(item.id, _difference(item)!) ==
                               CountReason.miscounted
                           ? 'The records are corrected, with no cost.'
                           : 'Counts as a cost of '

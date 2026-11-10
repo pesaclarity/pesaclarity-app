@@ -9,6 +9,7 @@ import '../../../domain/documents/receipt.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/people/reminder_text.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
@@ -211,17 +212,16 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final f in ReceiptFormat.values)
-              ChoiceChip(
-                key: Key('receipt-as-${f.name}'),
-                label: Text(f.label),
-                selected: _format == f,
-                onSelected: (_) => setState(() => _format = f),
-              ),
-          ],
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ChoiceMenu<ReceiptFormat>(
+            key: const Key('receipt-as'),
+            name: 'Send as',
+            options: [for (final f in ReceiptFormat.values) (f, f.label)],
+            value: _format ?? ReceiptFormat.picture,
+            itemKey: (f) => Key('receipt-as-${f.name}'),
+            onChanged: (f) => setState(() => _format = f),
+          ),
         ),
         const SizedBox(height: 12),
         PhoneField(

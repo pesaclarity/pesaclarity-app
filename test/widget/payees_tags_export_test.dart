@@ -12,7 +12,9 @@ import 'package:pesaclarity/src/domain/payees/payee_identifier.dart';
 import 'package:pesaclarity/src/features/export/application/export_service.dart';
 import 'package:pesaclarity/src/features/export/presentation/export_sheet.dart';
 import 'package:pesaclarity/src/features/insights/presentation/tag_totals_card.dart';
+import 'package:pesaclarity/src/features/payees/application/payee_providers.dart';
 import 'package:pesaclarity/src/features/payees/presentation/payees_screen.dart';
+import 'package:pesaclarity/src/features/payees/presentation/tag_editor.dart';
 import 'package:pesaclarity/src/features/payees/presentation/transaction_sheet.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -132,8 +134,24 @@ void main() {
       findsOneWidget,
     );
     await tester.enterText(find.widgetWithText(TextField, 'Name'), 'John');
-    await tester.tap(find.text('Family'));
-    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('payee-leak-type')),
+        matching: find.text('Not a leak'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('payee-leak-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('payee-leak-family')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('payee-leak-type')),
+        matching: find.text('Family'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Save payee'));
     await _settle(tester);
 
@@ -154,9 +172,19 @@ void main() {
       'Harambee',
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('new-category-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('new-category-type-savings')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Add category'));
     await _settle(tester);
     expect(find.text('Harambee · Set for this transaction'), findsOneWidget);
+    final harambee = await tester.runAsync(
+      () => (db.select(
+        db.categories,
+      )..where((c) => c.name.equals('Harambee'))).getSingle(),
+    );
+    expect(harambee!.type, CategoryType.savings);
 
     // Tags: add two, remove one.
     await tester.ensureVisible(find.widgetWithText(TextField, 'Add a tag'));
@@ -239,6 +267,60 @@ void main() {
     expect(find.text('350'), findsOneWidget);
     expect(find.text('1 transaction'), findsOneWidget);
     expect(find.byTooltip('Export tags'), findsOneWidget);
+  });
+
+  testAppWidgets('the tag filter is two chips for one tag, a drop-down for '
+      'more', (tester) async {
+    int? selected;
+    Future<void> pumpTags(List<String> names) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          key: UniqueKey(),
+          overrides: [
+            tagUsageProvider.overrideWith(
+              (ref) => Stream.value([
+                for (final (i, name) in names.indexed)
+                  (tag: Tag(id: i + 1, name: name), count: 1),
+              ]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => TagFilterChips(
+                  selectedTagId: selected,
+                  onSelected: (id) => setState(() => selected = id),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await pumpTags(['roadtrip']);
+    expect(find.widgetWithText(ChoiceChip, 'All tags'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, '#roadtrip'), findsOneWidget);
+    expect(find.byKey(const Key('tag-filter')), findsNothing);
+
+    await pumpTags(['roadtrip', 'wedding']);
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.text('All tags'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('tag-filter')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tag-filter-1')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('tag-filter-2')));
+    await tester.pumpAndSettle();
+    expect(selected, 2);
+    expect(find.text('#wedding'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tag-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tag-filter-all')));
+    await tester.pumpAndSettle();
+    expect(selected, isNull);
   });
 
   testAppWidgets('the export sheet offers the full workbook', (tester) async {

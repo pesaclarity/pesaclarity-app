@@ -454,6 +454,23 @@ void main() {
         find.text('44 h on 2 days · 2,500 an hour · 110,000'),
         findsOneWidget,
       );
+      Future<void> showHours(String detail) async {
+        await tester.tap(find.byKey(const Key('hours-detail')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('hours-detail-$detail')));
+        await tester.pumpAndSettle();
+      }
+
+      Finder inPreview(String text) => find.descendant(
+        of: find.byKey(const Key('invoice-preview')),
+        matching: find.text(text),
+      );
+
+      expect(inPreview('44 hours'), findsOneWidget);
+      await showHours('project');
+      expect(inPreview('44 h × 2,500'), findsOneWidget);
+      await showHours('total');
+      expect(inPreview('44 hours'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('invoice-withholding')));
       await tester.pumpAndSettle();
@@ -487,6 +504,17 @@ void main() {
         ),
         findsOneWidget,
       );
+      Future<void> show(String filter) async {
+        await tester.tap(find.byKey(const Key('invoices-filter')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('invoices-$filter')));
+        await tester.pumpAndSettle();
+      }
+
+      await show('paid');
+      expect(find.byKey(const Key('invoice-AC-INV-0001')), findsNothing);
+      await show('unpaid');
+      expect(find.byKey(const Key('invoice-AC-INV-0001')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('invoice-AC-INV-0001')));
       await settleFrames(tester);

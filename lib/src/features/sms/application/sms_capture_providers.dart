@@ -18,6 +18,7 @@ import '../../categoriser/application/auto_categoriser.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../spaces/application/routing_providers.dart';
 import '../data/sms_source.dart';
+import 'message_recheck.dart';
 import 'scan_range_provider.dart';
 import 'sms_ingestor.dart';
 import 'sms_scan_service.dart';
@@ -84,6 +85,14 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
         ?.startInstant,
   );
   if (initial.added > 0) triggerAutoCategorise();
+  // Amounts read before a pack knew an account's currency or number move
+  // to the right ones, once per pack version.
+  try {
+    final notice = await ref.read(messageRecheckProvider).runIfNeeded(selected);
+    if (notice != null) ref.invalidate(recheckNoticeProvider);
+  } on Object catch (error) {
+    if (kDebugMode) debugPrint('Rechecking messages failed: $error');
+  }
   yield initial;
 
   final senders = {for (final i in selected) ...i.senderIds};

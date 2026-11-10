@@ -555,6 +555,7 @@ void main() {
         name: 'M-Pesa',
         type: AccountType.mpesa,
         openingDate: DateTime.utc(2026, 10),
+        currency: 'KES',
       );
       final mpesaId = await mpesa();
       expect(mpesaId, isNot(1));
@@ -700,6 +701,56 @@ void main() {
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
       expect(await db.select(db.movedTransactions).get(), isEmpty);
+    });
+
+    test('migrates a version 29 database: accounts by number', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('ALTER TABLE accounts DROP COLUMN reference');
+      await old.customStatement('DROP INDEX accounts_institution');
+      await old.customStatement(
+        'CREATE UNIQUE INDEX accounts_institution ON accounts (institution_id)',
+      );
+      await old.customStatement('PRAGMA user_version = 29');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      // Two accounts at one bank now fit.
+      for (final reference in ['0170****4321', '0170****8765']) {
+        await db
+            .into(db.accounts)
+            .insert(
+              AccountsCompanion.insert(
+                name: 'Equity Bank',
+                type: AccountType.bank,
+                openingDate: DateTime.utc(2026),
+                institutionId: const Value('equity'),
+                reference: Value(reference),
+              ),
+            );
+      }
+      expect(await db.select(db.accounts).get(), hasLength(2));
+    });
+
+    test('migrates a version 28 database: rates by day', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE rate_snapshots');
+      await old.customStatement(
+        'ALTER TABLE transactions DROP COLUMN fx_rate_currency',
+      );
+      await old.customStatement('PRAGMA user_version = 28');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.rateSnapshots).get(), isEmpty);
+      final columns = await db
+          .customSelect("SELECT name FROM pragma_table_info('transactions')")
+          .map((row) => row.read<String>('name'))
+          .get();
+      expect(columns, contains('fx_rate_currency'));
     });
 
     test('migrates a version 27 database: eTIMS costs', () async {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
@@ -225,6 +227,12 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
                   onPressed: () => showOwnRateDialog(context, settings),
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Set my own rate'),
+                ),
+                TextButton.icon(
+                  key: const Key('open-converter'),
+                  onPressed: () => context.push(AppRoutes.converter),
+                  icon: const Icon(Icons.currency_exchange),
+                  label: const Text('Currency converter'),
                 ),
               ],
             ),

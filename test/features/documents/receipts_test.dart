@@ -349,8 +349,10 @@ void main() {
 
   testAppWidgets('as text to a number, it opens WhatsApp', (tester) async {
     await pumpSheet(tester);
+    await tester.tap(find.byKey(const Key('receipt-as')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('receipt-as-text')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('phone-number')), '0712345678');
     await tester.pump();
     await tester.tap(find.byKey(const Key('receipt-share')));

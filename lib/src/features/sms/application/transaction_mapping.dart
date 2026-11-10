@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:ujumbe/ujumbe.dart';
 
+import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/payees/payee_identifier.dart';
 
@@ -53,10 +54,10 @@ TransactionsCompanion transactionFromParsed(
   return TransactionsCompanion.insert(
     accountId: accountId,
     occurredAt: parsed.time,
-    amountMinor: parsed.amountMinor,
+    amountMinor: inCurrencyMinor(parsed.amountMinor, parsed.currency),
     direction: transactionDirectionFor(parsed.direction),
     kind: Value(transactionKindFor(parsed.type)),
-    feeMinor: Value(parsed.feeMinor ?? 0),
+    feeMinor: Value(inCurrencyMinor(parsed.feeMinor ?? 0, parsed.currency)),
     currency: Value(parsed.currency),
     counterpartyKind: Value(counterparty?.kind),
     counterpartyValue: Value(counterparty?.value),
@@ -65,6 +66,18 @@ TransactionsCompanion transactionFromParsed(
     source: TransactionSource.sms,
     messageHash: Value(parsed.rawHash),
     dedupeKey: Value(parsed.dedupeKey),
-    balanceAfterMinor: Value(parsed.balanceMinor),
+    balanceAfterMinor: Value(
+      parsed.balanceMinor == null
+          ? null
+          : inCurrencyMinor(parsed.balanceMinor!, parsed.currency),
+    ),
   );
 }
+
+/// [hundredths] (the parsers' and reader's minor units) in [currency]'s
+/// own minor units: `150000` is UGX 1,500 but KES 1,500.00.
+int inCurrencyMinor(int hundredths, String currency) => rescaleMinor(
+  hundredths,
+  fromDigits: 2,
+  toDigits: minorUnitDigits(currency),
+);

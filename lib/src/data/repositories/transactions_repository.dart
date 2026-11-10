@@ -41,6 +41,11 @@ abstract interface class TransactionsRepository {
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
 
+  /// Saves the rate the person got for transaction [id]: one [currency]
+  /// bought [rate] of the transaction's currency. A null [rate] goes back to
+  /// the rates of its day.
+  Future<void> setRateGot(int id, {required String currency, double? rate});
+
   /// Emits whenever something behind the ledger changes: transactions, their
   /// tags, payees, categories, accounts or the plan.
   Stream<void> watchChanges();
@@ -233,6 +238,17 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
+  Future<void> setRateGot(int id, {required String currency, double? rate}) =>
+      (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
+        TransactionsCompanion(
+          fxRateCurrency: Value(rate == null || rate <= 0 ? null : currency),
+          fxRateMicros: Value(
+            rate == null || rate <= 0 ? null : (rate * 1e6).round(),
+          ),
+        ),
+      );
+
+  @override
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs) =>
       _db.transaction(() async {
         for (final pair in pairs) {
@@ -319,6 +335,19 @@ class DriftTransactionsRepository implements TransactionsRepository {
       );
 }
 
+/// [record] in the base currency: at the rate the person got for it, when
+/// they set one, else at the rates of its day. Null with no rate.
+Converted? convertRecord(
+  TransactionRecord record,
+  CurrencyConverter converter,
+) => converter.convert(
+  record.amountMinor,
+  record.currency,
+  record.occurredAt,
+  gotCurrency: record.fxRateCurrency,
+  gotRate: record.fxRateMicros == null ? null : record.fxRateMicros! / 1e6,
+);
+
 LedgerEntry _toLedgerEntry(
   TransactionRecord record,
   Payee? payee,
@@ -326,14 +355,21 @@ LedgerEntry _toLedgerEntry(
   Map<int, Set<int>> tags,
   CurrencyConverter? converter,
 ) {
-  // Amounts in another currency are converted into the base one; with no
-  // rate they keep their own currency, so totals in the base leave them out.
-  final amount = converter?.toBase(record.amountMinor, record.currency);
-  final converted =
-      converter != null && record.currency != converter.base && amount != null;
+  // Amounts in another currency are converted into the base one, at the
+  // rate the person got or else the rates of their day; with no rate they
+  // keep their own currency, so totals in the base leave them out.
+  final conversion = converter == null || record.currency == converter.base
+      ? null
+      : convertRecord(record, converter);
+  final converted = conversion != null;
   int? inBase(int? minor) => minor == null || !converted
       ? minor
-      : converter.toBase(minor, record.currency);
+      : convertMinor(
+          minor,
+          from: record.currency,
+          to: converter!.base,
+          rate: 1 / conversion.baseBuys,
+        );
   final applied = applyPayee(
     payee == null
         ? null
@@ -354,10 +390,10 @@ LedgerEntry _toLedgerEntry(
     id: record.id,
     accountId: record.accountId,
     occurredAt: record.occurredAt,
-    amountMinor: converted ? amount : record.amountMinor,
+    amountMinor: converted ? conversion.baseMinor : record.amountMinor,
     direction: record.direction,
     kind: record.kind ?? TransactionKind.bank,
-    currency: converted ? converter.base : record.currency,
+    currency: converted ? converter!.base : record.currency,
     feeMinor: inBase(record.feeMinor)!,
     payeeId: record.payeeId,
     categoryId: categoryId,

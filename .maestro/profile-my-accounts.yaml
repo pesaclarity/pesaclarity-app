@@ -15,8 +15,14 @@ tags:
     id: profile-my-accounts
 - assertVisible:
     id: title-profile-my-accounts
+- waitForAnimationToEnd
+- takeScreenshot: 08b-profile-my-accounts-${THEME}
+- tapOn:
+    id: my-accounts-choose
+- assertVisible:
+    id: title-choose-accounts
 - assertVisible:
     id: institution-mpesa
     checked: true
 - waitForAnimationToEnd
-- takeScreenshot: 08b-profile-my-accounts-${THEME}
+- takeScreenshot: 08c-profile-choose-accounts-${THEME}

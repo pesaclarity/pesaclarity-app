@@ -149,6 +149,11 @@ jobs:
           offset="$VERSION_CODE_OFFSET"
           [ "$GITHUB_EVENT_NAME" = pull_request ] && offset=0
           build_number=$((BUILD_NUMBER + offset))
+          # Repository variables replace tool/rates.env's service.
+          . tool/rates.env
+          RATES_URL="${RATES_URL:-$PESACLARITY_RATES_URL}"
+          RATES_SOURCE_NAME="${RATES_SOURCE_NAME:-$PESACLARITY_RATES_SOURCE_NAME}"
+          RATES_SOURCE_URL="${RATES_SOURCE_URL:-$PESACLARITY_RATES_SOURCE_URL}"
           flutter build appbundle --release --flavor play \
             --build-number="$build_number" \
             --obfuscate --split-debug-info=build/symbols \

@@ -275,6 +275,7 @@ class StatementImporter {
       name: institution.name,
       type: institution.type,
       openingDate: from,
+      currency: parsed.first.currency,
     );
 
     final nearby = await _imports.transactionsBetween(

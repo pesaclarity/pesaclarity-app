@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/pesa_colors.dart';
+import '../widgets/choice_menu.dart';
 
 // iPhone uses the same design as Android (decision 0011): these helpers
 // keep one place for dialogs, pickers, choices and grouped rows.
@@ -67,17 +68,23 @@ Future<TimeOfDay?> pickTime(
   helpText: helpText,
 );
 
-/// A choice of two to four, as a [SegmentedButton].
+/// A choice of two as a [SegmentedButton]; more than two as a drop-down
+/// ([ChoiceMenu]).
 class AdaptiveSegmented<T extends Object> extends StatelessWidget {
   const AdaptiveSegmented({
     required this.segments,
     required this.selected,
     required this.onChanged,
     this.showSelectedIcon = true,
+    this.name,
     super.key,
   });
 
   final List<(T, String)> segments;
+
+  /// What is being chosen, such as `Period`, for screen readers when it
+  /// shows as a drop-down.
+  final String? name;
 
   /// Whether the chosen segment shows a tick.
   final bool showSelectedIcon;
@@ -85,15 +92,25 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
-  Widget build(BuildContext context) => SegmentedButton<T>(
-    showSelectedIcon: showSelectedIcon,
-    segments: [
-      for (final (value, label) in segments)
-        ButtonSegment(value: value, label: Text(label)),
-    ],
-    selected: {selected},
-    onSelectionChanged: (values) => onChanged(values.single),
-  );
+  Widget build(BuildContext context) => segments.length > 2
+      ? Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ChoiceMenu<T>(
+            name: name,
+            options: segments,
+            value: selected,
+            onChanged: onChanged,
+          ),
+        )
+      : SegmentedButton<T>(
+          showSelectedIcon: showSelectedIcon,
+          segments: [
+            for (final (value, label) in segments)
+              ButtonSegment(value: value, label: Text(label)),
+          ],
+          selected: {selected},
+          onSelectionChanged: (values) => onChanged(values.single),
+        );
 }
 
 /// Rows in a card with dividers, with an optional [header] above it and

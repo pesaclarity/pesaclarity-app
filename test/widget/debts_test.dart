@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/debts/payoff_order.dart';
 import 'package:pesaclarity/src/features/debts/application/debts_overview_provider.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
+import 'package:pesaclarity/src/shared/widgets/choice_menu.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/goals_harness.dart' show settle;
@@ -114,7 +115,10 @@ void main() {
     // Avalanche: highest rate first.
     expect(topOf(tester, 'Dear Card'), lessThan(topOf(tester, 'Small Loan')));
 
-    await tester.tap(find.text('Snowball'));
+    // Three strategies: a drop-down.
+    await tester.tap(find.byType(ChoiceMenu<PayoffStrategy>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Snowball').last);
     await settle(tester);
     expect(topOf(tester, 'Small Loan'), lessThan(topOf(tester, 'Dear Card')));
     expect(

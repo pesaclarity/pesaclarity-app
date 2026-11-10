@@ -11,6 +11,7 @@ import '../../../domain/spaces/space.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -207,31 +208,27 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
               ),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final (choice, label) in [
-                  if (withholding != null)
-                    (
-                      ShortBy.taxWithheld,
-                      'Tax withheld (${rateText(withholding)})',
-                    ),
-                  (ShortBy.theyOweIt, 'They owe it'),
-                  (ShortBy.restInCash, 'Paid the rest in cash'),
-                  (ShortBy.anotherPayment, 'Another payment'),
-                  (ShortBy.discount, 'Gave a discount'),
-                ])
-                  ChoiceChip(
-                    key: Key('short-${choice.name}'),
-                    label: Text(label),
-                    selected: _short == choice,
-                    onSelected: (_) => setState(() {
-                      _short = choice;
-                      _shortPicked = true;
-                    }),
+            ChoiceMenu<ShortBy>(
+              key: const Key('choose-short'),
+              name: 'The difference',
+              expand: true,
+              options: [
+                if (withholding != null)
+                  (
+                    ShortBy.taxWithheld,
+                    'Tax withheld (${rateText(withholding)})',
                   ),
+                (ShortBy.theyOweIt, 'They owe it'),
+                (ShortBy.restInCash, 'Paid the rest in cash'),
+                (ShortBy.anotherPayment, 'Another payment'),
+                (ShortBy.discount, 'Gave a discount'),
               ],
+              value: _short,
+              itemKey: (choice) => Key('short-${choice.name}'),
+              onChanged: (choice) => setState(() {
+                _short = choice;
+                _shortPicked = true;
+              }),
             ),
             if (_short == ShortBy.taxWithheld && withholding != null) ...[
               const SizedBox(height: 12),
@@ -288,22 +285,18 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
               ),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final (choice, label) in [
-                  (OverBy.changeInCash, 'Gave change in cash'),
-                  (OverBy.changeByMpesa, 'Gave change by M-Pesa'),
-                  (OverBy.keepWithSale, 'Keep it with the sale'),
-                ])
-                  ChoiceChip(
-                    key: Key('over-${choice.name}'),
-                    label: Text(label),
-                    selected: _over == choice,
-                    onSelected: (_) => setState(() => _over = choice),
-                  ),
+            ChoiceMenu<OverBy>(
+              key: const Key('choose-over'),
+              name: 'The difference',
+              expand: true,
+              options: const [
+                (OverBy.changeInCash, 'Gave change in cash'),
+                (OverBy.changeByMpesa, 'Gave change by M-Pesa'),
+                (OverBy.keepWithSale, 'Keep it with the sale'),
               ],
+              value: _over,
+              itemKey: (choice) => Key('over-${choice.name}'),
+              onChanged: (choice) => setState(() => _over = choice),
             ),
           ],
         ],

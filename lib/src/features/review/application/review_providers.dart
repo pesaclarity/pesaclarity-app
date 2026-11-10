@@ -89,6 +89,7 @@ class ReviewController {
     final institution = _institution(item.institutionId);
     if (institution == null || !draft.isComplete) return;
     final when = draft.occurredAt(item.receivedAt);
+    final currency = draft.currency ?? institution.pack.currency;
     final accountId = await _ref
         .read(accountsRepositoryProvider)
         .accountForInstitution(
@@ -96,13 +97,14 @@ class ReviewController {
           name: institution.name,
           type: institution.type,
           openingDate: when,
+          currency: currency,
         );
     await _ref.read(transactionsRepositoryProvider).addNew([
       draft.toTransaction(
         accountId: accountId,
         receivedAt: item.receivedAt,
         messageHash: item.messageHash,
-        currency: institution.pack.currency,
+        currency: currency,
       ),
     ]);
     final body = item.body;

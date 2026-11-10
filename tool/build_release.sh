@@ -37,6 +37,14 @@ PESACLARITY_VAULT_URL="${PESACLARITY_VAULT_URL:-$PESACLARITY_API_URL}"
 
 SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
 export SOURCE_DATE_EPOCH
+# The rates service, unless release.env names another (tool/rates.env).
+rates_url="${PESACLARITY_RATES_URL:-}" rates_name="${PESACLARITY_RATES_SOURCE_NAME:-}" rates_link="${PESACLARITY_RATES_SOURCE_URL:-}"
+# shellcheck source=rates.env
+. tool/rates.env
+PESACLARITY_RATES_URL="${rates_url:-$PESACLARITY_RATES_URL}"
+PESACLARITY_RATES_SOURCE_NAME="${rates_name:-$PESACLARITY_RATES_SOURCE_NAME}"
+PESACLARITY_RATES_SOURCE_URL="${rates_link:-$PESACLARITY_RATES_SOURCE_URL}"
+
 version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
 symbols="build/symbols/play-$version-$BUILD_NUMBER"
 

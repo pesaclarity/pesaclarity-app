@@ -30,6 +30,7 @@ abstract final class SemanticIds {
 
   static const homeProfile = 'home-profile';
   static const profileMyAccounts = 'profile-my-accounts';
+  static const myAccountsChoose = 'my-accounts-choose';
   static const profileBackup = 'profile-backup';
   static const profilePrivacy = 'profile-privacy';
   static const goalsSeeDebts = 'goals-see-debts';
@@ -48,6 +49,7 @@ abstract final class SemanticIds {
   static const titleMoney = 'title-money';
   static const titleProfile = 'title-profile';
   static const titleProfileMyAccounts = 'title-profile-my-accounts';
+  static const titleChooseAccounts = 'title-choose-accounts';
   static const titleDebts = 'title-debts';
   static const titleBackup = 'title-backup';
   static const titlePrivacy = 'title-privacy';

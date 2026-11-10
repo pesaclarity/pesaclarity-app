@@ -14,6 +14,7 @@ import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../payees/presentation/category_picker.dart';
@@ -275,20 +276,34 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
           ],
           if (_stock && products.isNotEmpty) ...[
             _label(context, 'Item'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final p in products)
-                  ChoiceChip(
-                    key: Key('bought-item-${p.id}'),
-                    label: Text(p.name),
-                    selected: _itemId == p.id,
-                    onSelected: (on) =>
-                        setState(() => _itemId = on ? p.id : null),
-                  ),
-              ],
-            ),
+            if (products.length > 2)
+              ChoiceMenu<int?>(
+                key: const Key('bought-item'),
+                name: 'Item',
+                expand: true,
+                options: [
+                  (null, 'Other stock'),
+                  for (final p in products) (p.id, p.name),
+                ],
+                value: item?.id,
+                itemKey: (id) => Key('bought-item-${id ?? 'other'}'),
+                onChanged: (id) => setState(() => _itemId = id),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final p in products)
+                    ChoiceChip(
+                      key: Key('bought-item-${p.id}'),
+                      label: Text(p.name),
+                      selected: _itemId == p.id,
+                      onSelected: (on) =>
+                          setState(() => _itemId = on ? p.id : null),
+                    ),
+                ],
+              ),
             const SizedBox(height: 12),
             if (item != null) ...[
               QuantityField(
@@ -349,8 +364,9 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
           ),
           const SizedBox(height: 16),
           _label(context, 'How did you pay?'),
-          MethodChips(
+          MethodMenu(
             keyPrefix: 'bought-way',
+            name: 'Payment',
             options: SalePaymentMethod.values,
             labelFor: (m) =>
                 m == SalePaymentMethod.credit ? 'Pay later' : methodLabel(m),
@@ -427,6 +443,10 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
       if (c.owedMinor > 0) (name: c.name, owedMinor: c.owedMinor),
   ];
 
+  String _owingLabel(_Owing who) =>
+      '${who.name} · '
+      '${formatMoney(Money(who.owedMinor), withCurrency: false)}';
+
   void _pick(_Owing who) => setState(() {
     _customer = who.name;
     _amount.text = formatMoney(Money(who.owedMinor), withCurrency: false);
@@ -455,15 +475,17 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final owing = _owing();
-    if (_customer == null && owing.isNotEmpty) {
-      final start = owing
-          .where(
-            (o) =>
-                o.name.toLowerCase() == widget.customer?.trim().toLowerCase(),
-          )
-          .firstOrNull;
+    final start =
+        owing
+            .where(
+              (o) =>
+                  o.name.toLowerCase() == widget.customer?.trim().toLowerCase(),
+            )
+            .firstOrNull ??
+        owing.firstOrNull;
+    if (_customer == null && start != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _customer == null) _pick(start ?? owing.first);
+        if (mounted && _customer == null) _pick(start);
       });
     }
     final owed = owing
@@ -485,22 +507,34 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
             )
           else ...[
             _label(context, 'Who paid?'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final who in owing)
-                  ChoiceChip(
-                    key: Key('got-paid-${who.name}'),
-                    label: Text(
-                      '${who.name} · '
-                      '${formatMoney(Money(who.owedMinor), withCurrency: false)}',
+            if (owing.length > 2)
+              ChoiceMenu<String>(
+                key: const Key('got-paid-who'),
+                name: 'Who paid',
+                expand: true,
+                options: [
+                  for (final who in owing) (who.name, _owingLabel(who)),
+                ],
+                // Till the first frame picks them, the one it will start with.
+                value: _customer ?? start!.name,
+                itemKey: (name) => Key('got-paid-$name'),
+                onChanged: (name) =>
+                    _pick(owing.firstWhere((o) => o.name == name)),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final who in owing)
+                    ChoiceChip(
+                      key: Key('got-paid-${who.name}'),
+                      label: Text(_owingLabel(who)),
+                      selected: _customer == who.name,
+                      onSelected: (_) => _pick(who),
                     ),
-                    selected: _customer == who.name,
-                    onSelected: (_) => _pick(who),
-                  ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 16),
             AmountField(
               key: const Key('got-paid-amount'),
@@ -510,8 +544,9 @@ class _GotPaidSheetState extends ConsumerState<_GotPaidSheet> {
             ),
             const SizedBox(height: 16),
             _label(context, 'How did they pay?'),
-            MethodChips(
+            MethodMenu(
               keyPrefix: 'got-paid-way',
+              name: 'Payment',
               options: _paidNow,
               selected: _method,
               onSelected: (m) => setState(() => _method = m),
@@ -559,6 +594,10 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
     super.dispose();
   }
 
+  String _owedLabel(Debt debt) =>
+      '${debt.lender} · '
+      '${formatMoney(Money(debt.balanceMinor), withCurrency: false)}';
+
   void _pick(Debt debt) => setState(() {
     _debt = debt;
     _amount.text = formatMoney(Money(debt.balanceMinor), withCurrency: false);
@@ -593,10 +632,12 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
           in ref.watch(suppliersProvider).value ?? const <SupplierAccount>[])
         s.debt,
     ];
-    if (_debt == null && owed.isNotEmpty) {
-      final start = owed.where((d) => d.id == widget.debtId).firstOrNull;
+    final start =
+        owed.where((d) => d.id == widget.debtId).firstOrNull ??
+        owed.firstOrNull;
+    if (_debt == null && start != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _debt == null) _pick(start ?? owed.first);
+        if (mounted && _debt == null) _pick(start);
       });
     }
     return Form(
@@ -614,22 +655,31 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
             )
           else ...[
             _label(context, 'Who did you pay?'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final d in owed)
-                  ChoiceChip(
-                    key: Key('paid-${d.id}'),
-                    label: Text(
-                      '${d.lender} · '
-                      '${formatMoney(Money(d.balanceMinor), withCurrency: false)}',
+            if (owed.length > 2)
+              ChoiceMenu<int>(
+                key: const Key('paid-who'),
+                name: 'Who you paid',
+                expand: true,
+                options: [for (final d in owed) (d.id, _owedLabel(d))],
+                // Till the first frame picks it, the one it will start with.
+                value: _debt?.id ?? start!.id,
+                itemKey: (id) => Key('paid-$id'),
+                onChanged: (id) => _pick(owed.firstWhere((d) => d.id == id)),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final d in owed)
+                    ChoiceChip(
+                      key: Key('paid-${d.id}'),
+                      label: Text(_owedLabel(d)),
+                      selected: _debt?.id == d.id,
+                      onSelected: (_) => _pick(d),
                     ),
-                    selected: _debt?.id == d.id,
-                    onSelected: (_) => _pick(d),
-                  ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 16),
             AmountField(
               key: const Key('paid-amount'),
@@ -639,8 +689,9 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
             ),
             const SizedBox(height: 16),
             _label(context, 'How did you pay?'),
-            MethodChips(
+            MethodMenu(
               keyPrefix: 'paid-way',
+              name: 'Payment',
               options: _paidNow,
               selected: _method,
               onSelected: (m) => setState(() => _method = m),
@@ -663,7 +714,9 @@ class _PaidSheetState extends ConsumerState<_PaidSheet> {
   }
 }
 
-/// When money is due: today, in a week, or a picked date. Null is no date.
+/// When money is due, as one drop-down: any time, today, in a week, or a
+/// picked date. Null is any time. It opens by the key `due`, and each choice
+/// is `due-<choice>`, such as `due-inAWeek`.
 class DueDateChips extends StatelessWidget {
   const DueDateChips({
     required this.today,
@@ -679,47 +732,58 @@ class DueDateChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final week = today.addDays(7);
-    final picked = value != null && value != today && value != week
-        ? value
-        : null;
+    final due = value;
+    final choice = due == null
+        ? _Due.anyTime
+        : due == today
+        ? _Due.today
+        : due == week
+        ? _Due.inAWeek
+        : _Due.date;
     DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        ChoiceChip(
-          label: const Text('Today'),
-          selected: value == today,
-          onSelected: (on) => onChanged(on ? today : null),
+    return ChoiceMenu<_Due>(
+      key: const Key('due'),
+      name: 'Due',
+      expand: true,
+      options: [
+        (_Due.anyTime, 'Any time'),
+        (_Due.today, 'Today'),
+        (_Due.inAWeek, 'In a week'),
+        (
+          _Due.date,
+          choice == _Due.date
+              ? dayLabel(due!, thisYear: today.year)
+              : 'Pick a date',
         ),
-        ChoiceChip(
-          label: const Text('In a week'),
-          selected: value == week,
-          onSelected: (on) => onChanged(on ? week : null),
-        ),
-        ChoiceChip(
-          label: Text(
-            picked == null
-                ? 'Pick a date'
-                : dayLabel(picked, thisYear: today.year),
-          ),
-          selected: picked != null,
-          onSelected: (_) async {
+      ],
+      value: choice,
+      itemKey: (d) => Key('due-${d.name}'),
+      onChanged: (d) async {
+        switch (d) {
+          case _Due.anyTime:
+            onChanged(null);
+          case _Due.today:
+            onChanged(today);
+          case _Due.inAWeek:
+            onChanged(week);
+          case _Due.date:
             final chosen = await pickDate(
               context,
-              initialDate: asDay(value ?? week),
+              initialDate: asDay(due ?? week),
               firstDate: asDay(today),
               lastDate: asDay(today.addDays(366)),
             );
             if (chosen != null) {
               onChanged(CalendarDate(chosen.year, chosen.month, chosen.day));
             }
-          },
-        ),
-      ],
+        }
+      },
     );
   }
 }
+
+/// The choices in [DueDateChips].
+enum _Due { anyTime, today, inAWeek, date }
 
 class _PayYourselfSheet extends ConsumerStatefulWidget {
   const _PayYourselfSheet();
@@ -786,8 +850,9 @@ class _PayYourselfSheetState extends ConsumerState<_PayYourselfSheet> {
           ),
           const SizedBox(height: 16),
           _label(context, 'From'),
-          MethodChips(
+          MethodMenu(
             keyPrefix: 'pay-yourself-from',
+            name: 'From',
             options: const [
               SalePaymentMethod.mpesa,
               SalePaymentMethod.bank,

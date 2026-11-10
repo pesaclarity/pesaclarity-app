@@ -157,6 +157,11 @@ jobs:
         run: |
           # The client id only helps when the app is signed with the dev key.
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
+          # Repository variables replace tool/rates.env's service.
+          . tool/rates.env
+          RATES_URL="${RATES_URL:-$PESACLARITY_RATES_URL}"
+          RATES_SOURCE_NAME="${RATES_SOURCE_NAME:-$PESACLARITY_RATES_SOURCE_NAME}"
+          RATES_SOURCE_URL="${RATES_SOURCE_URL:-$PESACLARITY_RATES_SOURCE_URL}"
           VAULT_URL="${VAULT_URL:-$API_URL}"
           flutter build apk --release --flavor "$FLAVOR" \
             --target-platform android-arm,android-arm64 --split-per-abi \
