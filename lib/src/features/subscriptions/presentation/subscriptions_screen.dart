@@ -12,13 +12,15 @@ import '../../../domain/subscriptions/subscriptions.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/selector_field.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/reminders_controller.dart';
 import '../application/subscriptions_providers.dart';
 
-String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _amount(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
 
 const frequencyLabels = {
   RecurrenceFrequency.weekly: 'Every week',
@@ -79,10 +81,11 @@ class _Body extends ConsumerWidget {
           label: overview.lines.isEmpty
               ? 'Nothing tracked yet'
               : '${overview.lines.length} active · every month',
-          figure: '${overview.currency} ${_amount(overview.monthlyTotalMinor)}',
+          figure:
+              '${overview.currency} ${_amount(context, overview.monthlyTotalMinor)}',
           caption: next == null
               ? 'Add one, or track a charge found in your messages.'
-              : '${_amount(overview.yearlyTotalMinor)} a year · next: '
+              : '${_amount(context, overview.yearlyTotalMinor)} a year · next: '
                     '${next.subscription.name} '
                     '${relativeDays(next.nextDate, today: today)}',
         ),
@@ -103,15 +106,15 @@ class _Body extends ConsumerWidget {
                       line.previousAmountMinor == null
                           ? '${frequencyLabels[line.subscription.frequency]} · '
                                 '${shortDate(line.nextDate)}'
-                          : 'Now ${_amount(line.amountMinor)}, was '
-                                '${_amount(line.previousAmountMinor!)} · '
+                          : 'Now ${_amount(context, line.amountMinor)}, was '
+                                '${_amount(context, line.previousAmountMinor!)} · '
                                 '${shortDate(line.nextDate)}',
                       style: line.previousAmountMinor == null
                           ? null
                           : TextStyle(color: colors.warning),
                     ),
                     trailing: Text(
-                      _amount(line.amountMinor),
+                      _amount(context, line.amountMinor),
                       style: theme.textTheme.titleMedium,
                     ),
                     onTap: () => showSubscriptionSheet(
@@ -179,7 +182,7 @@ class _SuggestionCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(charge.name, style: theme.textTheme.titleMedium),
             Text(
-              '${_amount(charge.amountMinor)} on the ${charge.lastDate.day}, '
+              '${_amount(context, charge.amountMinor)} on the ${charge.lastDate.day}, '
               'two months running',
               style: theme.textTheme.bodySmall,
             ),
@@ -244,7 +247,7 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
     _amount = TextEditingController(
       text: s == null
           ? ''
-          : formatMoney(Money(s.amountMinor), withCurrency: false),
+          : shownMoney(context, s.amountMinor, withCurrency: false),
     );
     _frequency = s?.frequency ?? RecurrenceFrequency.monthly;
     _nextDate = s?.nextDate ?? CalendarDate.local(ref.read(clockProvider)());

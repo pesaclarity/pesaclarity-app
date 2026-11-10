@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../domain/tags/tag_totals.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
@@ -84,8 +83,9 @@ class TagTotalsSection extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              formatMoney(
-                                Money(s.totals.spendingMinor),
+                              shownMoney(
+                                context,
+                                s.totals.spendingMinor,
                                 withCurrency: false,
                               ),
                               style: theme.textTheme.titleMedium,

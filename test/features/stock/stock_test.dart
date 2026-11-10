@@ -14,7 +14,9 @@ import 'package:pesaclarity/src/features/books/application/books_providers.dart'
 import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/features/sales/presentation/sell_screen.dart';
 import 'package:pesaclarity/src/features/stock/presentation/count_stock_screen.dart';
+import 'package:pesaclarity/src/features/stock/presentation/item_screen.dart';
 import 'package:pesaclarity/src/features/stock/presentation/stock_screen.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
@@ -167,6 +169,7 @@ void main() {
           container: c,
           child: MaterialApp(
             theme: AppTheme.light,
+            builder: (context, child) => AmountsHiddenScope(child: child!),
             home: Builder(
               builder: (context) => Scaffold(
                 body: TextButton(
@@ -205,6 +208,21 @@ void main() {
       await show('all');
       expect(find.text('Tomatoes'), findsOneWidget);
       expect(find.text('Delivery'), findsOneWidget);
+    });
+
+    testAppWidgets('an item hides its price, cost and profit behind the eye', (
+      tester,
+    ) async {
+      await pump(tester, const ItemScreen(itemId: 1));
+      expect(find.text('Tomatoes'), findsWidgets);
+      expect(find.text('120'), findsOneWidget);
+      expect(find.text('80'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('amounts-eye')));
+      await tester.pumpAndSettle();
+      expect(find.text('120'), findsNothing);
+      expect(find.text('80'), findsNothing);
+      expect(find.text('•••••'), findsWidgets);
     });
 
     testAppWidgets('a count keeps why: chosen from a menu when less', (

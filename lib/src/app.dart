@@ -6,6 +6,7 @@ import 'features/look/application/look_providers.dart';
 import 'features/look/presentation/field_style_theme.dart';
 import 'features/security/presentation/lock_screen.dart';
 import 'routing/app_router.dart';
+import 'shared/widgets/amounts_hidden.dart';
 import 'theme/app_theme.dart';
 
 /// Root widget.
@@ -24,8 +25,10 @@ class PesaClarityApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeModeFor(theme),
       routerConfig: ref.watch(appRouterProvider),
-      builder: (context, child) => FieldStyleTheme(
-        child: AppLockGate(child: LearnWhenDue(child: child!)),
+      builder: (context, child) => AmountsHiddenScope(
+        child: FieldStyleTheme(
+          child: AppLockGate(child: LearnWhenDue(child: child!)),
+        ),
       ),
     );
   }

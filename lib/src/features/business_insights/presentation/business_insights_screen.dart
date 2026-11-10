@@ -3,18 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../tax/application/tax_providers.dart';
 import '../application/business_report_providers.dart';
 
@@ -45,9 +44,9 @@ class BusinessInsightsScreen extends ConsumerWidget {
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final period = periodFor(range, today);
     final report = ref.watch(businessReportProvider(period)).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
       body: SafeArea(
@@ -74,6 +73,7 @@ class BusinessInsightsScreen extends ConsumerWidget {
                     style: TextStyle(color: colors.link),
                   ),
                 ),
+                const AmountsEye(),
               ],
             ),
             const SizedBox(height: 12),
@@ -505,7 +505,7 @@ class _TaxCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final view = ref.watch(taxViewProvider).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final owed = view?.owedMinor;
     return Card(
       margin: EdgeInsets.zero,
@@ -521,9 +521,7 @@ class _TaxCard extends ConsumerWidget {
           children: [
             if (owed != null)
               Text(
-                hidden
-                    ? maskedDigits
-                    : formatMoney(Money(owed), withCurrency: false),
+                moneyOrHidden(owed, hidden: hidden, withCurrency: false),
                 style: theme.textTheme.titleMedium,
               ),
             const Icon(Icons.chevron_right),

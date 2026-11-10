@@ -135,6 +135,7 @@ From the spec's "Mobile security" section:
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
 - App lock: with a PIN (and fingerprint or Face ID) set, the database key is released only after unlocking (`UnlockedDatabaseKeyStore`).
+- Hiding amounts: one eye (`AmountsEye`) hides every amount across the app, starting from "Hide balances on open". `AmountsHiddenScope` at the app root puts its state over every screen and sheet; screens format amounts with `shownMoney` or `shownAmounts` (`lib/src/shared/widgets/amounts_hidden.dart`). The eye sits at the right of each screen's title, or on the red card a screen leads with. The counter (Sell, Pay, tabs, Close the day, the record sheets), forms and documents to share or print always show amounts.
 
 Not done yet: StrongBox-backed keys, the pinned hosts and roots for the deployed server (set at build time once it is live), and real Play Integrity tokens (the `play` attestor is a stub until the Play project exists; iPhone uses App Attest).
 

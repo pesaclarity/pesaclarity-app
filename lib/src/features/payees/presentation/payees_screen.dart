@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/export/export_tables.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
@@ -38,7 +37,11 @@ class PayeesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Payees'),
-        actions: [ExportButton(scope: () => const PayeesExport())],
+        actions: [
+          ExportButton(scope: () => const PayeesExport()),
+          const AmountsEye(),
+          const SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -62,7 +65,7 @@ class PayeesScreen extends ConsumerWidget {
                           if (party.printedName != null) party.identifier.label,
                           _paymentsLabel(party.transactionCount),
                           if (party.outMinor > 0)
-                            '${formatMoney(Money(party.outMinor))} out',
+                            '${shownMoney(context, party.outMinor)} out',
                         ].join(' · '),
                       ),
                       trailing: Text(

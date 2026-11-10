@@ -2,23 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../application/stock_providers.dart';
 import 'item_sheet.dart';
-
-String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
 
 /// Stock tab: what the business sells, products and services. A services
 /// business calls it Services.
@@ -36,7 +32,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final services =
         ref.watch(businessSetupProvider).value?.sells == BusinessSells.services;
     final items = ref.watch(itemsProvider).value;
@@ -80,6 +76,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                       style: TextStyle(color: colors.link),
                     ),
                   ),
+                const AmountsEye(),
               ],
             ),
             const SizedBox(height: 12),
@@ -92,7 +89,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                     Expanded(
                       child: _Tile(
                         'Stock value',
-                        hidden ? maskedDigits : _plain(value),
+                        moneyOrHidden(
+                          value,
+                          hidden: hidden,
+                          withCurrency: false,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -259,7 +260,7 @@ class _ItemRow extends StatelessWidget {
     final theme = Theme.of(context);
     final sells = item.priceMinor == null
         ? 'Price varies'
-        : 'Sells ${priceText(item, _plain)}';
+        : 'Sells ${priceText(item, (m) => shownMoney(context, m, withCurrency: false))}';
     return ListTile(
       key: Key('item-${item.id}'),
       onTap: () => context.push(AppRoutes.item(item.id)),
@@ -278,7 +279,8 @@ class _ItemRow extends StatelessWidget {
       ),
       subtitle: Text(
         item.isProduct
-            ? '$sells · costs ${_plain(item.averageCostMinor)}'
+            ? '$sells · costs '
+                  '${shownMoney(context, item.averageCostMinor, withCurrency: false)}'
             : sells,
       ),
       trailing: item.isProduct

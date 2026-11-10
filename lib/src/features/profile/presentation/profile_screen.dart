@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/build_info.dart';
 import '../../../config/flavor.dart';
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/look/look_settings.dart';
@@ -16,6 +14,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
@@ -127,7 +126,7 @@ class ProfileScreen extends ConsumerWidget {
       subtitle: Text(
         subscriptions == null || subscriptions.lines.isEmpty
             ? 'What repeats, and what it costs'
-            : '${formatMoney(Money(subscriptions.monthlyTotalMinor), withCurrency: false)} a month',
+            : '${shownMoney(context, subscriptions.monthlyTotalMinor, withCurrency: false)} a month',
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.subscriptions),
@@ -235,6 +234,7 @@ class ProfileScreen extends ConsumerWidget {
           identifier: SemanticIds.titleProfile,
           child: const Text('Profile'),
         ),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

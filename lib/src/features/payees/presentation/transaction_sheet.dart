@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/documents_repository.dart';
@@ -15,6 +13,7 @@ import '../../../domain/enums.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/presentation/payment_rate_card.dart';
@@ -117,8 +116,10 @@ class _Body extends ConsumerWidget {
     final payee = detail.payee;
     final counterparty = detail.counterparty;
     final isIn = r.direction == TransactionDirection.inflow;
-    final amount = formatMoney(
-      Money(isIn ? r.amountMinor : -r.amountMinor, currency: r.currency),
+    final amount = shownMoney(
+      context,
+      isIn ? r.amountMinor : -r.amountMinor,
+      currency: r.currency,
     );
     final title =
         payee?.displayName ??
@@ -158,7 +159,7 @@ class _Body extends ConsumerWidget {
         BaseAmountLine(r),
         if (r.feeMinor > 0)
           Text(
-            'Fee ${formatMoney(Money(r.feeMinor, currency: r.currency))}',
+            'Fee ${shownMoney(context, r.feeMinor, currency: r.currency)}',
             style: theme.textTheme.bodySmall,
           ),
         if (r.transferPairId != null)

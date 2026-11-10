@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/sales/sale_matching.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/sales_providers.dart';
 import 'choose_payments_sheet.dart';
@@ -54,7 +55,7 @@ class WaitingPaymentsCard extends ConsumerWidget {
                 onTap: w.kind == WaitingKind.sale
                     ? () => showChoosePaymentsSheet(context, w)
                     : null,
-                title: Text(waitingTitle(w)),
+                title: Text(shownAmounts(context, waitingTitle(w))),
                 subtitle: Text(
                   [
                     switch (w.kind) {

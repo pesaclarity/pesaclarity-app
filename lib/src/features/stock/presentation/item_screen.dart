@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/stock_repository.dart';
@@ -12,6 +10,7 @@ import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/records_sheets.dart';
@@ -19,7 +18,8 @@ import '../application/stock_providers.dart';
 import 'measure_sheet.dart';
 import 'stock_screen.dart';
 
-String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _plain(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
 
 /// One item: stock now and how long it lasts, price, cost and profit, and
 /// its history of sales, restocks and counts.
@@ -63,7 +63,10 @@ class ItemScreen extends ConsumerWidget {
         : costOf(soldWeek, item.priceMinor!);
 
     return Scaffold(
-      appBar: AppBar(title: Text(item.name)),
+      appBar: AppBar(
+        title: Text(item.name),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -151,7 +154,7 @@ class ItemScreen extends ConsumerWidget {
                   trailing: Text(
                     item.priceMinor == null
                         ? 'Varies'
-                        : _plain(item.priceMinor!),
+                        : _plain(context, item.priceMinor!),
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
@@ -169,7 +172,7 @@ class ItemScreen extends ConsumerWidget {
                     trailing: Text(
                       m.priceMinor == null
                           ? 'Bought only'
-                          : _plain(m.priceMinor!),
+                          : _plain(context, m.priceMinor!),
                       style: theme.textTheme.titleMedium,
                     ),
                     onTap: () => _way(context, ref, item, existing: m),
@@ -190,7 +193,7 @@ class ItemScreen extends ConsumerWidget {
                     title: const Text('Costs you'),
                     subtitle: const Text('Average of what you paid'),
                     trailing: Text(
-                      _plain(item.averageCostMinor),
+                      _plain(context, item.averageCostMinor),
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
@@ -201,7 +204,7 @@ class ItemScreen extends ConsumerWidget {
                         unit == null ? 'Profit each' : 'Profit per $unit',
                       ),
                       trailing: Text(
-                        _plain(profit),
+                        _plain(context, profit),
                         style: theme.textTheme.titleMedium!.copyWith(
                           color: colors.successText,
                         ),
@@ -219,7 +222,7 @@ class ItemScreen extends ConsumerWidget {
                     trailing: weekAmount == null
                         ? null
                         : Text(
-                            _plain(weekAmount),
+                            _plain(context, weekAmount),
                             style: theme.textTheme.titleMedium,
                           ),
                   ),
@@ -331,7 +334,7 @@ class _MoveRow extends StatelessWidget {
       StockMoveKind.opening => 'Stock at the start',
       StockMoveKind.sold => 'Sold',
       StockMoveKind.restocked =>
-        'Restocked at ${_plain(perUnit)}'
+        'Restocked at ${_plain(context, perUnit)}'
             '${unit == null ? ' each' : ' / $unit'}',
       StockMoveKind.counted =>
         'Counted · ${switch (m.reason) {

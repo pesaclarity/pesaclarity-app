@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/repositories/payday_repository.dart';
 import '../../../domain/plan/payday.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../application/plan_providers.dart';
 import 'plan_screen.dart' show dayLabel;
@@ -52,7 +51,7 @@ class _Checklist extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    String kes(int minor) => formatMoney(Money(minor));
+    String kes(int minor) => shownMoney(context, minor);
     final payday = proposal.payday;
     final checklist = proposal.checklist;
     final tasks = checklist.tasks;
@@ -96,7 +95,7 @@ class _Checklist extends ConsumerWidget {
                     ? null
                     : Text('Due ${dayLabel(task.dueDate!)}'),
                 secondary: Text(
-                  formatMoney(Money(task.amountMinor), withCurrency: false),
+                  shownMoney(context, task.amountMinor, withCurrency: false),
                   style: theme.textTheme.titleSmall,
                 ),
                 controlAffinity: ListTileControlAffinity.leading,

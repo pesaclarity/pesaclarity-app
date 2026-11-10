@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/goals/debt_progress.dart';
 import '../../../domain/goals/net_worth.dart';
@@ -12,6 +10,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/progress_ring.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -34,6 +33,7 @@ class GoalsScreen extends ConsumerWidget {
           identifier: SemanticIds.titleGoals,
           child: const Text('Goals'),
         ),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
       ),
       body: switch (overview) {
         AsyncData(:final value) => _GoalsBody(value),
@@ -165,7 +165,7 @@ class _DebtFreeCard extends StatelessWidget {
       label = 'Debt-free by';
       figure = month == null ? 'Not yet' : monthLabel(month);
       caption =
-          '${formatMoney(Money(debts.remainingMinor), withCurrency: false)} '
+          '${shownMoney(context, debts.remainingMinor, withCurrency: false)} '
           'left · ${debts.clearedCount} of ${debts.count} cleared';
     }
     final muted = scheme.onPrimary.withValues(alpha: 0.85);
@@ -295,8 +295,9 @@ class _DebtRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  formatMoney(
-                    Money(line.debt.balanceMinor),
+                  shownMoney(
+                    context,
+                    line.debt.balanceMinor,
                     withCurrency: false,
                   ),
                   style: AppTypography.amount(
@@ -318,7 +319,12 @@ class _DebtRow extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              debtCaption(line, plan: plan, today: today),
+              debtCaption(
+                line,
+                plan: plan,
+                today: today,
+                hidden: AmountsHidden.of(context),
+              ),
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -334,6 +340,7 @@ String debtCaption(
   DebtLine line, {
   required PayoffPlan? plan,
   required CalendarDate today,
+  bool hidden = false,
 }) {
   final debt = line.debt;
   final parts = <String>[];
@@ -349,7 +356,7 @@ String debtCaption(
     parts.add(
       next.amountMinor >= debt.balanceMinor
           ? 'in full, $day'
-          : 'next ${formatMoney(Money(next.amountMinor), withCurrency: false)}, '
+          : 'next ${moneyOrHidden(hidden: hidden, next.amountMinor, withCurrency: false)}, '
                 '$day',
     );
   } else {
@@ -414,8 +421,12 @@ class _GoalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    String amount(int minor) =>
-        formatMoney(Money(minor, currency: goal.currency), withCurrency: false);
+    String amount(int minor) => shownMoney(
+      context,
+      minor,
+      currency: goal.currency,
+      withCurrency: false,
+    );
     final percent = (goal.progress * 100).floor();
 
     return Card(
@@ -446,7 +457,8 @@ class _GoalCard extends StatelessWidget {
                 '${amount(goal.savedMinor)} of ${amount(goal.targetMinor)}',
                 style: theme.textTheme.bodySmall,
               ),
-              if (goalPace(goal, today) case final pace?) ...[
+              if (goalPace(goal, today, hidden: AmountsHidden.of(context))
+                  case final pace?) ...[
                 const SizedBox(height: 2),
                 Text(pace, style: theme.textTheme.bodySmall),
               ],
@@ -460,13 +472,15 @@ class _GoalCard extends StatelessWidget {
 
 /// What a goal needs, such as `8,000 a month to Dec 2027`. Null for a goal
 /// with no date that is still going.
-String? goalPace(SavingsGoal goal, CalendarDate today) {
+String? goalPace(SavingsGoal goal, CalendarDate today, {bool hidden = false}) {
   if (goal.isReached) return 'Reached';
   final needed = goal.monthlyNeededMinor(today);
   final date = goal.targetDate;
   if (needed == null || date == null) return null;
-  final amount = formatMoney(
-    Money(needed, currency: goal.currency),
+  final amount = moneyOrHidden(
+    hidden: hidden,
+    needed,
+    currency: goal.currency,
     withCurrency: false,
   );
   if (goal.monthsLeft(today) == 0) return '$amount to go, date passed';
@@ -485,7 +499,7 @@ class _NetWorthCard extends StatelessWidget {
     final change = netWorth.changeThisMonthMinor;
     final changeText =
         '${change > 0 ? '+' : ''}'
-        '${formatMoney(Money(change), withCurrency: false)} this month';
+        '${shownMoney(context, change, withCurrency: false)} this month';
 
     return Card(
       margin: EdgeInsets.zero,
@@ -499,8 +513,9 @@ class _NetWorthCard extends StatelessWidget {
                 children: [
                   Text('Net worth', style: theme.textTheme.bodySmall),
                   Text(
-                    formatMoney(
-                      Money(netWorth.valueMinor),
+                    shownMoney(
+                      context,
+                      netWorth.valueMinor,
                       withCurrency: false,
                     ),
                     style: AppTypography.amount(
@@ -532,7 +547,7 @@ class _LendingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String kes(int minor) => formatMoney(Money(minor), withCurrency: false);
+    String kes(int minor) => shownMoney(context, minor, withCurrency: false);
     return _LinkCard(
       title: 'Lent and borrowed',
       subtitle: lending.isEmpty

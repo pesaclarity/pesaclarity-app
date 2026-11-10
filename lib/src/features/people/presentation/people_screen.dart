@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/people/people.dart';
 import '../../../domain/spaces/business_setup.dart';
@@ -12,12 +10,12 @@ import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../application/people_providers.dart';
 import 'remind_sheet.dart';
@@ -71,6 +69,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                     style: TextStyle(color: PesaColors.of(context).link),
                   ),
                 ),
+                const AmountsEye(),
               ],
             ),
             const SizedBox(height: 16),
@@ -96,7 +95,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
 }
 
 String _plain(bool hidden, int minor) =>
-    hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+    moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
 /// Where a customer stands, in a few words: `Due today · since 29 Oct`.
 String customerStanding(CustomerAccount c, {required CalendarDate today}) {
@@ -192,7 +191,7 @@ class _Customers extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final all = ref.watch(customersProvider).value;
     if (all == null) {
@@ -280,7 +279,7 @@ class _Suppliers extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final owed = ref.watch(suppliersProvider).value;
     final paid = ref.watch(suppliersPaidThisMonthProvider).value ?? const [];

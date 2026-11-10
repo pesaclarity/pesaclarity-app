@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/books/report_setup.dart';
@@ -11,12 +9,12 @@ import '../../../domain/spaces/space_categories.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../books/presentation/money_screen.dart';
 import '../../sales/presentation/pay_sheet.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/business_report_providers.dart';
 import '../application/report_maker.dart';
 import 'business_insights_screen.dart';
@@ -85,12 +83,15 @@ class _FullRecordsScreenState extends ConsumerState<FullRecordsScreen> {
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final period = periodFor(ref.watch(insightsRangeProvider), today);
     final report = ref.watch(businessReportProvider(period)).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Full records')),
+      appBar: AppBar(
+        title: const Text('Full records'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [

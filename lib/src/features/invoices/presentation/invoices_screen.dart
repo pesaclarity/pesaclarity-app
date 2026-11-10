@@ -12,13 +12,13 @@ import '../../../domain/people/phone_number.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
 import '../../printing/presentation/print_sheet.dart';
 import '../../reminders/application/business_reminders.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/invoice_providers.dart';
 import '../application/invoice_sender.dart';
 
@@ -49,10 +49,10 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final views = ref.watch(invoicesProvider).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
     final open = [
       for (final v in views ?? const <InvoiceView>[])
         if (v.status != InvoiceStatus.paid) v,
@@ -102,6 +102,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
             onPressed: () => context.push(AppRoutes.newInvoice()),
             child: Text('New', style: TextStyle(color: colors.link)),
           ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
         ],
       ),
       body: views == null

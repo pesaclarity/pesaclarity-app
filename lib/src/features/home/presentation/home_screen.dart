@@ -23,6 +23,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -54,28 +55,13 @@ import '../application/upcoming_bills_provider.dart';
 /// Bills shown under Coming up before "See all".
 const _billsShown = 3;
 
-String _kes(BuildContext context, int minor) => _AmountsHidden.of(context)
+String _kes(BuildContext context, int minor) => AmountsHidden.of(context)
     ? '${BaseCurrency.code} $maskedDigits'
     : formatMoney(Money(minor));
 
-String _plain(BuildContext context, int minor) => _AmountsHidden.of(context)
+String _plain(BuildContext context, int minor) => AmountsHidden.of(context)
     ? maskedDigits
     : formatMoney(Money(minor), withCurrency: false);
-
-/// Masks every amount below it while balances are hidden.
-class _AmountsHidden extends InheritedWidget {
-  const _AmountsHidden({required this.hidden, required super.child});
-
-  final bool hidden;
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_AmountsHidden>()?.hidden ??
-      false;
-
-  @override
-  bool updateShouldNotify(_AmountsHidden oldWidget) =>
-      hidden != oldWidget.hidden;
-}
 
 /// Home tab: how am I doing today?
 class HomeScreen extends ConsumerWidget {
@@ -121,8 +107,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: _AmountsHidden(
-          hidden: ref.watch(balancesHiddenProvider),
+        child: AmountsHiddenScope(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
             children: [
@@ -451,21 +436,7 @@ class _SafeToSpendCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final hidden = ref.watch(balancesHiddenProvider);
-                      return IconButton(
-                        tooltip: hidden ? 'Show balances' : 'Hide balances',
-                        color: scheme.onPrimary,
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          hidden ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        onPressed: () =>
-                            ref.read(balancesHiddenProvider.notifier).toggle(),
-                      );
-                    },
-                  ),
+                  AmountsEye(color: scheme.onPrimary),
                 ],
               ),
               const SizedBox(height: 10),
@@ -558,9 +529,20 @@ class _UntilNextMoneyCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                result.pinned ? 'Your plan for today' : 'Safe to spend today',
-                style: textTheme.labelLarge!.copyWith(color: scheme.onPrimary),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      result.pinned
+                          ? 'Your plan for today'
+                          : 'Safe to spend today',
+                      style: textTheme.labelLarge!.copyWith(
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  AmountsEye(color: scheme.onPrimary),
+                ],
               ),
               const SizedBox(height: 10),
               Text(
@@ -647,7 +629,7 @@ class _ForecastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = _AmountsHidden.of(context);
+    final hidden = AmountsHidden.of(context);
     final messages = [
       for (final m in forecast.messages) maskAmountsIf(hidden, m),
     ];
@@ -946,8 +928,9 @@ class _WhatWasThisCard extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final first = queue.first;
     final from = first.payeeName ?? first.counterpartyName ?? 'someone';
-    final amount = formatMoney(
-      Money(first.amountMinor, currency: first.currency),
+    final amount = shownAmounts(
+      context,
+      formatMoney(Money(first.amountMinor, currency: first.currency)),
     );
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/features/security/data/key_vault.dart';
 import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/security/domain/lock_settings.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -281,6 +282,8 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: AppTheme.light,
+          // The app puts the eye's state over every screen.
+          builder: (context, child) => AmountsHiddenScope(child: child!),
           home: const Scaffold(
             body: HeroFigureCard(
               label: 'Safe to spend today',

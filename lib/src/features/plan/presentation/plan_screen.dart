@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../domain/categories/default_categories.dart';
@@ -10,6 +8,7 @@ import '../../../domain/plan/month_plan.dart';
 import '../../../domain/plan/plan_groups.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
@@ -148,6 +147,7 @@ class _Header extends ConsumerWidget {
           icon: Icons.chevron_right,
           onPressed: () => notifier.show(month.next),
         ),
+        const AmountsEye(),
       ],
     );
   }
@@ -180,7 +180,8 @@ class _RoundButton extends StatelessWidget {
   }
 }
 
-String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _amount(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
 
 class _OutlinedCard extends StatelessWidget {
   const _OutlinedCard({required this.child, this.padding = 20});
@@ -235,7 +236,8 @@ class _IncomeCard extends StatelessWidget {
     if (expected == 0) {
       note = 'Add your salary or other income to compare.';
     } else if (planned > expected) {
-      note = '${_amount(planned - expected)} more than expected income.';
+      note =
+          '${_amount(context, planned - expected)} more than expected income.';
     } else {
       note = null;
     }
@@ -255,7 +257,7 @@ class _IncomeCard extends StatelessWidget {
                 ),
               ),
               Text(
-                _amount(expected),
+                _amount(context, expected),
                 style: theme.textTheme.bodyMedium!.copyWith(
                   color: colors.textMuted,
                 ),
@@ -264,7 +266,7 @@ class _IncomeCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            _amount(planned),
+            _amount(context, planned),
             style: AppTypography.amount(
               size: 40,
               color: theme.colorScheme.onSurface,
@@ -316,7 +318,7 @@ class _IncomeCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${g.group.label} ${_amount(g.amountMinor)}',
+                        '${g.group.label} ${_amount(context, g.amountMinor)}',
                         style: theme.textTheme.bodyMedium,
                       ),
                     ],
@@ -429,7 +431,7 @@ class _CategoryTile extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '${_amount(row.actualMinor)} of ${_amount(row.plannedMinor)}',
+            '${_amount(context, row.actualMinor)} of ${_amount(context, row.plannedMinor)}',
             style: theme.textTheme.bodyMedium!.copyWith(
               color: colors.textMuted,
             ),
@@ -485,8 +487,8 @@ class _SurplusCard extends ConsumerWidget {
               children: [
                 Text(
                   short
-                      ? 'Short by ${_amount(surplus.shortfallMinor)}'
-                      : 'Surplus ${_amount(surplus.surplusMinor)}',
+                      ? 'Short by ${_amount(context, surplus.shortfallMinor)}'
+                      : 'Surplus ${_amount(context, surplus.surplusMinor)}',
                   style: theme.textTheme.titleMedium,
                 ),
                 Text(
@@ -610,7 +612,7 @@ class _LinesSection extends StatelessWidget {
                     title: Text(lines[i].name),
                     subtitle: Text(_describe(lines[i], names)),
                     trailing: Text(
-                      _amount(lines[i].amountMinor),
+                      _amount(context, lines[i].amountMinor),
                       style: theme.textTheme.titleSmall,
                     ),
                     onTap: () => showPlanItemSheet(
