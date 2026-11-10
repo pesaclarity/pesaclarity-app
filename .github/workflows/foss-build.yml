@@ -14,6 +14,7 @@ on:
       - pubspec.lock
       - tool/prepare_foss.sh
       - tool/foss/**
+      - tool/support.env
       - .github/workflows/foss-build.yml
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -68,10 +69,20 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       # CI has no release keystore, so this APK is signed with the debug key.
+      # Giving comes from tool/support.env unless repository variables say
+      # otherwise.
       - name: Build APK
-        run: >-
-          flutter build apk --release --flavor foss
-          --obfuscate --split-debug-info=build/symbols
+        env:
+          SUPPORT_URL: ${{ vars.PESACLARITY_SUPPORT_URL }}
+          SUPPORT_PAYEES: ${{ vars.PESACLARITY_SUPPORT_PAYEES }}
+          SUPPORT_COSTS_URL: ${{ vars.PESACLARITY_SUPPORT_COSTS_URL }}
+        run: |
+          . tool/support.env
+          flutter build apk --release --flavor foss \
+            --obfuscate --split-debug-info=build/symbols \
+            --dart-define=PESACLARITY_SUPPORT_URL="${SUPPORT_URL:-$PESACLARITY_SUPPORT_URL}" \
+            --dart-define=PESACLARITY_SUPPORT_PAYEES="${SUPPORT_PAYEES:-$PESACLARITY_SUPPORT_PAYEES}" \
+            --dart-define=PESACLARITY_SUPPORT_COSTS_URL="${SUPPORT_COSTS_URL:-$PESACLARITY_SUPPORT_COSTS_URL}"
 
       - name: Check the foss APK has no PDFium
         run: |

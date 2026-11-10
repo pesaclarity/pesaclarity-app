@@ -210,6 +210,16 @@ Shortcuts only passes messages as they arrive; iOS gives no way to read the mess
 - **My accounts.** Profile › My accounts lists each account and its currency: from its messages for accounts that messages feed, and chosen for accounts added by hand (Cash), where a new currency applies to new amounts and the opening balance converts at the rate of its date. **Add or remove accounts** switches institutions on or off.
 - **Currency converter.** Profile › Base currency › **Currency converter** converts any amount between any two currencies at the latest rates or the person's own, and shows it in their other currencies too; it works offline with the last rates.
 
+## Support
+
+Every feature is free; giving never unlocks anything (`lib/src/features/support`).
+
+- **F-Droid only.** Only the `foss` build asks in the app. Play and iPhone show nothing about giving; it is on the website's Sponsor page.
+- **Settings.** `PESACLARITY_SUPPORT_URL` is the https giving page, with `{amount}` for the amount in shillings when the page takes one; `PESACLARITY_SUPPORT_PAYEES` lists the payee names or numbers a gift's M-Pesa message shows, separated by commas; `PESACLARITY_SUPPORT_COSTS_URL` is the page on what it costs. Builds read `tool/support.env` unless repository variables of the same names are set. Without a giving page, nothing about giving shows.
+- **The Home card** sits under the red card on Personal's Home: "Pesa Clarity is free". It never shows in the first 30 days, then shows for 3 days at most every 60, never while today's money is spent, the plan is used up or a payment may not go through, and never within six months of a gift. A tap rests it. **Don't ask me again** on Support ends it.
+- **Support Pesa Clarity** (Profile, or the card) explains why gifts help, picks 50, 100, 200, 500 or another amount, and opens the giving page in the browser, where M-Pesa asks for the PIN. The app sends nothing until that tap, and the address carries only the amount.
+- **Thank you.** A payment to one of the payees is read as a gift from its own M-Pesa message. When one comes in, Home says thank you once, and **Your gifts** lists each gift's day, M-Pesa code and amount, on the phone only.
+
 ## Timezone
 
 Every date, day start, month and export timestamp uses one timezone: the one picked in Profile › Timezone, or the phone's own (`UserTimeZone` in `lib/src/domain/time/calendar.dart`). It is a fixed offset, with no daylight-saving rules yet. Tests pin East Africa Time in `test/flutter_test_config.dart`, so they pass on any machine.

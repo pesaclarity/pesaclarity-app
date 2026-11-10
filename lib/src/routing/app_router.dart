@@ -57,6 +57,8 @@ import '../features/stock/presentation/count_stock_screen.dart';
 import '../features/stock/presentation/item_screen.dart';
 import '../features/stock/presentation/stock_screen.dart';
 import '../features/subscriptions/presentation/subscriptions_screen.dart';
+import '../features/support/presentation/gifts_screen.dart';
+import '../features/support/presentation/support_screen.dart';
 import '../features/tax/presentation/tax_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
@@ -253,6 +255,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'income',
                         builder: (context, state) =>
                             const IncomeSourcesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'support',
+                        builder: (context, state) => const SupportScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'gifts',
+                            builder: (context, state) => const GiftsScreen(),
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'subscriptions',

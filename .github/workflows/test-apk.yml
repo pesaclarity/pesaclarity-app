@@ -154,6 +154,9 @@ jobs:
           RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
           RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
           GOOGLE_CLIENT_ID: ${{ vars.DEV_PESACLARITY_GOOGLE_SERVER_CLIENT_ID }}
+          SUPPORT_URL: ${{ vars.PESACLARITY_SUPPORT_URL }}
+          SUPPORT_PAYEES: ${{ vars.PESACLARITY_SUPPORT_PAYEES }}
+          SUPPORT_COSTS_URL: ${{ vars.PESACLARITY_SUPPORT_COSTS_URL }}
         run: |
           # The client id only helps when the app is signed with the dev key.
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
@@ -163,6 +166,11 @@ jobs:
           RATES_SOURCE_NAME="${RATES_SOURCE_NAME:-$PESACLARITY_RATES_SOURCE_NAME}"
           RATES_SOURCE_URL="${RATES_SOURCE_URL:-$PESACLARITY_RATES_SOURCE_URL}"
           VAULT_URL="${VAULT_URL:-$API_URL}"
+          # Giving shows in the F-Droid build only; the app checks the flavour.
+          . tool/support.env
+          SUPPORT_URL="${SUPPORT_URL:-$PESACLARITY_SUPPORT_URL}"
+          SUPPORT_PAYEES="${SUPPORT_PAYEES:-$PESACLARITY_SUPPORT_PAYEES}"
+          SUPPORT_COSTS_URL="${SUPPORT_COSTS_URL:-$PESACLARITY_SUPPORT_COSTS_URL}"
           flutter build apk --release --flavor "$FLAVOR" \
             --target-platform android-arm,android-arm64 --split-per-abi \
             --split-debug-info="$RUNNER_TEMP/symbols" \
@@ -175,7 +183,10 @@ jobs:
             --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
-            --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID"
+            --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+            --dart-define=PESACLARITY_SUPPORT_URL="$SUPPORT_URL" \
+            --dart-define=PESACLARITY_SUPPORT_PAYEES="$SUPPORT_PAYEES" \
+            --dart-define=PESACLARITY_SUPPORT_COSTS_URL="$SUPPORT_COSTS_URL"
           name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR"
           out="$RUNNER_TEMP/apks"
           mkdir -p "$out"
