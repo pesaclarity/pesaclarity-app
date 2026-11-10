@@ -166,21 +166,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   }
 }
 
-/// A small tag beside a name. Kept only until Sell uses [Tag]; delete it
-/// then.
-@Deprecated('Use Tag from shared/widgets/marks.dart')
-class StockTag extends StatelessWidget {
-  @Deprecated('Use Tag from shared/widgets/marks.dart')
-  const StockTag(this.text, {this.warning = false, super.key});
-
-  final String text;
-  final bool warning;
-
-  @override
-  Widget build(BuildContext context) =>
-      Tag(text, tone: warning ? Tone.warning : Tone.info);
-}
-
 class _ItemRow extends StatelessWidget {
   const _ItemRow(this.item, {required this.measures});
 
