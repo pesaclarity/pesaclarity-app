@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  archive: ^4.5.2
+  archive: ^4.6.0
   drift: ^2.35.3
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
