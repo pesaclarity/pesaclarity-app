@@ -55,7 +55,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
             TabHeader(
-              'Money in and out',
+              'Money',
               semanticsId: SemanticIds.titleMoney,
               actions: [
                 TextButton(

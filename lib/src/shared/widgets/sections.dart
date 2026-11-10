@@ -103,9 +103,16 @@ class TabHeader extends StatelessWidget {
           child: Semantics(
             identifier: semanticsId,
             header: true,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.headlineLarge,
+            // A long title shrinks to one line rather than wrapping
+            // under the actions.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                title,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
             ),
           ),
         ),

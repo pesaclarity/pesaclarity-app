@@ -57,7 +57,7 @@ class BusinessInsightsScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
             TabHeader(
-              'How it is doing',
+              'Insights',
               semanticsId: SemanticIds.titleBusinessInsights,
               actions: [
                 TextButton(

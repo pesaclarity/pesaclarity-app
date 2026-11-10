@@ -75,7 +75,8 @@ class GoalsScreen extends ConsumerWidget {
   List<Widget> _goals(BuildContext context, GoalsOverview overview) {
     final open = overview.debts.open;
     return [
-      _DebtFreeCard(overview),
+      // With no debts, the Debts section below offers to add one.
+      if (overview.debts.count > 0) _DebtFreeCard(overview),
       SectionTitle(
         'Debts',
         action: Semantics(

@@ -102,7 +102,7 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await _pump(tester, db);
 
-    expect(find.text('Money in and out'), findsOneWidget);
+    expect(find.text('Money'), findsWidgets);
     expect(find.byKey(const Key('money-balance-cash')), findsOneWidget);
     expect(find.text('1,300'), findsOneWidget);
     expect(find.text('11,150'), findsOneWidget);

@@ -350,7 +350,7 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    expect(find.text('How it is doing'), findsOneWidget);
+    expect(find.text('Insights'), findsWidgets);
     expect(find.text('KES 3,700'), findsOneWidget);
     expect(find.textContaining('Sales 7,200 · costs 3,500'), findsOneWidget);
     expect(find.text('How people pay'), findsOneWidget);
