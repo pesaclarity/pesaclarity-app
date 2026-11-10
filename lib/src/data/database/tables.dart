@@ -648,6 +648,29 @@ class StockMoves extends Table {
   TextColumn get reason => textEnum<CountReason>().nullable()();
 }
 
+/// Another way an item is sold or bought besides the unit it is counted
+/// in: a tot of a bottle, or a crate of bottles.
+@DataClassName('MeasureRecord')
+class ItemMeasures extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get itemId =>
+      integer().references(Items, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text().withLength(min: 1, max: 40)();
+
+  /// [units] of this make [bases] of the item's unit: 30 tots make 1
+  /// bottle, 1 crate makes 24 bottles.
+  IntColumn get units => integer()();
+  IntColumn get bases => integer()();
+
+  /// What one sells for; null when it is only bought this way.
+  IntColumn get priceMinor => integer().nullable()();
+
+  /// What is left over of a thousandth of the item's unit after the last
+  /// sale this way, so many small sales take stock out exactly.
+  IntColumn get carry => integer().withDefault(const Constant(0))();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+}
+
 /// What a sale was made of: items, or an amount typed in.
 @DataClassName('SaleLineRecord')
 class SaleLines extends Table {
@@ -662,8 +685,17 @@ class SaleLines extends Table {
     onDelete: KeyAction.setNull,
   )();
   TextColumn get name => text()();
+
+  /// Thousandths of the item's unit, or of [measureId] when sold that way.
   IntColumn get quantityMilli => integer()();
   IntColumn get totalMinor => integer()();
+
+  /// The way it was sold, such as a tot; null for the item's own unit.
+  IntColumn get measureId => integer().nullable().references(
+    ItemMeasures,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 }
 
 /// A customer's or supplier's phone and how to remind them, by name, as

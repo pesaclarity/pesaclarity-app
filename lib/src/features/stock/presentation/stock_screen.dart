@@ -6,6 +6,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/spaces/business_setup.dart';
+import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/choice_menu.dart';
@@ -147,7 +148,12 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                       for (final (i, item) in shown.indexed) ...[
                         if (i > 0)
                           const Divider(height: 1, indent: 16, endIndent: 16),
-                        _ItemRow(item),
+                        _ItemRow(
+                          item,
+                          measures:
+                              ref.watch(measuresProvider).value?[item.id] ??
+                              const [],
+                        ),
                       ],
                     ],
                   ),
@@ -241,9 +247,12 @@ class StockTag extends StatelessWidget {
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow(this.item);
+  const _ItemRow(this.item, {required this.measures});
 
   final Item item;
+
+  /// Other ways it is sold or bought, for how its stock reads.
+  final List<Measure> measures;
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +282,15 @@ class _ItemRow extends StatelessWidget {
             : sells,
       ),
       trailing: item.isProduct
-          ? Text(stockText(item), style: theme.textTheme.titleMedium)
+          ? Text(
+              stockInMeasures(
+                    item.stockMilli,
+                    unit: item.unit,
+                    measures: measures,
+                  ) ??
+                  stockText(item),
+              style: theme.textTheme.titleMedium,
+            )
           : null,
     );
   }

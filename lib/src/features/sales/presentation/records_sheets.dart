@@ -7,9 +7,11 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/category_seeds.dart';
+import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/people/people.dart';
 import '../../../domain/spaces/space_categories.dart';
+import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
@@ -22,6 +24,7 @@ import '../../people/application/people_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../stock/application/stock_providers.dart';
 import '../../stock/presentation/item_sheet.dart';
+import '../../stock/presentation/measure_sheet.dart';
 import '../application/pay_yourself.dart';
 import '../application/sales_providers.dart';
 import 'pay_sheet.dart';
@@ -159,6 +162,9 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
   final _quantity = TextEditingController();
   late var _stock = !widget.costOnly;
   late int? _itemId = widget.itemId;
+
+  /// The pack it was bought in, such as a crate; null for one unit.
+  int? _packId;
   int? _costId;
   late var _method = widget.payLater
       ? SalePaymentMethod.credit
@@ -196,14 +202,52 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             dueDate: _method == SalePaymentMethod.credit ? _due : null,
             note: note.isEmpty ? null : note,
             itemId: _stock ? _itemId : null,
-            quantityMilli: _stock && _itemId != null
-                ? quantityFrom(_quantity.text)
-                : null,
+            quantityMilli: _stock && _itemId != null ? _boughtMilli() : null,
           );
       _saved(navigator, messenger, method: _method, what: 'Bought');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// The packs [itemId] is bought in, such as crates.
+  List<Measure> _packs(int? itemId) => [
+    for (final m
+        in ref.watch(measuresProvider).value?[itemId] ?? const <Measure>[])
+      if (m.isPack) m,
+  ];
+
+  Measure? get _pack =>
+      _packs(_itemId).where((m) => m.id == _packId).firstOrNull;
+
+  /// What was bought, in thousandths of the item's unit.
+  int? _boughtMilli() {
+    final q = quantityFrom(_quantity.text);
+    if (q == null) return null;
+    return _pack?.baseMilli(q) ?? q;
+  }
+
+  /// Adds a pack size for [item], such as a crate of 24, and picks it.
+  Future<void> _newPack(Item item) async {
+    final draft = await showMeasureSheet(
+      context,
+      item: item.name,
+      unit: item.unit!,
+      unitPriceMinor: item.priceMinor,
+      pack: true,
+    );
+    if (draft == null || draft.removed || !mounted) return;
+    final id = await ref
+        .read(stockRepositoryProvider)
+        .addMeasure(
+          item.id,
+          name: draft.name,
+          units: draft.units,
+          bases: draft.bases,
+          priceMinor: draft.priceMinor,
+        );
+    ref.invalidate(measuresProvider);
+    if (mounted) setState(() => _packId = id);
   }
 
   @override
@@ -287,7 +331,10 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
                 ],
                 value: item?.id,
                 itemKey: (id) => Key('bought-item-${id ?? 'other'}'),
-                onChanged: (id) => setState(() => _itemId = id),
+                onChanged: (id) => setState(() {
+                  _itemId = id;
+                  _packId = null;
+                }),
               )
             else
               Wrap(
@@ -299,19 +346,61 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
                       key: Key('bought-item-${p.id}'),
                       label: Text(p.name),
                       selected: _itemId == p.id,
-                      onSelected: (on) =>
-                          setState(() => _itemId = on ? p.id : null),
+                      onSelected: (on) => setState(() {
+                        _itemId = on ? p.id : null;
+                        _packId = null;
+                      }),
                     ),
                 ],
               ),
             const SizedBox(height: 12),
-            if (item != null) ...[
+            if (item != null && item.unit == null) ...[
               QuantityField(
                 key: const Key('bought-quantity'),
                 controller: _quantity,
-                label: item.unit == null
-                    ? 'How many'
-                    : 'How much (${item.unit})',
+                label: 'How many',
+              ),
+              const SizedBox(height: 12),
+            ] else if (item != null) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: QuantityField(
+                      key: const Key('bought-quantity'),
+                      controller: _quantity,
+                      label: 'How many',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ChoiceMenu<int?>(
+                          key: const Key('bought-of'),
+                          name: 'Of',
+                          expand: true,
+                          options: [
+                            (null, _capital(unitFor(item.unit!, 2 * milli))),
+                            for (final p in _packs(item.id))
+                              (
+                                p.id,
+                                '${_capital(plural(p.word, 2))} of '
+                                    '${p.bases ~/ p.units}',
+                              ),
+                            (_newPackOption, 'A new pack size'),
+                          ],
+                          value: _pack?.id,
+                          itemKey: (id) => Key('bought-of-${id ?? 'unit'}'),
+                          onChanged: (id) => id == _newPackOption
+                              ? _newPack(item)
+                              : setState(() => _packId = id),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
             ],
@@ -325,7 +414,7 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             ListenableBuilder(
               listenable: Listenable.merge([_amount, _quantity]),
               builder: (context, _) {
-                final q = quantityFrom(_quantity.text);
+                final q = _boughtMilli();
                 final paid = AmountField.amountFrom(_amount.text);
                 if (q == null || q <= 0 || paid == null || paid <= 0) {
                   return const SizedBox.shrink();
@@ -338,6 +427,20 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
                   paidMinor: paid,
                 );
                 final unit = item.unit;
+                final pack = _pack;
+                if (pack != null && unit != null) {
+                  final word = unit.toLowerCase();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: InfoNote(
+                      key: const Key('bought-average'),
+                      'Stock goes to ${inPacks(after, pack, unit: unit)} '
+                      '(${quantityText(after)} ${unitFor(word, after)}). '
+                      'Each $word now costs you about KES '
+                      '${formatMoney(Money((average / 100).round() * 100), withCurrency: false)}.',
+                    ),
+                  );
+                }
                 return Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: InfoNote(
@@ -410,6 +513,12 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
     );
   }
 }
+
+/// The "A new pack size" row in the Of menu.
+const _newPackOption = -1;
+
+String _capital(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
 /// Someone who owes the business, by name, and how much in all.
 typedef _Owing = ({String name, int owedMinor});

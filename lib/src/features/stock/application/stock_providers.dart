@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 
@@ -35,4 +36,10 @@ final itemPaceProvider = FutureProvider.family<double, int>((
       .watch(stockRepositoryProvider)
       .soldSince(itemId, today.addDays(-paceDays + 1).startInstant);
   return sold / paceDays;
+});
+
+/// Every other way each item sells or is bought, by item, smallest first.
+final measuresProvider = FutureProvider<Map<int, List<Measure>>>((ref) {
+  ref.watch(ledgerChangesProvider);
+  return ref.watch(stockRepositoryProvider).measures();
 });
