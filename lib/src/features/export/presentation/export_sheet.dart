@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/states.dart';
 import '../../payees/application/payee_providers.dart';
 import '../../payees/application/tag_filter.dart';
 import '../application/export_service.dart';
@@ -28,10 +29,8 @@ class ExportButton extends ConsumerWidget {
 
 /// Asks which format, then builds the export for [scope] and shares it.
 Future<void> showExportSheet(BuildContext context, ExportScope scope) =>
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => ExportSheet(scope: scope),
     );
 
@@ -49,7 +48,6 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
   Future<void> _export(ExportFormat format) async {
     setState(() => _busy = format);
-    final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context);
     try {
       await ref.read(exportServiceProvider).share(widget.scope, format);
@@ -57,16 +55,13 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
     } on Object {
       if (!mounted) return;
       setState(() => _busy = null);
-      messenger?.showSnackBar(
-        const SnackBar(content: Text('Export did not finish. Try again.')),
-      );
+      showNote(context, 'The export was not made. Try again.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final isWorkbook = widget.scope is FullWorkbookExport;
 
     String detail(ExportFormat format) => switch (format) {
@@ -84,47 +79,31 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
       ExportFormat.pdf => Icons.picture_as_pdf_outlined,
     };
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Export', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              widget.scope.title,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 12),
-            for (final format in ExportFormat.values)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                enabled: _busy == null,
-                leading: Icon(icon(format)),
-                title: Text(format.label),
-                subtitle: Text(detail(format)),
-                trailing: _busy == format
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.ios_share),
-                onTap: () => _export(format),
-              ),
-            const SizedBox(height: 4),
-            Text(
-              'Made on this phone. You choose where it goes.',
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
+    return SheetBody(
+      title: 'Export',
+      subtitle: widget.scope.title,
+      children: [
+        for (final format in ExportFormat.values)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            enabled: _busy == null,
+            leading: Icon(icon(format)),
+            title: Text(format.label),
+            subtitle: Text(detail(format)),
+            trailing: _busy == format
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                  )
+                : const Icon(Icons.ios_share),
+            onTap: () => _export(format),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          'Made on this phone. You choose where it goes.',
+          style: theme.textTheme.bodySmall,
         ),
-      ),
+      ],
     );
   }
 }

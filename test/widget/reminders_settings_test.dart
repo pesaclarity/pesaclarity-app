@@ -30,8 +30,10 @@ void main() {
     expect(find.text('Payday'), findsOneWidget);
     expect(find.text('1 day before'), findsOneWidget);
 
-    await tapText(tester, 'Remind me');
-    await tester.tap(find.text('3 days before'));
+    await scrollTo(tester, find.byKey(const Key('reminders-lead-days')));
+    await tester.tap(find.byKey(const Key('reminders-lead-days')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('lead-days-3')));
     await tester.pumpAndSettle();
     expect(find.text('3 days before'), findsOneWidget);
 
@@ -65,8 +67,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    final tile = tester.widget<CheckboxListTile>(
-      find.widgetWithText(CheckboxListTile, 'Reminders'),
+    final tile = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Reminders'),
     );
     expect(tile.value, isFalse);
   });

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
-import '../../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart' hide Tag;
 import '../../../data/repositories/category_suggestions_repository.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/ledger_entry.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../payees/presentation/category_picker.dart';
 import '../application/categoriser_providers.dart';
@@ -54,10 +57,8 @@ Future<void> showCategorySuggestionSheet(
     }
     return;
   }
-  await showModalBottomSheet<void>(
+  await showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => CategorySuggestionSheet(
       entry: entry,
       title: title,
@@ -127,79 +128,53 @@ class _CategorySuggestionSheetState
     final all = ref.watch(categoryListProvider).value ?? const <Category>[];
     final byId = {for (final c in all) c.id: c};
     final suggested = suggestion == null ? null : byId[suggestion.categoryId];
-    final amount = formatMoney(Money(entry.signedMinor));
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.title, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              amount,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
+    return SheetBody(
+      title: widget.title,
+      subtitle: shownMoney(context, entry.signedMinor),
+      children: [
+        if (suggestion != null && suggested != null) ...[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.brandSoft,
+              borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
             ),
-            const SizedBox(height: 16),
-            if (suggestion != null && suggested != null) ...[
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.brandSoft,
-                  borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SUGGESTED CATEGORY',
-                        style: theme.textTheme.labelLarge!.copyWith(
-                          color: colors.textMuted,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(suggested.name, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${suggestion.percent}% sure · '
-                        '${suggestionSourceLabel(suggestion.source)}',
-                        style: theme.textTheme.bodyMedium!.copyWith(
-                          color: colors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+            child: Padding(
+              padding: const EdgeInsets.all(Layout.cardPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      key: const Key('category-change'),
-                      onPressed: _saving ? null : () => _change(suggested.id),
-                      child: const Text('Change'),
-                    ),
+                  const SectionLabel(
+                    'Suggested category',
+                    padding: EdgeInsets.only(bottom: 6),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _saving ? null : () => _save(suggested.id),
-                      child: const Text('Accept'),
+                  Text(suggested.name, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${suggestion.percent}% sure · '
+                    '${suggestionSourceLabel(suggestion.source)}',
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: colors.textMuted,
                     ),
                   ),
                 ],
               ),
-            ],
-          ],
-        ),
-      ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ButtonPair(
+            primary: FilledButton(
+              key: const Key('category-accept'),
+              onPressed: _saving ? null : () => _save(suggested.id),
+              child: const Text('Accept'),
+            ),
+            secondary: OutlinedButton(
+              key: const Key('category-change'),
+              onPressed: _saving ? null : () => _change(suggested.id),
+              child: const Text('Change'),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

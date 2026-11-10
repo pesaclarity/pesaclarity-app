@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
-import '../../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart' hide Tag;
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
@@ -11,12 +11,15 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../application/stock_providers.dart';
 import 'measure_sheet.dart';
-import 'stock_screen.dart';
 
 String _plain(BuildContext context, int minor) =>
     shownMoney(context, minor, withCurrency: false);
@@ -33,20 +36,23 @@ class ItemScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    final item = ref
-        .watch(itemsProvider)
-        .value
-        ?.where((i) => i.id == itemId)
-        .firstOrNull;
+    final items = ref.watch(itemsProvider);
+    final item = items.value?.where((i) => i.id == itemId).firstOrNull;
     final moves = ref.watch(itemMovesProvider(itemId)).value ?? const [];
     final pace = ref.watch(itemPaceProvider(itemId)).value ?? 0;
     if (item == null) {
       return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator.adaptive()),
+        appBar: AppBar(title: const Text('Item')),
+        body: items.hasError && !items.hasValue
+            ? ErrorView(
+                'This item could not load.',
+                onRetry: () => ref.invalidate(itemsProvider),
+              )
+            : const LoadingView(),
       );
     }
     final measures = ref.watch(measuresProvider).value?[itemId] ?? const [];
+    final amount = AppTypography.rowAmount(theme.colorScheme.onSurface);
     final days = daysLeft(item, soldMilliPerDay: pace);
     final unit = item.unit;
     final per = unit == null ? 'each' : 'per $unit';
@@ -68,13 +74,12 @@ class ItemScreen extends ConsumerWidget {
         actions: const [AmountsEye(), SizedBox(width: 8)],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           if (item.isProduct)
             Card(
-              margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(Layout.cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -88,7 +93,7 @@ class ItemScreen extends ConsumerWidget {
                         ),
                         if (item.isLow) ...[
                           const SizedBox(width: 8),
-                          const StockTag('Running low', warning: true),
+                          const Tag('Running low', tone: Tone.warning),
                         ],
                       ],
                     ),
@@ -100,9 +105,8 @@ class ItemScreen extends ConsumerWidget {
                             measures: measures,
                           ) ??
                           stockText(item),
-                      style: AppTypography.amount(
-                        size: 32,
-                        color: theme.colorScheme.onSurface,
+                      style: AppTypography.headlineFigure(
+                        theme.colorScheme.onSurface,
                       ),
                     ),
                     if (days != null) ...[
@@ -119,25 +123,18 @@ class ItemScreen extends ConsumerWidget {
                       ),
                     ],
                     const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton(
-                            key: const Key('item-restock'),
-                            onPressed: () =>
-                                showBoughtSheet(context, itemId: item.id),
-                            child: const Text('Restock'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            key: const Key('item-count'),
-                            onPressed: () => context.push(AppRoutes.countStock),
-                            child: const Text('Count'),
-                          ),
-                        ),
-                      ],
+                    ButtonPair(
+                      primary: FilledButton(
+                        key: const Key('item-restock'),
+                        onPressed: () =>
+                            showBoughtSheet(context, itemId: item.id),
+                        child: const Text('Restock'),
+                      ),
+                      secondary: OutlinedButton(
+                        key: const Key('item-count'),
+                        onPressed: () => context.push(AppRoutes.countStock),
+                        child: const Text('Count'),
+                      ),
                     ),
                   ],
                 ),
@@ -145,7 +142,6 @@ class ItemScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 12),
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 ListTile(
@@ -155,11 +151,11 @@ class ItemScreen extends ConsumerWidget {
                     item.priceMinor == null
                         ? 'Varies'
                         : _plain(context, item.priceMinor!),
-                    style: theme.textTheme.titleMedium,
+                    style: amount,
                   ),
                 ),
                 for (final m in measures) ...[
-                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  const Divider(height: 1),
                   ListTile(
                     key: Key('item-way-${m.id}'),
                     title: Text(m.name),
@@ -173,45 +169,41 @@ class ItemScreen extends ConsumerWidget {
                       m.priceMinor == null
                           ? 'Bought only'
                           : _plain(context, m.priceMinor!),
-                      style: theme.textTheme.titleMedium,
+                      style: amount,
                     ),
                     onTap: () => _way(context, ref, item, existing: m),
                   ),
                 ],
                 if (item.isProduct && unit != null) ...[
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  ListTile(
+                  const Divider(height: 1),
+                  SellAnotherWayTile(
                     key: const Key('item-add-way'),
-                    leading: const Icon(Icons.add),
-                    title: const Text('Sell it another way'),
                     onTap: () => _way(context, ref, item),
                   ),
                 ],
                 if (item.isProduct) ...[
-                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  const Divider(height: 1),
                   ListTile(
                     title: const Text('Costs you'),
                     subtitle: const Text('Average of what you paid'),
                     trailing: Text(
                       _plain(context, item.averageCostMinor),
-                      style: theme.textTheme.titleMedium,
+                      style: amount,
                     ),
                   ),
                   if (item.profitPerUnitMinor case final profit?) ...[
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    const Divider(height: 1),
                     ListTile(
                       title: Text(
                         unit == null ? 'Profit each' : 'Profit per $unit',
                       ),
                       trailing: Text(
                         _plain(context, profit),
-                        style: theme.textTheme.titleMedium!.copyWith(
-                          color: colors.successText,
-                        ),
+                        style: AppTypography.rowAmount(colors.successText),
                       ),
                     ),
                   ],
-                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  const Divider(height: 1),
                   ListTile(
                     title: const Text('Sold this week'),
                     subtitle: Text(
@@ -221,33 +213,19 @@ class ItemScreen extends ConsumerWidget {
                     ),
                     trailing: weekAmount == null
                         ? null
-                        : Text(
-                            _plain(context, weekAmount),
-                            style: theme.textTheme.titleMedium,
-                          ),
+                        : Text(_plain(context, weekAmount), style: amount),
                   ),
                 ],
               ],
             ),
           ),
           if (moves.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-              child: Text(
-                'HISTORY',
-                style: theme.textTheme.labelLarge!.copyWith(
-                  color: colors.textMuted,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
+            const SectionLabel('History'),
             Card(
-              margin: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (final (i, m) in moves.take(_historyLength).indexed) ...[
-                    if (i > 0)
-                      const Divider(height: 1, indent: 16, endIndent: 16),
+                    if (i > 0) const Divider(height: 1),
                     _MoveRow(m, item: item, today: today),
                   ],
                 ],
@@ -350,9 +328,8 @@ class _MoveRow extends StatelessWidget {
       subtitle: Text(dayHeading(CalendarDate.local(m.at), today: today)),
       trailing: Text(
         '${up ? '+' : '-'}$amount',
-        style: AppTypography.amount(
-          size: 16,
-          color: up ? colors.successText : theme.colorScheme.onSurface,
+        style: AppTypography.rowAmount(
+          up ? colors.successText : theme.colorScheme.onSurface,
         ),
       ),
     );

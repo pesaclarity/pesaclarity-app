@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/spaces_providers.dart';
 
@@ -51,6 +52,9 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    final groupLabel = theme.textTheme.bodyMedium!.copyWith(
+      color: colors.textMuted,
+    );
     final canAdd = _name.text.trim().isNotEmpty && !_saving;
     return Scaffold(
       appBar: AppBar(title: const Text('Add a space')),
@@ -66,13 +70,12 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'Name',
-                hintText: 'For example, Vegetable stall',
-                border: OutlineInputBorder(),
+                hintText: 'Vegetable stall',
               ),
             ),
             const SizedBox(height: 8),
-            Text('Kind', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
+            Text('Kind', style: groupLabel),
+            const SizedBox(height: Layout.cardGap),
             Card(
               child: RadioGroup<SpaceKind>(
                 groupValue: _kind,
@@ -86,7 +89,6 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
                         value: kind,
                         title: Text(kind.label),
                         subtitle: Text(kind.hint),
-                        controlAffinity: ListTileControlAffinity.trailing,
                       ),
                     ],
                   ],
@@ -94,11 +96,12 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Which money goes here?', style: theme.textTheme.titleSmall),
+            Text('Which money goes here?', style: groupLabel),
             const SizedBox(height: 4),
             Text(
-              'Next, pick the accounts this space reads, such as a bank used '
-              'only for it. Any transaction can also be moved here by hand.',
+              'Next, choose the accounts this space reads, such as a bank '
+              'used only for it. Any transaction can also be moved here by '
+              'hand.',
               style: theme.textTheme.bodyMedium!.copyWith(
                 color: colors.textMuted,
               ),
@@ -107,7 +110,7 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
             FilledButton(
               key: const Key('space-add'),
               onPressed: canAdd ? _add : null,
-              child: const Text('Add space'),
+              child: const Text('Add a space'),
             ),
             const SizedBox(height: 8),
             Text(

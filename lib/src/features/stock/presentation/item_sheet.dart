@@ -7,7 +7,11 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../domain/stock/stock.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import 'measure_sheet.dart';
 
@@ -16,19 +20,9 @@ import 'measure_sheet.dart';
 Future<bool?> showItemSheet(
   BuildContext context, {
   bool servicesOnly = false,
-}) => showModalBottomSheet<bool>(
+}) => showAppSheet<bool>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: _ItemSheet(servicesOnly: servicesOnly),
-      ),
-    ),
-  ),
+  builder: (context) => _ItemSheet(servicesOnly: servicesOnly),
 );
 
 /// A quantity in a form, such as 10 or 0.5.
@@ -123,7 +117,7 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     }
   }
 
-  String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+  String _money(int minor) => formatMoney(Money(minor));
 
   Future<void> _measure({MeasureDraft? existing, bool pack = false}) async {
     final unit = _unit.text.trim();
@@ -181,19 +175,8 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
           ),
         ],
       ),
-      const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 8),
-        child: Text(
-          'SOLD AS',
-          style: theme.textTheme.labelLarge!.copyWith(
-            color: colors.textMuted,
-            letterSpacing: 1,
-          ),
-        ),
-      ),
+      const SectionLabel('Sold as'),
       Card(
-        margin: EdgeInsets.zero,
         child: Column(
           children: [
             Padding(
@@ -233,29 +216,23 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
                 title: Text(m.name),
                 subtitle: Text(_size(m), style: muted),
                 trailing: Text(
-                  m.priceMinor == null
-                      ? 'Bought only'
-                      : 'KES ${_plain(m.priceMinor!)}',
-                  style: theme.textTheme.titleSmall,
+                  m.priceMinor == null ? 'Bought only' : _money(m.priceMinor!),
+                  style: AppTypography.rowAmount(theme.colorScheme.onSurface),
                 ),
                 onTap: () => _measure(existing: m),
+              ),
+            ],
+            if (_unit.text.trim().isNotEmpty) ...[
+              const Divider(height: 1),
+              SellAnotherWayTile(
+                key: const Key('item-add-measure'),
+                onTap: _measure,
               ),
             ],
           ],
         ),
       ),
-      if (_unit.text.trim().isNotEmpty)
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton.icon(
-            key: const Key('item-add-measure'),
-            onPressed: _measure,
-            icon: const Icon(Icons.add),
-            label: const Text('Sell it another way'),
-          ),
-        )
-      else
-        const SizedBox(height: 12),
+      const SizedBox(height: 12),
       AmountField(
         key: const Key('item-cost'),
         controller: _cost,
@@ -301,12 +278,11 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     final finest = parts.first;
     final word = finest.name.split(',').first.trim().toLowerCase();
     return 'Each $word then costs you about '
-        'KES ${_plain((cost * finest.bases / finest.units / 100).round() * 100)}.';
+        '${_money((cost * finest.bases / finest.units / 100).round() * 100)}.';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final product = _kind == ItemKind.product;
     Widget two(Widget a, Widget b) => Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,26 +294,19 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
     );
     return Form(
       key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: SheetBody(
+        title: 'Add an item',
         children: [
-          Text('Add an item', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
           if (!widget.servicesOnly) ...[
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final (kind, label) in [
-                  (ItemKind.product, 'Product'),
-                  (ItemKind.service, 'Service'),
-                ])
-                  ChoiceChip(
-                    key: Key('item-${kind.name}'),
-                    label: Text(label),
-                    selected: _kind == kind,
-                    onSelected: (_) => setState(() => _kind = kind),
-                  ),
+            AdaptiveSegmented<ItemKind>(
+              key: const Key('item-kind'),
+              segments: const [
+                (ItemKind.product, 'Product'),
+                (ItemKind.service, 'Service'),
               ],
+              selected: _kind,
+              segmentKey: (kind) => Key('item-${kind.name}'),
+              onChanged: (kind) => setState(() => _kind = kind),
             ),
             const SizedBox(height: 12),
           ],
