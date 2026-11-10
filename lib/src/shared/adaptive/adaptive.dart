@@ -28,10 +28,22 @@ class DialogAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final error = scheme.error;
     if (filled) {
-      return FilledButton(onPressed: onPressed, style: style, child: child);
+      return FilledButton(
+        onPressed: onPressed,
+        style: destructive
+            ? (style ?? const ButtonStyle()).merge(
+                FilledButton.styleFrom(
+                  backgroundColor: error,
+                  foregroundColor: scheme.onError,
+                ),
+              )
+            : style,
+        child: child,
+      );
     }
-    final error = Theme.of(context).colorScheme.error;
     return TextButton(
       onPressed: onPressed,
       style: destructive
@@ -56,6 +68,49 @@ Future<DateTime?> pickDate(
   firstDate: firstDate,
   lastDate: lastDate,
 );
+
+/// Picks a run of days in the calendar. Returns null when dismissed.
+Future<DateTimeRange?> pickDateRange(
+  BuildContext context, {
+  required DateTime firstDate,
+  required DateTime lastDate,
+  DateTimeRange? initialDateRange,
+}) => showDateRangePicker(
+  context: context,
+  firstDate: firstDate,
+  lastDate: lastDate,
+  initialDateRange: initialDateRange,
+);
+
+/// Asks before something is deleted: [title] as a question, such as
+/// "Delete Rent?", one sentence of [body], then Keep and [action]. True
+/// when the person chose [action].
+Future<bool> confirmDelete(
+  BuildContext context, {
+  required String title,
+  required String body,
+  String action = 'Delete',
+}) async {
+  final yes = await showAdaptiveDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog.adaptive(
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        DialogAction(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Keep'),
+        ),
+        DialogAction(
+          destructive: true,
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(action),
+        ),
+      ],
+    ),
+  );
+  return yes ?? false;
+}
 
 /// Picks a time of day in the clock dialog. Returns null when dismissed.
 Future<TimeOfDay?> pickTime(

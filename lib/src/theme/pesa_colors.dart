@@ -43,6 +43,12 @@ class PesaColors extends ThemeExtension<PesaColors> {
   final Color successText;
   final Color warning;
 
+  /// A light fill behind good news, such as a matched payment.
+  Color get successSoft => success.withValues(alpha: 0.10);
+
+  /// A light fill behind something to check, such as an item running low.
+  Color get warningSoft => warning.withValues(alpha: 0.12);
+
   static PesaColors of(BuildContext context) =>
       Theme.of(context).extension<PesaColors>()!;
 

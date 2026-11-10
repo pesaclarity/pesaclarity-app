@@ -6,18 +6,27 @@ import '../../domain/time/calendar.dart';
 import '../../domain/time/date_labels.dart';
 import '../adaptive/adaptive.dart';
 
-/// A text field for an amount in the base currency, read with [parseMoneyMinor].
+/// A text field for an amount, read with [parseMoneyMinor]. Every typed
+/// amount uses it.
 class AmountField extends StatelessWidget {
   const AmountField({
     required this.controller,
     required this.label,
     this.allowZero = false,
     this.maxMinor,
+    this.currency,
+    this.hint,
+    this.onChanged,
     super.key,
   });
 
   final TextEditingController controller;
   final String label;
+
+  /// Shown before the amount; the base currency by default.
+  final String? currency;
+  final String? hint;
+  final ValueChanged<String>? onChanged;
 
   /// Accepts an empty field or 0 as nothing.
   final bool allowZero;
@@ -31,8 +40,10 @@ class AmountField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixText: '${BaseCurrency.code} ',
+        hintText: hint,
+        prefixText: '${currency ?? BaseCurrency.code} ',
       ),
+      onChanged: onChanged,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (text) {
         final value = amountFrom(text ?? '');
