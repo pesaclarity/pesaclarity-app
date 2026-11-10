@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/health/health_index.dart';
 import '../../../domain/insights/findings.dart';
@@ -12,6 +10,7 @@ import '../../../domain/insights/leakage.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../home/application/health_index_provider.dart';
@@ -25,7 +24,11 @@ import 'health_pillar_sheet.dart';
 import 'spending_charts_card.dart';
 import 'tag_totals_card.dart';
 
-String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _amount(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
+
+String _amountOr(bool hidden, int minor) =>
+    moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
 /// Insights tab: what should I change?
 class InsightsScreen extends ConsumerStatefulWidget {
@@ -101,6 +104,8 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
               ),
             ),
           ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
         ],
       ),
       body: switch (summary) {
@@ -165,8 +170,12 @@ class _FindingsSection extends ConsumerWidget {
                 if (i > 0) const Divider(height: 1),
                 ListTile(
                   key: Key('finding-$i'),
-                  title: Text(findingTitle(f, names)),
-                  subtitle: Text(findingDetail(f)),
+                  title: Text(
+                    findingTitle(f, names, hidden: AmountsHidden.of(context)),
+                  ),
+                  subtitle: Text(
+                    findingDetail(f, hidden: AmountsHidden.of(context)),
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () =>
                       context.go(AppRoutes.activityWith(f.filterFor(today))),
@@ -181,21 +190,25 @@ class _FindingsSection extends ConsumerWidget {
 }
 
 /// "Food up 2,300 on last month", "Fees 1,200 so far".
-String findingTitle(Finding f, Map<int, String> names) => switch (f) {
-  CategoryFinding(:final slice, :final changeMinor) =>
-    '${sliceLabel(slice, names)} ${changeMinor > 0 ? 'up' : 'down'} '
-        '${_amount(changeMinor.abs())} on last month',
-  FeesFinding(:final nowMinor) => 'Fees ${_amount(nowMinor)} so far',
-  IncomeFinding(:final nowMinor) => 'Money in ${_amount(nowMinor)} so far',
-};
+String findingTitle(Finding f, Map<int, String> names, {bool hidden = false}) =>
+    switch (f) {
+      CategoryFinding(:final slice, :final changeMinor) =>
+        '${sliceLabel(slice, names)} ${changeMinor > 0 ? 'up' : 'down'} '
+            '${_amountOr(hidden, changeMinor.abs())} on last month',
+      FeesFinding(:final nowMinor) =>
+        'Fees ${_amountOr(hidden, nowMinor)} so far',
+      IncomeFinding(:final nowMinor) =>
+        'Money in ${_amountOr(hidden, nowMinor)} so far',
+    };
 
 /// "22,800 so far this month", "300 more than last month".
-String findingDetail(Finding f) => switch (f) {
-  CategoryFinding(:final nowMinor) => '${_amount(nowMinor)} so far this month',
+String findingDetail(Finding f, {bool hidden = false}) => switch (f) {
+  CategoryFinding(:final nowMinor) =>
+    '${_amountOr(hidden, nowMinor)} so far this month',
   _ => switch (f.changeMinor) {
     0 => 'Same as last month',
-    > 0 => '${_amount(f.changeMinor)} more than last month',
-    _ => '${_amount(-f.changeMinor)} less than last month',
+    > 0 => '${_amountOr(hidden, f.changeMinor)} more than last month',
+    _ => '${_amountOr(hidden, -f.changeMinor)} less than last month',
   },
 };
 
@@ -310,7 +323,7 @@ class _LeakageCard extends StatelessWidget {
               spacing: 10,
               children: [
                 Text(
-                  _amount(current.leakageMinor),
+                  _amount(context, current.leakageMinor),
                   style: AppTypography.amount(
                     size: 36,
                     weight: FontWeight.w700,
@@ -341,7 +354,9 @@ class _LeakageCard extends StatelessWidget {
                 children: [
                   for (final g in current.leakage.groups)
                     Chip(
-                      label: Text('${g.label} ${_amount(g.amountMinor)}'),
+                      label: Text(
+                        '${g.label} ${_amount(context, g.amountMinor)}',
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                 ],

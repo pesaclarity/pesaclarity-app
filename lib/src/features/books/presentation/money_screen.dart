@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/ledger/activity_lines.dart';
@@ -12,12 +10,12 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../payees/presentation/transaction_sheet.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/cash_book_providers.dart';
 
 /// Money tab: the business's cash book. What Cash, M-Pesa and Bank hold,
@@ -42,10 +40,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
     final book = loaded.value;
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = ref.watch(activityCategoriesProvider).value ?? const {};
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
 
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
       body: SafeArea(
@@ -78,6 +76,7 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
                   icon: const Icon(Icons.search),
                   onPressed: () => context.go(AppRoutes.activity),
                 ),
+                const AmountsEye(),
               ],
             ),
             const SizedBox(height: 16),

@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/spending_charts.dart';
@@ -13,12 +11,14 @@ import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_providers.dart';
 import '../application/month_labels.dart';
 
-String _amount(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _amount(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);
 
 /// Colours for chart series, from the theme, told apart by lightness as well
 /// as hue. The last is for "Other".
@@ -174,7 +174,7 @@ class _BreakdownCard extends StatelessWidget {
 
     final description = [
       for (final s in chart.slices)
-        '${sliceLabel(s.key, names)} ${_amount(s.amountMinor)}',
+        '${sliceLabel(s.key, names)} ${_amount(context, s.amountMinor)}',
     ].join(', ');
     return Card(
       child: Padding(
@@ -208,7 +208,7 @@ class _BreakdownCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          _amount(chart.totalMinor),
+                          _amount(context, chart.totalMinor),
                           style: AppTypography.amount(
                             size: 18,
                             color: theme.colorScheme.onSurface,
@@ -250,7 +250,7 @@ class _BreakdownCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              _amount(s.amountMinor),
+                              _amount(context, s.amountMinor),
                               style: theme.textTheme.bodySmall!.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -327,8 +327,11 @@ class _SoFarCard extends StatelessWidget {
     final (changeText, changeColor) = switch (change) {
       null => (null, null),
       0 => ('Same as last $name', colors.textMuted),
-      < 0 => ('${_amount(-change)} under last $name', colors.successText),
-      _ => ('${_amount(change)} over last $name', colors.warning),
+      < 0 => (
+        '${_amount(context, -change)} under last $name',
+        colors.successText,
+      ),
+      _ => ('${_amount(context, change)} over last $name', colors.warning),
     };
 
     return Card(
@@ -360,9 +363,9 @@ class _SoFarCard extends StatelessWidget {
             Semantics(
               label:
                   'Spending so far this $name: '
-                  '${_amount(chart.cumulative.lastOrNull ?? 0)}. '
+                  '${_amount(context, chart.cumulative.lastOrNull ?? 0)}. '
                   'Last $name in all: '
-                  '${_amount(chart.previousCumulative.lastOrNull ?? 0)}.',
+                  '${_amount(context, chart.previousCumulative.lastOrNull ?? 0)}.',
               excludeSemantics: true,
               child: SizedBox(
                 height: 120,
@@ -538,7 +541,7 @@ class MonthlyTrendCard extends StatelessWidget {
                     child: Semantics(
                       button: true,
                       label:
-                          '${monthName(m.month)} ${_amount(m.spendingMinor)}',
+                          '${monthName(m.month)} ${_amount(context, m.spendingMinor)}',
                       excludeSemantics: true,
                       child: InkWell(
                         key: Key('trend-$i'),

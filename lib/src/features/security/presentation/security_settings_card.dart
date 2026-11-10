@@ -78,6 +78,10 @@ class SecuritySettingsCard extends ConsumerWidget {
               const Divider(height: 1),
               CheckboxListTile(
                 title: const Text('Hide balances on open'),
+                subtitle: const Text(
+                  'Tap the eye on any screen to show or hide them. Selling '
+                  'and forms always show amounts.',
+                ),
                 value: settings.hideBalancesOnOpen,
                 onChanged: (on) => controller.setHideBalancesOnOpen(on!),
               ),

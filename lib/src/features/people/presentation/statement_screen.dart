@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/quick_records_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -10,11 +8,11 @@ import '../../../domain/people/people.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../printing/presentation/print_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/people_providers.dart';
 import '../application/statement_pdf.dart';
 import 'people_screen.dart';
@@ -85,6 +83,8 @@ class CustomerStatementScreen extends ConsumerWidget {
                 }
               },
             ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
         ],
       ),
       body: customers == null
@@ -137,7 +137,10 @@ class SupplierStatementScreen extends ConsumerWidget {
     final history = ref.watch(supplierHistoryProvider(debtId)).value;
     final due = s?.nextDue;
     return Scaffold(
-      appBar: AppBar(title: Text(s?.name ?? 'Supplier')),
+      appBar: AppBar(
+        title: Text(s?.name ?? 'Supplier'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: suppliers == null || history == null
           ? const Center(child: CircularProgressIndicator.adaptive())
           : _Statement(
@@ -184,9 +187,9 @@ class _Statement extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -206,9 +209,7 @@ class _Statement extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  hidden
-                      ? '${BaseCurrency.code} $maskedDigits'
-                      : formatMoney(Money(owedMinor)),
+                  moneyOrHidden(owedMinor, hidden: hidden),
                   style: AppTypography.amount(
                     size: 32,
                     color: theme.colorScheme.onSurface,

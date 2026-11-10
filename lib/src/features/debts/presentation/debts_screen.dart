@@ -11,6 +11,7 @@ import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
@@ -127,7 +128,7 @@ class _RemainingCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              formatMoney(Money(overview.remainingMinor)),
+              shownMoney(context, overview.remainingMinor),
               style: AppTypography.amount(
                 size: 34,
                 weight: FontWeight.w700,
@@ -293,7 +294,7 @@ class _DebtRow extends StatelessWidget {
       else
         'Interest-free',
       if (debt.minimumPaymentMinor > 0)
-        '${formatMoney(Money(debt.minimumPaymentMinor), withCurrency: false)}'
+        '${shownMoney(context, debt.minimumPaymentMinor, withCurrency: false)}'
             ' a month',
       if (cleared != null) 'cleared ${monthLabel(cleared)}',
     ].join(' · ');
@@ -316,8 +317,9 @@ class _DebtRow extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      formatMoney(
-                        Money(debt.balanceMinor),
+                      shownMoney(
+                        context,
+                        debt.balanceMinor,
                         withCurrency: false,
                       ),
                       style: AppTypography.amount(
@@ -371,7 +373,7 @@ class _FulizaCard extends StatelessWidget {
     final days = fuliza.daysOverdrawn == 1
         ? '1 day overdrawn'
         : '${fuliza.daysOverdrawn} days overdrawn';
-    final fees = formatMoney(Money(usage.feesMinor), withCurrency: false);
+    final fees = shownMoney(context, usage.feesMinor, withCurrency: false);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -478,7 +480,7 @@ class _WhatIfCardState extends State<_WhatIfCard> {
                   ),
                 ),
                 Text(
-                  '+${formatMoney(Money(extra), withCurrency: false)}',
+                  '+${shownMoney(context, extra, withCurrency: false)}',
                   style: AppTypography.amount(
                     size: 17,
                     color: theme.colorScheme.onSurface,
@@ -490,7 +492,7 @@ class _WhatIfCardState extends State<_WhatIfCard> {
               value: _steps.toDouble(),
               max: _maxSteps.toDouble(),
               divisions: _maxSteps,
-              label: formatMoney(Money(extra), withCurrency: false),
+              label: shownMoney(context, extra, withCurrency: false),
               onChanged: (v) => setState(() => _steps = v.round()),
             ),
             Text(

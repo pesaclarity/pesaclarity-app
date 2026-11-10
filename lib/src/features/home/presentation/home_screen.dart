@@ -107,8 +107,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: AmountsHidden(
-          hidden: ref.watch(balancesHiddenProvider),
+        child: AmountsHiddenScope(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
             children: [

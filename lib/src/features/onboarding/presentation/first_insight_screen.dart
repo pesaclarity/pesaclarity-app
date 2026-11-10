@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/leakage.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
@@ -23,7 +22,10 @@ class FirstInsightScreen extends ConsumerWidget {
     void finish() => ref.read(onboardingControllerProvider.notifier).complete();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your money')),
+      appBar: AppBar(
+        title: const Text('Your money'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -56,7 +58,7 @@ class FirstInsightScreen extends ConsumerWidget {
     FirstInsight insight,
     ScanRange? range,
   ) {
-    String kes(int minor) => formatMoney(Money(minor));
+    String kes(int minor) => shownMoney(context, minor);
     final share = insight.leakageShareBasisPoints;
     final count = insight.transactionCount;
     return [

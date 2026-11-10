@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/books/presentation/money_screen.dart';
 import 'package:pesaclarity/src/features/security/application/balance_visibility.dart';
 import 'package:pesaclarity/src/routing/app_shell.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
@@ -83,7 +84,11 @@ Future<void> _pump(WidgetTester tester, AppDatabase db) async {
         appDatabaseProvider.overrideWithValue(db),
         clockProvider.overrideWithValue(() => eat(2026, 11, 5, 18)),
       ],
-      child: MaterialApp(theme: AppTheme.light, home: const MoneyScreen()),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        builder: (context, child) => AmountsHiddenScope(child: child!),
+        home: const MoneyScreen(),
+      ),
     ),
   );
   await settleFrames(tester);

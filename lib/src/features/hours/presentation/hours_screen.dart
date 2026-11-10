@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart'
     show ReportPeriod, periodText;
@@ -11,8 +9,8 @@ import '../../../domain/hours/hours.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/hours_providers.dart';
 import 'log_hours_sheet.dart';
 
@@ -39,9 +37,9 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = weekStart(_day);
     final week = ref.watch(weekHoursProvider(from)).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
     final title = _week
         ? periodText(
             ReportPeriod(from, from.addDays(7), ''),
@@ -52,7 +50,10 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
         : '${weekdayName(_day)} ${shortDate(_day)}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hours')),
+      appBar: AppBar(
+        title: const Text('Hours'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [

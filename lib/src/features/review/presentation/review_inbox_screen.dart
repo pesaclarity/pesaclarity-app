@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/reader/message_reading.dart';
@@ -11,6 +9,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../application/review_draft.dart';
@@ -29,7 +28,10 @@ class ReviewInboxScreen extends ConsumerWidget {
     final muted = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages to check')),
+      appBar: AppBar(
+        title: const Text('Messages to check'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
@@ -67,12 +69,12 @@ String _initials(String name) {
 }
 
 /// "Money out · 1,250 to Example Grocers", or null when nothing was read.
-String? suggestionLabel(ReviewDraft draft) {
+String? suggestionLabel(ReviewDraft draft, {bool hidden = false}) {
   if (draft.kind == MessageKind.notTransaction) return 'Not a transaction';
   final amount = draft.amountMinor;
   if (amount == null) return null;
   final out = draft.kind == MessageKind.moneyOut;
-  final money = formatMoney(Money(amount), withCurrency: false);
+  final money = moneyOrHidden(hidden: hidden, amount, withCurrency: false);
   final party = draft.counterparty;
   return '${out ? 'Money out' : 'Money in'} · $money'
       '${party == null ? '' : '${out ? ' to' : ' from'} $party'}';
@@ -95,7 +97,10 @@ class _ItemTile extends ConsumerWidget {
     final reading = ref.watch(reviewReadingProvider(item.id));
     final suggestion = reading == null
         ? null
-        : suggestionLabel(ReviewDraft.fromReading(reading));
+        : suggestionLabel(
+            ReviewDraft.fromReading(reading),
+            hidden: AmountsHidden.of(context),
+          );
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final day = CalendarDate.local(item.receivedAt);
     final when = day == today

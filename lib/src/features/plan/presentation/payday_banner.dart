@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/plan_providers.dart';
@@ -24,7 +23,7 @@ class PaydayBanner extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final tasks = proposal.checklist.tasks;
     final done = tasks.where((t) => proposal.ticked.contains(t.key)).length;
-    final amount = formatMoney(Money(proposal.payday.amountMinor));
+    final amount = shownMoney(context, proposal.payday.amountMinor);
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),

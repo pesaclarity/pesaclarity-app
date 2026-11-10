@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/lending_repository.dart';
@@ -11,6 +9,7 @@ import '../../../domain/lending/lent_loan.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../goals/application/goals_overview_provider.dart';
@@ -28,7 +27,10 @@ class LendingScreen extends ConsumerWidget {
     final today = CalendarDate.local(ref.watch(clockProvider)());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lent and borrowed')),
+      appBar: AppBar(
+        title: const Text('Lent and borrowed'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showLoanSheet(context, today: today),
         icon: const Icon(Icons.add),
@@ -75,14 +77,19 @@ class _LendingBody extends StatelessWidget {
         if (overview.lent.isNotEmpty) ...[
           const _Header('You lent'),
           _LoanList([
-            for (final loan in overview.lent) _LoanView.lent(loan, today),
+            for (final loan in overview.lent)
+              _LoanView.lent(loan, today, hidden: AmountsHidden.of(context)),
           ]),
         ],
         if (overview.borrowed.isNotEmpty) ...[
           const _Header('You borrowed'),
           _LoanList([
             for (final loan in overview.borrowed)
-              _LoanView.borrowed(loan, today),
+              _LoanView.borrowed(
+                loan,
+                today,
+                hidden: AmountsHidden.of(context),
+              ),
           ]),
         ],
       ],
@@ -105,7 +112,7 @@ class _TotalsCard extends StatelessWidget {
           Text(label, style: theme.textTheme.bodySmall),
           const SizedBox(height: 2),
           Text(
-            formatMoney(Money(minor), withCurrency: false),
+            shownMoney(context, minor, withCurrency: false),
             style: AppTypography.amount(
               size: 22,
               color: theme.colorScheme.onSurface,
@@ -143,19 +150,22 @@ class _Header extends StatelessWidget {
 
 /// One loan as a row shows it, whichever side it is on.
 class _LoanView {
-  _LoanView.lent(LentLoan this.lent, CalendarDate today)
+  _LoanView.lent(LentLoan this.lent, CalendarDate today, {bool hidden = false})
     : borrowed = null,
       person = lent.person,
       remainingMinor = lent.status(today).remainingMinor,
-      caption = lentCaption(lent, today),
+      caption = lentCaption(lent, today, hidden: hidden),
       isOverdue = lent.status(today).overdueMinor > 0;
 
-  _LoanView.borrowed(BorrowedLoan this.borrowed, CalendarDate today)
-    : lent = null,
-      person = borrowed.debt.lender,
-      remainingMinor = borrowed.debt.balanceMinor,
-      caption = borrowedCaption(borrowed, today),
-      isOverdue = borrowed.status.overdueMinor > 0 && !borrowed.isCleared;
+  _LoanView.borrowed(
+    BorrowedLoan this.borrowed,
+    CalendarDate today, {
+    bool hidden = false,
+  }) : lent = null,
+       person = borrowed.debt.lender,
+       remainingMinor = borrowed.debt.balanceMinor,
+       caption = borrowedCaption(borrowed, today, hidden: hidden),
+       isOverdue = borrowed.status.overdueMinor > 0 && !borrowed.isCleared;
 
   final LentLoan? lent;
   final BorrowedLoan? borrowed;
@@ -166,13 +176,13 @@ class _LoanView {
 }
 
 /// The line under money lent, such as `Lent 3 Oct · due 31 Oct`.
-String lentCaption(LentLoan loan, CalendarDate today) {
+String lentCaption(LentLoan loan, CalendarDate today, {bool hidden = false}) {
   final status = loan.status(today);
   String day(CalendarDate d) => dayLabel(d, thisYear: today.year);
   if (status.isCleared) return 'Paid back · lent ${day(loan.lentOn)}';
   final parts = ['Lent ${day(loan.lentOn)}'];
   if (status.paidMinor > 0) {
-    parts.add('${formatMoney(Money(status.paidMinor))} paid');
+    parts.add('${moneyOrHidden(hidden: hidden, status.paidMinor)} paid');
   }
   if (loan.dueDate case final due?) {
     parts.add(
@@ -183,17 +193,25 @@ String lentCaption(LentLoan loan, CalendarDate today) {
 }
 
 /// The line under a family loan the user owes, such as `Next 5,000, 31 Jan`.
-String borrowedCaption(BorrowedLoan loan, CalendarDate today) {
+String borrowedCaption(
+  BorrowedLoan loan,
+  CalendarDate today, {
+  bool hidden = false,
+}) {
   if (loan.isCleared) return 'Paid';
   final status = loan.status;
   final next = status.nextDue;
   final parts = <String>[];
   if (status.paidMinor > 0) {
-    parts.add('${formatMoney(Money(status.paidMinor))} paid');
+    parts.add('${moneyOrHidden(hidden: hidden, status.paidMinor)} paid');
   }
   if (next != null) {
     final day = dayLabel(next.dueDate, thisYear: today.year);
-    final amount = formatMoney(Money(next.amountMinor), withCurrency: false);
+    final amount = moneyOrHidden(
+      hidden: hidden,
+      next.amountMinor,
+      withCurrency: false,
+    );
     parts.add(
       next.dueDate.isBefore(today)
           ? '$amount was due $day'
@@ -237,8 +255,9 @@ class _LoanList extends StatelessWidget {
                 ),
               ),
               trailing: Text(
-                formatMoney(
-                  Money(loans[i].remainingMinor),
+                shownMoney(
+                  context,
+                  loans[i].remainingMinor,
                   withCurrency: false,
                 ),
                 style: AppTypography.amount(
@@ -337,7 +356,7 @@ class _LoanActions extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               open
-                  ? '${formatMoney(Money(loan.remainingMinor))} left. '
+                  ? '${shownMoney(context, loan.remainingMinor)} left. '
                         '${loan.caption}.'
                   : '${loan.caption}.',
               style: theme.textTheme.bodyMedium,

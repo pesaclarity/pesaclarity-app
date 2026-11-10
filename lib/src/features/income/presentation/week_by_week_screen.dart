@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/income/week_by_week.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/income_providers.dart';
@@ -19,7 +18,10 @@ class WeekByWeekScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(weekByWeekProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Week by week')),
+      appBar: AppBar(
+        title: const Text('Week by week'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: switch (plan) {
         AsyncData(:final value) => _Body(value),
         AsyncError() => const Center(child: Text('Could not open it.')),
@@ -49,11 +51,11 @@ class _Body extends ConsumerWidget {
     final String? advice;
     if (add > 0) {
       advice =
-          'A good week: ${_plain(plan.extraMinor)} more than a usual one. '
-          'Put ${_plain(add)} in your rainy day fund?';
+          'A good week: ${_plain(context, plan.extraMinor)} more than a usual one. '
+          'Put ${_plain(context, add)} in your rainy day fund?';
     } else if (take > 0) {
       advice =
-          'A lean week so far. You can take up to ${_plain(take)} from your '
+          'A lean week so far. You can take up to ${_plain(context, take)} from your '
           'rainy day fund to reach your usual spending.';
     } else {
       advice = null;
@@ -96,7 +98,9 @@ class _Body extends ConsumerWidget {
                     key: const Key('rainy-day-add'),
                     onPressed: () =>
                         ref.read(rainyDayFundProvider.notifier).move(add),
-                    child: Text('Add ${_plain(add)} to your rainy day fund'),
+                    child: Text(
+                      'Add ${_plain(context, add)} to your rainy day fund',
+                    ),
                   ),
                 ] else if (take > 0) ...[
                   const SizedBox(height: 12),
@@ -105,7 +109,7 @@ class _Body extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(rainyDayFundProvider.notifier).move(-take),
                     child: Text(
-                      'Take ${_plain(take)} from your rainy day fund',
+                      'Take ${_plain(context, take)} from your rainy day fund',
                     ),
                   ),
                 ],
@@ -131,8 +135,8 @@ class _Body extends ConsumerWidget {
                     ),
                     Text(
                       target > 0
-                          ? '${_plain(fund)} of ${_plain(target)}'
-                          : _plain(fund),
+                          ? '${_plain(context, fund)} of ${_plain(context, target)}'
+                          : _plain(context, fund),
                       style: theme.textTheme.titleMedium,
                     ),
                   ],
@@ -208,7 +212,10 @@ class _Figure extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall!
             .copyWith(color: PesaColors.of(context).textMuted),
       ),
-      Text(_plain(minor), style: AppTypography.amount(size: 24, color: color)),
+      Text(
+        _plain(context, minor),
+        style: AppTypography.amount(size: 24, color: color),
+      ),
     ],
   );
 }
@@ -262,8 +269,8 @@ class _WeekBars extends StatelessWidget {
     return Semantics(
       label: [
         for (final w in weeks)
-          'Week of ${shortDate(w.start)}: in ${_plain(w.inMinor)}, '
-              'out ${_plain(w.outMinor)}',
+          'Week of ${shortDate(w.start)}: in ${_plain(context, w.inMinor)}, '
+              'out ${_plain(context, w.outMinor)}',
       ].join('. '),
       child: ExcludeSemantics(
         child: Row(
@@ -304,4 +311,5 @@ class _WeekBars extends StatelessWidget {
   }
 }
 
-String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+String _plain(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: false);

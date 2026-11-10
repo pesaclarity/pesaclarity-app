@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/repositories/tax_repository.dart';
 import '../../../domain/books/business_report.dart' show periodText;
 import '../../../domain/books/business_report.dart' as report;
@@ -10,9 +9,9 @@ import '../../../domain/tax/tax_estimate.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/tax_providers.dart';
 
 /// Tax: what the business may owe, as an estimate from its records and the
@@ -23,9 +22,9 @@ class TaxScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(taxViewProvider).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tax')),
@@ -487,7 +486,7 @@ class _Settings extends ConsumerWidget {
                   'Keep ${rateText(view.suggestedShare)} of money in aside',
                 final rate =>
                   '${rateText(rate)} of money in · '
-                      '${formatMoney(Money(view.setAsideMinor ?? 0), withCurrency: false)} '
+                      '${shownMoney(context, view.setAsideMinor ?? 0, withCurrency: false)} '
                       'this year',
               },
               style: theme.textTheme.bodySmall!.copyWith(
@@ -580,7 +579,7 @@ class _CertificatesSheet extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final view = ref.watch(taxViewProvider).value;
     final withheld = view?.withheld ?? const <Withheld>[];
-    String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+    String plain(int minor) => shownMoney(context, minor, withCurrency: false);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),

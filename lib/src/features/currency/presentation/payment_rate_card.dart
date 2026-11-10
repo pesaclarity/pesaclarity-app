@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/exchange_rates.dart';
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
 import '../data/rates_client.dart';
@@ -131,7 +130,7 @@ class BaseAmountLine extends ConsumerWidget {
     if (converted == null) return const SizedBox.shrink();
     final base = ref.watch(baseCurrencyProvider);
     return Text(
-      '≈ ${formatMoney(Money(converted.baseMinor, currency: base))}',
+      '≈ ${shownMoney(context, converted.baseMinor, currency: base)}',
       key: const Key('payment-base-amount'),
       style: Theme.of(context).textTheme.titleMedium!
           .copyWith(color: PesaColors.of(context).textMuted),

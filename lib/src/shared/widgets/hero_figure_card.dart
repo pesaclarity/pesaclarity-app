@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/security/application/balance_visibility.dart';
 import '../../theme/app_typography.dart';
+import 'amounts_hidden.dart';
 
 /// Brand-red card that leads a screen with its one primary number.
 ///
 /// Amounts in [figure] and [caption] are masked while balances are hidden,
 /// and the card then offers the eye button that shows or hides them.
-class HeroFigureCard extends ConsumerWidget {
+class HeroFigureCard extends StatelessWidget {
   const HeroFigureCard({
     required this.label,
     required this.figure,
@@ -21,10 +21,10 @@ class HeroFigureCard extends ConsumerWidget {
   final String? caption;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final hasAmount =
         containsAmount(figure) || (caption != null && containsAmount(caption!));
 
@@ -46,19 +46,7 @@ class HeroFigureCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (hasAmount)
-                  IconButton(
-                    tooltip: hidden ? 'Show balances' : 'Hide balances',
-                    visualDensity: VisualDensity.compact,
-                    color: scheme.onPrimary,
-                    onPressed: () =>
-                        ref.read(balancesHiddenProvider.notifier).toggle(),
-                    icon: Icon(
-                      hidden
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                  ),
+                if (hasAmount) AmountsEye(color: scheme.onPrimary),
               ],
             ),
             const SizedBox(height: 8),
