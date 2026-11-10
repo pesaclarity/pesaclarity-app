@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/spaces/business_setup.dart';
 import '../domain/spaces/space.dart';
 import '../features/currency/application/currency_controller.dart';
+import '../features/home/presentation/add_menu.dart';
 import '../features/invoices/application/invoice_providers.dart';
 import '../features/privacy/application/consent_controller.dart';
 import '../features/privacy/presentation/policy_review_screen.dart';
@@ -184,12 +185,21 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       body: navigationShell,
+      // The one main action sits beside the bar, never over the list.
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-        child: PillNavigationBar(
-          destinations: tabs,
-          selectedIndex: selectedTabOf(tabs, ShellBranch.values[current]),
-          onSelected: select,
+        child: Row(
+          children: [
+            Expanded(
+              child: PillNavigationBar(
+                destinations: tabs,
+                selectedIndex: selectedTabOf(tabs, ShellBranch.values[current]),
+                onSelected: select,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const MainAddButton(),
+          ],
         ),
       ),
     );

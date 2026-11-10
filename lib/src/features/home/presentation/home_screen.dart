@@ -24,7 +24,6 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
-import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/marks.dart';
@@ -32,7 +31,6 @@ import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../business_insights/application/business_report_providers.dart';
 import '../../hours/application/hours_providers.dart';
 import '../../hours/presentation/log_hours_sheet.dart';
@@ -49,16 +47,18 @@ import '../../spaces/application/spaces_providers.dart';
 import '../../spaces/presentation/business_setup_card.dart';
 import '../../spaces/presentation/shared_line_card.dart';
 import '../../spaces/presentation/spaces_sheet.dart';
-import '../../statements/data/pdf_text_extractor.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
 import '../application/upcoming_bills_provider.dart';
+import 'add_menu.dart';
 
 /// Bills shown under Coming up before "See all".
 const _billsShown = 3;
 
-String _kes(BuildContext context, int minor) => shownMoney(context, minor);
+/// A red card's figure: the one place the currency code shows.
+String _kes(BuildContext context, int minor) =>
+    shownMoney(context, minor, withCurrency: true);
 
 String _plain(BuildContext context, int minor) =>
     shownMoney(context, minor, withCurrency: false);
@@ -86,7 +86,6 @@ class HomeScreen extends ConsumerWidget {
     final health = ref.watch(healthIndexProvider).value;
     final forecast = ref.watch(cashFlowForecastProvider).value;
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
-    final canImport = ref.watch(statementImportAvailableProvider);
     final space = ref.watch(activeSpaceProvider);
     final isBusiness = space.kind == SpaceKind.business;
     // Products and both lead with today's sales; services with profit.
@@ -223,22 +222,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-      // Without a PDF engine (the F-Droid build) there is only one choice.
-      floatingActionButton: FloatingActionButton(
-        key: const Key('home-add'),
-        tooltip: isBusiness
-            ? 'Sell'
-            : canImport
-            ? 'Add or import'
-            : 'Add a transaction',
-        shape: const CircleBorder(),
-        onPressed: () => isBusiness
-            ? context.push(AppRoutes.sell)
-            : canImport
-            ? _showAddMenu(context)
-            : showAddTransactionSheet(context),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
@@ -249,60 +232,6 @@ String _runwayLabel(CashFlowForecast? forecast) {
   if (days <= 0) return 'Today';
   return days == 1 ? '1 day' : '$days days';
 }
-
-/// Add a transaction or import a statement; a business can also pay its
-/// owner. Without a PDF engine (the F-Droid build) there is no import.
-Future<void> _showAddMenu(BuildContext context, {bool business = false}) async {
-  final canImport = ProviderScope.containerOf(
-    context,
-    listen: false,
-  ).read(statementImportAvailableProvider);
-  final choice = await showAppSheet<_AddChoice>(
-    context: context,
-    builder: (context) => SheetBody(
-      title: business ? 'More' : 'Add or import',
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.add_circle_outline),
-          title: const Text('Add a transaction'),
-          subtitle: const Text('Cash or anything a message missed'),
-          onTap: () => Navigator.pop(context, _AddChoice.manual),
-        ),
-        if (business)
-          ListTile(
-            key: const Key('add-pay-yourself'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Pay yourself'),
-            subtitle: const Text('Move money to Personal as income'),
-            onTap: () => Navigator.pop(context, _AddChoice.payYourself),
-          ),
-        if (canImport)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.upload_file_outlined),
-            title: const Text('Import a statement'),
-            subtitle: const Text('M-Pesa or bank PDF, for older history'),
-            onTap: () => Navigator.pop(context, _AddChoice.import),
-          ),
-      ],
-    ),
-  );
-  if (!context.mounted) return;
-  switch (choice) {
-    case _AddChoice.manual:
-      await showAddTransactionSheet(context);
-    case _AddChoice.import:
-      context.go(AppRoutes.importStatement);
-    case _AddChoice.payYourself:
-      await showPayYourselfSheet(context);
-    case null:
-      break;
-  }
-}
-
-enum _AddChoice { manual, import, payYourself }
 
 class _Header extends ConsumerWidget {
   const _Header({required this.today});
@@ -879,7 +808,7 @@ class _QuickButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void other() => _showAddMenu(context, business: true);
+    void other() => showAddMenu(context, business: true);
     final buttons = services
         ? [
             _QuickButton(

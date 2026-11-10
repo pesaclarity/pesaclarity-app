@@ -114,7 +114,7 @@ class _RemainingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HeroFigureCard(
       label: 'Remaining',
-      figure: shownMoney(context, overview.remainingMinor),
+      figure: shownMoney(context, overview.remainingMinor, withCurrency: true),
       caption: _planSummary(overview, overview.plan),
       // The app bar has the eye.
       showEye: false,

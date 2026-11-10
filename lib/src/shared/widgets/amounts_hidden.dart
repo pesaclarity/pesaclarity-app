@@ -39,27 +39,31 @@ class AmountsHiddenScope extends ConsumerWidget {
       AmountsHidden(hidden: ref.watch(balancesHiddenProvider), child: child);
 }
 
-/// [minor] as money, `KES 1,200` (or `1,200` without [withCurrency]), or
-/// dots when [hidden].
+/// [minor] as money, or dots when [hidden]. One look for every amount on
+/// a screen: a plain `1,200` in the base currency, and `USD 25.00` in any
+/// other. Pass [withCurrency] true for the figure a red card leads with,
+/// the one place the base currency's code shows, or false for never.
 String moneyOrHidden(
   int minor, {
   required bool hidden,
   String? currency,
-  bool withCurrency = true,
+  bool? withCurrency,
 }) {
   final money = currency == null
       ? Money(minor)
       : Money(minor, currency: currency);
-  if (!hidden) return formatMoney(money, withCurrency: withCurrency);
-  return withCurrency ? '${money.currency} $maskedDigits' : maskedDigits;
+  final code = withCurrency ?? money.currency != BaseCurrency.code;
+  if (!hidden) return formatMoney(money, withCurrency: code);
+  return code ? '${money.currency} $maskedDigits' : maskedDigits;
 }
 
-/// [minor] as money, or dots while amounts are hidden here.
+/// [minor] as money, or dots while amounts are hidden here. See
+/// [moneyOrHidden] for when the currency code shows.
 String shownMoney(
   BuildContext context,
   int minor, {
   String? currency,
-  bool withCurrency = true,
+  bool? withCurrency,
 }) => moneyOrHidden(
   minor,
   hidden: AmountsHidden.of(context),

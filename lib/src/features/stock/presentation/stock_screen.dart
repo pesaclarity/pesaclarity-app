@@ -155,13 +155,6 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('stock-sell'),
-        tooltip: 'Sell',
-        shape: const CircleBorder(),
-        onPressed: () => context.push(AppRoutes.sell),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

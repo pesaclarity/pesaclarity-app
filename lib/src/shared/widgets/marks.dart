@@ -108,10 +108,14 @@ class IconBadge extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: colors.brandSoft,
+        color: colors.border,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(icon, size: 22, color: colors.link),
+      child: Icon(
+        icon,
+        size: 22,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
     );
   }
 }
@@ -127,7 +131,64 @@ class TrailingLink extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: Theme.of(context).textTheme.labelLarge!
-        .copyWith(color: PesaColors.of(context).link),
+        .copyWith(color: Theme.of(context).colorScheme.onSurface),
+  );
+}
+
+/// A small outlined pill for an action beside a title, in a row or under a
+/// card: "Count stock", "See all", "Remind". Neutral, so red stays for the
+/// one main button.
+class PillButton extends StatelessWidget {
+  const PillButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.tooltip,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+
+  /// Says what it does when [label] alone is short, such as "Add a debt".
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 36),
+      padding: EdgeInsets.fromLTRB(icon == null ? 14 : 10, 0, 14, 0),
+      tapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+    );
+    final button = icon == null
+        ? OutlinedButton(onPressed: onPressed, style: style, child: Text(label))
+        : OutlinedButton.icon(
+            onPressed: onPressed,
+            style: style,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+          );
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+}
+
+/// "+ Add", at the right of the title of the list it adds to: the screen's
+/// title for a screen's list, the section's title for a section. [tooltip]
+/// says what it adds, such as "Add a debt".
+class AddButton extends StatelessWidget {
+  const AddButton({required this.onPressed, required this.tooltip, super.key});
+
+  final VoidCallback? onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) => PillButton(
+    label: 'Add',
+    icon: Icons.add,
+    tooltip: tooltip,
+    onPressed: onPressed,
   );
 }
 

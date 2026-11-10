@@ -135,13 +135,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('money-sell'),
-        tooltip: 'Sell',
-        shape: const CircleBorder(),
-        onPressed: () => context.push(AppRoutes.sell),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
