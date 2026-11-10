@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/stock/stock.dart';
@@ -11,6 +10,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -60,10 +60,10 @@ class BusinessInsightsScreen extends ConsumerWidget {
               'Insights',
               semanticsId: SemanticIds.titleBusinessInsights,
               actions: [
-                TextButton(
+                PillButton(
                   key: const Key('insights-full-records'),
+                  label: 'Full records',
                   onPressed: () => context.push(AppRoutes.fullRecords),
-                  child: const Text('Full records'),
                 ),
                 const AmountsEye(),
               ],
@@ -95,7 +95,11 @@ class BusinessInsightsScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _SalesByDay(report.byWeekday),
               ],
-              if (report.insights.isNotEmpty) ...[
+              // A best day or a share of sales means little from a few
+              // days, so the sentences wait for two weeks of sales.
+              if (_salesDays(report) < _sentencesAfterDays)
+                const EmptyNote('Insights show after two weeks of sales.')
+              else if (report.insights.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _Sentences(report.insights),
               ],
@@ -114,6 +118,14 @@ class BusinessInsightsScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Days of sales in a period before Insights says anything about them,
+/// such as the best day.
+const _sentencesAfterDays = 14;
+
+/// The days in [report]'s period that have sales.
+int _salesDays(BusinessReport report) =>
+    report.byDay.where((sold) => sold > 0).length;
 
 /// This month, Last month and 3 months, and Choose dates with [onCustom], as
 /// a drop-down keyed `range`. Its rows are keyed `range-<name>` and
@@ -197,8 +209,7 @@ class _ProfitCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${profit < 0 ? '-' : ''}${BaseCurrency.code} '
-              '${plain(profit.abs())}',
+              '${profit < 0 ? '-' : ''}${plain(profit.abs())}',
               style: AppTypography.headlineFigure(theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 4),

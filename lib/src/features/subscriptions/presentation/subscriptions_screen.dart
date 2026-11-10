@@ -50,9 +50,8 @@ class SubscriptionsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Subscriptions'),
         actions: [
-          IconButton(
+          AddButton(
             tooltip: 'Add a subscription',
-            icon: const Icon(Icons.add),
             onPressed: () => showSubscriptionSheet(context),
           ),
           const SizedBox(width: 8),
@@ -91,21 +90,33 @@ class _Body extends ConsumerWidget {
         Layout.screenBottom,
       ),
       children: [
-        HeroFigureCard(
-          label: overview.lines.isEmpty
-              ? 'Nothing tracked yet'
-              : '${overview.lines.length} active · every month',
-          figure:
-              '${overview.currency} ${_amount(context, overview.monthlyTotalMinor)}',
-          caption: next == null
-              ? 'Add one, or track a charge found in your messages.'
-              : '${_amount(context, overview.yearlyTotalMinor)} a year · next: '
-                    '${next.subscription.name} '
-                    '${relativeDays(next.nextDate, today: today)}',
-        ),
-        for (final charge in overview.suggestions) ...[
-          const SizedBox(height: Layout.cardGap),
-          _SuggestionCard(charge),
+        if (next == null)
+          const HeroFigureCard(
+            label: 'Every month',
+            caption:
+                'Add a subscription, or track a charge found in your '
+                'messages, to see what they cost each month.',
+          )
+        else
+          HeroFigureCard(
+            label: '${overview.lines.length} active · every month',
+            figure: shownMoney(
+              context,
+              overview.monthlyTotalMinor,
+              currency: overview.currency,
+              withCurrency: true,
+            ),
+            caption:
+                '${_amount(context, overview.yearlyTotalMinor)} a year · next: '
+                '${next.subscription.name} '
+                '${relativeDays(next.nextDate, today: today)}',
+          ),
+        if (overview.suggestions.isNotEmpty) ...[
+          const SectionLabel('Found in your messages'),
+          for (final (i, charge) in overview.suggestions.indexed) ...[
+            if (i > 0) const SizedBox(height: Layout.cardGap),
+            _SuggestionCard(charge),
+          ],
         ],
         if (overview.lines.isNotEmpty) ...[
           const SizedBox(height: Layout.cardGap),
@@ -173,6 +184,7 @@ class _Body extends ConsumerWidget {
   }
 }
 
+/// A repeat charge found in messages: tapping it asks whether to track it.
 class _SuggestionCard extends ConsumerWidget {
   const _SuggestionCard(this.charge);
 
@@ -180,36 +192,39 @@ class _SuggestionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final repository = ref.read(subscriptionsRepositoryProvider);
+    final detail =
+        '${_amount(context, charge.amountMinor)} on the '
+        '${charge.lastDate.day}, two months running';
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Layout.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionLabel(
-              'Found in your messages',
-              padding: EdgeInsets.only(bottom: 8),
-            ),
-            Text(charge.name, style: theme.textTheme.titleMedium),
-            Text(
-              '${_amount(context, charge.amountMinor)} on the ${charge.lastDate.day}, '
-              'two months running',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            ButtonPair(
-              primary: FilledButton(
-                onPressed: () => repository.track(charge),
-                child: const Text('Track it'),
+      child: ListTile(
+        title: Text(charge.name),
+        subtitle: Text(detail),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => showAppSheet<void>(
+          context: context,
+          builder: (context) => SheetBody(
+            title: charge.name,
+            subtitle: '$detail. Track it to see it here each month.',
+            children: [
+              ButtonPair(
+                primary: FilledButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    repository.track(charge);
+                  },
+                  child: const Text('Track it'),
+                ),
+                secondary: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    repository.dismiss(charge);
+                  },
+                  child: const Text('One-off'),
+                ),
               ),
-              secondary: OutlinedButton(
-                onPressed: () => repository.dismiss(charge),
-                child: const Text('One-off'),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

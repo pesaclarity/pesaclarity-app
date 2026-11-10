@@ -84,7 +84,7 @@ void main() {
 
     expect(find.text('Add a debt'), findsWidgets);
     expect(find.text('Debt-free'), findsNothing);
-    await tester.tap(find.text('Add a goal').first);
+    await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'What are you saving for?'),
@@ -129,7 +129,7 @@ void main() {
 
   testAppWidgets('a goal needs a name and a target', (tester) async {
     await pumpGoals(tester, db: openTestDatabase());
-    await tester.tap(find.text('Add a goal').first);
+    await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);

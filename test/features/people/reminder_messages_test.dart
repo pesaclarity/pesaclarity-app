@@ -67,5 +67,20 @@ void main() {
     );
     expect(setup.templates.last.name, 'Short');
     expect(setup.till, '000000');
+
+    // One action a row: Delete is in the message's own dialog.
+    expect(find.byTooltip('Delete Short'), findsNothing);
+    await tester.tap(find.text('Short'));
+    await settleFrames(tester);
+    await tester.tap(find.byKey(const Key('message-delete')));
+    await settleFrames(tester);
+    expect(find.text('Delete Short?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await settleFrames(tester);
+    final after = await tester.runAsync(
+      () => c.read(reminderSetupProvider.future),
+    );
+    expect(after!.templates, hasLength(3));
+    expect(find.text('Short'), findsNothing);
   });
 }

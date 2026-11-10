@@ -61,7 +61,7 @@ class FirstInsightScreen extends ConsumerWidget {
     FirstInsight insight,
     ScanRange? range,
   ) {
-    String kes(int minor) => shownMoney(context, minor);
+    String amount(int minor) => shownMoney(context, minor);
     final share = insight.leakageShareBasisPoints;
     final count = insight.transactionCount;
     return [
@@ -76,26 +76,26 @@ class FirstInsightScreen extends ConsumerWidget {
             : 'From $count transactions in your messages.',
       ),
       const SizedBox(height: 20),
-      _Figure(label: 'Money in', value: kes(insight.incomeMinor)),
+      _Figure(label: 'Money in', value: amount(insight.incomeMinor)),
       const SizedBox(height: 12),
       _Figure(
         label: 'Spent, with fees',
-        value: kes(insight.spendingMinor),
+        value: amount(insight.spendingMinor),
         note: insight.incomeMinor > 0
-            ? _vsIncome(insight.spendingMinor, insight.incomeMinor, kes)
+            ? _vsIncome(insight.spendingMinor, insight.incomeMinor, amount)
             : null,
       ),
       const SizedBox(height: 12),
       _Figure(
         label: 'Leakages',
-        value: kes(insight.leakageMinor),
+        value: amount(insight.leakageMinor),
         note: share == null ? null : '${percentLabel(share)} of income',
         highlight: true,
       ),
       const SizedBox(height: 12),
       _Figure(
         label: 'Fuliza fees',
-        value: kes(insight.fulizaFeesMinor),
+        value: amount(insight.fulizaFeesMinor),
         note: switch (insight.fulizaDays) {
           0 => 'Clear of Fuliza',
           1 => 'Fuliza used on 1 day',
@@ -113,10 +113,10 @@ class FirstInsightScreen extends ConsumerWidget {
   }
 }
 
-String _vsIncome(int spending, int income, String Function(int) kes) {
+String _vsIncome(int spending, int income, String Function(int) amount) {
   final gap = income - spending;
-  if (gap >= 0) return '${kes(gap)} less than came in';
-  return '${kes(-gap)} more than came in';
+  if (gap >= 0) return '${amount(gap)} less than came in';
+  return '${amount(-gap)} more than came in';
 }
 
 /// A figure tile; [highlight] outlines it and colours its note, for a

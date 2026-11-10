@@ -497,12 +497,12 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
         title: Text(tab == null ? 'Sell' : 'Add to ${tab.name}'),
         actions: [
           if (tab == null && widget.openTabs > 0) ...[
-            TextButton(
+            PillButton(
               key: const Key('sell-open-tabs'),
+              label: 'Open tabs · ${widget.openTabs}',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const OpenTabsScreen()),
               ),
-              child: Text('Open tabs · ${widget.openTabs}'),
             ),
             const SizedBox(width: 8),
           ],

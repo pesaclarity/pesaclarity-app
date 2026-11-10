@@ -130,7 +130,7 @@ void main() {
     expect(find.text('All to savings'), findsOneWidget);
 
     // Salary was due yesterday, so payday autopilot is on offer.
-    expect(find.text('Payday: split KES 181,600'), findsOneWidget);
+    expect(find.text('Payday: split 181,600'), findsOneWidget);
 
     await tester.tap(find.text('Pending only'));
     await tester.pumpAndSettle();
@@ -143,7 +143,10 @@ void main() {
     await tester.runAsync(() => seedNovember(db));
     await pumpScreen(tester, db, const PlanScreen());
 
-    await tapText(tester, 'Add to Nov 2026');
+    final add = find.byTooltip('Add to Nov 2026');
+    await scrollTo(tester, add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('One-off'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Gift');

@@ -6,10 +6,16 @@ import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
 
 void main() {
   test('money shows as dots while hidden, with or without the code', () {
-    expect(moneyOrHidden(120000, hidden: false), 'KES 1,200');
-    expect(moneyOrHidden(120000, hidden: false, withCurrency: false), '1,200');
-    expect(moneyOrHidden(120000, hidden: true), 'KES •••••');
-    expect(moneyOrHidden(120000, hidden: true, withCurrency: false), '•••••');
+    expect(moneyOrHidden(120000, hidden: false), '1,200');
+    expect(
+      moneyOrHidden(120000, hidden: false, withCurrency: true),
+      'KES 1,200',
+    );
+    expect(moneyOrHidden(120000, hidden: true), '•••••');
+    expect(
+      moneyOrHidden(120000, hidden: true, withCurrency: true),
+      'KES •••••',
+    );
     expect(moneyOrHidden(5000, hidden: true, currency: 'USD'), 'USD •••••');
   });
 

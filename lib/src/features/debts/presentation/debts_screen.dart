@@ -41,9 +41,8 @@ class DebtsScreen extends ConsumerWidget {
         ),
         actions: [
           if (overview != null)
-            IconButton(
+            AddButton(
               tooltip: 'Add a debt',
-              icon: const Icon(Icons.add),
               onPressed: () => showDebtSheet(context, today: overview.today),
             ),
           const AmountsEye(),
@@ -97,7 +96,6 @@ class _NoDebtsYet extends StatelessWidget {
   Widget build(BuildContext context) {
     return const HeroFigureCard(
       label: 'Debt-free by',
-      figure: '—',
       caption:
           'Add loans, cards, Fuliza or money from family to see the '
           'month you will be debt-free.',
@@ -331,9 +329,7 @@ class _FulizaCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'More than last month. Clearing it sooner saves fees.',
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.link,
-                      ),
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ],

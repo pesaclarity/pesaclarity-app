@@ -82,10 +82,10 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
       appBar: AppBar(
         title: const Text('Invoices'),
         actions: [
-          TextButton(
+          AddButton(
             key: const Key('invoices-new'),
+            tooltip: 'Make an invoice',
             onPressed: () => context.push(AppRoutes.newInvoice()),
-            child: const Text('New invoice'),
           ),
           const AmountsEye(),
           const SizedBox(width: 8),

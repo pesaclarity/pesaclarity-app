@@ -62,7 +62,8 @@ class _Checklist extends ConsumerWidget {
     );
     if (checklist.shortfallMinor > 0) {
       caption.write(
-        'The plan needs ${kes(checklist.shortfallMinor)} more than this. ',
+        'The plan needs ${shownMoney(context, checklist.shortfallMinor)} '
+        'more than this. ',
       );
     }
     caption.write('$done of ${tasks.length} done.');

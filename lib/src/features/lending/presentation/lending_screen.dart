@@ -12,6 +12,7 @@ import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -33,13 +34,21 @@ class LendingScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lent and borrowed'),
-        actions: const [AmountsEye(), SizedBox(width: 8)],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showLoanSheet(context, today: today),
-        icon: const Icon(Icons.add),
-        label: const Text('Add a loan'),
+        // Shrinks rather than cutting off beside Add and the eye on a
+        // narrow phone.
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text('Lent and borrowed'),
+        ),
+        actions: [
+          AddButton(
+            tooltip: 'Add a loan',
+            onPressed: () => showLoanSheet(context, today: today),
+          ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
+        ],
       ),
       body: switch (overview) {
         AsyncData(:final value) => _LendingBody(value),
@@ -63,12 +72,11 @@ class _LendingBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = overview.today;
     return ListView(
-      // Clear of the round add button.
       padding: const EdgeInsets.fromLTRB(
         Layout.gutter,
         8,
         Layout.gutter,
-        Layout.tabBottom,
+        Layout.screenBottom,
       ),
       children: [
         FigureRow(

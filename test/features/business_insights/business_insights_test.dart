@@ -351,7 +351,12 @@ void main() {
   ) async {
     await pump(tester);
     expect(find.text('Insights'), findsWidgets);
-    expect(find.text('KES 3,700'), findsOneWidget);
+    Finder profit(String text) => find.descendant(
+      of: find.byKey(const Key('insights-profit')),
+      matching: find.text(text),
+    );
+    // A white card's figure, so a plain number.
+    expect(profit('3,700'), findsOneWidget);
     expect(find.textContaining('Sales 7,200 · costs 3,500'), findsOneWidget);
     expect(find.text('How people pay'), findsOneWidget);
     expect(find.text('On credit'), findsOneWidget);
@@ -372,7 +377,52 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('KES 0'), findsOneWidget);
+    expect(profit('0'), findsOneWidget);
+  });
+
+  testAppWidgets('Insights sentences wait for two weeks of sales', (
+    tester,
+  ) async {
+    // Two sale days this month: too few to say which day is best.
+    await pump(tester);
+    expect(
+      find.text('Insights show after two weeks of sales.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('insights-sentences')), findsNothing);
+  });
+
+  testAppWidgets('after two weeks of sales, Insights says the best day', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final sales = await DriftSalesRepository(db).salesCategoryId();
+      final cash = (await db.select(db.accounts).getSingle()).id;
+      for (var day = 1; day <= 14; day++) {
+        await db
+            .into(db.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: cash,
+                occurredAt: eat(2026, 10, day, 9),
+                amountMinor: 50000,
+                direction: TransactionDirection.inflow,
+                source: TransactionSource.manual,
+                item: const Value('Sales'),
+                categoryOverrideId: Value(sales),
+              ),
+            );
+      }
+    });
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('range')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('range-lastMonth')));
+    await settleFrames(tester);
+
+    expect(find.byKey(const Key('insights-sentences')), findsOneWidget);
+    expect(find.textContaining('is your best day'), findsOneWidget);
+    expect(find.text('Insights show after two weeks of sales.'), findsNothing);
   });
 
   testAppWidgets('Full records shows the books and shares them', (

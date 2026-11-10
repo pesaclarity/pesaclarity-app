@@ -214,7 +214,7 @@ void main() {
     tester,
   ) async {
     await pump(tester, path: AppRoutes.customerStatement('Otieno'));
-    expect(find.text('KES 1,200'), findsOneWidget);
+    expect(find.text('1,200'), findsOneWidget);
     expect(find.text('On credit'), findsOneWidget);
     expect(find.text('+1,200'), findsOneWidget);
   });
@@ -223,7 +223,7 @@ void main() {
     // The first debt in a fresh database is the one Bought made.
     await pump(tester, path: AppRoutes.supplierStatement(1));
     expect(find.text('Tomatoes on credit'), findsOneWidget);
-    expect(find.text('KES 4,500'), findsOneWidget);
+    expect(find.text('4,500'), findsOneWidget);
   });
 
   test(

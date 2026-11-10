@@ -92,9 +92,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       _IncomeCard(view),
       SectionTitle(
         'By category',
-        action: TextButton(
+        action: PillButton(
+          label: _pendingOnly ? 'Show all' : 'Pending only',
           onPressed: () => setState(() => _pendingOnly = !_pendingOnly),
-          child: Text(_pendingOnly ? 'Show all' : 'Pending only'),
         ),
       ),
       _CategoryList(
@@ -507,9 +507,9 @@ class _LinesSection extends StatelessWidget {
       children: [
         SectionTitle(
           'Bills, income and one-offs',
-          action: TextButton(
+          action: AddButton(
+            tooltip: 'Add to ${monthLabel(month)}',
             onPressed: () => showPlanItemSheet(context, month: month),
-            child: Text('Add to ${monthLabel(month)}'),
           ),
         ),
         if (lines.isEmpty)

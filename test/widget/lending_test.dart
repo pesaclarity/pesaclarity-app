@@ -68,7 +68,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
     await settle(tester);
     expect(find.text('3,000'), findsNWidgets(2));
-    expect(find.textContaining('KES 2,000 paid'), findsOneWidget);
+    expect(find.textContaining('2,000 paid'), findsOneWidget);
 
     await tester.tap(find.text('John Kamau'));
     await settle(tester);
@@ -85,7 +85,7 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db, location: AppRoutes.lending);
 
-    await tester.tap(find.text('Add a loan'));
+    await tester.tap(find.byTooltip('Add a loan'));
     await settle(tester);
     await tester.tap(find.text('I borrowed'));
     await settle(tester);
@@ -125,7 +125,7 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db, location: AppRoutes.lending);
 
-    await tester.tap(find.text('Add a loan'));
+    await tester.tap(find.byTooltip('Add a loan'));
     await settle(tester);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Lent to'),
