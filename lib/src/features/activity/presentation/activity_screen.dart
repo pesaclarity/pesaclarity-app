@@ -13,13 +13,18 @@ import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
+import '../../../domain/payees/payee_identifier.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/categoriser_providers.dart';
@@ -27,12 +32,17 @@ import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../payees/application/tag_filter.dart';
+import '../../payees/presentation/payee_sheet.dart';
 import '../../payees/presentation/transaction_sheet.dart';
+import '../../security/application/balance_visibility.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
-import 'name_payee_sheet.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
+
+/// [amount] as written, or dots while amounts are hidden.
+String _orHidden(BuildContext context, String amount) =>
+    AmountsHidden.of(context) ? maskedDigits : amount;
 
 /// [minor] with a sign for money in, and the currency code when [code] is
 /// set: lists show codes once they hold more than one currency.
@@ -84,8 +94,6 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final from = _filter.from ?? today.addDays(-activityPageDays * _pages);
     final loaded = ref.watch(activityEntriesProvider(from));
@@ -122,115 +130,85 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    identifier: SemanticIds.titleActivity,
-                    child: Text(
-                      'Activity',
-                      style: theme.textTheme.headlineLarge,
-                    ),
-                  ),
-                ),
-                const ActivityExportButton(),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _search,
-              onChanged: (q) => _update((f) => f.copyWith(query: q)),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search payee, amount, note',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _filter.query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          _search.clear();
-                          _update((f) => f.copyWith(query: ''));
-                        },
-                      ),
+        child: AmountsHiddenScope(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+            children: [
+              const TabHeader(
+                'Activity',
+                semanticsId: SemanticIds.titleActivity,
+                actions: [ActivityExportButton(), AmountsEye()],
               ),
-            ),
-            const SizedBox(height: 12),
-            _Filters(
-              filter: _filter,
-              accounts: accounts,
-              categories: categories,
-              onChanged: _update,
-            ),
-            _FixedNote(
-              accounts: accounts,
-              onSeeThem: (id) =>
-                  _update((f) => f.copyWith(accountId: () => id)),
-            ),
-            const SizedBox(height: 16),
-            _WeekCard(week, code: code, others: others),
-            const SizedBox(height: 8),
-            if (loaded.isLoading && !loaded.hasValue)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator.adaptive()),
-              )
-            else if (days.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Text(
+              TextField(
+                controller: _search,
+                onChanged: (q) => _update((f) => f.copyWith(query: q)),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'Search payee, amount, note',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _filter.query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear search',
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _search.clear();
+                            _update((f) => f.copyWith(query: ''));
+                          },
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _Filters(
+                filter: _filter,
+                accounts: accounts,
+                categories: categories,
+                onChanged: _update,
+              ),
+              _FixedNote(
+                accounts: accounts,
+                onSeeThem: (id) =>
+                    _update((f) => f.copyWith(accountId: () => id)),
+              ),
+              const SizedBox(height: 16),
+              _WeekCard(week, code: code, others: others),
+              const SizedBox(height: 8),
+              if (loaded.isLoading && !loaded.hasValue)
+                const LoadingView(inList: true)
+              else if (days.isEmpty)
+                EmptyNote(
                   entries.isEmpty
                       ? 'Transactions show here once your messages are read, '
-                            'or when you add one with + on Home.'
+                            'or when you add one with +.'
                       : 'Nothing matches these filters.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: colors.textMuted,
-                  ),
-                ),
-              )
-            else
-              for (final day in days) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-                  child: Text(
-                    dayHeading(day.date, today: today).toUpperCase(),
-                    style: theme.textTheme.labelLarge!.copyWith(
-                      color: colors.textMuted,
-                      letterSpacing: 1,
+                )
+              else
+                for (final day in days) ...[
+                  SectionLabel(dayHeading(day.date, today: today)),
+                  for (final line in day.lines)
+                    _ActivityRow(
+                      line: line,
+                      accounts: accounts,
+                      categoryName: categoryName,
+                      categories: categories,
+                      suggest: (e) => suggester?.suggest(e),
+                      onAccept: (e, s) =>
+                          confirmCategory(ref, e, s.categoryId, s),
+                      base: base,
+                      code: code,
                     ),
+                ],
+              if (_filter.from == null && entries.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () => setState(() => _pages++),
+                    child: const Text('Show older'),
                   ),
                 ),
-                for (final line in day.lines)
-                  _ActivityRow(
-                    line: line,
-                    accounts: accounts,
-                    categoryName: categoryName,
-                    categories: categories,
-                    suggest: (e) => suggester?.suggest(e),
-                    onAccept: (e, s) =>
-                        confirmCategory(ref, e, s.categoryId, s),
-                    base: base,
-                    code: code,
-                  ),
               ],
-            if (_filter.from == null && entries.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () => setState(() => _pages++),
-                  child: Text(
-                    'Show older',
-                    style: TextStyle(color: colors.link),
-                  ),
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -330,13 +308,16 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    // A long amount with its code shrinks to fit rather than wrapping.
+    Widget figure(String text, Color color, AlignmentGeometry alignment) =>
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: Text(text, style: AppTypography.tileFigure(color)),
+        );
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.border),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -347,37 +328,44 @@ class _WeekCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Out this week', style: label),
-                      Text(
-                        code == null
-                            ? _plain(week.outMinor)
-                            : formatMoney(Money(week.outMinor, currency: code)),
-                        style: AppTypography.amount(
-                          size: code == null ? 26 : 20,
-                          color: theme.colorScheme.onSurface,
+                      figure(
+                        _orHidden(
+                          context,
+                          code == null
+                              ? _plain(week.outMinor)
+                              : formatMoney(
+                                  Money(week.outMinor, currency: code),
+                                ),
                         ),
+                        theme.colorScheme.onSurface,
+                        AlignmentDirectional.centerStart,
                       ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('In this week', style: label),
-                    Text(
-                      week.inMinor > 0
-                          ? _signed(week.inMinor, code: code)
-                          : '0',
-                      style: AppTypography.amount(
-                        size: code == null ? 26 : 20,
-                        color: colors.successText,
+                const SizedBox(width: Layout.cardGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('In this week', style: label),
+                      figure(
+                        week.inMinor > 0
+                            ? _orHidden(
+                                context,
+                                _signed(week.inMinor, code: code),
+                              )
+                            : '0',
+                        colors.successText,
+                        AlignmentDirectional.centerEnd,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
             if (code != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 'Totals are in $code, your base currency. '
                 '${_list(others)} amounts count at the rate of their day.',
@@ -440,7 +428,15 @@ class _ActivityRow extends StatelessWidget {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.warning),
         ),
         amount: _entryAmount(context, entry),
-        onTap: () => showNamePayeeSheet(context, entry),
+        onTap: () => showPayeeSheet(
+          context,
+          identifier: PayeeIdentifier.stored(
+            entry.counterpartyKind!,
+            entry.counterpartyValue!,
+          ),
+          suggestedName: entry.counterpartyName,
+          moneyIn: entry.isInflow,
+        ),
       ),
       EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
         context,
@@ -470,7 +466,7 @@ class _ActivityRow extends StatelessWidget {
       ),
       DailyNoiseLine() && final noise => _row(
         context,
-        avatar: _Avatar.icon(Icons.layers_outlined, colors: colors),
+        avatar: const IconBadge(Icons.layers_outlined),
         title: noiseTitle(noise.group),
         subtitle: Text(
           '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'} · '
@@ -507,14 +503,14 @@ class _ActivityRow extends StatelessWidget {
             : '$name? ${suggestion!.percent}%',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium!.copyWith(color: colors.link),
+        style: theme.textTheme.bodyMedium,
       ),
       amount: _entryAmount(context, entry),
       trailing: name == null
           ? null
           : IconButton(
               tooltip: 'Accept $name',
-              icon: Icon(Icons.check_circle_outline, color: colors.link),
+              icon: const Icon(Icons.check_circle_outline),
               onPressed: () => onAccept(entry, suggestion!),
             ),
       onTap: () => showCategorySuggestionSheet(
@@ -527,7 +523,10 @@ class _ActivityRow extends StatelessWidget {
   }
 
   String _categoryLabel(LedgerEntry entry) {
-    if (roleOf(entry) == LedgerRole.awaitingPayee) return 'Not named yet';
+    // Money in from someone unnamed counts once they say what it was.
+    if (roleOf(entry) == LedgerRole.awaitingPayee) {
+      return 'Gift, loan or repayment?';
+    }
     final name = categoryName(entry) ?? 'Uncategorised';
     if (entry.categoryIsAuto && entry.categoryId != null) {
       return '$name (Auto)';
@@ -578,12 +577,9 @@ class _ActivityRow extends StatelessWidget {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0;
     return Text(
-      _signed(signedMinor, code: code),
-      style: AppTypography.amount(
-        size: 18,
-        color: inflow
-            ? colors.successText
-            : Theme.of(context).colorScheme.onSurface,
+      _orHidden(context, _signed(signedMinor, code: code)),
+      style: AppTypography.rowAmount(
+        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -605,19 +601,21 @@ class _ActivityRow extends StatelessWidget {
         ? entry.amountMinor
         : entry.originalAmountMinor!;
     final signed = transfer || inflow ? ownMinor : -ownMinor;
-    final main = ownCode == null
-        ? _signed(signed, code: code)
-        : _signed(signed, code: ownCode);
-    final style = AppTypography.amount(
-      size: 18,
-      color: transfer
+    final main = _orHidden(
+      context,
+      ownCode == null
+          ? _signed(signed, code: code)
+          : _signed(signed, code: ownCode),
+    );
+    final style = AppTypography.rowAmount(
+      transfer
           ? colors.textMuted
           : inflow
           ? colors.successText
           : Theme.of(context).colorScheme.onSurface,
     );
     final under = original != null
-        ? '≈ ${formatMoney(Money(entry.amountMinor, currency: entry.currency))}'
+        ? '≈ ${_orHidden(context, formatMoney(Money(entry.amountMinor, currency: entry.currency)))}'
         : ownCode != null
         ? 'Not in totals yet'
         : null;
@@ -663,6 +661,8 @@ String _initials(String name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+/// A row's initials, or an own transfer's arrow, in a square the size and
+/// shape of an [IconBadge], and as neutral unless it asks for something.
 class _Avatar extends StatelessWidget {
   const _Avatar.text(this.text, {required this.colors, this.warning = false})
     : icon = null;
@@ -683,16 +683,18 @@ class _Avatar extends StatelessWidget {
         ? colors.warning
         : isTransfer
         ? colors.successText
-        : colors.link;
+        : Theme.of(context).colorScheme.onSurface;
     return Container(
       width: 44,
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isTransfer
-            ? colors.success.withValues(alpha: 0.12)
-            : colors.brandSoft,
-        borderRadius: BorderRadius.circular(14),
+        color: warning
+            ? colors.warningSoft
+            : isTransfer
+            ? colors.successSoft
+            : colors.border,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: icon != null
           ? Icon(icon, color: foreground, size: 22)
@@ -706,8 +708,8 @@ class _Avatar extends StatelessWidget {
 }
 
 /// After messages were read again: how many amounts moved to the currency
-/// and account their messages show. Closes with OK; See them filters to
-/// that account.
+/// and account their messages show. Its one action, See them, filters to
+/// that account and marks the note seen.
 class _FixedNote extends ConsumerWidget {
   const _FixedNote({required this.accounts, required this.onSeeThem});
 
@@ -740,18 +742,19 @@ class _FixedNote extends ConsumerWidget {
               '${notice.currency}. ${n == 1 ? 'It is' : 'They are'} now in '
               '${account.name}, counted in ${notice.currency}.'
         : '$amounts at $bank ${n == 1 ? 'is' : 'are'} now in ${account.name}.';
+    // A success Notice's box, with a title and one button.
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Container(
         key: const Key('recheck-note'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         decoration: BoxDecoration(
-          color: colors.success.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          color: colors.successSoft,
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
           border: Border.all(color: colors.success.withValues(alpha: 0.25)),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Amounts fixed from your messages',
@@ -760,23 +763,16 @@ class _FixedNote extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(body, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                FilledButton(
-                  key: const Key('recheck-see'),
-                  onPressed: () {
-                    onSeeThem(account.id);
-                    unawaited(_close(ref));
-                  },
-                  child: const Text('See them'),
-                ),
-                OutlinedButton(
-                  key: const Key('recheck-ok'),
-                  onPressed: () => _close(ref),
-                  child: const Text('OK'),
-                ),
-              ],
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: PillButton(
+                key: const Key('recheck-see'),
+                label: 'See them',
+                onPressed: () {
+                  onSeeThem(account.id);
+                  unawaited(_close(ref));
+                },
+              ),
             ),
           ],
         ),

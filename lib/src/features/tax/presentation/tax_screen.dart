@@ -2,17 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/repositories/tax_repository.dart';
 import '../../../domain/books/business_report.dart' show periodText;
 import '../../../domain/books/business_report.dart' as report;
 import '../../../domain/tax/tax_estimate.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
-import '../../security/application/balance_visibility.dart';
 import '../application/tax_providers.dart';
 
 /// Tax: what the business may owe, as an estimate from its records and the
@@ -22,17 +29,23 @@ class TaxScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(taxViewProvider).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final loaded = ref.watch(taxViewProvider);
+    final view = loaded.value;
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tax')),
       body: view == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? loaded.hasError
+                ? ErrorView(
+                    'Your tax estimate could not load.',
+                    onRetry: () => ref.invalidate(taxViewProvider),
+                  )
+                : const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
                 ...switch (view.kind) {
                   TaxKind.incomeTax => _incomeTax(context, view, plain),
@@ -78,72 +91,76 @@ class TaxScreen extends ConsumerWidget {
         caption: 'An estimate, for income to date',
       ),
       const SizedBox(height: 12),
-      _card([
-        _Row(
-          view.services ? 'Fees earned' : 'Sales',
-          plain(f.incomeMinor),
-          detail: through,
-        ),
-        _Row(
-          'Costs',
-          _minus(plain, f.costsMinor),
-          detail: f.costNames.isEmpty ? null : f.costNames.join(', '),
-        ),
-        _Row('Profit', _signed(plain, f.profitMinor)),
-        _Row(
-          'Income tax on profit',
-          plain(e.taxMinor),
-          detail: e.company
-              ? 'Company rate, from the tax pack'
-              : 'Individual rates and relief, from the tax pack',
-        ),
-      ]),
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            label: view.services ? 'Fees earned' : 'Sales',
+            value: plain(f.incomeMinor),
+            detail: through,
+          ),
+          LabelValueRow(
+            label: 'Costs',
+            value: _minus(plain, f.costsMinor),
+            detail: f.costNames.isEmpty ? null : f.costNames.join(', '),
+          ),
+          LabelValueRow(label: 'Profit', value: _signed(plain, f.profitMinor)),
+          LabelValueRow(
+            label: 'Income tax on profit',
+            value: plain(e.taxMinor),
+            detail: e.company
+                ? 'Company rate, from the tax pack'
+                : 'Individual rates and relief, from the tax pack',
+          ),
+        ],
+      ),
       const SizedBox(height: 12),
-      _card([
-        _Row(
-          'Withheld by clients',
-          _minus(plain, f.withheldMinor),
-          key: const Key('tax-withheld'),
-          detail: count == 0
-              ? 'When a client keeps back ${rateText(view.pack.withholdingRate)}'
-              : [
-                  count == 1 ? '1 payment' : '$count payments',
-                  if (missing > 0)
-                    missing == 1
-                        ? '1 certificate to collect'
-                        : '$missing certificates to collect',
-                ].join(' · '),
-          onTap: count == 0
-              ? null
-              : () => showModalBottomSheet<void>(
-                  context: context,
-                  showDragHandle: true,
-                  isScrollControlled: true,
-                  builder: (_) => const _CertificatesSheet(),
-                ),
-        ),
-        _Row(
-          'Paid to KRA',
-          _minus(plain, f.paidToKraMinor),
-          detail: 'From your KRA payment messages',
-        ),
-        _Row(
-          'Left to pay',
-          plain(e.leftMinor),
-          color: e.leftMinor > 0 ? colors.warning : colors.successText,
-          bold: true,
-        ),
-      ]),
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            label: 'Withheld by clients',
+            value: _minus(plain, f.withheldMinor),
+            key: const Key('tax-withheld'),
+            detail: count == 0
+                ? 'When a client keeps back ${rateText(view.pack.withholdingRate)}'
+                : [
+                    count == 1 ? '1 payment' : '$count payments',
+                    if (missing > 0)
+                      missing == 1
+                          ? '1 certificate to collect'
+                          : '$missing certificates to collect',
+                  ].join(' · '),
+            onTap: count == 0
+                ? null
+                : () => showAppSheet<void>(
+                    context: context,
+                    builder: (_) => const _CertificatesSheet(),
+                  ),
+          ),
+          LabelValueRow(
+            label: 'Paid to KRA',
+            value: _minus(plain, f.paidToKraMinor),
+            detail: 'From your KRA payment messages',
+          ),
+          LabelValueRow(
+            label: 'Left to pay',
+            value: plain(e.leftMinor),
+            strong: true,
+            valueColor: e.leftMinor > 0 ? colors.warning : colors.successText,
+          ),
+        ],
+      ),
       if (view.costsCount > 0) ...[
         const SizedBox(height: 12),
-        _card([
-          _Row(
-            'Costs with an eTIMS invoice',
-            '${view.etimsCount} of ${view.costsCount}',
-            key: const Key('tax-etims'),
-            detail: 'This year. Mark them on each cost in Money',
-          ),
-        ]),
+        GroupedSection(
+          children: [
+            LabelValueRow(
+              label: 'Costs with an eTIMS invoice',
+              value: '${view.etimsCount} of ${view.costsCount}',
+              key: const Key('tax-etims'),
+              detail: 'This year. Mark them on each cost in Money',
+            ),
+          ],
+        ),
       ],
       ..._sentences(context, [
         if (view.etimsCount < view.costsCount)
@@ -186,40 +203,56 @@ class TaxScreen extends ConsumerWidget {
         caption: 'An estimate, $rate of sales',
       ),
       const SizedBox(height: 12),
-      _card([
-        _Row('Sales in $lastName', plain(last.salesMinor)),
-        _Row('Turnover Tax ($rate)', plain(last.taxMinor)),
-        _Row(
-          'Paid to KRA',
-          _minus(plain, last.paidMinor),
-          detail:
-              'From your KRA payment messages since '
-              '${shortDate(now.month.firstDay)}',
-        ),
-        _Row(
-          'Left to pay for $lastName',
-          plain(last.leftMinor),
-          detail: 'Due ${shortDate(last.due)}',
-          color: last.leftMinor > 0 ? colors.warning : colors.successText,
-          bold: true,
-        ),
-      ]),
-      const SizedBox(height: 12),
-      _card([
-        _Row(
-          'Sales this month',
-          plain(now.salesMinor),
-          detail: periodText(
-            report.ReportPeriod(now.month.firstDay, view.today.addDays(1), ''),
-            thisYear: view.today.year,
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            label: 'Sales in $lastName',
+            value: plain(last.salesMinor),
           ),
-        ),
-        _Row(
-          'Turnover Tax so far',
-          plain(now.taxMinor),
-          detail: 'Due ${shortDate(now.due)}',
-        ),
-      ]),
+          LabelValueRow(
+            label: 'Turnover Tax ($rate)',
+            value: plain(last.taxMinor),
+          ),
+          LabelValueRow(
+            label: 'Paid to KRA',
+            value: _minus(plain, last.paidMinor),
+            detail:
+                'From your KRA payment messages since '
+                '${shortDate(now.month.firstDay)}',
+          ),
+          LabelValueRow(
+            label: 'Left to pay for $lastName',
+            value: plain(last.leftMinor),
+            detail: 'Due ${shortDate(last.due)}',
+            strong: true,
+            valueColor: last.leftMinor > 0
+                ? colors.warning
+                : colors.successText,
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      GroupedSection(
+        children: [
+          LabelValueRow(
+            label: 'Sales this month',
+            value: plain(now.salesMinor),
+            detail: periodText(
+              report.ReportPeriod(
+                now.month.firstDay,
+                view.today.addDays(1),
+                '',
+              ),
+              thisYear: view.today.year,
+            ),
+          ),
+          LabelValueRow(
+            label: 'Turnover Tax so far',
+            value: plain(now.taxMinor),
+            detail: 'Due ${shortDate(now.due)}',
+          ),
+        ],
+      ),
       ..._sentences(context, [
         'Sales over the last 12 months are ${plain(view.yearSalesMinor)}, '
             'inside the Turnover Tax band of '
@@ -259,43 +292,35 @@ class TaxScreen extends ConsumerWidget {
     String Function(int) plain,
   ) {
     if (view.months.isEmpty) return const [];
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-        child: Text(
-          'MONTH BY MONTH',
-          style: theme.textTheme.labelLarge!.copyWith(
-            color: colors.textMuted,
-            letterSpacing: 1,
-          ),
-        ),
+      const SectionLabel('Month by month'),
+      GroupedSection(
+        children: [
+          for (final m in view.months.reversed)
+            LabelValueRow(
+              label:
+                  '${monthName(m.month)} ${m.month.year == view.today.year ? '' : m.month.year}'
+                      .trim(),
+              value: plain(m.estimatedMinor),
+              key: Key('tax-month-${m.month}'),
+              detail: switch (m.paidMinor) {
+                null => 'An estimate, not due yet',
+                final paid when paid >= m.estimatedMinor && paid > 0 =>
+                  'Paid ${plain(paid)}',
+                0 => 'An estimate, nothing paid',
+                final paid => 'Paid ${plain(paid)}',
+              },
+            ),
+        ],
       ),
-      _card([
-        for (final m in view.months.reversed)
-          _Row(
-            '${monthName(m.month)} ${m.month.year == view.today.year ? '' : m.month.year}'
-                .trim(),
-            plain(m.estimatedMinor),
-            key: Key('tax-month-${m.month}'),
-            detail: switch (m.paidMinor) {
-              null => 'An estimate, not due yet',
-              final paid when paid >= m.estimatedMinor && paid > 0 =>
-                'Paid ${plain(paid)}',
-              0 => 'An estimate, nothing paid',
-              final paid => 'Paid ${plain(paid)}',
-            },
-          ),
-      ]),
     ];
   }
 
   static String _minus(String Function(int) plain, int minor) =>
-      minor == 0 ? plain(0) : '− ${plain(minor)}';
+      minor == 0 ? plain(0) : '-${plain(minor)}';
 
   static String _signed(String Function(int) plain, int minor) =>
-      minor < 0 ? '− ${plain(-minor)}' : plain(minor);
+      minor < 0 ? '-${plain(-minor)}' : plain(minor);
 
   static String _names(List<String> names) => names.length == 1
       ? names.single
@@ -311,15 +336,17 @@ class TaxScreen extends ConsumerWidget {
       const SizedBox(height: 12),
       Card(
         key: const Key('tax-sentences'),
-        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             children: [
               for (final (i, l) in lines.indexed) ...[
                 if (i > 0) const Divider(height: 1),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.only(
+                    top: i > 0 ? 12 : 0,
+                    bottom: i < lines.length - 1 ? 12 : 0,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -347,75 +374,6 @@ class TaxScreen extends ConsumerWidget {
   }
 }
 
-Widget _card(List<Widget> rows) => Card(
-  margin: EdgeInsets.zero,
-  child: Column(
-    children: [
-      for (final (i, r) in rows.indexed) ...[
-        if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-        r,
-      ],
-    ],
-  ),
-);
-
-class _Row extends StatelessWidget {
-  const _Row(
-    this.name,
-    this.amount, {
-    this.detail,
-    this.color,
-    this.bold = false,
-    this.onTap,
-    super.key,
-  });
-
-  final String name;
-  final String amount;
-  final String? detail;
-  final Color? color;
-  final bool bold;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final style = theme.textTheme.titleMedium!.copyWith(
-      fontWeight: bold ? FontWeight.w700 : null,
-    );
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: style),
-                  if (detail case final d?) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      d,
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(amount, style: style.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _Settings extends ConsumerWidget {
   const _Settings(this.view);
 
@@ -430,70 +388,45 @@ class _Settings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
+    final shares = {
+      view.suggestedShare,
+      150,
+      300,
+      500,
+      1000,
+      1500,
+      2000,
+      3000,
+    }.toList()..sort();
     return Card(
-      margin: EdgeInsets.zero,
       child: Column(
         children: [
           ListTile(
-            key: const Key('tax-file-as'),
             title: const Text('You file as'),
-            subtitle: Text(
-              'Changes the rates used',
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: colors.textMuted,
-              ),
+            subtitle: Text('Changes the rates used', style: muted),
+            trailing: ChoiceMenu<bool>(
+              key: const Key('tax-file-as'),
+              name: 'You file as',
+              options: const [(false, 'Individual'), (true, 'Company')],
+              value: settings.company,
+              itemKey: (company) =>
+                  Key('file-as-${company ? 'Company' : 'Individual'}'),
+              onChanged: (company) =>
+                  _save(ref, settings.copyWith(company: company)),
             ),
-            trailing: Text(
-              settings.company ? 'Company' : 'Individual',
-              style: theme.textTheme.titleMedium,
-            ),
-            onTap: () async {
-              final company = await showModalBottomSheet<bool>(
-                context: context,
-                showDragHandle: true,
-                builder: (context) => SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (value, label, detail) in [
-                        (false, 'Individual', 'Individual rates and relief'),
-                        (true, 'Company', 'The company rate'),
-                      ])
-                        ListTile(
-                          key: Key('file-as-$label'),
-                          title: Text(label),
-                          subtitle: Text(detail),
-                          trailing: settings.company == value
-                              ? const Icon(Icons.check)
-                              : null,
-                          onTap: () => Navigator.pop(context, value),
-                        ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              );
-              if (company == null) return;
-              await _save(ref, settings.copyWith(company: company));
-            },
           ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          SwitchListTile(
+          const Divider(height: 1),
+          SwitchListTile.adaptive(
             key: const Key('tax-set-aside'),
             title: const Text('Set aside for tax'),
-            subtitle: Text(
-              switch (settings.setAside) {
-                null =>
-                  'Keep ${rateText(view.suggestedShare)} of money in aside',
-                final rate =>
-                  '${rateText(rate)} of money in · '
-                      '${formatMoney(Money(view.setAsideMinor ?? 0), withCurrency: false)} '
-                      'this year',
-              },
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
+            subtitle: Text(switch (settings.setAside) {
+              null => 'Keep ${rateText(view.suggestedShare)} of money in aside',
+              final rate =>
+                '${rateText(rate)} of money in · '
+                    '${shownMoney(context, view.setAsideMinor ?? 0, withCurrency: false)} '
+                    'this year',
+            }, style: muted),
             value: settings.setAside != null,
             onChanged: (on) => _save(
               ref,
@@ -504,51 +437,23 @@ class _Settings extends ConsumerWidget {
           ),
           if (settings.setAside case final rate?)
             ListTile(
-              key: const Key('tax-set-aside-share'),
               title: const Text('Share kept aside'),
-              trailing: Text(
-                rateText(rate),
-                style: theme.textTheme.titleMedium,
+              subtitle: Text(
+                'Your records suggest ${rateText(view.suggestedShare)}',
+                style: muted,
               ),
-              onTap: () async {
-                final shares = {
-                  view.suggestedShare,
-                  150,
-                  300,
-                  500,
-                  1000,
-                  1500,
-                  2000,
-                  3000,
-                }.toList()..sort();
-                final picked = await showModalBottomSheet<int>(
-                  context: context,
-                  showDragHandle: true,
-                  builder: (context) => SafeArea(
-                    child: Wrap(
-                      children: [
-                        for (final share in shares)
-                          ListTile(
-                            key: Key('set-aside-$share'),
-                            title: Text(rateText(share)),
-                            subtitle: share == view.suggestedShare
-                                ? const Text('Suggested from your records')
-                                : null,
-                            trailing: share == rate
-                                ? const Icon(Icons.check)
-                                : null,
-                            onTap: () => Navigator.pop(context, share),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-                if (picked == null) return;
-                await _save(ref, settings.copyWith(setAside: () => picked));
-              },
+              trailing: ChoiceMenu<int>(
+                key: const Key('tax-set-aside-share'),
+                name: 'Share kept aside',
+                options: [for (final share in shares) (share, rateText(share))],
+                value: rate,
+                itemKey: (share) => Key('set-aside-$share'),
+                onChanged: (share) =>
+                    _save(ref, settings.copyWith(setAside: () => share)),
+              ),
             ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          SwitchListTile(
+          const Divider(height: 1),
+          SwitchListTile.adaptive(
             key: const Key('tax-vat'),
             title: const Text('VAT registered'),
             value: settings.vatRegistered,
@@ -565,7 +470,7 @@ class _CertificatesSheet extends ConsumerWidget {
   const _CertificatesSheet();
 
   Future<void> _edit(BuildContext context, WidgetRef ref, Withheld w) async {
-    final number = await showDialog<String>(
+    final number = await showAdaptiveDialog<String>(
       context: context,
       builder: (context) => _CertificateDialog(w),
     );
@@ -580,38 +485,29 @@ class _CertificatesSheet extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final view = ref.watch(taxViewProvider).value;
     final withheld = view?.withheld ?? const <Withheld>[];
-    String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Withheld by clients', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            for (final w in withheld.reversed)
-              ListTile(
-                key: Key('withheld-${w.id}'),
-                contentPadding: EdgeInsets.zero,
-                title: Text('${w.person} · ${plain(w.amountMinor)}'),
-                subtitle: Text(
-                  w.certificate == null
-                      ? '${shortDate(CalendarDate.local(w.at))} · add the '
-                            'certificate number'
-                      : '${shortDate(CalendarDate.local(w.at))} · '
-                            'certificate ${w.certificate}',
-                  style: TextStyle(color: colors.textMuted),
-                ),
-                trailing: Text(
-                  w.certificate == null ? 'Add' : 'Edit',
-                  style: TextStyle(color: colors.link),
-                ),
-                onTap: () => _edit(context, ref, w),
+    String plain(int minor) => shownMoney(context, minor, withCurrency: false);
+    return SheetBody(
+      title: 'Withheld by clients',
+      children: [
+        for (final w in withheld.reversed)
+          ListTile(
+            key: Key('withheld-${w.id}'),
+            contentPadding: EdgeInsets.zero,
+            title: Text('${w.person} · ${plain(w.amountMinor)}'),
+            subtitle: Text(
+              w.certificate == null
+                  ? '${shortDate(CalendarDate.local(w.at))} · add the '
+                        'certificate number'
+                  : '${shortDate(CalendarDate.local(w.at))} · '
+                        'certificate ${w.certificate}',
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: colors.textMuted,
               ),
-          ],
-        ),
-      ),
+            ),
+            trailing: TrailingLink(w.certificate == null ? 'Add' : 'Edit'),
+            onTap: () => _edit(context, ref, w),
+          ),
+      ],
     );
   }
 }
@@ -637,7 +533,7 @@ class _CertificateDialogState extends State<_CertificateDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => AlertDialog.adaptive(
     title: Text('Certificate from ${widget.withheld.person}'),
     content: TextField(
       key: const Key('certificate-number'),
@@ -646,11 +542,11 @@ class _CertificateDialogState extends State<_CertificateDialog> {
       decoration: const InputDecoration(labelText: 'Certificate number'),
     ),
     actions: [
-      TextButton(
+      DialogAction(
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      TextButton(
+      DialogAction(
         key: const Key('certificate-save'),
         onPressed: () => Navigator.pop(context, _number.text),
         child: const Text('Save'),

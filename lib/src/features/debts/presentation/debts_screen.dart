@@ -11,11 +11,15 @@ import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/debts_overview_provider.dart';
+import 'debt_row.dart';
 import 'debt_sheet.dart';
 
 export '../../../domain/time/date_labels.dart' show monthLabel;
@@ -26,7 +30,8 @@ class DebtsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final overview = ref.watch(debtsOverviewProvider).value;
+    final state = ref.watch(debtsOverviewProvider);
+    final overview = state.value;
 
     return Scaffold(
       appBar: AppBar(
@@ -36,33 +41,46 @@ class DebtsScreen extends ConsumerWidget {
         ),
         actions: [
           if (overview != null)
-            IconButton(
+            AddButton(
               tooltip: 'Add a debt',
-              icon: const Icon(Icons.add),
               onPressed: () => showDebtSheet(context, today: overview.today),
             ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
         ],
       ),
       body: overview == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? state.hasError
+                ? ErrorView(
+                    'Your debts could not load.',
+                    onRetry: () => refreshDebts(
+                      ProviderScope.containerOf(context, listen: false),
+                    ),
+                  )
+                : const LoadingView()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(
+                Layout.gutter,
+                8,
+                Layout.gutter,
+                Layout.screenBottom,
+              ),
               children: [
                 if (overview.debts.isEmpty)
-                  _NoDebtsYet(overview)
+                  const _NoDebtsYet()
                 else ...[
                   _RemainingCard(overview),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Layout.cardGap),
                   _StrategyPicker(overview),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Layout.cardGap),
                   _DebtList(overview),
                 ],
                 if (overview.fuliza case final fuliza?) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Layout.cardGap),
                   _FulizaCard(fuliza),
                 ],
                 if (overview.debts.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Layout.cardGap),
                   _WhatIfCard(overview),
                 ],
               ],
@@ -72,29 +90,15 @@ class DebtsScreen extends ConsumerWidget {
 }
 
 class _NoDebtsYet extends StatelessWidget {
-  const _NoDebtsYet(this.overview);
-
-  final DebtsOverview overview;
+  const _NoDebtsYet();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const HeroFigureCard(
-          label: 'Debt-free by',
-          figure: '—',
-          caption:
-              'Add loans, cards, Fuliza or money from family to see the '
-              'month you will be debt-free.',
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: () => showDebtSheet(context, today: overview.today),
-          icon: const Icon(Icons.add),
-          label: const Text('Add a debt'),
-        ),
-      ],
+    return const HeroFigureCard(
+      label: 'Debt-free by',
+      caption:
+          'Add loans, cards, Fuliza or money from family to see the '
+          'month you will be debt-free.',
     );
   }
 }
@@ -106,42 +110,12 @@ class _RemainingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final muted = scheme.onPrimary.withValues(alpha: 0.85);
-    final plan = overview.plan;
-
-    return Card(
-      color: scheme.primary,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius + 4),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Remaining',
-              style: textTheme.bodyMedium!.copyWith(color: muted),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              formatMoney(Money(overview.remainingMinor)),
-              style: AppTypography.amount(
-                size: 34,
-                weight: FontWeight.w700,
-                color: scheme.onPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _planSummary(overview, plan),
-              style: textTheme.bodyMedium!.copyWith(color: muted),
-            ),
-          ],
-        ),
-      ),
+    return HeroFigureCard(
+      label: 'Remaining',
+      figure: shownMoney(context, overview.remainingMinor, withCurrency: true),
+      caption: _planSummary(overview, overview.plan),
+      // The app bar has the eye.
+      showEye: false,
     );
   }
 }
@@ -221,17 +195,22 @@ class _DebtList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final debts = overview.debts;
     final custom = overview.preference.strategy == PayoffStrategy.custom;
-    Widget row(Debt debt, int index) => _DebtRow(
+    Widget row(Debt debt, int index) => Column(
       key: ValueKey(debt.id),
-      debt: debt,
-      payoff: overview.plan.debt(debt.id),
-      paidFraction: overview.paidFraction(debt),
-      showDivider: index < debts.length - 1,
-      onTap: () => showDebtSheet(context, today: overview.today, debt: debt),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _DebtItem(
+          debt: debt,
+          payoff: overview.plan.debt(debt.id),
+          paidFraction: overview.paidFraction(debt),
+          onTap: () =>
+              showDebtSheet(context, today: overview.today, debt: debt),
+        ),
+        if (index < debts.length - 1) const Divider(height: 1),
+      ],
     );
 
     return Card(
-      margin: EdgeInsets.zero,
       child: custom
           ? ReorderableListView.builder(
               shrinkWrap: true,
@@ -265,25 +244,21 @@ class _DebtList extends ConsumerWidget {
   }
 }
 
-class _DebtRow extends StatelessWidget {
-  const _DebtRow({
+class _DebtItem extends StatelessWidget {
+  const _DebtItem({
     required this.debt,
     required this.payoff,
     required this.paidFraction,
-    required this.showDivider,
     required this.onTap,
-    super.key,
   });
 
   final Debt debt;
   final DebtPayoff payoff;
   final double paidFraction;
-  final bool showDivider;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final cleared = payoff.paidOffIn;
 
@@ -293,66 +268,20 @@ class _DebtRow extends StatelessWidget {
       else
         'Interest-free',
       if (debt.minimumPaymentMinor > 0)
-        '${formatMoney(Money(debt.minimumPaymentMinor), withCurrency: false)}'
+        '${shownMoney(context, debt.minimumPaymentMinor, withCurrency: false)}'
             ' a month',
       if (cleared != null) 'cleared ${monthLabel(cleared)}',
     ].join(' · ');
 
-    return InkWell(
+    return DebtRow(
+      name: debt.lender,
+      amount: shownMoney(context, debt.balanceMinor, withCurrency: false),
+      paidFraction: paidFraction,
+      caption: cleared == null
+          ? '$details · needs more than the minimum'
+          : details,
+      captionColor: cleared == null ? colors.warning : null,
       onTap: onTap,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        debt.lender,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    ),
-                    Text(
-                      formatMoney(
-                        Money(debt.balanceMinor),
-                        withCurrency: false,
-                      ),
-                      style: AppTypography.amount(
-                        size: 17,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: paidFraction,
-                    minHeight: 6,
-                    color: theme.colorScheme.primary,
-                    backgroundColor: colors.brandSoft,
-                    semanticsLabel: '${(paidFraction * 100).floor()}% paid',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  cleared == null
-                      ? '$details · needs more than the minimum'
-                      : details,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    color: cleared == null ? colors.warning : colors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (showDivider) const Divider(height: 1, indent: 18, endIndent: 18),
-        ],
-      ),
     );
   }
 }
@@ -371,25 +300,16 @@ class _FulizaCard extends StatelessWidget {
     final days = fuliza.daysOverdrawn == 1
         ? '1 day overdrawn'
         : '${fuliza.daysOverdrawn} days overdrawn';
-    final fees = formatMoney(Money(usage.feesMinor), withCurrency: false);
+    final fees = shownMoney(context, usage.feesMinor, withCurrency: false);
 
     return Card(
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: colors.brandSoft,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.phone_android, color: colors.link),
-            ),
-            const SizedBox(width: 14),
+            const IconBadge(Icons.phone_android_outlined),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,9 +329,7 @@ class _FulizaCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'More than last month. Clearing it sooner saves fees.',
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.link,
-                      ),
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ],
@@ -463,9 +381,8 @@ class _WhatIfCardState extends State<_WhatIfCard> {
     );
 
     return Card(
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -478,11 +395,8 @@ class _WhatIfCardState extends State<_WhatIfCard> {
                   ),
                 ),
                 Text(
-                  '+${formatMoney(Money(extra), withCurrency: false)}',
-                  style: AppTypography.amount(
-                    size: 17,
-                    color: theme.colorScheme.onSurface,
-                  ),
+                  '+${shownMoney(context, extra, withCurrency: false)}',
+                  style: AppTypography.rowAmount(theme.colorScheme.onSurface),
                 ),
               ],
             ),
@@ -490,7 +404,7 @@ class _WhatIfCardState extends State<_WhatIfCard> {
               value: _steps.toDouble(),
               max: _maxSteps.toDouble(),
               divisions: _maxSteps,
-              label: formatMoney(Money(extra), withCurrency: false),
+              label: shownMoney(context, extra, withCurrency: false),
               onChanged: (v) => setState(() => _steps = v.round()),
             ),
             Text(

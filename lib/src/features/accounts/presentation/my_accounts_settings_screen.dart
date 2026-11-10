@@ -4,14 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../core/money/money.dart';
-import '../../../data/database/app_database.dart';
+import '../../../data/database/app_database.dart' hide Tag;
 import '../../../domain/accounts/account_reference.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../currency/application/currency_controller.dart';
-import '../../sales/presentation/pay_sheet.dart' show InfoNote;
 import '../domain/institution.dart';
 import 'account_currency_screen.dart';
 
@@ -26,7 +27,8 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final base =
         ref.watch(currencyControllerProvider).value?.base ?? BaseCurrency.code;
-    final accounts = [...?ref.watch(activityAccountsProvider).value?.values]
+    final loaded = ref.watch(activityAccountsProvider);
+    final accounts = [...?loaded.value?.values]
       ..sort((a, b) => a.id.compareTo(b.id));
     final institutions = {
       for (final i in ref.watch(institutionCatalogueProvider)) i.id: i,
@@ -39,50 +41,59 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
           child: const Text('My accounts'),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        children: [
-          Text(
-            'Each amount keeps the currency its message shows. Totals add '
-            'them up in your base currency, $base.',
-            style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
-          ),
-          if (accounts.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Column(
-                children: [
-                  for (final (i, account) in accounts.indexed) ...[
-                    if (i > 0) const Divider(height: 1),
-                    _AccountRow(
-                      account: account,
-                      from: _fromLine(account, institutions),
+      body: !loaded.hasValue
+          ? loaded.hasError
+                ? ErrorView(
+                    'Your accounts could not load.',
+                    onRetry: () => ref.invalidate(activityAccountsProvider),
+                  )
+                : const LoadingView()
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                Text(
+                  'Each amount keeps the currency its message shows. Totals add '
+                  'them up in your base currency, $base.',
+                  style: theme.textTheme.bodyLarge!.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+                if (accounts.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Column(
+                      children: [
+                        for (final (i, account) in accounts.indexed) ...[
+                          if (i > 0) const Divider(height: 1),
+                          _AccountRow(
+                            account: account,
+                            from: _fromLine(account, institutions),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
                 ],
-              ),
+                const SizedBox(height: 12),
+                const Notice(
+                  'Accounts at the same bank are told apart by the account number '
+                  'in their messages. Each counts in the currency its messages '
+                  'show.',
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Semantics(
+                    identifier: SemanticIds.myAccountsChoose,
+                    child: ListTile(
+                      key: const Key('choose-accounts'),
+                      title: const Text('Add or remove accounts'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push(AppRoutes.chooseAccounts),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-          const SizedBox(height: 12),
-          const InfoNote(
-            'Accounts at the same bank are told apart by the account number '
-            'in their messages. Each counts in the currency its messages '
-            'show.',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Semantics(
-              identifier: SemanticIds.myAccountsChoose,
-              child: ListTile(
-                key: const Key('choose-accounts'),
-                title: const Text('Add or remove accounts'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push(AppRoutes.chooseAccounts),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -136,21 +147,9 @@ class _AccountRow extends StatelessWidget {
             Semantics(
               label: '${account.name} counts in $name, from its messages',
               excludeSemantics: true,
-              child: Container(
+              child: Tag(
+                account.currency,
                 key: Key('account-currency-${account.id}'),
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: colors.border.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  account.currency,
-                  style: theme.textTheme.labelLarge!.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
               ),
             )
           else
@@ -173,12 +172,7 @@ class _AccountRow extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      account.currency,
-                      style: theme.textTheme.labelLarge!.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text(account.currency, style: theme.textTheme.labelLarge),
                     const SizedBox(width: 2),
                     Icon(
                       Icons.arrow_drop_down,

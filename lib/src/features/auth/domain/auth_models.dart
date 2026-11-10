@@ -159,7 +159,7 @@ class AuthFailure implements Exception {
     AuthFailureKind.network =>
       'Could not reach Pesa Clarity. Check your connection and try again.',
     AuthFailureKind.invalidEmail =>
-      'Enter your email address, for example name@example.com.',
+      'Enter your email address, such as name@example.com.',
     AuthFailureKind.rateLimited =>
       'Too many codes requested. Try again in an hour.',
     AuthFailureKind.invalidCode =>

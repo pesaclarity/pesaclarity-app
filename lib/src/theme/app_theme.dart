@@ -137,6 +137,8 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
+        // Keeps a tap's ripple inside the rounded corners.
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
           side: BorderSide(color: colors.border),
@@ -150,10 +152,13 @@ abstract final class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         ),
       ),
+      // Red is kept for the lead card and the one main button on a
+      // screen; every other button and link is in the text colour.
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: minTouch,
           shape: pill,
+          foregroundColor: scheme.onSurface,
           side: BorderSide(color: colors.border),
           textStyle: textTheme.labelLarge,
         ),
@@ -161,7 +166,7 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           minimumSize: minTouch,
-          foregroundColor: colors.link,
+          foregroundColor: scheme.onSurface,
           textStyle: textTheme.labelLarge,
         ),
       ),

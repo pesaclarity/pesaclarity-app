@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/reader/message_reading.dart';
@@ -11,6 +9,8 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../application/review_draft.dart';
@@ -25,38 +25,45 @@ class ReviewInboxScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final items = ref.watch(pendingReviewProvider).value ?? const [];
-    final muted = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    final pending = ref.watch(pendingReviewProvider);
+    final items = pending.value ?? const [];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages to check')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        children: [
-          Text(
-            'New wording from your accounts. Check each one once and Pesa '
-            'Clarity reads it next time.',
-            style: muted,
-          ),
-          const SizedBox(height: 12),
-          if (items.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Text(
-                'All checked. New wording shows up here.',
-                textAlign: TextAlign.center,
-                style: muted,
-              ),
-            )
-          else
-            GroupedSection(
-              footer:
-                  'The message text stays encrypted on this phone and is '
-                  'deleted once you check it.',
-              children: [for (final item in items) _ItemTile(item)],
-            ),
-        ],
+      appBar: AppBar(
+        title: const Text('Messages to check'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
       ),
+      body: switch (pending) {
+        AsyncValue(hasValue: false, hasError: true) => ErrorView(
+          'Messages to check could not load.',
+          onRetry: () => ref.invalidate(pendingReviewProvider),
+        ),
+        AsyncValue(hasValue: false) => const LoadingView(),
+        _ => ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Text(
+              'New wording from your accounts. Check each one once and Pesa '
+              'Clarity reads it next time.',
+              style: theme.textTheme.bodyLarge!.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              const EmptyNote(
+                'All checked. Messages with new wording show here.',
+              )
+            else
+              GroupedSection(
+                footer:
+                    'The message text stays encrypted on this phone and is '
+                    'deleted once you check it.',
+                children: [for (final item in items) _ItemTile(item)],
+              ),
+          ],
+        ),
+      },
     );
   }
 }
@@ -67,12 +74,12 @@ String _initials(String name) {
 }
 
 /// "Money out · 1,250 to Example Grocers", or null when nothing was read.
-String? suggestionLabel(ReviewDraft draft) {
-  if (draft.kind == MessageKind.notTransaction) return 'Not a transaction';
+String? suggestionLabel(ReviewDraft draft, {bool hidden = false}) {
+  if (draft.kind == MessageKind.notTransaction) return 'A notice';
   final amount = draft.amountMinor;
   if (amount == null) return null;
   final out = draft.kind == MessageKind.moneyOut;
-  final money = formatMoney(Money(amount), withCurrency: false);
+  final money = moneyOrHidden(hidden: hidden, amount, withCurrency: false);
   final party = draft.counterparty;
   return '${out ? 'Money out' : 'Money in'} · $money'
       '${party == null ? '' : '${out ? ' to' : ' from'} $party'}';
@@ -95,7 +102,10 @@ class _ItemTile extends ConsumerWidget {
     final reading = ref.watch(reviewReadingProvider(item.id));
     final suggestion = reading == null
         ? null
-        : suggestionLabel(ReviewDraft.fromReading(reading));
+        : suggestionLabel(
+            ReviewDraft.fromReading(reading),
+            hidden: AmountsHidden.of(context),
+          );
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final day = CalendarDate.local(item.receivedAt);
     final when = day == today
@@ -106,7 +116,7 @@ class _ItemTile extends ConsumerWidget {
     return ListTile(
       key: Key('review-item-${item.id}'),
       leading: CircleAvatar(
-        backgroundColor: colors.warning.withValues(alpha: 0.14),
+        backgroundColor: colors.warningSoft,
         foregroundColor: colors.warning,
         child: Text(_initials(name)),
       ),

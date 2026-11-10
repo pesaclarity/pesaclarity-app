@@ -288,7 +288,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('look-fields-boxed')));
     await settleFrames(tester);
-    await tester.ensureVisible(find.byKey(const Key('look-theme-dark')));
+    await tester.tap(find.byKey(const Key('look-theme')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('look-theme-dark')));
     await settleFrames(tester);
     expect(find.text('Dark theme · boxed fields'), findsOneWidget);

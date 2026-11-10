@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/widgets/selector_field.dart';
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../application/app_lock_controller.dart';
 import '../data/biometric_authenticator.dart';
 import '../domain/lock_settings.dart';
@@ -21,25 +22,15 @@ class SecuritySettingsCard extends ConsumerWidget {
     final controller = ref.read(appLockControllerProvider.notifier);
     final biometricAvailable =
         ref.watch(biometricAvailableProvider).value ?? false;
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-          child: Text(
-            'SECURITY',
-            style: theme.textTheme.labelMedium!.copyWith(
-              color: PesaColors.of(context).textMuted,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ),
+        const SectionLabel('Security'),
         Card(
           child: Column(
             children: [
-              CheckboxListTile(
+              SwitchListTile.adaptive(
                 title: const Text('App lock'),
                 subtitle: Text(
                   settings.pinSet
@@ -48,25 +39,33 @@ class SecuritySettingsCard extends ConsumerWidget {
                 ),
                 value: settings.pinSet,
                 onChanged: (on) =>
-                    on! ? _turnOn(context, ref) : _turnOff(context, ref),
+                    on ? _turnOn(context, ref) : _turnOff(context, ref),
               ),
               if (settings.pinSet) ...[
                 const Divider(height: 1),
-                CheckboxListTile(
+                SwitchListTile.adaptive(
                   title: const Text('Fingerprint unlock'),
                   subtitle: biometricAvailable
                       ? null
                       : const Text('Add a fingerprint in phone settings first'),
                   value: settings.biometricEnabled,
                   onChanged: biometricAvailable || settings.biometricEnabled
-                      ? (on) => controller.setBiometricEnabled(on!)
+                      ? controller.setBiometricEnabled
                       : null,
                 ),
                 const Divider(height: 1),
                 ListTile(
                   title: const Text('Lock after'),
-                  trailing: Text(lockAfterLabel(settings.lockAfter)),
-                  onTap: () => _pickLockAfter(context, ref, settings.lockAfter),
+                  trailing: ChoiceMenu<Duration>(
+                    key: const Key('lock-after'),
+                    name: 'Lock after',
+                    options: [
+                      for (final option in LockSettings.lockAfterChoices)
+                        (option, lockAfterLabel(option)),
+                    ],
+                    value: settings.lockAfter,
+                    onChanged: controller.setLockAfter,
+                  ),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -76,10 +75,14 @@ class SecuritySettingsCard extends ConsumerWidget {
                 ),
               ],
               const Divider(height: 1),
-              CheckboxListTile(
+              SwitchListTile.adaptive(
                 title: const Text('Hide balances on open'),
+                subtitle: const Text(
+                  'Tap the eye on any screen to show or hide them. Selling '
+                  'and forms always show amounts.',
+                ),
                 value: settings.hideBalancesOnOpen,
-                onChanged: (on) => controller.setHideBalancesOnOpen(on!),
+                onChanged: controller.setHideBalancesOnOpen,
               ),
             ],
           ),
@@ -92,14 +95,14 @@ class SecuritySettingsCard extends ConsumerWidget {
     final pin = await _push<String>(context, const ChoosePinScreen());
     if (pin == null) return;
     await ref.read(appLockControllerProvider.notifier).setPin(pin);
-    if (context.mounted) _say(context, 'App lock is on.');
+    if (context.mounted) showNote(context, 'App lock is on.');
   }
 
   Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
     final confirmed = await _push<bool>(context, const ConfirmPinScreen());
     if (confirmed != true) return;
     await ref.read(appLockControllerProvider.notifier).removePin();
-    if (context.mounted) _say(context, 'App lock is off.');
+    if (context.mounted) showNote(context, 'App lock is off.');
   }
 
   Future<void> _changePin(BuildContext context, WidgetRef ref) async {
@@ -108,33 +111,11 @@ class SecuritySettingsCard extends ConsumerWidget {
     final pin = await _push<String>(context, const ChoosePinScreen());
     if (pin == null) return;
     await ref.read(appLockControllerProvider.notifier).setPin(pin);
-    if (context.mounted) _say(context, 'PIN changed.');
-  }
-
-  Future<void> _pickLockAfter(
-    BuildContext context,
-    WidgetRef ref,
-    Duration current,
-  ) async {
-    final choice = await pickOne<Duration>(
-      context,
-      title: 'Lock after',
-      options: [
-        for (final option in LockSettings.lockAfterChoices)
-          (option, lockAfterLabel(option)),
-      ],
-      selected: current,
-    );
-    if (choice != null) {
-      await ref.read(appLockControllerProvider.notifier).setLockAfter(choice);
-    }
+    if (context.mounted) showNote(context, 'PIN changed.');
   }
 
   Future<T?> _push<T>(BuildContext context, Widget screen) => Navigator.of(
     context,
     rootNavigator: true,
   ).push<T>(MaterialPageRoute(builder: (_) => screen, fullscreenDialog: true));
-
-  void _say(BuildContext context, String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }

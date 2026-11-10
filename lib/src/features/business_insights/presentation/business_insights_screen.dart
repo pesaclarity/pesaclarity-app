@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../tax/application/tax_providers.dart';
 import '../application/business_report_providers.dart';
 
@@ -39,55 +41,46 @@ class BusinessInsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final range = ref.watch(insightsRangeProvider);
     final today = CalendarDate.local(ref.watch(clockProvider)());
     final period = periodFor(range, today);
-    final report = ref.watch(businessReportProvider(period)).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final loaded = ref.watch(businessReportProvider(period));
+    final report = loaded.value;
+    final hidden = AmountsHidden.of(context);
     String plain(int minor) =>
-        hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+        moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    identifier: SemanticIds.titleInsights,
-                    child: Text(
-                      'How it is doing',
-                      style: theme.textTheme.headlineLarge,
-                    ),
-                  ),
-                ),
-                TextButton(
+            TabHeader(
+              'Insights',
+              semanticsId: SemanticIds.titleBusinessInsights,
+              actions: [
+                PillButton(
                   key: const Key('insights-full-records'),
+                  label: 'Full records',
                   onPressed: () => context.push(AppRoutes.fullRecords),
-                  child: Text(
-                    'Full records',
-                    style: TextStyle(color: colors.link),
-                  ),
                 ),
+                const AmountsEye(),
               ],
             ),
-            const SizedBox(height: 12),
             RangeMenu(
               selected: range,
               onSelected: (r) =>
                   ref.read(insightsRangeProvider.notifier).set(r),
             ),
             const SizedBox(height: 16),
-            if (report == null)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator.adaptive()),
+            if (report == null && loaded.hasError)
+              ErrorView(
+                'Your figures could not load.',
+                onRetry: () => ref.invalidate(businessReportProvider(period)),
               )
+            else if (report == null)
+              const LoadingView(inList: true)
             else ...[
               _ProfitCard(report, range: range, plain: plain),
               if (report.byWay.isNotEmpty) ...[
@@ -102,7 +95,11 @@ class BusinessInsightsScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _SalesByDay(report.byWeekday),
               ],
-              if (report.insights.isNotEmpty) ...[
+              // A best day or a share of sales means little from a few
+              // days, so the sentences wait for two weeks of sales.
+              if (_salesDays(report) < _sentencesAfterDays)
+                const EmptyNote('Insights show after two weeks of sales.')
+              else if (report.insights.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _Sentences(report.insights),
               ],
@@ -122,7 +119,15 @@ class BusinessInsightsScreen extends ConsumerWidget {
   }
 }
 
-/// This month, Last month and 3 months, and Pick dates with [onCustom], as
+/// Days of sales in a period before Insights says anything about them,
+/// such as the best day.
+const _sentencesAfterDays = 14;
+
+/// The days in [report]'s period that have sales.
+int _salesDays(BusinessReport report) =>
+    report.byDay.where((sold) => sold > 0).length;
+
+/// This month, Last month and 3 months, and Choose dates with [onCustom], as
 /// a drop-down keyed `range`. Its rows are keyed `range-<name>` and
 /// `range-dates`.
 class RangeMenu extends StatelessWidget {
@@ -137,10 +142,10 @@ class RangeMenu extends StatelessWidget {
   final ReportRange? selected;
   final ValueChanged<ReportRange> onSelected;
 
-  /// Whether "Pick dates" is the one chosen.
+  /// Whether "Choose dates" is the one chosen.
   final bool custom;
 
-  /// Opens the dates to pick, each time "Pick dates" is chosen.
+  /// Opens the dates to choose, each time "Choose dates" is chosen.
   final VoidCallback? onCustom;
 
   @override
@@ -151,7 +156,7 @@ class RangeMenu extends StatelessWidget {
       name: 'Period',
       options: [
         for (final r in ReportRange.values) (r, r.label),
-        if (onCustom != null) (null, 'Pick dates'),
+        if (onCustom != null) (null, 'Choose dates'),
       ],
       value: custom ? null : selected,
       itemKey: (r) => Key('range-${r?.name ?? 'dates'}'),
@@ -191,9 +196,8 @@ class _ProfitCard extends StatelessWidget {
     };
     return Card(
       key: const Key('insights-profit'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -205,12 +209,8 @@ class _ProfitCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${BaseCurrency.code} ${profit < 0 ? '−' : ''}'
-              '${plain(profit.abs())}',
-              style: AppTypography.amount(
-                size: 32,
-                color: theme.colorScheme.onSurface,
-              ),
+              '${profit < 0 ? '-' : ''}${plain(profit.abs())}',
+              style: AppTypography.headlineFigure(theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 4),
             Text(
@@ -230,18 +230,6 @@ class _ProfitCard extends StatelessWidget {
   }
 }
 
-class _CardTitle extends StatelessWidget {
-  const _CardTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-  );
-}
-
 class _HowPeoplePay extends StatelessWidget {
   const _HowPeoplePay(this.report, {required this.plain});
 
@@ -257,13 +245,12 @@ class _HowPeoplePay extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
     return Card(
       key: const Key('insights-ways'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _CardTitle('How people pay'),
+            const SectionTitle('How people pay', padding: _cardTitlePadding),
             for (final MapEntry(:key, :value) in ways)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -329,17 +316,19 @@ class _BestSellers extends StatelessWidget {
     final colors = PesaColors.of(context);
     return Card(
       key: const Key('insights-best-sellers'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _CardTitle('Best sellers'),
+            const SectionTitle('Best sellers', padding: _cardTitlePadding),
             for (final (i, s) in report.bestSellers.indexed) ...[
               if (i > 0) const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.only(
+                  top: i > 0 ? 10 : 0,
+                  bottom: i < report.bestSellers.length - 1 ? 10 : 0,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -362,7 +351,9 @@ class _BestSellers extends StatelessWidget {
                     ),
                     Text(
                       plain(s.amountMinor),
-                      style: theme.textTheme.titleMedium,
+                      style: AppTypography.rowAmount(
+                        theme.colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
@@ -400,13 +391,12 @@ class _SalesByDay extends StatelessWidget {
     final best = byWeekday.indexOf(most);
     return Card(
       key: const Key('insights-by-day'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _CardTitle('Sales by day'),
+            const SectionTitle('Sales by day', padding: _cardTitlePadding),
             SizedBox(
               height: 120,
               child: Row(
@@ -463,15 +453,17 @@ class _Sentences extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       key: const Key('insights-sentences'),
-      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           children: [
             for (final (i, l) in lines.indexed) ...[
               if (i > 0) const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.only(
+                  top: i > 0 ? 12 : 0,
+                  bottom: i < lines.length - 1 ? 12 : 0,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -496,6 +488,9 @@ class _Sentences extends StatelessWidget {
   }
 }
 
+/// The space under a card's title, before its rows.
+const _cardTitlePadding = EdgeInsets.only(bottom: 12);
+
 /// What the business may owe in tax, opening the Tax screen.
 class _TaxCard extends ConsumerWidget {
   const _TaxCard();
@@ -505,10 +500,9 @@ class _TaxCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final view = ref.watch(taxViewProvider).value;
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final owed = view?.owedMinor;
     return Card(
-      margin: EdgeInsets.zero,
       child: ListTile(
         key: const Key('insights-tax'),
         title: const Text('Tax you may owe'),
@@ -516,19 +510,12 @@ class _TaxCard extends ConsumerWidget {
           'An estimate from your records',
           style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (owed != null)
-              Text(
-                hidden
-                    ? maskedDigits
-                    : formatMoney(Money(owed), withCurrency: false),
-                style: theme.textTheme.titleMedium,
+        trailing: owed == null
+            ? const Icon(Icons.chevron_right)
+            : Text(
+                moneyOrHidden(owed, hidden: hidden, withCurrency: false),
+                style: AppTypography.rowAmount(theme.colorScheme.onSurface),
               ),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
         onTap: () => context.push(AppRoutes.tax),
       ),
     );

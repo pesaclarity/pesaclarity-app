@@ -47,6 +47,9 @@ abstract final class SemanticIds {
   static const titleGoals = 'title-goals';
   static const titleInsights = 'title-insights';
   static const titleMoney = 'title-money';
+  static const titlePeople = 'title-people';
+  static const titleStock = 'title-stock';
+  static const titleBusinessInsights = 'title-business-insights';
   static const titleProfile = 'title-profile';
   static const titleProfileMyAccounts = 'title-profile-my-accounts';
   static const titleChooseAccounts = 'title-choose-accounts';

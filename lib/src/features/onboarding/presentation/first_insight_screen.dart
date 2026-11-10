@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/leakage.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
 import '../../sms/application/scan_range_provider.dart';
@@ -23,7 +25,10 @@ class FirstInsightScreen extends ConsumerWidget {
     void finish() => ref.read(onboardingControllerProvider.notifier).complete();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your money')),
+      appBar: AppBar(
+        title: const Text('Your money'),
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -56,7 +61,7 @@ class FirstInsightScreen extends ConsumerWidget {
     FirstInsight insight,
     ScanRange? range,
   ) {
-    String kes(int minor) => formatMoney(Money(minor));
+    String amount(int minor) => shownMoney(context, minor);
     final share = insight.leakageShareBasisPoints;
     final count = insight.transactionCount;
     return [
@@ -71,26 +76,26 @@ class FirstInsightScreen extends ConsumerWidget {
             : 'From $count transactions in your messages.',
       ),
       const SizedBox(height: 20),
-      _Figure(label: 'Money in', value: kes(insight.incomeMinor)),
+      _Figure(label: 'Money in', value: amount(insight.incomeMinor)),
       const SizedBox(height: 12),
       _Figure(
         label: 'Spent, with fees',
-        value: kes(insight.spendingMinor),
+        value: amount(insight.spendingMinor),
         note: insight.incomeMinor > 0
-            ? _vsIncome(insight.spendingMinor, insight.incomeMinor, kes)
+            ? _vsIncome(insight.spendingMinor, insight.incomeMinor, amount)
             : null,
       ),
       const SizedBox(height: 12),
       _Figure(
         label: 'Leakages',
-        value: kes(insight.leakageMinor),
+        value: amount(insight.leakageMinor),
         note: share == null ? null : '${percentLabel(share)} of income',
         highlight: true,
       ),
       const SizedBox(height: 12),
       _Figure(
         label: 'Fuliza fees',
-        value: kes(insight.fulizaFeesMinor),
+        value: amount(insight.fulizaFeesMinor),
         note: switch (insight.fulizaDays) {
           0 => 'Clear of Fuliza',
           1 => 'Fuliza used on 1 day',
@@ -108,12 +113,14 @@ class FirstInsightScreen extends ConsumerWidget {
   }
 }
 
-String _vsIncome(int spending, int income, String Function(int) kes) {
+String _vsIncome(int spending, int income, String Function(int) amount) {
   final gap = income - spending;
-  if (gap >= 0) return '${kes(gap)} less than came in';
-  return '${kes(-gap)} more than came in';
+  if (gap >= 0) return '${amount(gap)} less than came in';
+  return '${amount(-gap)} more than came in';
 }
 
+/// A figure tile; [highlight] outlines it and colours its note, for a
+/// figure worth a look such as leakages.
 class _Figure extends StatelessWidget {
   const _Figure({
     required this.label,
@@ -129,19 +136,22 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!highlight) {
+      return MergeSemantics(
+        child: FigureTile(label: label, value: value, note: note),
+      );
+    }
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     return Card(
-      shape: highlight
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: BorderSide(
-                color: theme.colorScheme.primary.withValues(alpha: .3),
-              ),
-            )
-          : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+        side: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: .3),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: MergeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,21 +163,20 @@ class _Figure extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                value,
-                style: AppTypography.amount(
-                  size: 28,
-                  color: theme.colorScheme.onSurface,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  value,
+                  style: AppTypography.tileFigure(theme.colorScheme.onSurface),
                 ),
               ),
               if (note != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   note!,
-                  style: theme.textTheme.labelLarge!.copyWith(
-                    color: highlight
-                        ? theme.colorScheme.primary
-                        : colors.textMuted,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
                 ),
               ],

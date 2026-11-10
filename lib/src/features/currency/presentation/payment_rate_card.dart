@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/exchange_rates.dart';
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
 import '../data/rates_client.dart';
@@ -63,7 +65,7 @@ class PaymentRateCard extends ConsumerWidget {
     return Card(
       key: const Key('payment-rate'),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -82,34 +84,22 @@ class PaymentRateCard extends ConsumerWidget {
             ],
             const SizedBox(height: 4),
             Text(note, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            // One action: the dialog also offers the day's rate back.
             Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  TextButton(
-                    key: const Key('rate-got'),
-                    onPressed: () => showRateGotDialog(
-                      context,
-                      record: record,
-                      base: base,
-                      current: converted?.baseBuys,
-                    ),
-                    child: Text(
-                      converted?.kind == RateKind.got
-                          ? 'Change the rate I got'
-                          : 'Use the rate I got',
-                    ),
-                  ),
-                  if (converted?.kind == RateKind.got)
-                    TextButton(
-                      key: const Key('rate-day'),
-                      onPressed: () => ref
-                          .read(transactionsRepositoryProvider)
-                          .setRateGot(record.id, currency: base),
-                      child: const Text("Use the day's rate"),
-                    ),
-                ],
+              alignment: AlignmentDirectional.centerStart,
+              child: PillButton(
+                key: const Key('rate-got'),
+                onPressed: () => showRateGotDialog(
+                  context,
+                  record: record,
+                  base: base,
+                  current: converted?.baseBuys,
+                  dayRateBack: converted?.kind == RateKind.got,
+                ),
+                label: converted?.kind == RateKind.got
+                    ? 'Change the rate I got'
+                    : 'Use the rate I got',
               ),
             ),
           ],
@@ -131,7 +121,7 @@ class BaseAmountLine extends ConsumerWidget {
     if (converted == null) return const SizedBox.shrink();
     final base = ref.watch(baseCurrencyProvider);
     return Text(
-      '≈ ${formatMoney(Money(converted.baseMinor, currency: base))}',
+      '≈ ${shownMoney(context, converted.baseMinor, currency: base)}',
       key: const Key('payment-base-amount'),
       style: Theme.of(context).textTheme.titleMedium!
           .copyWith(color: PesaColors.of(context).textMuted),
@@ -146,10 +136,15 @@ Future<void> showRateGotDialog(
   required TransactionRecord record,
   required String base,
   double? current,
-}) => showDialog<void>(
+  bool dayRateBack = false,
+}) => showAdaptiveDialog<void>(
   context: context,
-  builder: (context) =>
-      _RateGotDialog(record: record, base: base, current: current),
+  builder: (context) => _RateGotDialog(
+    record: record,
+    base: base,
+    current: current,
+    dayRateBack: dayRateBack,
+  ),
 );
 
 class _RateGotDialog extends ConsumerStatefulWidget {
@@ -157,24 +152,28 @@ class _RateGotDialog extends ConsumerStatefulWidget {
     required this.record,
     required this.base,
     required this.current,
+    required this.dayRateBack,
   });
 
   final TransactionRecord record;
   final String base;
   final double? current;
 
+  /// Offers to go back to the day's rate, once a rate I got is set.
+  final bool dayRateBack;
+
   @override
   ConsumerState<_RateGotDialog> createState() => _RateGotDialogState();
 }
 
 class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final bool _baseFirst = (widget.current ?? 1) >= 1;
   late final _rate = TextEditingController(
     text: widget.current == null
         ? ''
         : formatRate(_baseFirst ? widget.current! : 1 / widget.current!),
   );
-  String? _error;
 
   @override
   void dispose() {
@@ -182,12 +181,14 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     super.dispose();
   }
 
+  static double? _parse(String? text) {
+    final value = double.tryParse((text ?? '').replaceAll(',', '').trim());
+    return value == null || value <= 0 ? null : value;
+  }
+
   Future<void> _save() async {
-    final value = double.tryParse(_rate.text.replaceAll(',', '').trim());
-    if (value == null || value <= 0) {
-      setState(() => _error = 'Enter a rate above 0');
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
+    final value = _parse(_rate.text)!;
     final navigator = Navigator.of(context);
     await ref
         .read(transactionsRepositoryProvider)
@@ -205,24 +206,40 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     final (one, other) = _baseFirst ? (widget.base, code) : (code, widget.base);
     return AlertDialog(
       title: const Text('The rate I got'),
-      content: TextField(
-        key: const Key('rate-got-field'),
-        controller: _rate,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          labelText: '1 $one bought how much $other?',
-          suffixText: other,
-          errorText: _error,
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const Key('rate-got-field'),
+          controller: _rate,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: '1 $one bought how much $other?',
+            suffixText: other,
+          ),
+          validator: (v) =>
+              _parse(v) == null ? 'Enter a rate, such as 129.5.' : null,
+          onFieldSubmitted: (_) => _save(),
         ),
-        onSubmitted: (_) => _save(),
       ),
       actions: [
-        TextButton(
+        if (widget.dayRateBack)
+          DialogAction(
+            key: const Key('rate-day'),
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await ref
+                  .read(transactionsRepositoryProvider)
+                  .setRateGot(widget.record.id, currency: widget.base);
+              navigator.pop();
+            },
+            child: const Text("Use the day's rate"),
+          ),
+        DialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        DialogAction(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

@@ -29,10 +29,7 @@ class BusinessSetupCard extends ConsumerWidget {
                 ? 'What you sell, and what the business has today'
                 : 'What the business has today',
           ),
-          trailing: Text(
-            'Start',
-            style: TextStyle(color: colors.link, fontWeight: FontWeight.w600),
-          ),
+          trailing: Icon(Icons.chevron_right, color: colors.textMuted),
           onTap: () => context.push(
             setup.sells == null
                 ? AppRoutes.whatYouSell

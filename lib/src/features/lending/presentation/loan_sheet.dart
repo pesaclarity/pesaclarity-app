@@ -11,6 +11,7 @@ import '../../../domain/debts/debt.dart';
 import '../../../domain/lending/lent_loan.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../goals/application/goals_overview_provider.dart';
 
@@ -22,10 +23,8 @@ Future<void> showLoanSheet(
   BuildContext context, {
   required CalendarDate today,
   LentLoan? lent,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (context) => LoanSheet(today: today, lent: lent),
 );
 
@@ -122,93 +121,75 @@ class _LoanSheetState extends State<LoanSheet> {
   Widget build(BuildContext context) {
     final editing = widget.lent != null;
     final lent = _side == LoanSide.lent;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Form(
-        key: _form,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                editing ? 'Edit loan' : 'Add a loan',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              if (!editing) ...[
-                AdaptiveSegmented<LoanSide>(
-                  segments: const [
-                    (LoanSide.lent, 'I lent'),
-                    (LoanSide.borrowed, 'I borrowed'),
-                  ],
-                  selected: _side,
-                  onChanged: (value) => setState(() => _side = value),
-                ),
-                const SizedBox(height: 16),
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: editing ? 'Edit loan' : 'Add a loan',
+        children: [
+          if (!editing) ...[
+            AdaptiveSegmented<LoanSide>(
+              segments: const [
+                (LoanSide.lent, 'I lent'),
+                (LoanSide.borrowed, 'I borrowed'),
               ],
-              TextFormField(
-                controller: _person,
-                decoration: InputDecoration(
-                  labelText: lent ? 'Lent to' : 'Borrowed from',
-                ),
-                textCapitalization: TextCapitalization.words,
-                maxLength: 80,
-                validator: (text) =>
-                    (text ?? '').trim().isEmpty ? 'Add a name.' : null,
-              ),
-              const SizedBox(height: 8),
-              AmountField(controller: _amount, label: 'Amount'),
-              const SizedBox(height: 16),
-              if (lent) ...[
-                DateField(
-                  label: 'Lent on',
-                  value: _on,
-                  firstDate: CalendarDate(widget.today.year - 10, 1, 1),
-                  lastDate: widget.today,
-                  onChanged: (date) =>
-                      setState(() => _on = date ?? widget.today),
-                ),
-                const SizedBox(height: 16),
-              ],
-              DateField(
-                label: 'Due back (optional)',
-                value: _due,
-                clearable: true,
-                firstDate: lent ? _on : widget.today,
-                lastDate: CalendarDate(widget.today.year + 10, 12, 31),
-                onChanged: (date) => setState(() => _due = date),
-              ),
-              if (lent) ...[
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _note,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                  ),
-                  maxLength: 120,
-                ),
-              ] else ...[
-                const SizedBox(height: 8),
-                Text(
-                  'It joins your debts, interest-free, so the payoff plan '
-                  'counts it.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(editing ? 'Save' : 'Add'),
-              ),
-            ],
+              selected: _side,
+              onChanged: (value) => setState(() => _side = value),
+            ),
+            const SizedBox(height: 16),
+          ],
+          TextFormField(
+            controller: _person,
+            decoration: InputDecoration(
+              labelText: lent ? 'Lent to' : 'Borrowed from',
+            ),
+            textCapitalization: TextCapitalization.words,
+            maxLength: 80,
+            validator: (text) => (text ?? '').trim().isEmpty
+                ? 'Enter a name, such as Grace.'
+                : null,
           ),
-        ),
+          const SizedBox(height: 8),
+          AmountField(controller: _amount, label: 'Amount'),
+          const SizedBox(height: 16),
+          if (lent) ...[
+            DateField(
+              label: 'Lent on',
+              value: _on,
+              firstDate: CalendarDate(widget.today.year - 10, 1, 1),
+              lastDate: widget.today,
+              onChanged: (date) => setState(() => _on = date ?? widget.today),
+            ),
+            const SizedBox(height: 16),
+          ],
+          DateField(
+            label: 'Due back (optional)',
+            value: _due,
+            clearable: true,
+            firstDate: lent ? _on : widget.today,
+            lastDate: CalendarDate(widget.today.year + 10, 12, 31),
+            onChanged: (date) => setState(() => _due = date),
+          ),
+          if (lent) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _note,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLength: 120,
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text(
+              'It joins your debts, interest-free, so the payoff plan '
+              'counts it.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
@@ -224,10 +205,8 @@ Future<void> showPaymentSheet(
   required CalendarDate today,
   required DateTime now,
   required Future<void> Function(int amountMinor, DateTime paidAt) onSave,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (context) => PaymentSheet(
     person: person,
     remainingMinor: remainingMinor,
@@ -285,49 +264,31 @@ class _PaymentSheetState extends State<PaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Form(
-        key: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Payment, ${widget.person}',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${formatMoney(Money(widget.remainingMinor))} left.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            AmountField(
-              controller: _amount,
-              label: 'Amount paid',
-              maxMinor: widget.remainingMinor,
-            ),
-            const SizedBox(height: 16),
-            DateField(
-              label: 'Paid on',
-              value: _on,
-              firstDate: widget.firstDate,
-              lastDate: widget.today,
-              onChanged: (date) => setState(() => _on = date ?? widget.today),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: const Text('Record payment'),
-            ),
-          ],
-        ),
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: 'Payment, ${widget.person}',
+        subtitle: '${formatMoney(Money(widget.remainingMinor))} left.',
+        children: [
+          AmountField(
+            controller: _amount,
+            label: 'Amount paid',
+            maxMinor: widget.remainingMinor,
+          ),
+          const SizedBox(height: 16),
+          DateField(
+            label: 'Paid on',
+            value: _on,
+            firstDate: widget.firstDate,
+            lastDate: widget.today,
+            onChanged: (date) => setState(() => _on = date ?? widget.today),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: const Text('Record a payment'),
+          ),
+        ],
       ),
     );
   }

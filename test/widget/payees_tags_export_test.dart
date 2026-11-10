@@ -122,9 +122,9 @@ void main() {
     await _settle(tester);
 
     expect(find.text('JOHN KAMAU'), findsOneWidget);
-    expect(find.text('-KES 350'), findsOneWidget);
+    expect(find.text('-350'), findsOneWidget);
     expect(find.text('Tap to name this payee'), findsOneWidget);
-    expect(find.text('Uncategorised'), findsOneWidget);
+    expect(find.text('Choose later'), findsOneWidget);
 
     await tester.tap(find.text('Tap to name this payee'));
     await _settle(tester);
@@ -152,7 +152,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.text('Save payee'));
+    await tester.tap(find.text('Save'));
     await _settle(tester);
 
     expect(find.text('John'), findsOneWidget);
@@ -176,7 +176,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('new-category-type-savings')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add category'));
+    await tester.tap(find.text('Add a category'));
     await _settle(tester);
     expect(find.text('Harambee · Set for this transaction'), findsOneWidget);
     final harambee = await tester.runAsync(
@@ -220,10 +220,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('JOHN KAMAU'), findsOneWidget);
-    expect(
-      find.text('0700000001 · 2 transactions · KES 550 out'),
-      findsOneWidget,
-    );
+    expect(find.text('0700000001 · 2 transactions · 550 out'), findsOneWidget);
     expect(find.text('Payees you name show here.'), findsOneWidget);
 
     await tester.tap(find.text('Export'));

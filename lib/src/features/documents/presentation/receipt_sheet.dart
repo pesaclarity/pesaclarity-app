@@ -9,7 +9,12 @@ import '../../../domain/documents/receipt.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/people/phone_number.dart';
 import '../../../domain/people/reminder_text.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
@@ -26,19 +31,9 @@ Future<void> showReceiptSheet(
   BuildContext context,
   int saleId, {
   bool justSaved = true,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-        child: _ReceiptSheet(saleId, justSaved: justSaved),
-      ),
-    ),
-  ),
+  builder: (context) => _ReceiptSheet(saleId, justSaved: justSaved),
 );
 
 class _ReceiptSheet extends ConsumerStatefulWidget {
@@ -117,7 +112,6 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
 
   Future<void> _send(Receipt r) async {
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final number = _number.text.trim().isEmpty
         ? null
         : internationalNumber(_number.text, _code ?? callingCodes.first);
@@ -136,18 +130,17 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
             number: number,
             app: _app,
           );
-      if (!sent) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Sharing is unavailable. The receipt is copied.'),
-          ),
+      if (!sent && navigator.mounted) {
+        showNote(
+          navigator.context,
+          'Sharing is unavailable. The receipt is copied.',
         );
       }
       navigator.pop();
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('The receipt was not made. Try again.')),
-      );
+      if (navigator.mounted) {
+        showNote(navigator.context, 'The receipt was not made. Try again.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -160,12 +153,7 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final r = _receipt;
-    if (r == null) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator.adaptive()),
-      );
-    }
+    if (r == null) return const LoadingView(inList: true);
     final ways = [
       for (final p in r.payments)
         if (p.method != SalePaymentMethod.credit) methodLabel(p.method),
@@ -176,14 +164,13 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
       if (r.customer case final who?) 'from $who',
     ].join(' · ').replaceFirst(' · from', ' from');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SheetBody(
       children: [
         Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: colors.success.withValues(alpha: 0.14),
+              backgroundColor: colors.successSoft,
               child: Icon(Icons.check, color: colors.successText),
             ),
             const SizedBox(width: 12),
@@ -234,7 +221,7 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
           onPick: _pickContact,
           onChanged: () => setState(() {}),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           _format == ReceiptFormat.text && _number.text.trim().isNotEmpty
               ? 'Opens ${_app.label} with the receipt filled in.'
@@ -243,48 +230,36 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
           style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton(
-                key: const Key('receipt-share'),
-                onPressed: _busy ? null : () => _send(r),
-                child: const Text('Share receipt'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                key: const Key('receipt-print'),
-                onPressed: _busy
-                    ? null
-                    : () => showPrintSheet(
-                        context,
-                        title: 'Print receipt',
-                        subtitle:
-                            '${r.number} · ${r.currency} '
-                            '${_plain(r.totalMinor)}',
-                        name: 'Receipt ${r.number}',
-                        pdf: () => ref.read(receiptMakerProvider).pdf(r),
-                        slip: () => slipForReceipt(r),
-                      ),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print'),
-              ),
-            ),
-          ],
+        ButtonPair(
+          primary: FilledButton(
+            key: const Key('receipt-share'),
+            onPressed: _busy ? null : () => _send(r),
+            child: const Text('Share receipt'),
+          ),
+          secondary: OutlinedButton.icon(
+            key: const Key('receipt-print'),
+            onPressed: _busy
+                ? null
+                : () => showPrintSheet(
+                    context,
+                    title: 'Print receipt',
+                    subtitle:
+                        '${r.number} · ${r.currency} '
+                        '${_plain(r.totalMinor)}',
+                    name: 'Receipt ${r.number}',
+                    pdf: () => ref.read(receiptMakerProvider).pdf(r),
+                    slip: () => slipForReceipt(r),
+                  ),
+            icon: const Icon(Icons.print_outlined),
+            label: const Text('Print'),
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           'Made on this phone. Share opens WhatsApp, SMS or any app; Print '
           'uses your counter printer or any printer.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
-        ),
-        TextButton(
-          key: const Key('receipt-not-now'),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text('Not now', style: TextStyle(color: colors.textMuted)),
         ),
       ],
     );
@@ -355,7 +330,7 @@ class ReceiptCard extends StatelessWidget {
               Expanded(child: Text('Total', style: theme.textTheme.titleSmall)),
               Text(
                 '${r.currency} ${plain(r.totalMinor)}',
-                style: theme.textTheme.titleSmall,
+                style: AppTypography.rowAmount(theme.colorScheme.onSurface),
               ),
             ],
           ),
@@ -365,13 +340,11 @@ class ReceiptCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: r.blackAndWhite
-                  ? null
-                  : colors.success.withValues(alpha: 0.12),
+              color: r.blackAndWhite ? null : colors.successSoft,
               border: r.blackAndWhite
                   ? Border.all(color: theme.colorScheme.onSurface)
                   : null,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Layout.tagRadius),
             ),
             child: Text(
               receiptPaidLine(r, methodLabel, plain),

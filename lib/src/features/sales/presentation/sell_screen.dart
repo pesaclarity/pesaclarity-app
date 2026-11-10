@@ -9,11 +9,15 @@ import '../../../data/repositories/tabs_repository.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_shell.dart';
+import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../stock/application/stock_providers.dart';
-import '../../stock/presentation/stock_screen.dart' show StockTag;
 import '../../tabs/application/tabs_providers.dart';
 import '../../tabs/presentation/tab_screens.dart';
 import 'pay_sheet.dart';
@@ -47,8 +51,11 @@ class SellScreen extends ConsumerWidget {
         openTabs: ref.watch(openTabsProvider).value?.length ?? 0,
       ),
       AsyncData() || AsyncError() => const AmountPadScreen(),
-      _ => const Scaffold(
-        body: Center(child: CircularProgressIndicator.adaptive()),
+      _ => Scaffold(
+        appBar: AppBar(
+          title: Text(tab == null ? 'Sell' : 'Add to ${tab!.name}'),
+        ),
+        body: const LoadingView(),
       ),
     };
   }
@@ -157,10 +164,7 @@ class _AmountPadScreenState extends State<AmountPadScreen> {
               child: Text(
                 amount,
                 key: const Key('sell-amount'),
-                style: AppTypography.amount(
-                  size: 44,
-                  color: theme.colorScheme.onSurface,
-                ),
+                style: AppTypography.leadFigure(theme.colorScheme.onSurface),
               ),
             ),
             const SizedBox(height: 16),
@@ -210,17 +214,17 @@ class _Keypad extends StatelessWidget {
       crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
+      mainAxisSpacing: Layout.cardGap,
+      crossAxisSpacing: Layout.cardGap,
       childAspectRatio: 1.9,
       children: [
         for (final key in _keys)
           Material(
-            color: colors.border.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
+            color: colors.border,
+            borderRadius: BorderRadius.circular(Layout.panelRadius),
             child: InkWell(
               key: Key('sell-key-$key'),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Layout.panelRadius),
               onTap: () => onPress(key),
               child: Center(
                 child: key == '⌫'
@@ -231,9 +235,8 @@ class _Keypad extends StatelessWidget {
                       )
                     : Text(
                         key,
-                        style: AppTypography.amount(
-                          size: 24,
-                          color: theme.colorScheme.onSurface,
+                        style: AppTypography.tileFigure(
+                          theme.colorScheme.onSurface,
                         ),
                       ),
               ),
@@ -263,7 +266,7 @@ class _PayBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final enabled = onPay != null;
-    final fg = enabled ? scheme.onPrimary : scheme.onSurfaceVariant;
+    final fg = enabled ? scheme.onPrimary : PesaColors.of(context).textMuted;
     return Material(
       key: const Key('sell-pay'),
       color: enabled ? scheme.primary : scheme.surfaceContainerHighest,
@@ -286,20 +289,11 @@ class _PayBar extends StatelessWidget {
                         what,
                         style: textTheme.bodySmall!.copyWith(color: fg),
                       ),
-                      Text(
-                        amount,
-                        style: AppTypography.amount(size: 22, color: fg),
-                      ),
+                      Text(amount, style: AppTypography.tileFigure(fg)),
                     ],
                   ),
                 ),
-                Text(
-                  action,
-                  style: textTheme.titleMedium!.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(action, style: textTheme.titleMedium!.copyWith(color: fg)),
                 Icon(Icons.chevron_right, color: fg),
               ],
             ),
@@ -385,23 +379,16 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
   Future<void> _tap(Item item) async {
     final ways = _ways(item);
     if (ways.isNotEmpty) {
-      final picked = await showModalBottomSheet<Map<int?, int>>(
+      final picked = await showAppSheet<Map<int?, int>>(
         context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (context) => SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: _WaysSheet(
-              item: item,
-              ways: ways,
-              measures: widget.measures[item.id] ?? const [],
-              counts: {
-                for (final e in _counts.entries)
-                  if (e.key.$1 == item.id) e.key.$2: e.value ~/ milli,
-              },
-            ),
-          ),
+        builder: (context) => _WaysSheet(
+          item: item,
+          ways: ways,
+          measures: widget.measures[item.id] ?? const [],
+          counts: {
+            for (final e in _counts.entries)
+              if (e.key.$1 == item.id) e.key.$2: e.value ~/ milli,
+          },
         ),
       );
       if (picked == null || !mounted) return;
@@ -458,7 +445,6 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
   /// Puts the lines on a tab, the one this screen is for or one chosen.
   Future<void> _toTab() async {
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final lines = _lines;
     final tab = widget.tab;
     final String? name;
@@ -472,7 +458,7 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
     }
     if (name == null || !mounted) return;
     navigator.pop();
-    messenger.showSnackBar(SnackBar(content: Text('Added to $name.')));
+    showNote(navigator.context, 'Added to $name.');
   }
 
   Future<void> _pay() async {
@@ -510,19 +496,16 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
       appBar: AppBar(
         title: Text(tab == null ? 'Sell' : 'Add to ${tab.name}'),
         actions: [
-          if (tab == null && widget.openTabs > 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: OutlinedButton(
-                key: const Key('sell-open-tabs'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const OpenTabsScreen(),
-                  ),
-                ),
-                child: Text('Open tabs · ${widget.openTabs}'),
+          if (tab == null && widget.openTabs > 0) ...[
+            PillButton(
+              key: const Key('sell-open-tabs'),
+              label: 'Open tabs · ${widget.openTabs}',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const OpenTabsScreen()),
               ),
             ),
+            const SizedBox(width: 8),
+          ],
         ],
       ),
       body: SafeArea(
@@ -555,22 +538,15 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
               ),
             ] else if (groups.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: _group == null,
-                    onSelected: (_) => setState(() => _group = null),
-                  ),
-                  for (final g in groups)
-                    ChoiceChip(
-                      label: Text(g),
-                      selected: _group == g,
-                      onSelected: (_) => setState(() => _group = g),
-                    ),
-                ],
+              // All, or the one group; the empty name stands for All.
+              AdaptiveSegmented<String>(
+                key: const Key('sell-group'),
+                name: 'Group',
+                segments: [('', 'All'), (groups.single, groups.single)],
+                selected: _group ?? '',
+                // The same keys as the menu's choices.
+                segmentKey: (g) => Key('sell-group-${g.isEmpty ? 'all' : g}'),
+                onChanged: (g) => setState(() => _group = g.isEmpty ? null : g),
               ),
             ],
             const SizedBox(height: 12),
@@ -578,8 +554,8 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
               crossAxisCount: 2,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
+              mainAxisSpacing: Layout.cardGap,
+              crossAxisSpacing: Layout.cardGap,
               childAspectRatio: 1.45,
               children: [
                 for (final item in shown)
@@ -622,7 +598,7 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
                       child: const Text('Add to a tab'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: Layout.cardGap),
                   Expanded(
                     child: _PayBar(
                       what: count == 1 ? '1 item' : '$count items',
@@ -682,10 +658,8 @@ class _Tile extends StatelessWidget {
     final picked = count > 0;
     return Card(
       key: Key('tile-${item.id}'),
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(Layout.panelRadius),
         side: BorderSide(
           color: picked ? theme.colorScheme.primary : colors.border,
           width: picked ? 2 : 1,
@@ -694,7 +668,7 @@ class _Tile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Stack(
             children: [
               Column(
@@ -710,9 +684,9 @@ class _Tile extends StatelessWidget {
                   Text(_price(), style: theme.textTheme.titleSmall),
                   const Spacer(),
                   if (!item.isProduct)
-                    const StockTag('Service')
+                    const Tag('Service')
                   else if (item.isLow)
-                    StockTag(_stock(), warning: true)
+                    Tag(_stock(), tone: Tone.warning)
                   else
                     Text(
                       _stock(),
@@ -755,16 +729,14 @@ class _OtherTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       key: const Key('tile-other'),
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(Layout.panelRadius),
         side: BorderSide(color: PesaColors.of(context).border),
       ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -827,19 +799,12 @@ class _WaysSheetState extends State<_WaysSheet> {
         stockText(item);
     final rows = _rows;
     final total = rows.fold(0, (sum, r) => sum + (_counts[r.$1] ?? 0) * r.$3);
-    return Column(
+    return SheetBody(
       key: const Key('sell-ways'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      title: item.name,
+      subtitle: stock.endsWith('left') ? stock : '$stock left',
       children: [
-        Text(item.name, style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(
-          stock.endsWith('left') ? stock : '$stock left',
-          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: 16),
         Card(
-          margin: EdgeInsets.zero,
           child: Column(
             children: [
               for (final (i, (id, name, price)) in rows.indexed) ...[
@@ -854,7 +819,7 @@ class _WaysSheetState extends State<_WaysSheet> {
                           children: [
                             Text(name, style: theme.textTheme.titleSmall),
                             Text(
-                              'KES ${_plainMoney(price)}',
+                              formatMoney(Money(price)),
                               style: theme.textTheme.bodySmall!.copyWith(
                                 color: colors.textMuted,
                               ),
@@ -862,14 +827,14 @@ class _WaysSheetState extends State<_WaysSheet> {
                           ],
                         ),
                       ),
-                      IconButton.outlined(
+                      StepButton(
                         key: Key('way-fewer-${id ?? 'unit'}'),
+                        icon: Icons.remove,
                         tooltip: 'One fewer',
                         onPressed: (_counts[id] ?? 0) > 0
                             ? () =>
                                   setState(() => _counts[id] = _counts[id]! - 1)
                             : null,
-                        icon: const Icon(Icons.remove),
                       ),
                       SizedBox(
                         width: 36,
@@ -880,13 +845,13 @@ class _WaysSheetState extends State<_WaysSheet> {
                           style: theme.textTheme.titleMedium,
                         ),
                       ),
-                      IconButton.outlined(
+                      StepButton(
                         key: Key('way-more-${id ?? 'unit'}'),
+                        icon: Icons.add,
                         tooltip: 'One more',
                         onPressed: () => setState(
                           () => _counts[id] = (_counts[id] ?? 0) + 1,
                         ),
-                        icon: const Icon(Icons.add),
                       ),
                     ],
                   ),
@@ -899,7 +864,9 @@ class _WaysSheetState extends State<_WaysSheet> {
         FilledButton(
           key: const Key('sell-ways-add'),
           onPressed: () => Navigator.of(context).pop(_counts),
-          child: Text(total > 0 ? 'Add · KES ${_plainMoney(total)}' : 'Done'),
+          child: Text(
+            total > 0 ? 'Add · ${formatMoney(Money(total))}' : 'Done',
+          ),
         ),
       ],
     );

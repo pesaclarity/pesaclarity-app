@@ -16,8 +16,11 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
 import '../../documents/presentation/receipt_sheet.dart';
@@ -73,18 +76,13 @@ Future<bool?> showPaySheet(
   String? note,
   PayWay initialWay = PayWay.cash,
   List<SaleLine> lines = const [],
-}) => showModalBottomSheet<bool>(
+}) => showAppSheet<bool>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: PaySheet(
-      totalMinor: totalMinor,
-      note: note,
-      initialWay: initialWay,
-      lines: lines,
-    ),
+  builder: (context) => PaySheet(
+    totalMinor: totalMinor,
+    note: note,
+    initialWay: initialWay,
+    lines: lines,
   ),
 );
 
@@ -183,7 +181,6 @@ class _PaySheetState extends ConsumerState<PaySheet> {
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     final today = CalendarDate.local(ref.read(clockProvider)());
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
       final parts = _parts();
@@ -216,13 +213,11 @@ class _PaySheetState extends ConsumerState<PaySheet> {
                 .read(slipPrinterProvider)
                 .onCounter(slipForReceipt(receipt))
                 .catchError((Object _) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'The sale is saved. To print its receipt, turn the '
-                        'printer on, keep it close, then tap Print.',
-                      ),
-                    ),
+                  if (!navigator.mounted) return;
+                  showNote(
+                    navigator.context,
+                    'The sale is saved. To print its receipt, turn the '
+                    'printer on, keep it close, then tap Print.',
                   );
                 }),
           );
@@ -238,9 +233,9 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         await showReceiptSheet(navigator.context, outcome.saleId);
         return;
       }
-      messenger.showSnackBar(
-        SnackBar(content: Text(_savedMessage(parts, outcome))),
-      );
+      if (navigator.mounted) {
+        showNote(navigator.context, _savedMessage(parts, outcome));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -280,74 +275,69 @@ class _PaySheetState extends ConsumerState<PaySheet> {
         c.name,
     ];
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Form(
-          key: _form,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Pay ${_kes(_total)}', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 12),
-              if (_lines.isEmpty)
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.note ?? 'Other sale',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ),
-                    Text(
-                      formatMoney(Money(_total), withCurrency: false),
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  ],
-                )
-              else
-                for (final (i, line) in _lines.indexed)
-                  _LineRow(
-                    key: Key('pay-line-$i'),
-                    line: line,
-                    onChanged: line.itemId == null
-                        ? null
-                        : (q) => setState(() {
-                            if (q <= 0) {
-                              _lines.removeAt(i);
-                            } else {
-                              _lines[i] = _withQuantity(line, q);
-                            }
-                          }),
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: 'Pay ${_kes(_total)}',
+        children: [
+          if (_lines.isEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.note ?? 'Other sale',
+                    style: theme.textTheme.bodyLarge,
                   ),
-              const Divider(height: 28),
-              Text(
-                'How are they paying?',
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: colors.textMuted,
                 ),
+                Text(
+                  formatMoney(Money(_total), withCurrency: false),
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ],
+            )
+          else
+            for (final (i, line) in _lines.indexed)
+              _LineRow(
+                key: Key('pay-line-$i'),
+                line: line,
+                onChanged: line.itemId == null
+                    ? null
+                    : (q) => setState(() {
+                        if (q <= 0) {
+                          _lines.removeAt(i);
+                        } else {
+                          _lines[i] = _withQuantity(line, q);
+                        }
+                      }),
               ),
-              const SizedBox(height: 8),
-              ChoiceMenu<PayWay>(
-                key: const Key('pay-way'),
-                name: 'Payment',
-                expand: true,
-                options: [for (final way in PayWay.values) (way, way.label)],
-                value: _way,
-                itemKey: (way) => Key('pay-${way.name}'),
-                onChanged: (way) => setState(() => _way = way),
-              ),
-              const SizedBox(height: 16),
-              ..._details(context, today, customers),
-              const SizedBox(height: 16),
-              FilledButton(
-                key: const Key('pay-done'),
-                onPressed: _saving ? null : _done,
-                child: const Text('Done'),
-              ),
-            ],
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Text(
+            'How are they paying?',
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: colors.textMuted,
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          ChoiceMenu<PayWay>(
+            key: const Key('pay-way'),
+            name: 'Payment',
+            expand: true,
+            options: [for (final way in PayWay.values) (way, way.label)],
+            value: _way,
+            itemKey: (way) => Key('pay-${way.name}'),
+            onChanged: (way) => setState(() => _way = way),
+          ),
+          const SizedBox(height: 16),
+          ..._details(context, today, customers),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('pay-done'),
+            onPressed: _saving ? null : _done,
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }
@@ -367,7 +357,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
       _Change(controller: _given, totalMinor: _total),
     ],
     PayWay.mpesa || PayWay.bank => [
-      InfoNote(
+      Notice(
         'Waiting for the ${methodName(_way.method!)} message for '
         '${_kes(_total)}. It will match this sale on its own, '
         'or tap Done now.',
@@ -489,7 +479,7 @@ class _PaySheetState extends ConsumerState<PaySheet> {
             _PayBy.date,
             _payBy == _PayBy.date && picked != null
                 ? dayLabel(picked, thisYear: today.year)
-                : 'Pick a date',
+                : 'Choose a date',
           ),
         ],
         value: _payBy,
@@ -566,34 +556,13 @@ class _Change extends StatelessWidget {
       if (given <= totalMinor) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: InfoNote(
+        child: Notice(
           'Change: ${formatMoney(Money(given - totalMinor))}',
           key: const Key('pay-change'),
         ),
       );
     },
   );
-}
-
-/// A soft green note, such as what happens next.
-class InfoNote extends StatelessWidget {
-  const InfoNote(this.text, {super.key});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.success.withValues(alpha: 0.25)),
-      ),
-      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
-    );
-  }
 }
 
 /// One line on Pay: the item, − and + (a tap on the amount types it), and
@@ -610,14 +579,9 @@ class _LineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final change = onChanged;
-    Widget step(IconData icon, String label, int by) => IconButton(
-      tooltip: label,
-      visualDensity: VisualDensity.compact,
-      icon: Icon(icon, size: 18),
-      style: IconButton.styleFrom(
-        shape: const CircleBorder(),
-        side: BorderSide(color: PesaColors.of(context).border),
-      ),
+    Widget step(IconData icon, String tooltip, int by) => StepButton(
+      icon: icon,
+      tooltip: tooltip,
       onPressed: change == null ? null : () => change(line.quantityMilli + by),
     );
     return Padding(
@@ -626,7 +590,7 @@ class _LineRow extends StatelessWidget {
         children: [
           Expanded(child: Text(line.name, style: theme.textTheme.bodyLarge)),
           if (change != null) ...[
-            step(Icons.remove, 'One less', -milli),
+            step(Icons.remove, 'One fewer', -milli),
             InkWell(
               onTap: () async {
                 final text = await _askQuantity(context, line);
@@ -660,24 +624,27 @@ class _LineRow extends StatelessWidget {
     final controller = TextEditingController(
       text: quantityText(line.quantityMilli),
     );
-    return showDialog<String>(
+    return showAdaptiveDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog.adaptive(
         title: Text(line.name),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'How much, such as 0.5'),
+          decoration: const InputDecoration(
+            labelText: 'How much',
+            hintText: '0.5',
+          ),
         ),
         actions: [
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          DialogAction(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Done'),
+            child: const Text('Save'),
           ),
         ],
       ),

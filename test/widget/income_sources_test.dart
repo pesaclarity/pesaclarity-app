@@ -17,7 +17,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('How does money usually come to you?'), findsOneWidget);
-    await scrollTo(tester, find.text('Pick at least one to continue.'));
+    await scrollTo(tester, find.text('Choose at least one to continue.'));
     await tester.scrollUntilVisible(
       find.byKey(const Key('income-support')),
       -200,

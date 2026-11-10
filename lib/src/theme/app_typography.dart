@@ -24,7 +24,35 @@ abstract final class AppTypography {
     labelSmall: _body(11, FontWeight.w500, muted),
   );
 
-  /// Style for a standalone amount, such as the hero "safe to spend" figure.
+  /// The one number a red lead card shows.
+  static const leadFigureSize = 40.0;
+
+  /// The main number on a white card that leads a screen.
+  static const headlineFigureSize = 32.0;
+
+  /// A number in a small tile, such as "Stock value".
+  static const tileFigureSize = 24.0;
+
+  /// An amount at the end of a row in a list.
+  static const rowAmountSize = 18.0;
+
+  /// [amount] at [leadFigureSize].
+  static TextStyle leadFigure(Color color) =>
+      amount(size: leadFigureSize, color: color);
+
+  /// [amount] at [headlineFigureSize].
+  static TextStyle headlineFigure(Color color) =>
+      amount(size: headlineFigureSize, color: color);
+
+  /// [amount] at [tileFigureSize].
+  static TextStyle tileFigure(Color color) =>
+      amount(size: tileFigureSize, color: color);
+
+  /// [amount] at [rowAmountSize].
+  static TextStyle rowAmount(Color color) =>
+      amount(size: rowAmountSize, color: color);
+
+  /// Style for a standalone amount. Prefer the named sizes above.
   static TextStyle amount({
     required double size,
     required Color color,

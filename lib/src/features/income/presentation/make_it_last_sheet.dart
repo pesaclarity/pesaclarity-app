@@ -7,6 +7,8 @@ import '../../../domain/budget/until_next_money.dart';
 import '../../../domain/income/make_it_last.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/income_providers.dart';
@@ -19,10 +21,8 @@ Future<void> showMakeItLast(
   required int arrivalMinor,
   required String from,
   required UntilNextMoney plan,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (_) => MakeItLastSheet(
     arrivalId: arrivalId,
     arrivalMinor: arrivalMinor,
@@ -50,6 +50,7 @@ class MakeItLastSheet extends ConsumerStatefulWidget {
 }
 
 class _MakeItLastSheetState extends ConsumerState<MakeItLastSheet> {
+  final _form = GlobalKey<FormState>();
   var _changing = false;
   var _saving = false;
   late final _daily = TextEditingController(
@@ -107,102 +108,98 @@ class _MakeItLastSheetState extends ConsumerState<MakeItLastSheet> {
         : 'A little kept back helps a lean week.';
     final chosen = _chosenMinor;
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Money in · from ${widget.from}',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
+    final onSurface = theme.colorScheme.onSurface;
+
+    return Form(
+      key: _form,
+      child: SheetBody(
+        children: [
+          Text(
+            'Money in · from ${widget.from}',
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: colors.textMuted,
             ),
-            const SizedBox(height: 4),
-            Text(
-              formatMoney(Money(widget.arrivalMinor)),
-              style: AppTypography.amount(
-                size: 32,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(intro, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Card(
-              child: Column(
-                children: [
-                  for (final bill in plan.bills) ...[
-                    ListTile(
-                      title: Text(bill.name),
-                      subtitle: Text('Due ${shortDate(bill.due)}'),
-                      trailing: Text(plain(bill.amountMinor)),
-                    ),
-                    const Divider(height: 1),
-                  ],
-                  if (plan.bufferMinor > 0) ...[
-                    ListTile(
-                      title: const Text('Kept back'),
-                      subtitle: const Text('For a lean day'),
-                      trailing: Text(plain(plan.bufferMinor)),
-                    ),
-                    const Divider(height: 1),
-                  ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            plain(widget.arrivalMinor),
+            style: AppTypography.headlineFigure(onSurface),
+          ),
+          const SizedBox(height: 8),
+          Text(intro, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 12),
+          Card(
+            child: Column(
+              children: [
+                for (final bill in plan.bills) ...[
                   ListTile(
-                    key: const Key('make-it-last-daily'),
-                    title: Text('Each day until ${shortDate(plan.lastDay)}'),
-                    subtitle: Text(_days(plan.days)),
+                    title: Text(bill.name),
+                    subtitle: Text('Due ${shortDate(bill.due)}'),
                     trailing: Text(
-                      plain(plan.dailyMinor),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      plain(bill.amountMinor),
+                      style: AppTypography.rowAmount(onSurface),
                     ),
                   ),
+                  const Divider(height: 1),
                 ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              note,
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            if (_changing) ...[
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('make-it-last-amount'),
-                controller: _daily,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                if (plan.bufferMinor > 0) ...[
+                  ListTile(
+                    title: const Text('Kept back'),
+                    subtitle: const Text('For a lean day'),
+                    trailing: Text(
+                      plain(plan.bufferMinor),
+                      style: AppTypography.rowAmount(onSurface),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                ],
+                ListTile(
+                  key: const Key('make-it-last-daily'),
+                  title: Text('Each day until ${shortDate(plan.lastDay)}'),
+                  subtitle: Text(_days(plan.days)),
+                  trailing: Text(
+                    plain(plan.dailyMinor),
+                    style: AppTypography.rowAmount(onSurface),
+                  ),
                 ),
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Each day',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            FilledButton(
-              key: const Key('make-it-last-use'),
-              onPressed: _saving || chosen == null ? null : () => _use(chosen),
-              child: Text(_changing ? 'Save' : 'Use this plan'),
+              ],
             ),
-            if (!_changing)
-              TextButton(
-                key: const Key('make-it-last-change'),
-                onPressed: () => setState(() => _changing = true),
-                child: const Text('Change the daily amount'),
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            note,
+            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
+          ),
+          if (_changing) ...[
+            const SizedBox(height: 12),
+            AmountField(
+              key: const Key('make-it-last-amount'),
+              controller: _daily,
+              label: 'Each day',
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+            ),
           ],
-        ),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('make-it-last-use'),
+            onPressed: _saving
+                ? null
+                : () {
+                    if (!_form.currentState!.validate() || chosen == null) {
+                      return;
+                    }
+                    _use(chosen);
+                  },
+            child: Text(_changing ? 'Save' : 'Use this plan'),
+          ),
+          if (!_changing)
+            TextButton(
+              key: const Key('make-it-last-change'),
+              onPressed: () => setState(() => _changing = true),
+              child: const Text('Change the daily amount'),
+            ),
+        ],
       ),
     );
   }

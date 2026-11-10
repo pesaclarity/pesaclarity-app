@@ -347,10 +347,10 @@ void main() {
       await settleFrames(tester);
     }
 
-    testAppWidgets('one group shows as chips beside All', (tester) async {
+    testAppWidgets('one group shows as two segments with All', (tester) async {
       await pump(tester);
       expect(find.byKey(const Key('sell-groups')), findsNothing);
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Services'));
+      await tester.tap(find.byKey(const Key('sell-group-Services')));
       await tester.pump();
       expect(find.text('Tomatoes'), findsNothing);
       expect(find.text('Delivery'), findsOneWidget);

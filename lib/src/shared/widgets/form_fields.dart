@@ -6,18 +6,36 @@ import '../../domain/time/calendar.dart';
 import '../../domain/time/date_labels.dart';
 import '../adaptive/adaptive.dart';
 
-/// A text field for an amount in the base currency, read with [parseMoneyMinor].
+/// A text field for an amount, read with [parseMoneyMinor]. Every typed
+/// amount uses it.
 class AmountField extends StatelessWidget {
   const AmountField({
     required this.controller,
     required this.label,
     this.allowZero = false,
     this.maxMinor,
+    this.currency,
+    this.hint,
+    this.onChanged,
+    this.validator,
+    this.autofocus = false,
     super.key,
   });
 
+  /// Opens the keyboard on this field when the form shows.
+  final bool autofocus;
+
   final TextEditingController controller;
   final String label;
+
+  /// A further check once the amount itself is fine, such as "Enter a
+  /// price for each line." Gets the amount in minor units.
+  final String? Function(int amountMinor)? validator;
+
+  /// Shown before the amount; the base currency by default.
+  final String? currency;
+  final String? hint;
+  final ValueChanged<String>? onChanged;
 
   /// Accepts an empty field or 0 as nothing.
   final bool allowZero;
@@ -31,28 +49,31 @@ class AmountField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixText: '${BaseCurrency.code} ',
+        hintText: hint,
+        prefixText: '${currency ?? BaseCurrency.code} ',
       ),
+      onChanged: onChanged,
+      autofocus: autofocus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (text) {
-        final value = amountFrom(text ?? '');
+        final value = amountFrom(text ?? '', currency: currency);
         if (value == null) return 'Enter an amount, such as 5,000.';
         if (!allowZero && value == 0) return 'Enter an amount above 0.';
         final max = maxMinor;
         if (max != null && value > max) {
-          return 'Up to ${formatMoney(Money(max))}.';
+          return 'Up to ${formatMoney(Money(max, currency: currency))}.';
         }
-        return null;
+        return validator?.call(value);
       },
     );
   }
 
-  /// The amount in [text] in minor units: 0 for an empty field or 0, null
-  /// when it is not an amount.
-  static int? amountFrom(String text) {
+  /// The amount in [text] in minor units of [currency] (the base currency
+  /// by default): 0 for an empty field or 0, null when it is not an amount.
+  static int? amountFrom(String text, {String? currency}) {
     final clean = text.trim();
     if (clean.isEmpty || RegExp(r'^0+(\.0*)?$').hasMatch(clean)) return 0;
-    return parseMoneyMinor(clean);
+    return parseMoneyMinor(clean, currency: currency);
   }
 }
 
@@ -64,7 +85,7 @@ class DateField extends StatelessWidget {
     required this.onChanged,
     required this.firstDate,
     required this.lastDate,
-    this.emptyText = 'Pick a date',
+    this.emptyText = 'Choose a date',
     this.clearable = false,
     super.key,
   });

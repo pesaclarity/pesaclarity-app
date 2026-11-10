@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_models.dart';
@@ -38,7 +40,7 @@ class AccountCard extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -136,16 +138,18 @@ class _AccountActionsState extends ConsumerState<AccountActions> {
     setState(() => _busy = true);
     final confirmed = await ref.read(authControllerProvider.notifier).signOut();
     if (mounted) setState(() => _busy = false);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          confirmed
-              ? 'Signed out. Your data on this phone stays here.'
-              : 'Signed out on this phone. To remove it from your account, '
-                    'sign it out from another phone under Signed-in phones.',
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            confirmed
+                ? 'Signed out. Your data on this phone stays here.'
+                : 'Signed out on this phone. To remove it from your account, '
+                      'sign it out from another phone under Signed-in phones.',
+          ),
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _delete() async {
@@ -159,13 +163,17 @@ class _AccountActionsState extends ConsumerState<AccountActions> {
     setState(() => _busy = true);
     try {
       await ref.read(authControllerProvider.notifier).deleteAccount();
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Account deleted. Your data on this phone stays here.'),
-        ),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Account deleted. Your data on this phone stays here.',
+            ),
+          ),
+        );
     } on AuthFailure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (mounted) showNote(context, failure.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -176,7 +184,6 @@ class _AccountActionsState extends ConsumerState<AccountActions> {
     final session = ref.watch(authControllerProvider).value;
     if (session == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    final colors = PesaColors.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -191,33 +198,23 @@ class _AccountActionsState extends ConsumerState<AccountActions> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54),
-                  backgroundColor: scheme.surface,
-                  foregroundColor: scheme.onSurface,
-                ),
-                onPressed: _busy ? null : _signOut,
-                child: const Text('Sign out'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54),
-                  backgroundColor: colors.brandSoft,
-                  foregroundColor: colors.link,
-                  side: BorderSide(color: scheme.primary.withAlpha(60)),
-                ),
-                onPressed: _busy ? null : _delete,
-                child: const Text('Delete account'),
-              ),
-            ),
-          ],
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
+          ),
+          onPressed: _busy ? null : _signOut,
+          child: const Text('Sign out'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            foregroundColor: scheme.error,
+          ),
+          onPressed: _busy ? null : _delete,
+          child: const Text('Delete account'),
         ),
       ],
     );
@@ -263,7 +260,6 @@ class _DeleteAccountDialog extends StatelessWidget {
         ),
         DialogAction(
           destructive: true,
-          style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete account'),
         ),

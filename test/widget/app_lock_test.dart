@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/features/security/data/key_vault.dart';
 import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/security/domain/lock_settings.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -125,7 +126,10 @@ void main() {
     expect(databaseOpened, isFalse);
 
     await enterPin(tester, '111111');
-    expect(find.text('Wrong PIN. 3 tries left before a wait.'), findsOneWidget);
+    expect(
+      find.text("That PIN didn't match. 3 tries left before a wait."),
+      findsOneWidget,
+    );
     expect(databaseOpened, isFalse);
 
     await enterPin(tester, _pin);
@@ -246,6 +250,8 @@ void main() {
     expect(store.values[KeyVault.biometricKeyName], isNotNull);
 
     await tapSetting(tester, 'Lock after');
+    await tester.tap(find.byKey(const Key('lock-after')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Immediately'));
     await tester.pumpAndSettle();
     await goToBackground(tester, const Duration(seconds: 1));
@@ -281,6 +287,8 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: AppTheme.light,
+          // The app puts the eye's state over every screen.
+          builder: (context, child) => AmountsHiddenScope(child: child!),
           home: const Scaffold(
             body: HeroFigureCard(
               label: 'Safe to spend today',

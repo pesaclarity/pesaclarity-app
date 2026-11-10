@@ -121,7 +121,7 @@ void main() {
     await h.pump(tester);
 
     expect(find.text('Backup and restore'), findsOneWidget);
-    expect(find.text('Set up encrypted backups'), findsOneWidget);
+    expect(find.textContaining('Set up encrypted backups.'), findsOneWidget);
     expect(find.text('BACK UP TO'), findsOneWidget);
     expect(find.text('Pesa Clarity vault'), findsOneWidget);
     expect(find.text('Available when the vault service opens'), findsOneWidget);
@@ -130,6 +130,10 @@ void main() {
     expect(find.text('Share a copy'), findsOneWidget);
     expect(find.text('RESTORE FROM'), findsOneWidget);
     expect(find.text('A file on this phone'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Your current data stays until the restore'),
+      200,
+    );
     expect(
       find.textContaining('Your current data stays until the restore'),
       findsOneWidget,
@@ -139,10 +143,10 @@ void main() {
     expect(find.text('Google Drive'), findsNothing);
 
     // The vault stays off until a build names its server.
-    final vault = tester.widget<CheckboxListTile>(
+    final vault = tester.widget<SwitchListTile>(
       find.descendant(
         of: find.byKey(const Key('backup-vault')),
-        matching: find.byType(CheckboxListTile),
+        matching: find.byType(SwitchListTile),
       ),
     );
     expect(vault.value, isFalse);
@@ -150,10 +154,10 @@ void main() {
   });
 
   testWidgets('the vault asks for sign-in first', (tester) async {
-    CheckboxListTile vaultTile() => tester.widget<CheckboxListTile>(
+    SwitchListTile vaultTile() => tester.widget<SwitchListTile>(
       find.descendant(
         of: find.byKey(const Key('backup-vault')),
-        matching: find.byType(CheckboxListTile),
+        matching: find.byType(SwitchListTile),
       ),
     );
 
@@ -238,7 +242,7 @@ void main() {
     await tester.tap(finish);
     await tester.pumpAndSettle();
 
-    expect(find.text('Ready to back up'), findsOneWidget);
+    expect(find.textContaining('Ready to back up.'), findsOneWidget);
     final secrets = await h.repo.readSecrets();
     expect(secrets?.passphrase, 'mvua ya jioni');
     expect(
@@ -261,9 +265,11 @@ void main() {
     await _settleWork(tester);
 
     expect(h.documents.written.keys, ['pesaclarity-2026-10-26-1800.pcbackup']);
-    expect(find.text('Backed up today, 18:00'), findsOneWidget);
     expect(
-      find.text('Encrypted with your passphrase before upload'),
+      find.text(
+        'Backed up today, 18:00. Encrypted with your passphrase before '
+        'upload.',
+      ),
       findsOneWidget,
     );
   });
@@ -281,7 +287,7 @@ void main() {
     final original = h.data.contents;
     h.data.contents = [9, 9, 9];
 
-    await tester.tap(find.text('See backups ›'));
+    await tester.tap(find.text('See backups'));
     await _settleWork(tester);
     expect(find.text('Backups in Pesa Clarity'), findsOneWidget);
     await tester.tap(find.text('today, 18:00'));

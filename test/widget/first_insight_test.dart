@@ -40,9 +40,9 @@ void main() {
     expect(find.text('From 2 transactions in your messages.'), findsOneWidget);
     expect(find.text('Money in'), findsOneWidget);
     // 1,500 sent and 350 paid, plus the 15 transaction cost.
-    expect(find.text('KES 1,865'), findsOneWidget);
+    expect(find.text('1,865'), findsOneWidget);
     expect(find.text('Leakages'), findsOneWidget);
-    expect(find.text('KES 15'), findsOneWidget);
+    expect(find.text('15'), findsOneWidget);
     await tester.ensureVisible(find.text('Fuliza fees'));
     expect(find.text('Clear of Fuliza'), findsOneWidget);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));

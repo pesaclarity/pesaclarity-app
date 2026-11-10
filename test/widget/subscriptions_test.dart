@@ -77,6 +77,8 @@ void main() {
 
     expect(find.text('FOUND IN YOUR MESSAGES'), findsOneWidget);
     expect(find.text('Example Streaming'), findsOneWidget);
+    await tester.tap(find.text('Example Streaming'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Track it'));
     await tester.pumpAndSettle();
 
@@ -90,13 +92,17 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await pump(tester);
 
+    await tester.tap(find.text('Example Streaming'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('One-off'));
     await tester.pumpAndSettle();
     expect(find.text('FOUND IN YOUR MESSAGES'), findsNothing);
-    expect(find.text('Nothing tracked yet'), findsOneWidget);
+    expect(find.text('Every month'), findsOneWidget);
   });
 
-  testAppWidgets('adds, edits and stops tracking one by hand', (tester) async {
+  testAppWidgets('adds, edits and deletes one by hand, after asking', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.tap(find.byTooltip('Add a subscription'));
@@ -113,7 +119,10 @@ void main() {
 
     await tester.tap(find.text('Gym'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Stop tracking'));
+    await tester.tap(find.text('Delete subscription'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Gym?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Gym'), findsNothing);
   });

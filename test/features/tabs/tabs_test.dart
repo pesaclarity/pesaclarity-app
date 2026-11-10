@@ -176,11 +176,10 @@ void main() {
       }
     });
     await open(tester, c, const CloseDayScreen());
-    expect(find.text('2 tabs are still open · KES 1,000'), findsOneWidget);
     expect(
       find.text(
-        'Table 4 and Peter Kamau. Settle them, or keep them open for the '
-        'next day.',
+        '2 tabs are still open, KES 1,000: Table 4 and Peter Kamau. Settle '
+        'them, or keep them open for the next day.',
       ),
       findsOneWidget,
     );

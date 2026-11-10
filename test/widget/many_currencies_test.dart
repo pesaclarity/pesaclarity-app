@@ -119,9 +119,22 @@ void main() {
     expect(find.text('The rate you got for this payment.'), findsOneWidget);
     expect(find.text('≈ USD 193.80'), findsWidgets);
 
+    // Back to the day's rate, from the same one action.
+    await tester.tap(find.text('Change the rate I got'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rate-day')));
     await tester.pumpAndSettle();
     expect(find.text('Use the rate I got'), findsOneWidget);
+  });
+
+  testAppWidgets('Activity hides amounts behind its eye', (tester) async {
+    await pump(tester, const ActivityScreen());
+    expect(find.text('-KES 25,000'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('amounts-eye')));
+    await tester.pumpAndSettle();
+    expect(find.text('-KES 25,000'), findsNothing);
+    expect(find.text('≈ USD 193.50'), findsNothing);
+    expect(find.text('≈ •••••'), findsWidgets);
   });
 
   testAppWidgets('says what moved after messages were read again', (
@@ -145,7 +158,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('recheck-ok')));
+    // One action: See them shows that account and marks the note seen.
+    expect(find.text('OK'), findsNothing);
+    await tester.tap(find.byKey(const Key('recheck-see')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('recheck-note')), findsNothing);
   });
@@ -154,11 +169,9 @@ void main() {
     tester,
   ) async {
     await pump(tester, const Scaffold(body: AddTransactionSheet()));
-    expect(find.widgetWithText(TextField, 'Amount (KES)'), findsOneWidget);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Amount (KES)'),
-      '1,200',
-    );
+    final field = find.widgetWithText(TextField, 'Amount');
+    expect(tester.widget<TextField>(field).decoration!.prefixText, 'KES ');
+    await tester.enterText(find.widgetWithText(TextField, 'Amount'), '1,200');
     await tester.pumpAndSettle();
     expect(find.text("≈ USD 9.29 at today's rate"), findsOneWidget);
   });

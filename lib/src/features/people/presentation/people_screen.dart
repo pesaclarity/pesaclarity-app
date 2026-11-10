@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/people/people.dart';
 import '../../../domain/spaces/business_setup.dart';
@@ -12,12 +10,15 @@ import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
-import '../../../theme/pesa_colors.dart';
-import '../../sales/presentation/pay_sheet.dart';
+import '../../sales/presentation/pay_sheet.dart' show methodName;
 import '../../sales/presentation/records_sheets.dart';
-import '../../security/application/balance_visibility.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../application/people_providers.dart';
 import 'remind_sheet.dart';
@@ -36,7 +37,6 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final services =
         ref.watch(businessSetupProvider).value?.sells == BusinessSells.services;
     final customerWord = services ? 'Clients' : 'Customers';
@@ -47,33 +47,24 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    services ? 'Clients' : 'People',
-                    style: theme.textTheme.headlineLarge,
-                  ),
-                ),
-                TextButton(
+            TabHeader(
+              services ? 'Clients' : 'People',
+              semanticsId: SemanticIds.titlePeople,
+              actions: [
+                PillButton(
                   key: const Key('people-invoices'),
+                  label: 'Invoices',
                   onPressed: () => context.push(AppRoutes.invoices),
-                  child: Text(
-                    'Invoices',
-                    style: TextStyle(color: PesaColors.of(context).link),
-                  ),
                 ),
-                TextButton(
+                const SizedBox(width: 8),
+                PillButton(
                   key: const Key('reminder-messages'),
+                  label: 'Messages',
                   onPressed: () => context.push(AppRoutes.reminderMessages),
-                  child: Text(
-                    'Messages',
-                    style: TextStyle(color: PesaColors.of(context).link),
-                  ),
                 ),
+                const AmountsEye(),
               ],
             ),
-            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: AdaptiveSegmented<bool>(
@@ -96,7 +87,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
 }
 
 String _plain(bool hidden, int minor) =>
-    hidden ? maskedDigits : formatMoney(Money(minor), withCurrency: false);
+    moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
 /// Where a customer stands, in a few words: `Due today · since 29 Oct`.
 String customerStanding(CustomerAccount c, {required CalendarDate today}) {
@@ -133,56 +124,6 @@ Future<void> remindAllDue(
   }
 }
 
-class _Tiles extends StatelessWidget {
-  const _Tiles(this.tiles);
-
-  final List<(String, String)> tiles;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    return Row(
-      children: [
-        for (final (i, (label, value)) in tiles.indexed) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(
-            child: Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-                side: BorderSide(color: colors.border),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: theme.textTheme.bodyMedium!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: AppTypography.amount(
-                        size: 20,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 class _Customers extends ConsumerWidget {
   const _Customers({required this.services});
 
@@ -191,49 +132,46 @@ class _Customers extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    final all = ref.watch(customersProvider).value;
-    if (all == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+    final customers = ref.watch(customersProvider);
+    final all = customers.value;
+    final word = services ? 'Clients' : 'Customers';
+    if (customers.hasError && !customers.hasValue) {
+      return ErrorView(
+        'Your ${word.toLowerCase()} could not load.',
+        onRetry: () => ref.invalidate(customersProvider),
+      );
     }
+    if (all == null) return const LoadingView(inList: true);
     final owing = [
       for (final c in all)
         if (c.owedMinor > 0) c,
     ];
     final total = owing.fold(0, (sum, c) => sum + c.owedMinor);
     final over = owing.fold(0, (sum, c) => sum + c.overTwoWeeksMinor);
-    final word = services ? 'Clients' : 'Customers';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Tiles([
-          ('They owe you', _plain(hidden, total)),
-          ('Over 2 weeks', _plain(hidden, over)),
-        ]),
+        FigureRow(
+          children: [
+            FigureTile(label: 'They owe you', value: _plain(hidden, total)),
+            FigureTile(label: 'Over 2 weeks', value: _plain(hidden, over)),
+          ],
+        ),
         const SizedBox(height: 12),
         if (owing.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text(
-              '$word who pay later show here, with what they owe. Sell on '
-              'credit to add one.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
+          EmptyNote(
+            '$word who pay later show here, with what they owe. Sell on '
+            'credit to add one.',
           )
         else
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 for (final (i, c) in owing.indexed) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  if (i > 0) const Divider(height: 1),
                   ListTile(
                     key: Key('customer-${c.name}'),
                     onTap: () =>
@@ -245,13 +183,15 @@ class _Customers extends ConsumerWidget {
                       children: [
                         Text(
                           _plain(hidden, c.owedMinor),
-                          style: theme.textTheme.titleMedium,
+                          style: AppTypography.rowAmount(
+                            theme.colorScheme.onSurface,
+                          ),
                         ),
                         const SizedBox(width: 10),
-                        OutlinedButton(
+                        PillButton(
                           key: Key('remind-${c.name}'),
+                          label: 'Remind',
                           onPressed: () => remindCustomer(context, ref, c),
-                          child: const Text('Remind'),
                         ),
                       ],
                     ),
@@ -279,44 +219,45 @@ class _Suppliers extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
-    final hidden = ref.watch(balancesHiddenProvider);
+    final amount = AppTypography.rowAmount(theme.colorScheme.onSurface);
+    final hidden = AmountsHidden.of(context);
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    final owed = ref.watch(suppliersProvider).value;
+    final suppliers = ref.watch(suppliersProvider);
+    final owed = suppliers.value;
     final paid = ref.watch(suppliersPaidThisMonthProvider).value ?? const [];
-    if (owed == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+    if (suppliers.hasError && !suppliers.hasValue) {
+      return ErrorView(
+        'Your suppliers could not load.',
+        onRetry: () => ref.invalidate(suppliersProvider),
+      );
     }
+    if (owed == null) return const LoadingView(inList: true);
     final total = owed.fold(0, (sum, s) => sum + s.owedMinor);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Tiles([
-          ('You owe', _plain(hidden, total)),
-          ('Due this week', _plain(hidden, dueWithin(owed, today: today))),
-        ]),
+        FigureRow(
+          children: [
+            FigureTile(label: 'You owe', value: _plain(hidden, total)),
+            FigureTile(
+              label: 'Due this week',
+              value: _plain(hidden, dueWithin(owed, today: today)),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         if (owed.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text(
-              'Suppliers you pay later show here. Use Bought on credit to '
-              'add one.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
+          const EmptyNote(
+            'Suppliers you pay later show here. Use Bought on credit to '
+            'add one.',
           )
         else
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 for (final (i, s) in owed.indexed) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  if (i > 0) const Divider(height: 1),
                   ListTile(
                     key: Key('supplier-${s.debt.id}'),
                     onTap: () =>
@@ -329,33 +270,19 @@ class _Suppliers extends ConsumerWidget {
                                 ? 'Due today'
                                 : 'Due ${dayLabel(s.nextDue!, thisYear: today.year)}',
                           ),
-                    trailing: Text(
-                      _plain(hidden, s.owedMinor),
-                      style: theme.textTheme.titleMedium,
-                    ),
+                    trailing: Text(_plain(hidden, s.owedMinor), style: amount),
                   ),
                 ],
               ],
             ),
           ),
         if (paid.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
-            child: Text(
-              'PAID THIS MONTH',
-              style: theme.textTheme.labelLarge!.copyWith(
-                color: colors.textMuted,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
+          const SectionLabel('Paid this month'),
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 for (final (i, p) in paid.indexed) ...[
-                  if (i > 0)
-                    const Divider(height: 1, indent: 16, endIndent: 16),
+                  if (i > 0) const Divider(height: 1),
                   ListTile(
                     title: Text(p.supplier),
                     subtitle: Text(
@@ -364,7 +291,7 @@ class _Suppliers extends ConsumerWidget {
                     ),
                     trailing: Text(
                       _plain(hidden, p.amountMinor),
-                      style: theme.textTheme.titleMedium,
+                      style: amount,
                     ),
                   ),
                 ],

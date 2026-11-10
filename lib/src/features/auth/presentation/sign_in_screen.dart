@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import 'sign_in_panel.dart';
 
@@ -27,8 +28,7 @@ class SignInScreen extends StatelessWidget {
           const SizedBox(height: 24),
           SignInPanel(
             onSignedIn: () {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Signed in')));
+              showNote(context, 'Signed in.');
               context.go(AppRoutes.profile);
             },
           ),

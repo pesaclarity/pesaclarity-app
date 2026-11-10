@@ -150,6 +150,39 @@ void main() {
     expect(find.text('5,600'), findsOneWidget);
   });
 
+  testWidgets('before there is anything to count, Home says when it will', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
+          safeToSpendTodayProvider.overrideWith((ref) async => null),
+          untilNextMoneyProvider.overrideWith((ref) async => null),
+          cashFlowForecastProvider.overrideWith((ref) async => null),
+          healthIndexProvider.overrideWith((ref) async => null),
+          upcomingBillsProvider.overrideWith((ref) async => []),
+        ],
+        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Safe to spend today'), findsOneWidget);
+    expect(
+      find.text(
+        'Shows once your messages have been read and Plan has a '
+        'day-to-day budget.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Soon'), findsNWidgets(2));
+    expect(find.text('Shows once Plan has a budget'), findsOneWidget);
+    expect(find.text('Shows after two weeks of records'), findsOneWidget);
+    expect(find.textContaining('—'), findsNothing);
+    expect(find.textContaining('KES'), findsNothing);
+  });
+
   testWidgets('Home plans until the next money for a student', (tester) async {
     final until = UntilNextMoney.calculate(
       today: CalendarDate(2026, 11, 14),
@@ -210,19 +243,54 @@ void main() {
     expect(find.byKey(const Key('until-next-money')), findsOneWidget);
     // 5,000 less a 500 buffer and 1,500 of rent, over 10 days.
     expect(find.text('KES 300'), findsOneWidget);
+    // The red card's caption: one line each.
     expect(
-      find.text('Until about Tue 24 Nov, when money usually comes'),
+      find.text(
+        'Until about Tue 24 Nov, when money usually comes\n'
+        '5,000 on hand · 1,500 for bills',
+      ),
       findsOneWidget,
     );
+    // On hand shows once, in the caption; the tile says when money comes.
+    expect(find.text('On hand'), findsNothing);
     expect(
-      find.text('5,000 on hand · 1,500 set aside for bills'),
+      find.descendant(
+        of: find.byKey(const Key('home-next-money')),
+        matching: find.text('Tue 24 Nov'),
+      ),
       findsOneWidget,
     );
-    expect(find.text('On hand'), findsOneWidget);
+    // Not enough history for a pace yet.
+    expect(find.text('Shows after two weeks of records'), findsOneWidget);
+    expect(find.text('—'), findsNothing);
     expect(find.byKey(const Key('home-what-was-this')), findsOneWidget);
-    expect(find.text('Money in · KES 5,000 from Test Mum'), findsOneWidget);
-    expect(find.text('Make it last until Mon 23 Nov'), findsOneWidget);
-    expect(find.text('KES 3,000 from Test Wanjiku'), findsOneWidget);
+    expect(find.text('Make it last'), findsOneWidget);
+    expect(
+      find.text('5,000 came in from Test Mum · until Mon 23 Nov'),
+      findsOneWidget,
+    );
+    expect(find.text('3,000 from Test Wanjiku'), findsOneWidget);
+    // Only the red card's figure carries the currency code.
+    expect(find.textContaining('KES'), findsOneWidget);
+
+    // The eye on the card hides every amount on Home.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('until-next-money')),
+        matching: find.byKey(const Key('amounts-eye')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('KES 300'), findsNothing);
+    expect(
+      find.textContaining('••••• on hand · ••••• for bills'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('••••• came in from Test Mum · until Mon 23 Nov'),
+      findsOneWidget,
+    );
+    expect(find.text('••••• from Test Wanjiku'), findsOneWidget);
   });
 }
 

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/printing/slip.dart';
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../application/printing_providers.dart';
 import 'receipt_printer_screen.dart';
 
@@ -23,22 +25,15 @@ Future<void> showPrintSheet(
   required String name,
   Slip Function()? slip,
   bool fullPage = false,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => SafeArea(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: _PrintSheet(
-        title: title,
-        subtitle: subtitle,
-        pdf: pdf,
-        name: name,
-        slip: slip,
-        fullPage: fullPage,
-      ),
-    ),
+  builder: (context) => _PrintSheet(
+    title: title,
+    subtitle: subtitle,
+    pdf: pdf,
+    name: name,
+    slip: slip,
+    fullPage: fullPage,
   ),
 );
 
@@ -70,34 +65,31 @@ class _PrintSheetState extends ConsumerState<_PrintSheet> {
 
   Future<void> _print(PrintOn on) async {
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
     try {
       final printer = ref.read(slipPrinterProvider);
       if (on == PrintOn.counter) {
         await printer.onCounter(widget.slip!(), copies: _copies);
         navigator.pop();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              _copies == 1 ? 'Printed.' : 'Printed $_copies copies.',
-            ),
-          ),
-        );
+        if (navigator.mounted) {
+          showNote(
+            navigator.context,
+            _copies == 1 ? 'Printed.' : 'Printed $_copies copies.',
+          );
+        }
       } else {
         final bytes = await widget.pdf();
         navigator.pop();
         await printer.onPhone(bytes, widget.name);
       }
     } on Object {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Turn the printer on and keep it close to the phone, then try '
-            'again.',
-          ),
-        ),
-      );
+      if (navigator.mounted) {
+        showNote(
+          navigator.context,
+          'Turn the printer on and keep it close to the phone, then try '
+          'again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -113,7 +105,6 @@ class _PrintSheetState extends ConsumerState<_PrintSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final settings = ref.watch(printerSettingsProvider).value;
     final supported =
         ref.watch(counterPrintingSupportedProvider).value ?? false;
@@ -139,21 +130,12 @@ class _PrintSheetState extends ConsumerState<_PrintSheet> {
         }
         if (value != null) setState(() => _on = value);
       },
-      child: Column(
+      child: SheetBody(
         key: const Key('print-sheet'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        title: widget.title,
+        subtitle: widget.subtitle,
         children: [
-          Text(widget.title, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 4),
-          Text(
-            widget.subtitle,
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 16),
           Card(
-            margin: EdgeInsets.zero,
             child: Column(
               children: [
                 if (counter) ...[
@@ -187,13 +169,13 @@ class _PrintSheetState extends ConsumerState<_PrintSheet> {
                 Expanded(
                   child: Text('Copies', style: theme.textTheme.bodyLarge),
                 ),
-                IconButton.outlined(
+                StepButton(
                   key: const Key('print-fewer'),
-                  tooltip: 'One copy fewer',
+                  icon: Icons.remove,
+                  tooltip: 'One fewer',
                   onPressed: _copies > 1
                       ? () => setState(() => _copies--)
                       : null,
-                  icon: const Icon(Icons.remove),
                 ),
                 SizedBox(
                   width: 36,
@@ -204,13 +186,13 @@ class _PrintSheetState extends ConsumerState<_PrintSheet> {
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
-                IconButton.outlined(
+                StepButton(
                   key: const Key('print-more'),
-                  tooltip: 'One copy more',
+                  icon: Icons.add,
+                  tooltip: 'One more',
                   onPressed: _copies < 9
                       ? () => setState(() => _copies++)
                       : null,
-                  icon: const Icon(Icons.add),
                 ),
               ],
             ),

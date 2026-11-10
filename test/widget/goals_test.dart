@@ -84,7 +84,7 @@ void main() {
 
     expect(find.text('Add a debt'), findsWidgets);
     expect(find.text('Debt-free'), findsNothing);
-    await tester.tap(find.text('Add a goal').first);
+    await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'What are you saving for?'),
@@ -98,7 +98,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Saved so far'),
       '15000',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add goal'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
 
     expect(find.text('School fees'), findsOneWidget);
@@ -129,11 +129,11 @@ void main() {
 
   testAppWidgets('a goal needs a name and a target', (tester) async {
     await pumpGoals(tester, db: openTestDatabase());
-    await tester.tap(find.text('Add a goal').first);
+    await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Add goal'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
-    expect(find.text('Give the goal a name.'), findsOneWidget);
+    expect(find.text('Enter a name, such as School fees.'), findsOneWidget);
     expect(find.text('Enter an amount above 0.'), findsOneWidget);
   });
 

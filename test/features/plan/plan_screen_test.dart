@@ -130,7 +130,7 @@ void main() {
     expect(find.text('All to savings'), findsOneWidget);
 
     // Salary was due yesterday, so payday autopilot is on offer.
-    expect(find.text('Payday: split KES 181,600'), findsOneWidget);
+    expect(find.text('Payday: split 181,600'), findsOneWidget);
 
     await tester.tap(find.text('Pending only'));
     await tester.pumpAndSettle();
@@ -143,7 +143,10 @@ void main() {
     await tester.runAsync(() => seedNovember(db));
     await pumpScreen(tester, db, const PlanScreen());
 
-    await tapText(tester, 'Add');
+    final add = find.byTooltip('Add to Nov 2026');
+    await scrollTo(tester, add);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('One-off'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Gift');
@@ -156,6 +159,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gift'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('34,500'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('34,500'), findsOneWidget);
   });
 
@@ -169,9 +177,15 @@ void main() {
     await pumpScreen(tester, db, const PlanScreen());
 
     // October's rent was never paid, so it is carried into November.
+    await scrollTo(tester, find.textContaining('Carried forward'));
     expect(find.textContaining('Carried forward'), findsOneWidget);
     expect(find.text('15,000 of 30,000'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.byTooltip('Previous month'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.byTooltip('Previous month'));
     await tester.pumpAndSettle();
     expect(find.text('Oct 2026'), findsOneWidget);

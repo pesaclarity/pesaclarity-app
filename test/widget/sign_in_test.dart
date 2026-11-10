@@ -4,6 +4,7 @@ import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/features/auth/data/session_store.dart';
 import 'package:pesaclarity/src/features/auth/domain/auth_models.dart';
 import 'package:pesaclarity/src/shared/semantic_ids.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
 
 import '../helpers/fake_auth.dart';
 import '../helpers/test_app.dart';
@@ -331,7 +332,7 @@ void main() {
     expect(find.text('Infinix Hot 30'), findsOneWidget);
     expect(find.text('Last active 3 Sep 2026'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Sign out'));
+    await tester.tap(find.widgetWithText(PillButton, 'Sign out'));
     await tester.pumpAndSettle();
     expect(find.text('Sign out Infinix Hot 30?'), findsOneWidget);
     await tester.tap(
@@ -344,7 +345,7 @@ void main() {
 
     expect(api.revoked, {'old'});
     expect(find.text('Infinix Hot 30'), findsNothing);
-    expect(find.text('Infinix Hot 30 is signed out'), findsOneWidget);
+    expect(find.text('Infinix Hot 30 is signed out.'), findsOneWidget);
   });
 
   testAppWidgets('a saved session shows in Profile on launch', (tester) async {

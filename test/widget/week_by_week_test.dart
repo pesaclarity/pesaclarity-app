@@ -5,6 +5,7 @@ import 'package:pesaclarity/src/domain/income/week_by_week.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/income/presentation/week_by_week_screen.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 class _FakeRainyDayFund extends RainyDayFundController {
@@ -35,6 +36,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.light,
+          builder: (context, child) => AmountsHiddenScope(child: child!),
           home: const WeekByWeekScreen(),
         ),
       ),
@@ -76,6 +78,32 @@ void main() {
     await tester.tap(find.byKey(const Key('rainy-day-add')));
     await tester.pump();
     expect(fund.moves, [100000]);
+  });
+
+  testWidgets('the eye hides the week, like every other screen', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      WeekByWeek(
+        weeks: [
+          for (var i = usualWeeksCount; i >= 1; i--) week(i, 4500, 4200),
+          week(0, 6800, 4100),
+        ],
+        usualInMinor: 450000,
+        usualOutMinor: 420000,
+        fund: const RainyDayFund(),
+        today: today,
+      ),
+    );
+    expect(find.text('6,800'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('amounts-eye')));
+    await tester.pumpAndSettle();
+    expect(find.text('6,800'), findsNothing);
+    expect(find.text('4,100'), findsNothing);
+    expect(find.textContaining('•••••'), findsWidgets);
+    expect(find.byTooltip('Show balances'), findsOneWidget);
   });
 
   testWidgets('a lean week offers to take from it', (tester) async {

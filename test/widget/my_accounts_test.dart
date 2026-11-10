@@ -138,8 +138,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('scan-range-months6')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('scan-range-done')));
-    await tester.pumpAndSettle();
 
     expect(find.text('Last 6 months'), findsOneWidget);
     await scrollTo(
