@@ -13,6 +13,8 @@ import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
+import '../../printing/application/document_slips.dart';
+import '../../printing/presentation/print_sheet.dart';
 import '../../reminders/application/business_reminders.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../application/document_providers.dart';
@@ -241,14 +243,41 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
           style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 16),
-        FilledButton(
-          key: const Key('receipt-share'),
-          onPressed: _busy ? null : () => _send(r),
-          child: const Text('Share receipt'),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                key: const Key('receipt-share'),
+                onPressed: _busy ? null : () => _send(r),
+                child: const Text('Share receipt'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const Key('receipt-print'),
+                onPressed: _busy
+                    ? null
+                    : () => showPrintSheet(
+                        context,
+                        title: 'Print receipt',
+                        subtitle:
+                            '${r.number} · ${r.currency} '
+                            '${_plain(r.totalMinor)}',
+                        name: 'Receipt ${r.number}',
+                        pdf: () => ref.read(receiptMakerProvider).pdf(r),
+                        slip: () => slipForReceipt(r),
+                      ),
+                icon: const Icon(Icons.print_outlined),
+                label: const Text('Print'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
-          'Made on this phone. Opens WhatsApp, SMS or any app you choose.',
+          'Made on this phone. Share opens WhatsApp, SMS or any app; Print '
+          'uses your counter printer or any printer.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),

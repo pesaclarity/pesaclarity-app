@@ -227,29 +227,40 @@ class StatementSender {
 
   final Ref _ref;
 
-  Future<void> share(CustomerAccount customer) async {
+  /// [customer]'s statement as a PDF.
+  Future<Uint8List> pdf(CustomerAccount customer) async {
     final settings = await _ref.read(documentSettingsProvider.future);
     final logo = await _ref.read(
       documentFileProvider(DocumentFileKind.logo).future,
     );
     final business = settings.nameOr(_ref.read(activeSpaceProvider).name);
     final today = CalendarDate.local(_ref.read(clockProvider)());
-    final pdf = await _ref.read(statementRendererProvider)(
+    return _ref.read(statementRendererProvider)(
       customer: customer,
       business: business,
       settings: settings,
       today: today,
       logo: logo != null && logo.isImage ? logo.bytes : null,
     );
+  }
+
+  /// The file name a statement gets: `statement-grace-wanjiru-2026-11-10`.
+  String fileName(CustomerAccount customer) {
+    final today = CalendarDate.local(_ref.read(clockProvider)());
     final slug = customer.name
         .toLowerCase()
         .replaceAll(RegExp('[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
+    return 'statement-$slug-$today';
+  }
+
+  Future<void> share(CustomerAccount customer) async {
+    final bytes = await pdf(customer);
     await _ref
         .read(reportSharerProvider)
         .sharePdf(
-          pdf,
-          fileName: 'statement-$slug-$today.pdf',
+          bytes,
+          fileName: '${fileName(customer)}.pdf',
           subject: 'Statement for ${customer.name}',
         );
   }

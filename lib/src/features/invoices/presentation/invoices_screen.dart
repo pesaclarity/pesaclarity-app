@@ -16,6 +16,7 @@ import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../people/presentation/remind_sheet.dart';
+import '../../printing/presentation/print_sheet.dart';
 import '../../reminders/application/business_reminders.dart';
 import '../../security/application/balance_visibility.dart';
 import '../application/invoice_providers.dart';
@@ -393,6 +394,21 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
     }
   }
 
+  Future<void> _print() async {
+    final sender = ref.read(invoiceSenderProvider);
+    final doc = await sender.docFor(widget.view);
+    if (!mounted) return;
+    final i = widget.view.invoice;
+    await showPrintSheet(
+      context,
+      title: 'Print invoice',
+      subtitle: [i.number, if (i.client.isNotEmpty) i.client].join(' · '),
+      name: 'Invoice ${i.number}',
+      pdf: () => sender.pdf(doc),
+      fullPage: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -506,6 +522,13 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('invoice-print'),
+          onPressed: _busy ? null : _print,
+          icon: const Icon(Icons.print_outlined),
+          label: const Text('Print'),
         ),
         const SizedBox(height: 6),
         Text(
