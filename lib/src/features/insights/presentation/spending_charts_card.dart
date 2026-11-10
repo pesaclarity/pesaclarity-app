@@ -249,8 +249,11 @@ class _BreakdownCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
+                              // Long names get a second line before
+                              // they shorten.
                               child: Text(
                                 sliceLabel(s.key, names),
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall,
                               ),

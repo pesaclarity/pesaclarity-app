@@ -233,3 +233,33 @@ class ButtonPair extends StatelessWidget {
     ],
   );
 }
+
+/// A row's detail line on one line: [lead], such as the category, shortens
+/// with "…" when there is not room, and [tail], such as the account
+/// ("M-Pesa"), always shows whole after a " · ".
+class DetailLine extends StatelessWidget {
+  const DetailLine(this.lead, this.tail, {this.style, super.key});
+
+  final String lead;
+  final String tail;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: '$lead · $tail',
+    excludeSemantics: true,
+    child: Row(
+      children: [
+        Flexible(
+          child: Text(
+            lead,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+        Text(' · $tail', maxLines: 1, softWrap: false, style: style),
+      ],
+    ),
+  );
+}
