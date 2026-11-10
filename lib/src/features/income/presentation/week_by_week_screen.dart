@@ -315,5 +315,4 @@ class _WeekBars extends StatelessWidget {
   }
 }
 
-String _plain(BuildContext context, int minor) =>
-    shownMoney(context, minor, withCurrency: false);
+String _plain(BuildContext context, int minor) => shownMoney(context, minor);

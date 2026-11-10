@@ -65,7 +65,7 @@ void main() {
     final pins = await open(tester);
 
     expect(find.text('Money in · from Test Mum'), findsOneWidget);
-    expect(find.text('KES 5,000'), findsOneWidget);
+    expect(find.text('5,000'), findsOneWidget);
     expect(
       find.text('Next money usually comes in about 14 days. Make it last:'),
       findsOneWidget,

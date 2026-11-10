@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/repositories/purpose_repository.dart';
 import '../../../domain/income/money_purpose.dart';
+import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/app_sheet.dart';
 
 /// Asks what money in from [payeeName] was for.
@@ -57,8 +56,11 @@ class _WhatWasThisSheetState extends ConsumerState<WhatWasThisSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = formatMoney(
-      Money(widget.amountMinor, currency: widget.currency),
+    // The code shows only for a currency other than the base.
+    final amount = moneyOrHidden(
+      widget.amountMinor,
+      hidden: false,
+      currency: widget.currency,
     );
     final purpose = _purpose;
     return SheetBody(
