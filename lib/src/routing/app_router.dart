@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/database/database_providers.dart';
 import '../domain/ledger/activity_feed.dart';
+import '../features/accounts/presentation/choose_accounts_screen.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/auth/presentation/devices_screen.dart';
@@ -195,6 +196,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'accounts',
                         builder: (context, state) =>
                             const MyAccountsSettingsScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'choose',
+                            builder: (context, state) =>
+                                const ChooseAccountsScreen(),
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'backup',

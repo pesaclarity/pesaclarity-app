@@ -107,6 +107,22 @@ void main() {
     expect(kcb.balanceAfterMinor, 700000);
   });
 
+  test('records messages in the account currency', () async {
+    final mpesa = [_institution('mpesa')];
+    await ingestor.ingest([mpesaSent()], mpesa);
+    final account = await db.select(db.accounts).getSingle();
+    expect(account.currency, _institution('mpesa').pack.currency);
+
+    // The person counts this account in USD: new messages keep the numbers.
+    await DriftAccountsRepository(db).setCurrency(account.id, 'USD');
+    await ingestor.ingest([mpesaSent(receipt: 'TJA0000011')], mpesa);
+    final rows = await transactions();
+    expect(rows.map((r) => r.currency), ['USD', 'USD']);
+    expect(rows.map((r) => r.amountMinor), [150000, 150000]);
+    expect(rows.last.feeMinor, 1500);
+    expect(rows.last.balanceAfterMinor, 325000);
+  });
+
   test('applies a named payee to new transactions', () async {
     final payees = DriftPayeesRepository(db);
     final payeeId = await payees.name(

@@ -14,14 +14,29 @@ abstract interface class AccountsRepository {
 
   Future<int> add(AccountsCompanion account);
 
-  /// The id of the account fed by [institutionId]'s messages, creating it
-  /// with [name], [type] and [openingDate] the first time.
+  /// The account fed by [institutionId]'s messages, made the first time in
+  /// [currency], the currency those messages usually use.
   Future<int> accountForInstitution(
     String institutionId, {
     required String name,
     required AccountType type,
     required DateTime openingDate,
+    String? currency,
   });
+
+  /// The currency [accountId] counts in.
+  Future<String> currencyOf(int accountId);
+
+  /// How many of [accountId]'s transactions are in its own currency, and the
+  /// latest of them: what [setCurrency] would mark in a new one.
+  Future<({int count, TransactionRecord? latest})> ownCurrencyTransactions(
+    int accountId,
+  );
+
+  /// Counts [accountId] in [currency] from now on, and marks its
+  /// transactions in its old currency as [currency] with the same amounts,
+  /// since they were in [currency] all along. Returns how many it marked.
+  Future<int> setCurrency(int accountId, String currency);
 
   /// Every account's opening balance, for working out balances.
   Future<List<AccountOpening>> openings();
@@ -61,6 +76,7 @@ class DriftAccountsRepository implements AccountsRepository {
     required String name,
     required AccountType type,
     required DateTime openingDate,
+    String? currency,
   }) => _db.transaction(() async {
     final existing = await (_db.select(
       _db.accounts,
@@ -70,11 +86,88 @@ class DriftAccountsRepository implements AccountsRepository {
       AccountsCompanion.insert(
         name: name,
         type: type,
+        currency: Value.absentIfNull(currency),
         openingDate: openingDate,
         institutionId: Value(institutionId),
       ),
     );
   });
+
+  @override
+  Future<String> currencyOf(int accountId) async {
+    final query = _db.selectOnly(_db.accounts)
+      ..addColumns([_db.accounts.currency])
+      ..where(_db.accounts.id.equals(accountId));
+    return (await query.getSingle()).read(_db.accounts.currency)!;
+  }
+
+  @override
+  Future<({int count, TransactionRecord? latest})> ownCurrencyTransactions(
+    int accountId,
+  ) async {
+    final currency = await currencyOf(accountId);
+    final t = _db.transactions;
+    final rows =
+        await (_db.select(t)
+              ..where(
+                (r) =>
+                    r.accountId.equals(accountId) & r.currency.equals(currency),
+              )
+              ..orderBy([(r) => OrderingTerm.desc(r.occurredAt)]))
+            .get();
+    return (count: rows.length, latest: rows.firstOrNull);
+  }
+
+  @override
+  Future<int> setCurrency(int accountId, String currency) =>
+      _db.transaction(() async {
+        final account = await (_db.select(
+          _db.accounts,
+        )..where((a) => a.id.equals(accountId))).getSingle();
+        final from = account.currency;
+        if (from == currency) return 0;
+        // Same amounts, in the new currency's minor units: KES 50,000.00 is
+        // UGX 50,000.
+        int scale(int minor) => rescaleMinor(
+          minor,
+          fromDigits: minorUnitDigits(from),
+          toDigits: minorUnitDigits(currency),
+        );
+        await (_db.update(
+          _db.accounts,
+        )..where((a) => a.id.equals(accountId))).write(
+          AccountsCompanion(
+            currency: Value(currency),
+            openingBalanceMinor: Value(scale(account.openingBalanceMinor)),
+          ),
+        );
+        final t = _db.transactions;
+        final rows =
+            await (_db.select(t)..where(
+                  (r) =>
+                      r.accountId.equals(accountId) & r.currency.equals(from),
+                ))
+                .get();
+        for (final row in rows) {
+          await (_db.update(t)..where((r) => r.id.equals(row.id))).write(
+            TransactionsCompanion(
+              currency: Value(currency),
+              amountMinor: Value(scale(row.amountMinor)),
+              feeMinor: Value(scale(row.feeMinor)),
+              balanceAfterMinor: Value(
+                row.balanceAfterMinor == null
+                    ? null
+                    : scale(row.balanceAfterMinor!),
+              ),
+              // A rate got between the old currency and another no longer
+              // describes it.
+              fxRateCurrency: const Value(null),
+              fxRateMicros: const Value(null),
+            ),
+          );
+        }
+        return rows.length;
+      });
 
   @override
   Future<void> setOpening(int accountId, int balanceMinor, DateTime date) =>

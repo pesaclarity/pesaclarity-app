@@ -194,8 +194,9 @@ void main() {
                     Scaffold(body: Text('Activity ${state.uri.query}')),
               ),
               GoRoute(
-                path: '/home/profile/accounts',
-                builder: (_, _) => const Scaffold(body: Text('My accounts')),
+                path: '/home/profile/accounts/choose',
+                builder: (_, _) =>
+                    const Scaffold(body: Text('Add or remove accounts')),
               ),
             ],
           ),
@@ -342,7 +343,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Choose my accounts'), -200);
     await tester.tap(find.text('Choose my accounts'));
     await tester.pumpAndSettle();
-    expect(find.text('My accounts'), findsOneWidget);
+    expect(find.text('Add or remove accounts'), findsOneWidget);
   });
 
   testAppWidgets('switches the spending charts between week, month and year', (

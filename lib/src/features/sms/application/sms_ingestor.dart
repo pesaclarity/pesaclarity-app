@@ -172,14 +172,19 @@ class SmsIngestor {
         openingDate: read
             .map((r) => r.$1.occurredAt(r.$2.receivedAt))
             .reduce((a, b) => a.isBefore(b) ? a : b),
+        currency: institution.pack.currency,
       );
+      final currency = await _accounts.currencyOf(accountId);
       added += await _transactions.addNew([
         for (final (draft, message, hash) in read)
-          draft.toTransaction(
-            accountId: accountId,
-            receivedAt: message.receivedAt,
-            messageHash: hash,
-            currency: institution.pack.currency,
+          inAccountCurrency(
+            draft.toTransaction(
+              accountId: accountId,
+              receivedAt: message.receivedAt,
+              messageHash: hash,
+              currency: institution.pack.currency,
+            ),
+            currency,
           ),
       ]);
       parsedCount += read.length;
@@ -193,9 +198,15 @@ class SmsIngestor {
         openingDate: parsed
             .map((p) => p.time)
             .reduce((a, b) => a.isBefore(b) ? a : b),
+        currency: institution.pack.currency,
       );
+      final currency = await _accounts.currencyOf(accountId);
       added += await _transactions.addNew([
-        for (final p in parsed) transactionFromParsed(p, accountId: accountId),
+        for (final p in parsed)
+          inAccountCurrency(
+            transactionFromParsed(p, accountId: accountId),
+            currency,
+          ),
       ]);
       parsedCount += parsed.length;
     }

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:ujumbe/ujumbe.dart';
 
+import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
 import '../../../domain/payees/payee_identifier.dart';
 
@@ -66,5 +67,31 @@ TransactionsCompanion transactionFromParsed(
     messageHash: Value(parsed.rawHash),
     dedupeKey: Value(parsed.dedupeKey),
     balanceAfterMinor: Value(parsed.balanceMinor),
+  );
+}
+
+/// [row] as its account counts it, in [currency]: the same amounts, in that
+/// currency's minor units. Messages are read in their institution's usual
+/// currency; an account the person set to another keeps the numbers.
+TransactionsCompanion inAccountCurrency(
+  TransactionsCompanion row,
+  String currency,
+) {
+  if (!row.currency.present) return row.copyWith(currency: Value(currency));
+  final from = row.currency.value;
+  if (from == currency) return row;
+  int scale(int minor) => rescaleMinor(
+    minor,
+    fromDigits: minorUnitDigits(from),
+    toDigits: minorUnitDigits(currency),
+  );
+  final balance = row.balanceAfterMinor;
+  return row.copyWith(
+    currency: Value(currency),
+    amountMinor: Value(scale(row.amountMinor.value)),
+    feeMinor: row.feeMinor.present ? Value(scale(row.feeMinor.value)) : null,
+    balanceAfterMinor: balance.present && balance.value != null
+        ? Value(scale(balance.value!))
+        : null,
   );
 }
