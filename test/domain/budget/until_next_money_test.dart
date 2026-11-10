@@ -16,6 +16,8 @@ void main() {
       billsMinor: kes(1500),
       spentTodayMinor: kes(100),
       paceMinor: kes(400),
+      usualTodayMinor: kes(400),
+      historyDays: 28,
       nextMoney: CalendarDate(2026, 11, 24),
     );
     // 5,000 less a 500 buffer and 1,500 of bills, over 10 days.
@@ -26,7 +28,7 @@ void main() {
     expect(r.lastsUntil, CalendarDate(2026, 11, 22));
   });
 
-  test('irregular money plans a week at a time', () {
+  test('irregular money plans a week at a time, at most a usual day', () {
     final r = UntilNextMoney.calculate(
       today: today,
       basis: NextMoneyBasis.rolling,
@@ -34,12 +36,67 @@ void main() {
       billsMinor: 0,
       spentTodayMinor: kes(1200),
       paceMinor: kes(800),
+      usualTodayMinor: kes(800),
+      historyDays: 28,
     );
+    // 6,300 over 7 days would be 900; a usual day is 800.
     expect(r.days, rollingPlanDays);
-    expect(r.dailyMinor, kes(900));
+    expect(r.dailyMinor, kes(800));
+    expect(r.fromUsualDay, isTrue);
     expect(r.leftTodayMinor, 0);
-    expect(r.overTodayMinor, kes(300));
+    expect(r.overTodayMinor, kes(400));
     expect(r.nextMoney, isNull);
+  });
+
+  test('a lot on hand is not all safe to spend: the rest stays spare', () {
+    final r = UntilNextMoney.calculate(
+      today: today,
+      basis: NextMoneyBasis.rolling,
+      onHandAtStartMinor: kes(100000),
+      billsMinor: kes(5000),
+      spentTodayMinor: 0,
+      paceMinor: kes(1400),
+      usualTodayMinor: kes(1500),
+      historyDays: 60,
+    );
+    expect(r.dailyMinor, kes(1500));
+    expect(r.fromUsualDay, isTrue);
+    // 100,000 − 5,000 of bills − a 10,000 buffer − 7 × 1,500.
+    expect(r.spareMinor, kes(74500));
+  });
+
+  test('less than the usual day when the money is short', () {
+    final r = UntilNextMoney.calculate(
+      today: today,
+      basis: NextMoneyBasis.rhythm,
+      onHandAtStartMinor: kes(3000),
+      billsMinor: 0,
+      spentTodayMinor: 0,
+      paceMinor: kes(800),
+      usualTodayMinor: kes(800),
+      historyDays: 60,
+      nextMoney: today.addDays(9),
+    );
+    // 2,700 over 9 days.
+    expect(r.dailyMinor, kes(300));
+    expect(r.fromUsualDay, isFalse);
+  });
+
+  test('with too little history, spreads the money over a month', () {
+    final r = UntilNextMoney.calculate(
+      today: today,
+      basis: NextMoneyBasis.rolling,
+      onHandAtStartMinor: kes(30000),
+      billsMinor: 0,
+      spentTodayMinor: 0,
+      paceMinor: kes(2000),
+      usualTodayMinor: kes(2000),
+      historyDays: 5,
+    );
+    // 27,000 after the buffer, over 30 days, not 7.
+    expect(r.days, newPlanDays);
+    expect(r.dailyMinor, kes(900));
+    expect(r.fromUsualDay, isFalse);
   });
 
   test('bills larger than the money leave nothing to spend', () {
@@ -50,6 +107,8 @@ void main() {
       billsMinor: kes(2000),
       spentTodayMinor: 0,
       paceMinor: kes(100),
+      usualTodayMinor: kes(100),
+      historyDays: 28,
     );
     expect(r.dailyMinor, 0);
     expect(r.days, 1);
@@ -72,6 +131,8 @@ void main() {
           ],
           spentTodayMinor: 0,
           paceMinor: pace,
+          usualTodayMinor: pace,
+          historyDays: 60,
           nextMoney: today.addDays(14),
           pinnedDailyMinor: pinned,
         );
