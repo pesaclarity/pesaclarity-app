@@ -5,6 +5,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../sms/presentation/explain_text.dart';
 import '../application/statement_import_controller.dart';
 import '../application/statement_importer.dart';
 import '../application/statement_password_hints.dart';
@@ -65,7 +66,7 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               ),
             ],
             StatementImportStage.reading => [
-              _Heading(
+              ExplainHeading(
                 state.isBatch
                     ? 'Reading statement ${state.fileNumber} of '
                           '${state.fileCount}'
@@ -74,21 +75,21 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               const SizedBox(height: 16),
               const LinearProgressIndicator(semanticsLabel: 'Import progress'),
               const SizedBox(height: 12),
-              const _Body('This happens on your phone.'),
+              const ExplainBody('This happens on your phone.'),
             ],
             StatementImportStage.password => [
-              const _Heading('This statement has a password'),
+              const ExplainHeading('This statement has a password'),
               if (state.isBatch) ...[
                 const SizedBox(height: 4),
-                _Body(state.fileName ?? ''),
+                ExplainBody(state.fileName ?? ''),
               ],
               const SizedBox(height: 8),
               for (final hint in ref.watch(statementPasswordHintsProvider))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: _Body(hint),
+                  child: ExplainBody(hint),
                 ),
-              _Body(
+              ExplainBody(
                 state.isBatch
                     ? 'It is used to open the files you chose, then '
                           'forgotten.'
@@ -130,7 +131,7 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               ),
             ],
             StatementImportStage.imported => [
-              const _Heading('Statement imported'),
+              const ExplainHeading('Statement imported'),
               const SizedBox(height: 16),
               _SummaryCard(state.summary!),
               const SizedBox(height: 24),
@@ -142,12 +143,12 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               chooseAnother(),
             ],
             StatementImportStage.alreadyImported => [
-              _Heading(
+              ExplainHeading(
                 'You imported this statement on '
                 '${dayLabel(CalendarDate.local(state.summary!.importedAt))}',
               ),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Its transactions are already in your ledger. Here is how it '
                 'matched then.',
               ),
@@ -157,9 +158,9 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               chooseAnother(),
             ],
             StatementImportStage.comingSoon => [
-              _Heading('${state.bankName} statements are coming soon'),
+              ExplainHeading('${state.bankName} statements are coming soon'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'For now Pesa Clarity reads M-Pesa statements. Your bank '
                 'alerts are still captured from SMS as they arrive.',
               ),
@@ -167,23 +168,25 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               chooseAnother(),
             ],
             StatementImportStage.notStatement => [
-              const _Heading('We could not find M-Pesa transactions here'),
+              const ExplainHeading(
+                'We could not find M-Pesa transactions here',
+              ),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Choose the full M-Pesa statement PDF, as Safaricom sent it.',
               ),
               const SizedBox(height: 24),
               chooseAnother(),
             ],
             StatementImportStage.noText => [
-              const _Heading('This PDF is a scanned picture'),
+              const ExplainHeading('This PDF is a scanned picture'),
               const SizedBox(height: 8),
-              const _Body(noTextAdvice),
+              const ExplainBody(noTextAdvice),
               const SizedBox(height: 24),
               chooseAnother(),
             ],
             StatementImportStage.batchDone => [
-              const _Heading('Your statements'),
+              const ExplainHeading('Your statements'),
               const SizedBox(height: 16),
               for (final result in state.results) ...[
                 Text(
@@ -194,7 +197,7 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
                 if (result.outcome case StatementImported(:final summary))
                   _SummaryCard(summary)
                 else
-                  _Body(_resultLine(result)),
+                  ExplainBody(_resultLine(result)),
                 const SizedBox(height: 20),
               ],
               FilledButton(
@@ -205,16 +208,16 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
               chooseAnother(),
             ],
             StatementImportStage.notPdf => [
-              const _Heading('This file could not be opened'),
+              const ExplainHeading('This file could not be opened'),
               const SizedBox(height: 8),
-              const _Body('Choose a statement saved as a PDF.'),
+              const ExplainBody('Choose a statement saved as a PDF.'),
               const SizedBox(height: 24),
               chooseAnother(),
             ],
             StatementImportStage.failed => [
-              const _Heading('The import stopped'),
+              const ExplainHeading('The import stopped'),
               const SizedBox(height: 8),
-              const _Body(
+              const ExplainBody(
                 'Something went wrong while reading the statement. Try '
                 'again; transactions already imported are matched, so '
                 'nothing is counted twice.',
@@ -247,39 +250,19 @@ class _Explanation extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _Heading('Fill gaps from a statement'),
-        const SizedBox(height: 8),
-        const _Body(
-          'A statement adds history from before Pesa Clarity was installed '
-          'and any messages that were missed.',
-        ),
-        const SizedBox(height: 16),
-        for (final point in _points)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 12),
-                  child: Icon(
-                    Icons.check_circle_outline,
-                    size: 20,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                Expanded(child: Text(point, style: theme.textTheme.bodyLarge)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ExplainHeading('Fill gaps from a statement'),
+      SizedBox(height: 8),
+      ExplainBody(
+        'A statement adds history from before Pesa Clarity was installed '
+        'and any messages that were missed.',
+      ),
+      SizedBox(height: 16),
+      TickPoints(_points),
+    ],
+  );
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -317,11 +300,11 @@ class _SummaryCard extends StatelessWidget {
               summary.institutionName,
               '${dayLabel(summary.firstDay)} to ${dayLabel(summary.lastDay)}',
             ),
-            const Divider(),
+            const Divider(height: 1),
             row('Transactions on the statement', '${summary.transactionCount}'),
             row('Added', '${summary.addedCount}'),
             row('Already captured from SMS', '${summary.duplicateCount}'),
-            const Divider(),
+            const Divider(height: 1),
             if (summary.reconciles)
               Text(
                 closing == null
@@ -341,7 +324,7 @@ class _SummaryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              _Body(
+              ExplainBody(
                 gap > 0
                     ? 'Your ledger shows less than the statement. Some money '
                           'in may be missing from this period.'
@@ -352,7 +335,7 @@ class _SummaryCard extends StatelessWidget {
             ],
             if (summary.unreadCount > 0) ...[
               const SizedBox(height: 8),
-              _Body(
+              ExplainBody(
                 summary.unreadCount == 1
                     ? '1 line of the statement could not be read.'
                     : '${summary.unreadCount} lines of the statement could '
@@ -408,26 +391,3 @@ const _months = [
   'Nov',
   'Dec',
 ];
-
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(text, style: Theme.of(context).textTheme.headlineSmall);
-}
-
-class _Body extends StatelessWidget {
-  const _Body(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: Theme.of(context).textTheme.bodyLarge!
-        .copyWith(color: PesaColors.of(context).textMuted),
-  );
-}

@@ -9,6 +9,8 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
 import '../data/rates_client.dart';
@@ -38,15 +40,11 @@ class BaseCurrencyScreen extends ConsumerWidget {
     CurrencySettings settings,
     String code,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     final rate = settings.converter.rateFor(code);
     if (rate == null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Add a rate for $code first: refresh the rates, or set your own.',
-          ),
-        ),
+      showNote(
+        context,
+        'Add a rate for $code first: refresh the rates, or set your own.',
       );
       return;
     }
@@ -62,11 +60,9 @@ class BaseCurrencyScreen extends ConsumerWidget {
         actions: [
           DialogAction(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Keep ${settings.base}'),
+            child: const Text('Cancel'),
           ),
           DialogAction(
-            destructive: true,
-            filled: true,
             onPressed: () => Navigator.pop(context, true),
             child: Text('Switch to $code'),
           ),
@@ -79,7 +75,8 @@ class BaseCurrencyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(currencyControllerProvider).value;
+    final loaded = ref.watch(currencyControllerProvider);
+    final settings = loaded.value;
     final region = ref.watch(deviceRegionProvider);
     final configured = ref.watch(ratesConfiguredProvider);
     final today = CalendarDate.local(ref.watch(clockProvider)());
@@ -87,7 +84,12 @@ class BaseCurrencyScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Base currency')),
       body: settings == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
+          ? loaded.hasError
+                ? ErrorView(
+                    'Your currencies could not load.',
+                    onRetry: () => ref.invalidate(currencyControllerProvider),
+                  )
+                : const LoadingView()
           : CurrencyPicker(
               selected: settings.base,
               suggested: currencyOfRegion(region),
@@ -106,7 +108,7 @@ class BaseCurrencyScreen extends ConsumerWidget {
                   configured: configured,
                   today: today,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Layout.cardGap),
               ],
             ),
     );
@@ -139,11 +141,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
     if (!mounted) return;
     setState(() => _refreshing = false);
     if (!fresh) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rates update once you are online. Try again soon.'),
-        ),
-      );
+      showNote(context, 'Rates update once you are online. Try again soon.');
     }
   }
 
@@ -165,7 +163,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -247,7 +245,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
 Future<void> showOwnRateDialog(
   BuildContext context,
   CurrencySettings settings,
-) => showDialog<void>(
+) => showAdaptiveDialog<void>(
   context: context,
   builder: (context) => _OwnRateDialog(settings),
 );
@@ -309,9 +307,9 @@ class _OwnRateDialogState extends ConsumerState<_OwnRateDialog> {
               validator: (v) {
                 final c = (v ?? '').trim().toUpperCase();
                 if (!currencyCatalogue.containsKey(c)) {
-                  return 'Enter a code such as USD';
+                  return 'Enter a code, such as USD.';
                 }
-                return c == base ? 'Pick a currency other than $base' : null;
+                return c == base ? 'Choose a currency other than $base.' : null;
               },
             ),
             const SizedBox(height: 8),
@@ -330,7 +328,7 @@ class _OwnRateDialogState extends ConsumerState<_OwnRateDialog> {
                   (v ?? '').trim().replaceAll(',', ''),
                 );
                 return rate == null || rate <= 0
-                    ? 'Enter a rate, such as 0.0077'
+                    ? 'Enter a rate, such as 0.0077.'
                     : null;
               },
             ),
@@ -338,12 +336,16 @@ class _OwnRateDialogState extends ConsumerState<_OwnRateDialog> {
         ),
       ),
       actions: [
+        DialogAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         if (hasOwn)
-          TextButton(
+          DialogAction(
             onPressed: () => _save(clear: true),
             child: const Text('Use the fetched rate'),
           ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
+        DialogAction(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

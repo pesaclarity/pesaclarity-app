@@ -8,7 +8,10 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../application/currency_controller.dart';
@@ -61,11 +64,18 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final settings = ref.watch(currencyControllerProvider).value;
+    final loaded = ref.watch(currencyControllerProvider);
+    final settings = loaded.value;
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     if (settings == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator.adaptive()),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Currency converter')),
+        body: loaded.hasError
+            ? ErrorView(
+                'Your currencies could not load.',
+                onRetry: () => ref.invalidate(currencyControllerProvider),
+              )
+            : const LoadingView(),
       );
     }
     final base = settings.base;
@@ -105,11 +115,11 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Currency converter')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Layout.cardPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -129,9 +139,8 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
                           key: const Key('converter-amount'),
                           controller: _amount,
                           textAlign: TextAlign.end,
-                          style: AppTypography.amount(
-                            size: 26,
-                            color: theme.colorScheme.onSurface,
+                          style: AppTypography.tileFigure(
+                            theme.colorScheme.onSurface,
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
@@ -143,7 +152,6 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
                           ],
                           decoration: InputDecoration(
                             labelText: 'Amount in $from',
-                            border: InputBorder.none,
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -177,9 +185,8 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
                           inCurrency(to),
                           key: const Key('converter-result'),
                           textAlign: TextAlign.end,
-                          style: AppTypography.amount(
-                            size: 26,
-                            color: theme.colorScheme.onSurface,
+                          style: AppTypography.tileFigure(
+                            theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -199,15 +206,10 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
             ),
           ),
           if (others.isNotEmpty && amount != null) ...[
-            const SizedBox(height: 16),
-            Text(
+            SectionLabel(
               '${formatMoney(Money(amount, currency: from))} in your other '
               'currencies',
-              style: theme.textTheme.labelLarge!.copyWith(
-                color: colors.textMuted,
-              ),
             ),
-            const SizedBox(height: 8),
             Card(
               child: Column(
                 children: [
@@ -229,9 +231,8 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
                       ),
                       trailing: Text(
                         inCurrency(code),
-                        style: AppTypography.amount(
-                          size: 16,
-                          color: theme.colorScheme.onSurface,
+                        style: AppTypography.rowAmount(
+                          theme.colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -239,7 +240,7 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: Layout.cardGap),
           Wrap(
             spacing: 8,
             children: [
