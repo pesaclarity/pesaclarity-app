@@ -24,10 +24,7 @@ class RemindersSettingsCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionLabel(
-          'Reminders',
-          padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
-        ),
+        const SectionLabel('Reminders'),
         Card(
           child: Column(
             children: [

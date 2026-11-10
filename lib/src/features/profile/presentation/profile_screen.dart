@@ -245,7 +245,6 @@ class ProfileScreen extends ConsumerWidget {
           const DeviceWarningCard(),
           GroupedSection(children: [...money, ...data, ...about]),
           const SecuritySettingsCard(),
-          const SizedBox(height: 12),
           const RemindersSettingsCard(),
           const SizedBox(height: 16),
           const AccountActions(),
