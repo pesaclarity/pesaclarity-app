@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/money/currency_data.dart';
 import '../../../core/money/money.dart';
 import '../../../data/database/app_database.dart';
+import '../../../domain/accounts/account_reference.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
@@ -42,8 +43,8 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           Text(
-            'Each account counts in its own currency. Totals add them up in '
-            'your base currency, $base.',
+            'Each amount keeps the currency its message shows. Totals add '
+            'them up in your base currency, $base.',
             style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
           ),
           if (accounts.isNotEmpty) ...[
@@ -64,8 +65,9 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
           ],
           const SizedBox(height: 12),
           const InfoNote(
-            'Messages from an account are recorded in its currency. Each '
-            'account starts in the currency its messages usually use.',
+            'Accounts at the same bank are told apart by the account number '
+            'in their messages. Each counts in the currency its messages '
+            'show.',
           ),
           const SizedBox(height: 12),
           Card(
@@ -85,11 +87,15 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
   }
 }
 
-/// `Messages from MPESA`, or `Money you add by hand` for an account no
-/// messages feed.
+/// `Account 0170…4321` once its messages show a number, `Messages from
+/// MPESA` before, or `Money you add by hand` for an account no messages
+/// feed.
 String _fromLine(Account account, Map<String, Institution> institutions) {
   final institution = institutions[account.institutionId];
-  if (institution == null) return 'Money you add by hand';
+  if (account.institutionId == null) return 'Money you add by hand';
+  final number = AccountReference.tryParse(account.reference);
+  if (number != null) return 'Account ${number.label}';
+  if (institution == null) return account.name;
   final senders = institution.senderIds;
   return 'Messages from ${senders.isEmpty ? institution.name : senders.join(', ')}';
 }
@@ -125,40 +131,64 @@ class _AccountRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Semantics(
-            button: true,
-            label: '${account.name} currency: $name. Change',
-            excludeSemantics: true,
-            child: OutlinedButton(
-              key: Key('account-currency-${account.id}'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 40),
+          if (account.institutionId != null)
+            // Its messages say which currency it is in.
+            Semantics(
+              label: '${account.name} counts in $name, from its messages',
+              excludeSemantics: true,
+              child: Container(
+                key: Key('account-currency-${account.id}'),
+                height: 32,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => AccountCurrencyScreen(accountId: account.id),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.border.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  account.currency,
+                  style: theme.textTheme.labelLarge!.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    account.currency,
-                    style: theme.textTheme.labelLarge!.copyWith(
-                      fontWeight: FontWeight.w700,
+            )
+          else
+            Semantics(
+              button: true,
+              label: '${account.name} currency: $name. Change',
+              excludeSemantics: true,
+              child: OutlinedButton(
+                key: Key('account-currency-${account.id}'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        AccountCurrencyScreen(accountId: account.id),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      account.currency,
+                      style: theme.textTheme.labelLarge!.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 20,
-                    color: colors.textMuted,
-                  ),
-                ],
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      size: 20,
+                      color: colors.textMuted,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

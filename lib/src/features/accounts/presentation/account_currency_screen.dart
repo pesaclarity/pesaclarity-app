@@ -3,19 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
-import '../../../domain/time/calendar.dart';
-import '../../../shared/format/date_labels.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../currency/presentation/base_currency_screen.dart' show formatRate;
 import '../../currency/presentation/currency_picker.dart';
 
-/// My accounts › an account's currency: the currency its messages and the
-/// amounts typed into it are recorded in.
+/// My accounts › the currency of an account added by hand: the one new
+/// amounts typed into it are in.
 class AccountCurrencyScreen extends ConsumerWidget {
   const AccountCurrencyScreen({required this.accountId, super.key});
 
@@ -28,14 +25,15 @@ class AccountCurrencyScreen extends ConsumerWidget {
     String code,
   ) async {
     final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     if (code == account.currency) {
       navigator.pop();
       return;
     }
     final repository = ref.read(accountsRepositoryProvider);
-    final own = await repository.ownCurrencyTransactions(account.id);
+    final count = await repository.countInOwnCurrency(account.id);
     if (!context.mounted) return;
-    if (own.count > 0) {
+    if (count > 0) {
       final base =
           ref.read(currencyControllerProvider).value?.base ?? BaseCurrency.code;
       final confirmed = await showModalBottomSheet<bool>(
@@ -49,15 +47,23 @@ class AccountCurrencyScreen extends ConsumerWidget {
               account: account,
               to: code,
               base: base,
-              count: own.count,
-              latest: own.latest,
+              count: count,
             ),
           ),
         ),
       );
       if (confirmed != true) return;
     }
-    await repository.setCurrency(account.id, code);
+    if (!await repository.setCurrency(account.id, code)) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Add a rate for $code first: refresh the rates, or set your own.',
+          ),
+        ),
+      );
+      return;
+    }
     navigator.pop();
   }
 
@@ -85,38 +91,29 @@ class AccountCurrencyScreen extends ConsumerWidget {
   }
 }
 
-/// Count an account in another currency? Its amounts stay, marked [to].
+/// Count a hand-added account in another currency? What was added before
+/// keeps its currency.
 class _ChangeCurrencySheet extends StatelessWidget {
   const _ChangeCurrencySheet({
     required this.account,
     required this.to,
     required this.base,
     required this.count,
-    required this.latest,
   });
 
   final Account account;
   final String to;
   final String base;
   final int count;
-  final TransactionRecord? latest;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final from = account.currency;
-    final one = count == 1;
-    final marked = one
-        ? 'Its 1 transaction keeps its amount and is marked $to'
-        : 'Its $count transactions keep their amounts and are marked $to';
-    final body = account.institutionId == null
-        ? '$marked. New ones you add count in $to.'
-        : "$marked, as ${account.name}'s messages show "
-              '${one ? 'it' : 'them'}. New messages from ${account.name} count '
-              'in $to.';
-    final latest = this.latest;
-
+    final before = count == 1
+        ? 'The 1 you added before stays in $from.'
+        : 'The $count you added before stay in $from.';
     return Column(
       key: const Key('account-currency-change'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,58 +123,21 @@ class _ChangeCurrencySheet extends StatelessWidget {
           style: theme.textTheme.headlineSmall,
         ),
         const SizedBox(height: 14),
-        Text(body, style: theme.textTheme.bodyLarge),
-        if (latest != null) ...[
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: colors.border.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'FOR EXAMPLE',
-                  style: theme.textTheme.labelSmall!.copyWith(
-                    color: colors.textMuted,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        latest.counterpartyName ??
-                            shortDate(CalendarDate.local(latest.occurredAt)),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_amount(latest.amountMinor, from)} → '
-                      '${_amount(_rescaled(latest.amountMinor, from), to)}',
-                      key: const Key('account-currency-example'),
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+        Text(
+          'New amounts you add to ${account.name} will be in $to. $before',
+          style: theme.textTheme.bodyLarge,
+        ),
         const SizedBox(height: 14),
         Text(
-          'Totals in your base currency, $base, change to match.',
+          'Totals keep adding each amount in your base currency, $base, at '
+          'the rate of its day.',
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 16),
         FilledButton(
-          key: const Key('account-currency-mark'),
+          key: const Key('account-currency-use'),
           onPressed: () => Navigator.pop(context, true),
-          child: Text(one ? 'Mark it $to' : 'Mark them $to'),
+          child: Text('Use $to'),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
@@ -188,15 +148,4 @@ class _ChangeCurrencySheet extends StatelessWidget {
       ],
     );
   }
-
-  int _rescaled(int minor, String from) => rescaleMinor(
-    minor,
-    fromDigits: minorUnitDigits(from),
-    toDigits: minorUnitDigits(to),
-  );
-
-  static String _amount(int minor, String currency) => formatMoney(
-    Money(minor.abs(), currency: currency),
-    alwaysShowMinorUnits: true,
-  );
 }

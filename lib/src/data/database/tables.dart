@@ -6,11 +6,7 @@ import '../../domain/people/reminder_text.dart';
 // Money columns are integer minor units (cents) and end in `Minor`.
 // Enums are stored by name so reordering them never corrupts data.
 
-@TableIndex(
-  name: 'accounts_institution',
-  columns: {#institutionId},
-  unique: true,
-)
+@TableIndex(name: 'accounts_institution', columns: {#institutionId})
 class Accounts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 80)();
@@ -24,6 +20,11 @@ class Accounts extends Table {
   /// The institution whose messages feed this account, such as `mpesa`.
   /// Null for accounts added by hand.
   TextColumn get institutionId => text().nullable()();
+
+  /// The account number its messages print, usually masked with a few
+  /// digits at each end (`0170*****4321`). Tells two accounts at the same
+  /// institution apart; null until a message shows one.
+  TextColumn get reference => text().withLength(max: 40).nullable()();
 }
 
 @TableIndex(name: 'categories_key', columns: {#key}, unique: true)

@@ -15,7 +15,6 @@ import '../../../domain/reader/reading_template.dart';
 import '../../../domain/reader/rule_reader.dart';
 import '../../accounts/domain/institution.dart';
 import '../../categoriser/data/tflite_flutter_runtime.dart';
-import '../../sms/application/transaction_mapping.dart';
 import '../data/reader_store.dart';
 import 'review_draft.dart';
 
@@ -90,6 +89,7 @@ class ReviewController {
     final institution = _institution(item.institutionId);
     if (institution == null || !draft.isComplete) return;
     final when = draft.occurredAt(item.receivedAt);
+    final currency = draft.currency ?? institution.pack.currency;
     final accountId = await _ref
         .read(accountsRepositoryProvider)
         .accountForInstitution(
@@ -97,20 +97,14 @@ class ReviewController {
           name: institution.name,
           type: institution.type,
           openingDate: when,
-          currency: institution.pack.currency,
+          currency: currency,
         );
-    final currency = await _ref
-        .read(accountsRepositoryProvider)
-        .currencyOf(accountId);
     await _ref.read(transactionsRepositoryProvider).addNew([
-      inAccountCurrency(
-        draft.toTransaction(
-          accountId: accountId,
-          receivedAt: item.receivedAt,
-          messageHash: item.messageHash,
-          currency: institution.pack.currency,
-        ),
-        currency,
+      draft.toTransaction(
+        accountId: accountId,
+        receivedAt: item.receivedAt,
+        messageHash: item.messageHash,
+        currency: currency,
       ),
     ]);
     final body = item.body;

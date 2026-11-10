@@ -275,9 +275,8 @@ class StatementImporter {
       name: institution.name,
       type: institution.type,
       openingDate: from,
-      currency: institution.pack.currency,
+      currency: parsed.first.currency,
     );
-    final currency = await _accounts.currencyOf(accountId);
 
     final nearby = await _imports.transactionsBetween(
       accountId,
@@ -291,13 +290,10 @@ class StatementImporter {
     final added = await _transactions.addNew([
       for (var i = 0; i < parsed.length; i++)
         if (matches[i] == null)
-          inAccountCurrency(
-            transactionFromParsed(
-              parsed[i],
-              accountId: accountId,
-            ).copyWith(source: const Value(TransactionSource.statement)),
-            currency,
-          ),
+          transactionFromParsed(
+            parsed[i],
+            accountId: accountId,
+          ).copyWith(source: const Value(TransactionSource.statement)),
     ]);
     await _imports.openEarlier(accountId, balanceMinor: opening, at: from);
 

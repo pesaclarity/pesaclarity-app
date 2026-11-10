@@ -163,52 +163,70 @@ class SmsIngestor {
     var added = 0;
     var parsedCount = 0;
     final institutions = {for (final i in selected) i.id: i};
+
+    // Each account gets the messages that show its number and currency,
+    // oldest first so an account from before numbers were read takes the
+    // first number it sees.
+    final pending = <(String, String?, String), List<Object>>{};
+    final firstSeen = <(String, String?, String), DateTime>{};
+    void note((String, String?, String) key, DateTime when, Object item) {
+      (pending[key] ??= []).add(item);
+      final seen = firstSeen[key];
+      if (seen == null || when.isBefore(seen)) firstSeen[key] = when;
+    }
+
     for (final MapEntry(key: packId, value: read) in readByPack.entries) {
       final institution = institutions[packId]!;
-      final accountId = await _accounts.accountForInstitution(
-        institution.id,
-        name: institution.name,
-        type: institution.type,
-        openingDate: read
-            .map((r) => r.$1.occurredAt(r.$2.receivedAt))
-            .reduce((a, b) => a.isBefore(b) ? a : b),
-        currency: institution.pack.currency,
-      );
-      final currency = await _accounts.currencyOf(accountId);
-      added += await _transactions.addNew([
-        for (final (draft, message, hash) in read)
-          inAccountCurrency(
-            draft.toTransaction(
-              accountId: accountId,
-              receivedAt: message.receivedAt,
-              messageHash: hash,
-              currency: institution.pack.currency,
-            ),
-            currency,
-          ),
-      ]);
-      parsedCount += read.length;
+      for (final (draft, message, hash) in read) {
+        final currency = draft.currency ?? institution.pack.currency;
+        note(
+          (packId, null, currency),
+          draft.occurredAt(message.receivedAt),
+          (draft, message, hash),
+        );
+      }
     }
     for (final MapEntry(key: packId, value: parsed) in parsedByPack.entries) {
+      for (final p in parsed) {
+        note((packId, p.ownAccount, p.currency), p.time, p);
+      }
+    }
+    final keys = pending.keys.toList()
+      ..sort((a, b) => firstSeen[a]!.compareTo(firstSeen[b]!));
+    for (final key in keys) {
+      final (packId, reference, currency) = key;
       final institution = institutions[packId]!;
       final accountId = await _accounts.accountForInstitution(
         institution.id,
         name: institution.name,
         type: institution.type,
-        openingDate: parsed
-            .map((p) => p.time)
-            .reduce((a, b) => a.isBefore(b) ? a : b),
-        currency: institution.pack.currency,
+        openingDate: firstSeen[key]!,
+        currency: currency,
+        reference: reference,
       );
-      final currency = await _accounts.currencyOf(accountId);
-      added += await _transactions.addNew([
-        for (final p in parsed)
-          inAccountCurrency(
-            transactionFromParsed(p, accountId: accountId),
-            currency,
-          ),
-      ]);
-      parsedCount += parsed.length;
+      final rows = [
+        for (final item in pending[key]!)
+          switch (item) {
+            ParsedTransaction() => transactionFromParsed(
+              item,
+              accountId: accountId,
+            ),
+            (
+              final ReviewDraft draft,
+              final SmsMessage message,
+              final String hash,
+            ) =>
+              draft.toTransaction(
+                accountId: accountId,
+                receivedAt: message.receivedAt,
+                messageHash: hash,
+                currency: currency,
+              ),
+            _ => throw StateError('unexpected $item'),
+          },
+      ];
+      added += await _transactions.addNew(rows);
+      parsedCount += rows.length;
     }
 
     return SmsIngestSummary(

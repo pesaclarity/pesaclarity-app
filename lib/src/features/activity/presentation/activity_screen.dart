@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
@@ -17,12 +20,14 @@ import '../../../shared/semantic_ids.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/presentation/export_sheet.dart';
 import '../../payees/application/tag_filter.dart';
 import '../../payees/presentation/transaction_sheet.dart';
+import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
 import 'name_payee_sheet.dart';
 
@@ -160,6 +165,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               categories: categories,
               onChanged: _update,
             ),
+            _FixedNote(
+              accounts: accounts,
+              onSeeThem: (id) =>
+                  _update((f) => f.copyWith(accountId: () => id)),
+            ),
             const SizedBox(height: 16),
             _WeekCard(week, code: code, others: others),
             const SizedBox(height: 8),
@@ -243,6 +253,7 @@ class _Filters extends StatelessWidget {
   Widget build(BuildContext context) {
     final from = filter.from;
     final to = filter.to;
+    final mixed = accounts.values.map((a) => a.currency).toSet().length > 1;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -254,7 +265,7 @@ class _Filters extends StatelessWidget {
         ),
         for (final a in accounts.values)
           _Chip(
-            label: a.name,
+            label: mixed ? '${a.name} · ${a.currency}' : a.name,
             selected: filter.accountId == a.id,
             onTap: () => onChanged(
               (f) => f.copyWith(
@@ -709,6 +720,86 @@ class _Avatar extends StatelessWidget {
               style: Theme.of(context).textTheme.labelLarge!
                   .copyWith(color: foreground),
             ),
+    );
+  }
+}
+
+/// After messages were read again: how many amounts moved to the currency
+/// and account their messages show. Closes with OK; See them filters to
+/// that account.
+class _FixedNote extends ConsumerWidget {
+  const _FixedNote({required this.accounts, required this.onSeeThem});
+
+  final Map<int, Account> accounts;
+  final ValueChanged<int> onSeeThem;
+
+  Future<void> _close(WidgetRef ref) async {
+    await ref
+        .read(appSettingsRepositoryProvider)
+        .writeJson(MessageRecheck.noticeKey, const {});
+    ref.invalidate(recheckNoticeProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notice = ref.watch(recheckNoticeProvider).value;
+    final account = notice == null ? null : accounts[notice.accountId];
+    if (notice == null || account == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final institution = ref
+        .watch(institutionCatalogueProvider)
+        .where((i) => i.id == account.institutionId)
+        .firstOrNull;
+    final bank = institution?.name ?? account.name;
+    final n = notice.count;
+    final amounts = n == 1 ? '1 amount' : '$n amounts';
+    final body = notice.currencyChanged
+        ? '$amounts at $bank ${n == 1 ? 'was' : 'were'} in '
+              '${notice.currency}. ${n == 1 ? 'It is' : 'They are'} now in '
+              '${account.name}, counted in ${notice.currency}.'
+        : '$amounts at $bank ${n == 1 ? 'is' : 'are'} now in ${account.name}.';
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        key: const Key('recheck-note'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.success.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.success.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Amounts fixed from your messages',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(body, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton(
+                  key: const Key('recheck-see'),
+                  onPressed: () {
+                    onSeeThem(account.id);
+                    unawaited(_close(ref));
+                  },
+                  child: const Text('See them'),
+                ),
+                OutlinedButton(
+                  key: const Key('recheck-ok'),
+                  onPressed: () => _close(ref),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

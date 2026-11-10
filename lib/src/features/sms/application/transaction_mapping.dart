@@ -54,10 +54,10 @@ TransactionsCompanion transactionFromParsed(
   return TransactionsCompanion.insert(
     accountId: accountId,
     occurredAt: parsed.time,
-    amountMinor: parsed.amountMinor,
+    amountMinor: inCurrencyMinor(parsed.amountMinor, parsed.currency),
     direction: transactionDirectionFor(parsed.direction),
     kind: Value(transactionKindFor(parsed.type)),
-    feeMinor: Value(parsed.feeMinor ?? 0),
+    feeMinor: Value(inCurrencyMinor(parsed.feeMinor ?? 0, parsed.currency)),
     currency: Value(parsed.currency),
     counterpartyKind: Value(counterparty?.kind),
     counterpartyValue: Value(counterparty?.value),
@@ -66,32 +66,18 @@ TransactionsCompanion transactionFromParsed(
     source: TransactionSource.sms,
     messageHash: Value(parsed.rawHash),
     dedupeKey: Value(parsed.dedupeKey),
-    balanceAfterMinor: Value(parsed.balanceMinor),
+    balanceAfterMinor: Value(
+      parsed.balanceMinor == null
+          ? null
+          : inCurrencyMinor(parsed.balanceMinor!, parsed.currency),
+    ),
   );
 }
 
-/// [row] as its account counts it, in [currency]: the same amounts, in that
-/// currency's minor units. Messages are read in their institution's usual
-/// currency; an account the person set to another keeps the numbers.
-TransactionsCompanion inAccountCurrency(
-  TransactionsCompanion row,
-  String currency,
-) {
-  if (!row.currency.present) return row.copyWith(currency: Value(currency));
-  final from = row.currency.value;
-  if (from == currency) return row;
-  int scale(int minor) => rescaleMinor(
-    minor,
-    fromDigits: minorUnitDigits(from),
-    toDigits: minorUnitDigits(currency),
-  );
-  final balance = row.balanceAfterMinor;
-  return row.copyWith(
-    currency: Value(currency),
-    amountMinor: Value(scale(row.amountMinor.value)),
-    feeMinor: row.feeMinor.present ? Value(scale(row.feeMinor.value)) : null,
-    balanceAfterMinor: balance.present && balance.value != null
-        ? Value(scale(balance.value!))
-        : null,
-  );
-}
+/// [hundredths] (the parsers' and reader's minor units) in [currency]'s
+/// own minor units: `150000` is UGX 1,500 but KES 1,500.00.
+int inCurrencyMinor(int hundredths, String currency) => rescaleMinor(
+  hundredths,
+  fromDigits: 2,
+  toDigits: minorUnitDigits(currency),
+);

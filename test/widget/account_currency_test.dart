@@ -16,10 +16,12 @@ import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/test_app.dart';
 
-/// My accounts: an M-Pesa account set to USD (synthetic data).
+/// My accounts: M-Pesa in KES from its messages, and Cash set by hand
+/// (synthetic data).
 void main() {
   late AppDatabase db;
   late int mpesa;
+  late int cash;
 
   setUp(() async {
     db = openTestDatabase();
@@ -34,7 +36,7 @@ void main() {
       CurrencyController.ratesKey,
       ExchangeRates.fromJson({
         'base': 'USD',
-        'rates': {'KES': 129.2},
+        'rates': {'KES': 129.2, 'SSP': 1000},
       }, fetchedAt: DateTime.utc(2026, 11, 3, 6))!.toJson(),
     );
     final accounts = DriftAccountsRepository(db);
@@ -45,17 +47,26 @@ void main() {
       openingDate: DateTime.utc(2026),
       currency: 'KES',
     );
+    cash = await db
+        .into(db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            name: 'Cash',
+            type: AccountType.cash,
+            currency: const Value('SSP'),
+            openingDate: DateTime.utc(2026),
+          ),
+        );
     await db
         .into(db.transactions)
         .insert(
           TransactionsCompanion.insert(
-            accountId: mpesa,
+            accountId: cash,
             occurredAt: DateTime.utc(2026, 11, 3, 7, 42),
             amountMinor: 2500000,
-            currency: const Value('KES'),
-            direction: TransactionDirection.inflow,
-            source: TransactionSource.sms,
-            counterpartyName: const Value('Monthly pay'),
+            currency: const Value('SSP'),
+            direction: TransactionDirection.outflow,
+            source: TransactionSource.manual,
           ),
         );
   });
@@ -79,54 +90,54 @@ void main() {
   }
 
   Future<void> pickUsd(WidgetTester tester) async {
-    await tester.tap(find.byKey(Key('account-currency-$mpesa')));
+    await tester.tap(find.byKey(Key('account-currency-$cash')));
     await tester.pumpAndSettle();
-    expect(find.text('M-Pesa currency'), findsOneWidget);
+    expect(find.text('Cash currency'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('currency-search')), 'USD');
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('currency-USD')));
     await tester.pumpAndSettle();
   }
 
-  Future<String> currency() => DriftAccountsRepository(db).currencyOf(mpesa);
+  Future<String> currency() => DriftAccountsRepository(db).currencyOf(cash);
 
   testAppWidgets('lists each account in its currency', (tester) async {
     await pump(tester);
     expect(
       find.text(
-        'Each account counts in its own currency. Totals add them up in '
-        'your base currency, USD.',
+        'Each amount keeps the currency its message shows. Totals add them '
+        'up in your base currency, USD.',
       ),
       findsOneWidget,
     );
-    expect(find.text('M-Pesa'), findsOneWidget);
     expect(find.text('Messages from MPESA'), findsOneWidget);
-    expect(find.text('KES'), findsOneWidget);
+    expect(find.text('Money you add by hand'), findsOneWidget);
+    // M-Pesa's currency comes from its messages: a label, not a button.
+    await tester.tap(find.byKey(Key('account-currency-$mpesa')));
+    await tester.pumpAndSettle();
+    expect(find.text('M-Pesa currency'), findsNothing);
     expect(find.text('Add or remove accounts'), findsOneWidget);
   });
 
-  testAppWidgets('marks the transactions in the new currency', (tester) async {
+  testAppWidgets('new amounts in Cash take the new currency', (tester) async {
     await pump(tester);
     await pickUsd(tester);
-    expect(find.text('Count M-Pesa in USD?'), findsOneWidget);
+    expect(find.text('Count Cash in USD?'), findsOneWidget);
     expect(
       find.text(
-        "Its 1 transaction keeps its amount and is marked USD, as M-Pesa's "
-        'messages show it. New messages from M-Pesa count in USD.',
+        'New amounts you add to Cash will be in USD. The 1 you added before '
+        'stays in SSP.',
       ),
       findsOneWidget,
     );
-    expect(find.text('KES 25,000.00 → USD 25,000.00'), findsOneWidget);
-    expect(
-      find.text('Totals in your base currency, USD, change to match.'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byKey(const Key('account-currency-mark')));
+    await tester.tap(find.byKey(const Key('account-currency-use')));
     await tester.pumpAndSettle();
     expect(await tester.runAsync(currency), 'USD');
+    final row = await tester.runAsync(
+      () => db.select(db.transactions).getSingle(),
+    );
+    expect(row!.currency, 'SSP');
     expect(find.text('My accounts'), findsOneWidget);
-    expect(find.text('USD'), findsOneWidget);
   });
 
   testAppWidgets('keeps the currency', (tester) async {
@@ -134,7 +145,7 @@ void main() {
     await pickUsd(tester);
     await tester.tap(find.byKey(const Key('account-currency-keep')));
     await tester.pumpAndSettle();
-    expect(await tester.runAsync(currency), 'KES');
-    expect(find.text('M-Pesa currency'), findsOneWidget);
+    expect(await tester.runAsync(currency), 'SSP');
+    expect(find.text('Cash currency'), findsOneWidget);
   });
 }

@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/features/activity/presentation/add_transaction_s
 import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 import 'package:pesaclarity/src/features/currency/data/rates_client.dart';
 import 'package:pesaclarity/src/features/currency/presentation/converter_screen.dart';
+import 'package:pesaclarity/src/features/sms/application/message_recheck.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/test_app.dart';
@@ -20,6 +21,7 @@ import '../helpers/test_app.dart';
 /// A person who counts in USD and pays from M-Pesa in KES (synthetic data).
 void main() {
   late AppDatabase db;
+  late int mpesaId;
   final now = DateTime.utc(2026, 11, 3, 9);
   final rates = ExchangeRates.fromJson({
     'base': 'USD',
@@ -36,7 +38,7 @@ void main() {
       'ownRates': <String, Object?>{},
     });
     await settings.writeJson(CurrencyController.ratesKey, rates.toJson());
-    final mpesa = await db
+    final mpesa = mpesaId = await db
         .into(db.accounts)
         .insert(
           AccountsCompanion.insert(
@@ -120,6 +122,32 @@ void main() {
     await tester.tap(find.byKey(const Key('rate-day')));
     await tester.pumpAndSettle();
     expect(find.text('Use the rate I got'), findsOneWidget);
+  });
+
+  testAppWidgets('says what moved after messages were read again', (
+    tester,
+  ) async {
+    await DriftAppSettingsRepository(db).writeJson(
+      MessageRecheck.noticeKey,
+      RecheckNotice(
+        count: 23,
+        accountId: mpesaId,
+        currency: 'KES',
+        currencyChanged: true,
+      ).toJson(),
+    );
+    await pump(tester, const ActivityScreen());
+    expect(find.text('Amounts fixed from your messages'), findsOneWidget);
+    expect(
+      find.text(
+        '23 amounts at M-Pesa were in KES. They are now in M-Pesa, counted '
+        'in KES.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('recheck-ok')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('recheck-note')), findsNothing);
   });
 
   testAppWidgets('a payment typed in takes the account currency', (

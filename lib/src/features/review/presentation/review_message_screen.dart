@@ -221,7 +221,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
     ReviewItem item,
     Institution? institution,
   ) {
-    final currency = institution?.pack.currency ?? '';
+    final currency = draft.currency ?? institution?.pack.currency ?? '';
     String money(int? minor) => minor == null
         ? 'Add'
         : '$currency ${formatMoney(Money(minor), withCurrency: false)}'.trim();
