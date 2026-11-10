@@ -45,6 +45,7 @@ import '../../spaces/application/spaces_providers.dart';
 import '../../spaces/presentation/business_setup_card.dart';
 import '../../spaces/presentation/shared_line_card.dart';
 import '../../spaces/presentation/spaces_sheet.dart';
+import '../../support/presentation/support_card.dart';
 import '../application/cash_flow_forecast_provider.dart';
 import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
@@ -170,6 +171,9 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                 const SizedBox(height: 12),
+                SupportHomeCard(
+                  moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
+                ),
                 const _ReviewCard(),
                 const _WhatWasThisCard(),
                 if (untilNext != null) _MoneyInCard(untilNext, today: today),
@@ -234,6 +238,19 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Today's money is spent, the plan is used up or a payment may not go
+/// through: Home never asks for a gift then.
+bool _moneyTight(
+  SafeToSpend? safeToSpend,
+  UntilNextMoney? untilNext,
+  CashFlowForecast? forecast,
+) =>
+    (safeToSpend != null &&
+        (safeToSpend.isBudgetUsedUp || safeToSpend.leftTodayMinor <= 0)) ||
+    (untilNext != null &&
+        (untilNext.runsOutEarly || untilNext.leftTodayMinor <= 0)) ||
+    (forecast?.failingCharges.isNotEmpty ?? false);
 
 /// How long the money lasts at this pace, or null until there is a pace.
 String? _runwayLabel(CashFlowForecast? forecast) {

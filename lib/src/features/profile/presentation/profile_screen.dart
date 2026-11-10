@@ -33,6 +33,7 @@ import '../../security/presentation/security_settings_card.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../../subscriptions/application/subscriptions_providers.dart';
+import '../../support/application/support_providers.dart';
 import '../../timezone/application/timezone_controller.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
@@ -170,6 +171,16 @@ class ProfileScreen extends ConsumerWidget {
         onTap: () => context.go(AppRoutes.privacy),
       ),
     );
+    final support = ref.watch(supportConfigProvider) == null
+        ? null
+        : ListTile(
+            key: const Key('profile-support'),
+            leading: const RowIcon(Icons.coffee_outlined),
+            title: const Text('Support Pesa Clarity'),
+            subtitle: const Text('Buy us a coffee'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(AppRoutes.support),
+          );
     final buildRow = ListTile(
       leading: const RowIcon(Icons.info_outline),
       title: const Text('Build'),
@@ -227,7 +238,7 @@ class ProfileScreen extends ConsumerWidget {
       subscriptionsRow,
     ];
     final data = [export, if (canImport) importRow, backup];
-    final about = [privacy, buildRow];
+    final about = [privacy, ?support, buildRow];
 
     return Scaffold(
       appBar: AppBar(
