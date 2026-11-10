@@ -12,6 +12,7 @@ import '../../../domain/time/date_labels.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../printing/presentation/print_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../security/application/balance_visibility.dart';
 import '../application/people_providers.dart';
@@ -49,6 +50,23 @@ class CustomerStatementScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(name),
         actions: [
+          if (c != null)
+            IconButton(
+              key: const Key('statement-print'),
+              tooltip: 'Print the statement',
+              icon: const Icon(Icons.print_outlined),
+              onPressed: () {
+                final sender = ref.read(statementSenderProvider);
+                showPrintSheet(
+                  context,
+                  title: 'Print statement',
+                  subtitle: c.name,
+                  name: sender.fileName(c),
+                  pdf: () => sender.pdf(c),
+                  fullPage: true,
+                );
+              },
+            ),
           if (c != null)
             IconButton(
               key: const Key('statement-share'),

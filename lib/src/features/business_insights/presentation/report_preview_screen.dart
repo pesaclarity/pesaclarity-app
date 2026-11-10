@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
+import '../../printing/presentation/print_sheet.dart';
 import '../application/report_content.dart';
 import '../application/report_maker.dart';
 
@@ -68,6 +69,22 @@ class _ReportPreviewScreenState extends ConsumerState<ReportPreviewScreen> {
                     onPressed: _busy ? null : () => _share(csv: false),
                     child: const Text('Share PDF'),
                   ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  key: const Key('preview-print'),
+                  onPressed: _busy
+                      ? null
+                      : () => showPrintSheet(
+                          context,
+                          title: 'Print report',
+                          subtitle: widget.doc.title,
+                          name: widget.doc.fileName('pdf'),
+                          pdf: () async => widget.pdf,
+                          fullPage: true,
+                        ),
+                  icon: const Icon(Icons.print_outlined),
+                  label: const Text('Print'),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(

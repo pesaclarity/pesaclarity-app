@@ -1,7 +1,15 @@
 {
-  "version": "1.7",
-  "updated": "2026-11-05",
+  "version": "1.8",
+  "updated": "2026-11-10",
   "changes": [
+    {
+      "version": "1.8",
+      "date": "2026-11-10",
+      "items": [
+        "Receipts, invoices, statements and reports leave your phone only when you share or print them.",
+        "A Bluetooth receipt printer you pair with your phone gets only what you print on it."
+      ]
+    },
     {
       "version": "1.7",
       "date": "2026-11-05",

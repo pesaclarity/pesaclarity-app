@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +22,8 @@ import '../../../theme/pesa_colors.dart';
 import '../../documents/application/document_providers.dart';
 import '../../documents/presentation/receipt_sheet.dart';
 import '../../people/application/people_providers.dart';
+import '../../printing/application/document_slips.dart';
+import '../../printing/application/printing_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/sales_providers.dart';
 import 'choose_payments_sheet.dart';
@@ -196,9 +200,33 @@ class _PaySheetState extends ConsumerState<PaySheet> {
                 : null,
           );
       // A business offers the receipt, unless the owner turned it off.
+      final business = ref.read(activeSpaceProvider).kind == SpaceKind.business;
       final offer =
-          ref.read(activeSpaceProvider).kind == SpaceKind.business &&
+          business &&
           (await ref.read(documentSettingsProvider.future)).offerReceipt;
+      // And prints it on the counter printer when the owner asked for that.
+      if (business && await ref.read(slipPrinterProvider).printsAfterSale()) {
+        final receipt = await ref
+            .read(receiptMakerProvider)
+            .receiptFor(outcome.saleId);
+        if (receipt != null) {
+          unawaited(
+            ref
+                .read(slipPrinterProvider)
+                .onCounter(slipForReceipt(receipt))
+                .catchError((Object _) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'The sale is saved. To print its receipt, turn the '
+                        'printer on, keep it close, then tap Print.',
+                      ),
+                    ),
+                  );
+                }),
+          );
+        }
+      }
       navigator.pop(true);
       final waiting = outcome.waiting.firstOrNull;
       if (choose && waiting != null && navigator.mounted) {

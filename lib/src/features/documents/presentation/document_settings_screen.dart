@@ -5,6 +5,8 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/documents_repository.dart';
 import '../../../domain/documents/document_settings.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../printing/application/printing_providers.dart';
+import '../../printing/presentation/receipt_printer_screen.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/document_providers.dart';
 
@@ -314,6 +316,27 @@ class DocumentSettingsScreen extends ConsumerWidget {
               title: const Text('Offer a receipt after each sale'),
               value: s.offerReceipt,
               onChanged: (on) => _save(ref, s.copyWith(offerReceipt: on)),
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final printer = ref.watch(printerSettingsProvider).value;
+                return ListTile(
+                  key: const Key('documents-printer'),
+                  title: const Text('Receipt printer'),
+                  subtitle: Text(
+                    printer?.name == null
+                        ? 'A Bluetooth printer at your counter'
+                        : '${printer!.name} · ${printer.paperMm} mm',
+                    style: muted,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ReceiptPrinterScreen(),
+                    ),
+                  ),
+                );
+              },
             ),
             ListTile(
               key: const Key('documents-send-as'),

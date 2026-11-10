@@ -11,14 +11,21 @@ import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/close/day_close.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/people/people.dart';
+import '../../../domain/printing/slip.dart';
+import '../../../domain/printing/slips.dart';
+import '../../../domain/sales/sales_summary.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
+import '../../documents/application/document_providers.dart';
 import '../../people/application/people_providers.dart';
+import '../../printing/application/printing_providers.dart';
+import '../../printing/presentation/print_sheet.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
+import '../../spaces/application/spaces_providers.dart';
 
 /// Today's drawer: what it should hold from the records.
 final todayCashProvider = FutureProvider<DayCash>((ref) async {
@@ -368,8 +375,47 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                     child: const Text('Close the day'),
                   ),
                 ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const Key('close-print'),
+                  onPressed: () => _print(cash, sales),
+                  icon: const Icon(Icons.print_outlined),
+                  label: const Text("Print the day's summary"),
+                ),
               ],
             ),
+    );
+  }
+
+  Future<void> _print(DayCash cash, SalesDay? sales) async {
+    final settings = await ref.read(documentSettingsProvider.future);
+    if (!mounted) return;
+    final now = ref.read(clockProvider)();
+    final today = CalendarDate.local(now);
+    final counted = _counted.text.trim().isEmpty
+        ? null
+        : AmountField.amountFrom(_counted.text);
+    Slip slip() => daySummarySlip(
+      business: settings.nameOr(ref.read(activeSpaceProvider).name),
+      date: longDate(today),
+      salesMinor: sales?.totalMinor ?? 0,
+      salesByWay: sales?.byWay ?? const {},
+      startMinor: cash.startMinor,
+      inMinor: cash.inMinor,
+      outMinor: cash.outMinor,
+      expectedMinor: cash.expectedMinor,
+      countedMinor: counted,
+      printedAt: formatTime(now),
+      label: methodLabel,
+      plain: _plain,
+    );
+    await showPrintSheet(
+      context,
+      title: "Print the day's summary",
+      subtitle: longDate(today),
+      name: 'Day summary $today',
+      slip: slip,
+      pdf: () => slipPdf(slip()),
     );
   }
 }
