@@ -119,5 +119,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('At this pace you hit zero on the 28th.'), findsOneWidget);
+    // The card's one detail line, with plain amounts.
+    expect(
+      find.text(
+        'Your Rent payment of 6,000 on the 28th may not go through. '
+        'You would be 400 short.',
+      ),
+      findsOneWidget,
+    );
   });
 }

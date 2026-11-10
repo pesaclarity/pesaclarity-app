@@ -5,6 +5,7 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/domain/books/business_report.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/income/income_sources.dart';
+import 'package:pesaclarity/src/domain/sales/sale_matching.dart';
 import 'package:pesaclarity/src/domain/sales/sales_summary.dart';
 import 'package:pesaclarity/src/domain/spaces/business_setup.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
@@ -40,25 +41,31 @@ class _Setup extends BusinessSetupController {
 }
 
 void main() {
-  Future<void> pumpBusiness(WidgetTester tester, BusinessSells sells) async {
+  Future<void> pumpBusiness(
+    WidgetTester tester,
+    BusinessSells sells, {
+    Map<SalePaymentMethod, int> sold = const {
+      SalePaymentMethod.cash: 80000,
+      SalePaymentMethod.mpesa: 290000,
+      SalePaymentMethod.credit: 115000,
+    },
+    List<WaitingPayment> waiting = const [],
+  }) async {
+    // Tall enough for the whole of Today.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           businessSetupProvider.overrideWith(() => _Setup(sells)),
           salesTodayProvider.overrideWith(
             (ref) async => SalesToday(
-              day: SalesDay(
-                date: CalendarDate(2026, 11, 20),
-                byWay: const {
-                  SalePaymentMethod.cash: 80000,
-                  SalePaymentMethod.mpesa: 290000,
-                  SalePaymentMethod.credit: 115000,
-                },
-              ),
+              day: SalesDay(date: CalendarDate(2026, 11, 20), byWay: sold),
               usualMinor: 433000,
             ),
           ),
-          waitingPaymentsProvider.overrideWith((ref) async => const []),
+          waitingPaymentsProvider.overrideWith((ref) async => waiting),
           clockProvider.overrideWithValue(() => DateTime.utc(2026, 11, 20, 6)),
           activeSpaceProvider.overrideWithValue(
             const Space(
@@ -143,10 +150,90 @@ void main() {
     // Profit stays below, as a plain card.
     expect(find.text('Profit this month'), findsOneWidget);
     expect(find.text('8,300'), findsOneWidget);
-    expect(find.byTooltip('Sell'), findsOneWidget);
     for (final quick in ['Bought', 'Got paid', 'Paid', 'Close the day']) {
       expect(find.text(quick), findsOneWidget);
     }
-    expect(find.byKey(const Key('quick-more')), findsOneWidget);
+    // More ways to record is a card of its own, not a red link.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('quick-more')),
+        matching: find.text('More ways to record'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('More:'), findsNothing);
+  });
+
+  testWidgets('before the first sale, Sales today says what will show', (
+    tester,
+  ) async {
+    await pumpBusiness(tester, BusinessSells.products, sold: const {});
+
+    expect(find.text('Sales today'), findsOneWidget);
+    expect(find.text('Sales show here as you sell.'), findsOneWidget);
+    expect(find.textContaining('—'), findsNothing);
+    expect(find.text('KES 0'), findsNothing);
+  });
+
+  testWidgets('a payment still to come is one row with its choices', (
+    tester,
+  ) async {
+    await pumpBusiness(
+      tester,
+      BusinessSells.products,
+      waiting: [
+        WaitingPayment(
+          id: 4,
+          kind: WaitingKind.sale,
+          method: SalePaymentMethod.mpesa,
+          amountMinor: 30000,
+          currency: 'KES',
+          // 14:30 in Nairobi.
+          at: DateTime.utc(2026, 11, 20, 11, 30),
+          categoryId: 1,
+          note: 'Avocados',
+        ),
+        WaitingPayment(
+          id: 5,
+          kind: WaitingKind.bought,
+          method: SalePaymentMethod.mpesa,
+          amountMinor: 120000,
+          currency: 'KES',
+          at: DateTime.utc(2026, 11, 20, 6, 5),
+          categoryId: 2,
+          note: 'Tomatoes',
+          party: 'Test Supplier',
+        ),
+      ],
+    );
+
+    final sale = find.byKey(const Key('waiting-sale-4'));
+    for (final text in ['Sale by M-Pesa', 'Avocados · 14:30', '300']) {
+      expect(
+        find.descendant(of: sale, matching: find.text(text)),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('To Test Supplier by M-Pesa'), findsOneWidget);
+    expect(find.text('1,200'), findsOneWidget);
+    expect(find.textContaining('KES 300'), findsNothing);
+    expect(find.byTooltip('More'), findsNothing);
+
+    await tester.tap(sale);
+    await tester.pumpAndSettle();
+    expect(find.text('300 · Avocados · 14:30'), findsOneWidget);
+    expect(find.byKey(const Key('waiting-choose')), findsOneWidget);
+    expect(find.text('It was paid in cash'), findsOneWidget);
+    await tester.tap(find.text('Delete it'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this sale?'), findsOneWidget);
+    await tester.tap(find.text('Keep'));
+    await tester.pumpAndSettle();
+
+    // A purchase has no sale payments to choose.
+    await tester.tap(find.byKey(const Key('waiting-bought-5')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('waiting-choose')), findsNothing);
+    expect(find.byKey(const Key('waiting-cash')), findsOneWidget);
   });
 }

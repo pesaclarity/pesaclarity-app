@@ -73,26 +73,34 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> open(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('home-shared-line')));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('asks about the newest payment, then the next', (tester) async {
     await pump(tester);
+    // One line on the card; the answers are a tap away.
+    expect(find.text('Was this for the business?'), findsOneWidget);
     expect(
-      find.text('Grace Wambui sent you KES 650. Was this for the business?'),
+      find.text('Grace Wambui sent you 650 · 1 more to sort'),
       findsOneWidget,
     );
-    expect(find.text('Always do this for Grace Wambui'), findsOneWidget);
-    expect(find.text('1 more to sort'), findsOneWidget);
+    expect(find.byKey(const Key('shared-line-business')), findsNothing);
 
+    await open(tester);
+    expect(find.text('Grace Wambui sent you 650.'), findsOneWidget);
+    expect(find.text('Always do this for Grace Wambui'), findsOneWidget);
     await tester.tap(find.byKey(const Key('shared-line-business')));
     queue.removeAt(0);
     await tester.pumpAndSettle();
     expect(router.answers, [(1, true, true)]);
-    expect(
-      find.text('You paid Mzee Juma KES 650. Was this for the business?'),
-      findsOneWidget,
-    );
-    expect(find.text('Business cost'), findsOneWidget);
+    expect(find.byKey(const Key('shared-line-business')), findsNothing);
+    expect(find.text('You paid Mzee Juma 650'), findsOneWidget);
 
-    // Untick "Always", then keep it personal.
+    // Turn "Always" off, then keep it personal.
+    await open(tester);
+    expect(find.text('Business cost'), findsOneWidget);
     await tester.tap(find.byKey(const Key('shared-line-always')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('shared-line-personal')));
@@ -105,10 +113,8 @@ void main() {
   testWidgets('without a name it does not offer "Always"', (tester) async {
     queue = [question(3)];
     await pump(tester);
-    expect(
-      find.text('Someone sent you KES 650. Was this for the business?'),
-      findsOneWidget,
-    );
+    expect(find.text('Someone sent you 650'), findsOneWidget);
+    await open(tester);
     expect(find.byKey(const Key('shared-line-always')), findsNothing);
   });
 }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
-import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/business_setup_providers.dart';
 
@@ -30,7 +29,7 @@ class BusinessSetupCard extends ConsumerWidget {
                 ? 'What you sell, and what the business has today'
                 : 'What the business has today',
           ),
-          trailing: const TrailingLink('Start'),
+          trailing: Icon(Icons.chevron_right, color: colors.textMuted),
           onTap: () => context.push(
             setup.sells == null
                 ? AppRoutes.whatYouSell

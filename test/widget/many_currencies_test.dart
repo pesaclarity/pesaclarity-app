@@ -155,7 +155,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('recheck-ok')));
+    // One action: See them shows that account and marks the note seen.
+    expect(find.text('OK'), findsNothing);
+    await tester.tap(find.byKey(const Key('recheck-see')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('recheck-note')), findsNothing);
   });
