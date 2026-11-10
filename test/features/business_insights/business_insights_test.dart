@@ -430,8 +430,8 @@ void main() {
     );
     ReportDetail detail() => tester
         .widget<SegmentedButton<ReportDetail>>(
-          find.descendant(
-            of: find.byKey(const Key('report-detail')),
+          find.ancestor(
+            of: find.byKey(const Key('detail-totals')),
             matching: find.byType(SegmentedButton<ReportDetail>),
           ),
         )
@@ -496,12 +496,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('style-cover-band')));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('style-words')),
-        matching: find.text('Accounting terms'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('style-words-formal')));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('style-compare')));
     await tester.tap(find.byKey(const Key('style-compare')));

@@ -338,7 +338,6 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
       child: DateField(
         label: text,
         value: value,
-        emptyText: 'Choose a date',
         firstDate: CalendarDate(today.year - 2, 1, 1),
         lastDate: CalendarDate(today.year + 1, 1, 1),
         onChanged: (d) {
@@ -396,6 +395,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                 key: const Key('invoice-bill-by'),
                 name: 'Bill by',
                 segments: [for (final b in BillBy.values) (b, b.label)],
+                segmentKey: (b) => Key('bill-by-${b.name}'),
                 selected: _billBy,
                 onChanged: (b) => setState(() {
                   _billBy = b;
@@ -726,6 +726,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                     value: _plain(totals.toPayMinor),
                     key: const Key('invoice-to-pay'),
                     strong: true,
+                    valueColor: colors.successText,
                   ),
                 ],
               ),

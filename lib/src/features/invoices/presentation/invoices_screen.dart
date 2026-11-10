@@ -421,6 +421,8 @@ class _ShareInvoiceState extends ConsumerState<_ShareInvoice> {
             key: const Key('invoice-send-as'),
             name: 'Send as',
             segments: const [(true, 'One PDF'), (false, 'Separate files')],
+            segmentKey: (one) =>
+                Key(one ? 'invoice-one-pdf' : 'invoice-separate'),
             selected: _one,
             onChanged: (one) => setState(() => _one = one),
           ),

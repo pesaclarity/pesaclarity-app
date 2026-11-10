@@ -174,12 +174,7 @@ void main() {
       ),
     );
     await settleFrames(tester);
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('invoice-bill-by')),
-        matching: find.text('Items'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('bill-by-items')));
     await tester.pump();
     await tester.enterText(find.byKey(const Key('item-name-0')), 'Strategy');
     await tester.enterText(find.byKey(const Key('item-price-0')), '15000');

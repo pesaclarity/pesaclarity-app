@@ -195,6 +195,7 @@ class _ProfitAndLoss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = PesaColors.of(context);
     final pnl = report.pnl;
     final b = report.balance;
     final named = [for (final w in report.byWay.keys) methodName(w)].join(', ');
@@ -217,6 +218,7 @@ class _ProfitAndLoss extends StatelessWidget {
                 detail: l.name == salesCategoryName && ways.isNotEmpty
                     ? ways
                     : null,
+                valueColor: colors.successText,
               ),
             for (final l in pnl.costs)
               LabelValueRow(label: l.name, value: _cost(l.amountMinor)),
@@ -227,6 +229,7 @@ class _ProfitAndLoss extends StatelessWidget {
                   ? '-${plain(-pnl.profitMinor)}'
                   : plain(pnl.profitMinor),
               strong: true,
+              valueColor: pnl.profitMinor >= 0 ? colors.successText : null,
             ),
           ],
         ),
@@ -241,6 +244,7 @@ class _ProfitAndLoss extends StatelessWidget {
             LabelValueRow(
               label: 'Customers owe you',
               value: plain(b.owedToYouMinor),
+              valueColor: colors.successText,
             ),
             if (b.stockMinor != 0)
               LabelValueRow(

@@ -270,6 +270,7 @@ class _MakeReportScreenState extends ConsumerState<MakeReportScreen> {
                   key: const Key('report-detail'),
                   name: 'Detail',
                   segments: [for (final d in ReportDetail.values) (d, d.label)],
+                  segmentKey: (d) => Key('detail-${d.name}'),
                   selected: _detail,
                   onChanged: (d) => setState(() => _detail = d),
                 ),
@@ -516,9 +517,8 @@ class _StyleSheetState extends State<_StyleSheet> {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A drop-down keyed `style-<title>` for more than two choices, its rows
-    // keyed `style-<title>-<name>`; two choices side by side, keyed
-    // `style-<title>`.
+    // A drop-down for more than two choices, else two side by side, keyed
+    // `style-<title>`. Each choice is keyed `style-<title>-<name>`.
     Widget choice<T extends Enum>(
       String title,
       List<T> values,
@@ -549,6 +549,7 @@ class _StyleSheetState extends State<_StyleSheet> {
                 key: Key(id),
                 name: title,
                 segments: [for (final v in values) (v, name(v))],
+                segmentKey: rowKey,
                 selected: selected,
                 onChanged: (v) => _set(pick(v)),
               ),

@@ -74,6 +74,7 @@ class TaxScreen extends ConsumerWidget {
     TaxView view,
     String Function(int) plain,
   ) {
+    final colors = PesaColors.of(context);
     final e = view.income;
     final f = e.figures;
     final count = view.withheld.length;
@@ -144,6 +145,7 @@ class TaxScreen extends ConsumerWidget {
             label: 'Left to pay',
             value: plain(e.leftMinor),
             strong: true,
+            valueColor: e.leftMinor > 0 ? colors.warning : colors.successText,
           ),
         ],
       ),
@@ -188,6 +190,7 @@ class TaxScreen extends ConsumerWidget {
     TaxView view,
     String Function(int) plain,
   ) {
+    final colors = PesaColors.of(context);
     final last = view.lastMonth;
     final now = view.thisMonth;
     final rate = rateText(view.pack.turnoverRate);
@@ -222,6 +225,9 @@ class TaxScreen extends ConsumerWidget {
             value: plain(last.leftMinor),
             detail: 'Due ${shortDate(last.due)}',
             strong: true,
+            valueColor: last.leftMinor > 0
+                ? colors.warning
+                : colors.successText,
           ),
         ],
       ),

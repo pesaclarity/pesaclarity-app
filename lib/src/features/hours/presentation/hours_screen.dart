@@ -177,6 +177,7 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
           LabelValueRow(
             label: 'To bill',
             value: '${hoursText(toBillMinutes)} h',
+            valueColor: PesaColors.of(context).successText,
             detail: _detail([
               for (final MapEntry(:key, :value) in toBill.entries)
                 '${clientShort(key)} ${hoursText(value)} h',
@@ -245,6 +246,7 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
             key: const Key('hours-week-total'),
             label: 'This week',
             value: plain(week.amountMinor),
+            valueColor: PesaColors.of(context).successText,
             detail:
                 '${hoursText(week.loggedMinutes)} h logged · '
                 '${hoursText(week.toBillMinutes)} h to bill',
