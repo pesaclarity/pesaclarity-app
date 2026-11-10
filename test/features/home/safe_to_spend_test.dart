@@ -158,6 +158,8 @@ void main() {
       billsMinor: 150000,
       spentTodayMinor: 0,
       paceMinor: 40000,
+      usualTodayMinor: 40000,
+      historyDays: 60,
       nextMoney: CalendarDate(2026, 11, 24),
     );
     await tester.pumpWidget(

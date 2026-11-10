@@ -223,6 +223,8 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
     bills: bills,
     spentTodayMinor: spentToday,
     paceMinor: (pace.weekdayMinor * 5 + pace.weekendMinor * 2) ~/ 7,
+    usualTodayMinor: pace.on(today),
+    historyDays: CalendarDate.local(opened).daysUntil(today),
     nextMoney: next,
     pinnedDailyMinor:
         pin != null && pin.appliesOn(today, latestArrivalId: latest?.id)

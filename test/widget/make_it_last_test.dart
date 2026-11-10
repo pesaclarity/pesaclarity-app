@@ -34,6 +34,8 @@ void main() {
     ],
     spentTodayMinor: 0,
     paceMinor: 50000,
+    usualTodayMinor: 50000,
+    historyDays: 60,
     nextMoney: today.addDays(14),
   );
 
