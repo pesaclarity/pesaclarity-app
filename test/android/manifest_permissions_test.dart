@@ -10,6 +10,9 @@ const _allowed = {
   'android.permission.RECEIVE_SMS',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.RECEIVE_BOOT_COMPLETED',
+  // A Bluetooth receipt printer at the counter (business spaces).
+  'android.permission.BLUETOOTH',
+  'android.permission.BLUETOOTH_CONNECT',
 };
 
 Set<String> _permissionsIn(String path) {

@@ -116,6 +116,11 @@ class InvoiceSender {
     ];
   }
 
+  /// The invoice as one PDF, with its timesheet and attached pages, to
+  /// print.
+  Future<Uint8List> pdf(InvoiceDoc doc) =>
+      _ref.read(invoiceRendererProvider)(doc);
+
   Future<void> share(InvoiceDoc doc, {required bool one}) async {
     final out = await files(doc, one: one);
     await _ref
