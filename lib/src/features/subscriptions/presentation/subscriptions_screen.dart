@@ -13,8 +13,15 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
-import '../../../shared/widgets/selector_field.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
+import '../../../theme/app_typography.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/reminders_controller.dart';
 import '../application/subscriptions_providers.dart';
@@ -48,14 +55,16 @@ class SubscriptionsScreen extends ConsumerWidget {
             icon: const Icon(Icons.add),
             onPressed: () => showSubscriptionSheet(context),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: switch (overview) {
         AsyncData(:final value) => _Body(value, today: today),
-        AsyncError() => const Center(
-          child: Text('Subscriptions did not load. Open them again.'),
+        AsyncError() => ErrorView(
+          'Your subscriptions could not load.',
+          onRetry: () => ref.invalidate(subscriptionsOverviewProvider),
         ),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+        _ => const LoadingView(),
       },
     );
   }
@@ -75,7 +84,12 @@ class _Body extends ConsumerWidget {
     final reminders = ref.watch(remindersControllerProvider).value;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        Layout.gutter,
+        8,
+        Layout.gutter,
+        Layout.screenBottom,
+      ),
       children: [
         HeroFigureCard(
           label: overview.lines.isEmpty
@@ -90,11 +104,11 @@ class _Body extends ConsumerWidget {
                     '${relativeDays(next.nextDate, today: today)}',
         ),
         for (final charge in overview.suggestions) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: Layout.cardGap),
           _SuggestionCard(charge),
         ],
         if (overview.lines.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: Layout.cardGap),
           Card(
             child: Column(
               children: [
@@ -115,7 +129,9 @@ class _Body extends ConsumerWidget {
                     ),
                     trailing: Text(
                       _amount(context, line.amountMinor),
-                      style: theme.textTheme.titleMedium,
+                      style: AppTypography.rowAmount(
+                        theme.colorScheme.onSurface,
+                      ),
                     ),
                     onTap: () => showSubscriptionSheet(
                       context,
@@ -127,7 +143,7 @@ class _Body extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: Layout.cardGap),
         Card(
           child: SwitchListTile.adaptive(
             key: const Key('subscription-reminders'),
@@ -168,18 +184,14 @@ class _SuggestionCard extends ConsumerWidget {
     final repository = ref.read(subscriptionsRepositoryProvider);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'FOUND IN YOUR MESSAGES',
-              style: theme.textTheme.labelMedium!.copyWith(
-                color: PesaColors.of(context).textMuted,
-                letterSpacing: 0.6,
-              ),
+            const SectionLabel(
+              'Found in your messages',
+              padding: EdgeInsets.only(bottom: 8),
             ),
-            const SizedBox(height: 8),
             Text(charge.name, style: theme.textTheme.titleMedium),
             Text(
               '${_amount(context, charge.amountMinor)} on the ${charge.lastDate.day}, '
@@ -187,22 +199,15 @@ class _SuggestionCard extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => repository.dismiss(charge),
-                    child: const Text('One-off'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => repository.track(charge),
-                    child: const Text('Track it'),
-                  ),
-                ),
-              ],
+            ButtonPair(
+              primary: FilledButton(
+                onPressed: () => repository.track(charge),
+                child: const Text('Track it'),
+              ),
+              secondary: OutlinedButton(
+                onPressed: () => repository.dismiss(charge),
+                child: const Text('One-off'),
+              ),
             ),
           ],
         ),
@@ -215,10 +220,8 @@ class _SuggestionCard extends ConsumerWidget {
 Future<void> showSubscriptionSheet(
   BuildContext context, {
   Subscription? subscription,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (context) => SubscriptionForm(subscription: subscription),
 );
 
@@ -247,7 +250,10 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
     _amount = TextEditingController(
       text: s == null
           ? ''
-          : shownMoney(context, s.amountMinor, withCurrency: false),
+          : formatMoney(
+              Money(s.amountMinor, currency: s.currency),
+              withCurrency: false,
+            ),
     );
     _frequency = s?.frequency ?? RecurrenceFrequency.monthly;
     _nextDate = s?.nextDate ?? CalendarDate.local(ref.read(clockProvider)());
@@ -264,7 +270,7 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final repository = ref.read(subscriptionsRepositoryProvider);
-    final amount = parseMoneyMinor(_amount.text)!;
+    final amount = AmountField.amountFrom(_amount.text)!;
     final s = widget.subscription;
     if (s == null) {
       await repository.add(
@@ -291,6 +297,13 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
   }
 
   Future<void> _remove() async {
+    final s = widget.subscription!;
+    final sure = await confirmDelete(
+      context,
+      title: 'Delete ${s.name}?',
+      body: 'Its payments stay in Activity.',
+    );
+    if (!sure || !mounted) return;
     setState(() => _saving = true);
     await ref
         .read(subscriptionsRepositoryProvider)
@@ -298,105 +311,77 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _pickDate() async {
-    final picked = await pickDate(
-      context,
-      initialDate: DateTime(_nextDate.year, _nextDate.month, _nextDate.day),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked == null) return;
-    setState(
-      () => _nextDate = CalendarDate(picked.year, picked.month, picked.day),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final editing = widget.subscription != null;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  editing ? 'Edit subscription' : 'Add a subscription',
-                  style: theme.textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('subscription-name'),
-                  controller: _name,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  textCapitalization: TextCapitalization.sentences,
-                  maxLength: 80,
-                  validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Give it a name' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  key: const Key('subscription-amount'),
-                  controller: _amount,
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    prefixText:
-                        '${widget.subscription?.currency ?? BaseCurrency.code} ',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (v) => parseMoneyMinor(v ?? '') == null
-                      ? 'Enter an amount, such as 300'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                SelectorField(
-                  label: 'How often',
-                  value: frequencyLabels[_frequency]!,
-                  onTap: () async {
-                    final picked = await showOptionSheet<RecurrenceFrequency>(
-                      context,
-                      title: 'How often',
-                      options: [
-                        for (final MapEntry(:key, :value)
-                            in frequencyLabels.entries)
-                          (key, value),
-                      ],
-                      selected: _frequency,
-                    );
-                    if (picked != null) setState(() => _frequency = picked);
-                  },
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Next charge'),
-                  subtitle: Text(longDate(_nextDate)),
-                  trailing: const Icon(Icons.edit_calendar_outlined),
-                  onTap: _pickDate,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: const Text('Save'),
-                ),
-                if (editing) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _saving ? null : _remove,
-                    child: const Text('Stop tracking'),
-                  ),
-                ],
-              ],
+    return Form(
+      key: _formKey,
+      child: SheetBody(
+        title: editing ? 'Edit subscription' : 'Add a subscription',
+        children: [
+          TextFormField(
+            key: const Key('subscription-name'),
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Name'),
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: 80,
+            validator: (v) => (v ?? '').trim().isEmpty
+                ? 'Enter a name, such as Netflix.'
+                : null,
+          ),
+          const SizedBox(height: 8),
+          AmountField(
+            key: const Key('subscription-amount'),
+            controller: _amount,
+            label: 'Amount',
+            currency: widget.subscription?.currency,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'How often',
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: PesaColors.of(context).textMuted,
             ),
           ),
-        ),
+          const SizedBox(height: 8),
+          ChoiceMenu<RecurrenceFrequency>(
+            key: const Key('subscription-frequency'),
+            name: 'How often',
+            expand: true,
+            options: [
+              for (final MapEntry(:key, :value) in frequencyLabels.entries)
+                (key, value),
+            ],
+            value: _frequency,
+            onChanged: (value) => setState(() => _frequency = value),
+          ),
+          const SizedBox(height: 16),
+          DateField(
+            label: 'Next charge',
+            value: _nextDate,
+            firstDate: CalendarDate(2000, 1, 1),
+            lastDate: CalendarDate(2100, 12, 31),
+            onChanged: (date) {
+              if (date != null) setState(() => _nextDate = date);
+            },
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: const Text('Save'),
+          ),
+          if (editing) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _saving ? null : _remove,
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: const Text('Delete subscription'),
+            ),
+          ],
+        ],
       ),
     );
   }

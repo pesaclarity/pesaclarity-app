@@ -11,8 +11,9 @@ import '../../../data/repositories/debts_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
-import '../../../shared/widgets/selector_field.dart';
 import '../../goals/application/goals_overview_provider.dart';
 import '../application/debts_overview_provider.dart';
 
@@ -34,10 +35,8 @@ Future<void> showDebtSheet(
   BuildContext context, {
   required CalendarDate today,
   Debt? debt,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (context) => DebtSheet(today: today, debt: debt),
 );
 
@@ -142,29 +141,14 @@ class _DebtSheetState extends State<DebtSheet> {
 
   Future<void> _remove() async {
     final debt = widget.debt!;
-    final sure = await showAdaptiveDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog.adaptive(
-        title: Text('Remove ${debt.lender}?'),
-        content: const Text(
+    final sure = await confirmDelete(
+      context,
+      title: 'Delete ${debt.lender}?',
+      body:
           'Its payments stay in Activity and go back to being plain '
           'spending.',
-        ),
-        actions: [
-          DialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep it'),
-          ),
-          DialogAction(
-            destructive: true,
-            filled: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
     );
-    if (sure != true || !mounted) return;
+    if (!sure || !mounted) return;
     setState(() => _busy = true);
     final container = ProviderScope.containerOf(context, listen: false);
     await container.read(debtsRepositoryProvider).remove(debt.id);
@@ -175,117 +159,97 @@ class _DebtSheetState extends State<DebtSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Form(
-        key: _form,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _editing ? widget.debt!.lender : 'Add a debt',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              // A fixed set of eight: shown in full, nothing to search.
-              SelectorField(
-                label: 'Kind of debt',
-                value: debtTypeLabel(_type),
-                onTap: () async {
-                  final type = await showOptionSheet<DebtType>(
-                    context,
-                    title: 'Kind of debt',
-                    options: [
-                      for (final type in DebtType.values)
-                        (type, debtTypeLabel(type)),
-                    ],
-                    selected: _type,
-                  );
-                  if (type != null) setState(() => _type = type);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _lender,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: _family ? 'Who lent it' : 'Lender',
-                ),
-                inputFormatters: [LengthLimitingTextInputFormatter(80)],
-                validator: (text) => (text ?? '').trim().isEmpty
-                    ? 'Add a name, such as KCB or Mama.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              AmountField(
-                controller: _balance,
-                label: _editing ? 'Owed today' : 'Owed now',
-                allowZero: _editing,
-              ),
-              if (!_family) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _rate,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Interest a year',
-                    suffixText: '%',
-                    helperText: 'Leave empty for an interest-free loan.',
-                  ),
-                  validator: (text) => _rateFrom(text ?? '') == null
-                      ? 'Enter a rate, such as 13 or 12.5.'
-                      : null,
-                ),
-              ],
-              const SizedBox(height: 12),
-              AmountField(
-                controller: _minimum,
-                label: _family ? 'Agreed each month' : 'Minimum each month',
-                allowZero: true,
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(_editing ? 'Save changes' : 'Add debt'),
-              ),
-              if (_editing) ...[
-                const SizedBox(height: 24),
-                Text('Paid by hand?', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  'Payments in your messages count on their own. Add cash '
-                  'or anything a message missed here.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                AmountField(
-                  controller: _payment,
-                  label: 'Payment',
-                  allowZero: true,
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _busy ? null : _recordPayment,
-                  child: const Text('Record payment'),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _busy ? null : _remove,
-                  child: const Text('Remove this debt'),
-                ),
-              ],
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: _editing ? 'Edit debt' : 'Add a debt',
+        children: [
+          ChoiceMenu<DebtType>(
+            key: const Key('debt-type'),
+            name: 'Kind of debt',
+            expand: true,
+            options: [
+              for (final type in DebtType.values) (type, debtTypeLabel(type)),
             ],
+            value: _type,
+            onChanged: (type) => setState(() => _type = type),
           ),
-        ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _lender,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: _family ? 'Who lent it' : 'Lender',
+            ),
+            inputFormatters: [LengthLimitingTextInputFormatter(80)],
+            validator: (text) => (text ?? '').trim().isEmpty
+                ? 'Enter a name, such as KCB or a relative.'
+                : null,
+          ),
+          const SizedBox(height: 12),
+          AmountField(
+            controller: _balance,
+            label: _editing ? 'Owed today' : 'Owed now',
+            allowZero: _editing,
+          ),
+          if (!_family) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _rate,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Interest a year',
+                suffixText: '%',
+                helperText: 'Leave empty for an interest-free loan.',
+              ),
+              validator: (text) => _rateFrom(text ?? '') == null
+                  ? 'Enter a rate, such as 13 or 12.5.'
+                  : null,
+            ),
+          ],
+          const SizedBox(height: 12),
+          AmountField(
+            controller: _minimum,
+            label: _family ? 'Agreed each month' : 'Minimum each month',
+            allowZero: true,
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: const Text('Save'),
+          ),
+          if (_editing) ...[
+            const SizedBox(height: 24),
+            Text('Paid by hand?', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Payments in your messages count on their own. Add cash '
+              'or anything a message missed here.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            AmountField(
+              controller: _payment,
+              label: 'Payment',
+              allowZero: true,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy ? null : _recordPayment,
+              child: const Text('Record a payment'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _busy ? null : _remove,
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: const Text('Delete debt'),
+            ),
+          ],
+        ],
       ),
     );
   }

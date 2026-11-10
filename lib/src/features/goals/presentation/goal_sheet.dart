@@ -7,6 +7,7 @@ import '../../../data/repositories/goals_repository.dart';
 import '../../../domain/goals/savings_goal.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../application/goals_overview_provider.dart';
 
@@ -15,10 +16,8 @@ Future<void> showGoalSheet(
   BuildContext context, {
   required CalendarDate today,
   SavingsGoal? goal,
-}) => showModalBottomSheet<void>(
+}) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
   builder: (context) => GoalSheet(today: today, goal: goal),
 );
 
@@ -91,25 +90,12 @@ class _GoalSheetState extends State<GoalSheet> {
   Future<void> _delete() async {
     final goal = widget.goal!;
     final container = ProviderScope.containerOf(context, listen: false);
-    final confirmed = await showAdaptiveDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog.adaptive(
-        title: Text('Delete ${goal.name}?'),
-        content: const Text('The goal and its saved amount are removed.'),
-        actions: [
-          DialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep'),
-          ),
-          DialogAction(
-            destructive: true,
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDelete(
+      context,
+      title: 'Delete ${goal.name}?',
+      body: 'The goal and its saved amount are removed.',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await container.read(goalsRepositoryProvider).remove(goal.id);
     refreshGoals(container);
     if (mounted) Navigator.of(context).pop();
@@ -117,69 +103,56 @@ class _GoalSheetState extends State<GoalSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editing = widget.goal != null;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Form(
-        key: _form,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                editing ? 'Edit goal' : 'Add a goal',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _name,
-                decoration: const InputDecoration(
-                  labelText: 'What are you saving for?',
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: 80,
-                validator: (text) => (text ?? '').trim().isEmpty
-                    ? 'Give the goal a name.'
-                    : null,
-              ),
-              const SizedBox(height: 8),
-              AmountField(controller: _target, label: 'Target'),
-              const SizedBox(height: 16),
-              AmountField(
-                controller: _saved,
-                label: 'Saved so far',
-                allowZero: true,
-              ),
-              const SizedBox(height: 16),
-              DateField(
-                label: 'Target date (optional)',
-                value: _date,
-                clearable: true,
-                firstDate: widget.today,
-                lastDate: CalendarDate(widget.today.year + 30, 12, 31),
-                onChanged: (date) => setState(() => _date = date),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(editing ? 'Save' : 'Add goal'),
-              ),
-              if (editing) ...[
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _busy ? null : _delete,
-                  child: const Text('Delete goal'),
-                ),
-              ],
-            ],
+    final goal = widget.goal;
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: goal == null ? 'Add a goal' : 'Edit ${goal.name}',
+        children: [
+          TextFormField(
+            controller: _name,
+            decoration: const InputDecoration(
+              labelText: 'What are you saving for?',
+            ),
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: 80,
+            validator: (text) => (text ?? '').trim().isEmpty
+                ? 'Enter a name, such as School fees.'
+                : null,
           ),
-        ),
+          const SizedBox(height: 8),
+          AmountField(controller: _target, label: 'Target'),
+          const SizedBox(height: 16),
+          AmountField(
+            controller: _saved,
+            label: 'Saved so far',
+            allowZero: true,
+          ),
+          const SizedBox(height: 16),
+          DateField(
+            label: 'Target date (optional)',
+            value: _date,
+            clearable: true,
+            firstDate: widget.today,
+            lastDate: CalendarDate(widget.today.year + 30, 12, 31),
+            onChanged: (date) => setState(() => _date = date),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: const Text('Save'),
+          ),
+          if (goal != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _busy ? null : _delete,
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Delete goal'),
+            ),
+          ],
+        ],
       ),
     );
   }

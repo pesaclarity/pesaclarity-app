@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
-import '../../../theme/brand_tokens.dart';
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../theme/layout.dart';
 import '../application/plan_providers.dart';
 
 /// Offers the payday checklist in the days after payday, until it is done
@@ -19,31 +19,15 @@ class PaydayBanner extends ConsumerWidget {
     if (proposal == null || !proposal.shouldOffer) {
       return const SizedBox.shrink();
     }
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     final tasks = proposal.checklist.tasks;
     final done = tasks.where((t) => proposal.ticked.contains(t.key)).length;
     final amount = shownMoney(context, proposal.payday.amountMinor);
 
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(bottom: Layout.cardGap),
       child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: colors.brandSoft,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        ),
-        clipBehavior: Clip.antiAlias,
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 8,
-          ),
-          leading: Icon(
-            Icons.payments_outlined,
-            color: theme.colorScheme.primary,
-          ),
+          leading: const IconBadge(Icons.payments_outlined),
           title: Text(
             proposal.payday.fromMessage
                 ? 'Payday: $amount landed'
