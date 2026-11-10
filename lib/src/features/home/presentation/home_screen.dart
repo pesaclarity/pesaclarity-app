@@ -176,30 +176,25 @@ class HomeScreen extends ConsumerWidget {
                 if (untilNext != null && sources.irregular) const _WeekCard(),
                 FigureRow(
                   children: [
-                    // On hand is in the red card's caption; the tile beside
-                    // it says when the next money comes, once that is known.
-                    if (untilNext == null)
-                      safeToSpend == null
-                          ? const FigureTile(
-                              label: 'Left this month',
-                              value: 'Soon',
-                              note: 'Shows once Plan has a budget',
-                            )
-                          : FigureTile(
-                              label: 'Left this month',
-                              value: _plain(
-                                context,
-                                safeToSpend.leftThisMonthMinor,
-                              ),
-                              onTap: () => openActivity(
-                                thisMonth.copyWith(type: ActivityType.dayToDay),
-                              ),
-                            )
-                    else if (untilNext.nextMoney case final next?)
+                    if (untilNext != null)
                       FigureTile(
-                        key: const Key('home-next-money'),
-                        label: 'Next money',
-                        value: _dayLabel(next),
+                        key: const Key('home-on-hand'),
+                        label: 'On hand',
+                        value: _plain(context, untilNext.onHandMinor),
+                      )
+                    else if (safeToSpend == null)
+                      const FigureTile(
+                        label: 'Left this month',
+                        value: 'Soon',
+                        note: 'Shows once Plan has a budget',
+                      )
+                    else
+                      FigureTile(
+                        label: 'Left this month',
+                        value: _plain(context, safeToSpend.leftThisMonthMinor),
+                        onTap: () => openActivity(
+                          thisMonth.copyWith(type: ActivityType.dayToDay),
+                        ),
                       ),
                     if (_runwayLabel(forecast) case final runway?)
                       FigureTile(
@@ -447,47 +442,71 @@ class _ForecastCard extends StatelessWidget {
         ? 'At this pace you hit zero ${when(zero)}.'
         : 'At this pace you end the month with '
               '${money(forecast.monthEndBalanceMinor)}.';
-    final failing = forecast.failingCharges;
-    final warning = switch (failing) {
-      [] => null,
-      [final c] =>
+    // Every upcoming payment that may not go through, one line each.
+    final warnings = [
+      for (final c in forecast.failingCharges)
         'Your ${c.name} payment of ${money(c.amountMinor)} ${when(c.date)} '
             'may not go through. You would be ${money(c.shortMinor)} short.',
-      _ =>
-        '${failing.length} payments may not go through: '
-            '${_names([for (final c in failing) c.name])}.',
-    };
+    ];
 
     return Card(
-      child: ListTile(
+      child: InkWell(
         key: const Key('home-forecast'),
         onTap: onTap,
-        leading: Icon(
-          zero != null ? Icons.trending_down : Icons.trending_flat,
-          color: zero != null ? colors.warning : colors.successText,
-        ),
-        title: Text(title),
-        subtitle: warning == null
-            ? null
-            : Text(
-                warning,
-                style: theme.textTheme.bodySmall!.copyWith(
-                  color: colors.warning,
+        child: Padding(
+          padding: const EdgeInsets.all(Layout.cardPadding),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                zero != null ? Icons.trending_down : Icons.trending_flat,
+                color: zero != null ? colors.warning : colors.successText,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.bodyLarge),
+                    for (final warning in warnings) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              size: 18,
+                              color: colors.warning,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              warning,
+                              style: theme.textTheme.bodyMedium!.copyWith(
+                                color: colors.warning,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
-        trailing: Icon(Icons.chevron_right, color: colors.textMuted),
+              Icon(Icons.chevron_right, color: colors.textMuted),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-/// `Rent`, `Rent and Water`, `Rent, Water and School fees`.
-String _names(List<String> names) => names.length < 2
-    ? names.join()
-    : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
-
-/// The financial health score, its band and the change on the month
-/// before; Insights has the rest.
+/// The financial health score, its band, the change on the month before,
+/// and the weakest part with what would help most.
 class _HealthIndexCard extends StatelessWidget {
   const _HealthIndexCard(this.health, {required this.onTap});
 
@@ -510,6 +529,7 @@ class _HealthIndexCard extends StatelessWidget {
     } else {
       headline = 'Same as the month before';
     }
+    final action = index.bestAction;
 
     return Card(
       child: InkWell(
@@ -562,6 +582,14 @@ class _HealthIndexCard extends StatelessWidget {
                         color: colors.textMuted,
                       ),
                     ),
+                    if (action != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Weakest: ${action.indicator.label.toLowerCase()}. '
+                        '${action.message}',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
                   ],
                 ),
               ),

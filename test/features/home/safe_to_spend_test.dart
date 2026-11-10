@@ -251,12 +251,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    // On hand shows once, in the caption; the tile says when money comes.
-    expect(find.text('On hand'), findsNothing);
+    // On hand also has its own tile, beside the runway.
     expect(
       find.descendant(
-        of: find.byKey(const Key('home-next-money')),
-        matching: find.text('Tue 24 Nov'),
+        of: find.byKey(const Key('home-on-hand')),
+        matching: find.text('5,000'),
       ),
       findsOneWidget,
     );

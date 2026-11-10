@@ -100,7 +100,9 @@ void main() {
     });
   });
 
-  testWidgets('Home shows the score, band and change', (tester) async {
+  testWidgets('Home shows the score, band, change and the weakest part', (
+    tester,
+  ) async {
     final index = HealthIndex.compute(HealthInputs(month: YearMonth(2026, 9)));
     await tester.pumpWidget(
       ProviderScope(
@@ -121,5 +123,13 @@ void main() {
     expect(find.text('Financial health · Coping'), findsOneWidget);
     expect(find.text('63'), findsOneWidget);
     expect(find.text('Up 3 points on the month before'), findsOneWidget);
+    // The weakest part, and what would help most.
+    final action = index.bestAction!;
+    expect(
+      find.text(
+        'Weakest: ${action.indicator.label.toLowerCase()}. ${action.message}',
+      ),
+      findsOneWidget,
+    );
   });
 }
