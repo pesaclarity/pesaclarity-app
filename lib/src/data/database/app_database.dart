@@ -49,6 +49,8 @@ part 'app_database.g.dart';
     StockMoves,
     ItemMeasures,
     SaleLines,
+    Tabs,
+    TabLines,
     Contacts,
     DayCloses,
     WithheldTaxes,
@@ -64,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -243,6 +245,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 31) {
         await m.createTable(itemMeasures);
         await _addColumnIfMissing(m, saleLines, saleLines.measureId);
+      }
+      if (from < 32) {
+        await m.createTable(tabs);
+        await m.createTable(tabLines);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

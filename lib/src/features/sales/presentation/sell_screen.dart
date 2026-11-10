@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../core/time/clock.dart';
 import '../../../data/repositories/stock_repository.dart';
+import '../../../data/repositories/tabs_repository.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
 import '../../../routing/app_shell.dart';
@@ -12,25 +14,37 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../stock/application/stock_providers.dart';
 import '../../stock/presentation/stock_screen.dart' show StockTag;
+import '../../tabs/application/tabs_providers.dart';
+import '../../tabs/presentation/tab_screens.dart';
 import 'pay_sheet.dart';
 
 /// Sell: tiles of what the business sells, or a number pad for the amount
 /// when it has no items yet; then Pay.
 class SellScreen extends ConsumerWidget {
-  const SellScreen({this.billed = false, super.key});
+  const SellScreen({this.billed = false, this.tab, super.key});
 
   /// Work done for a client to pay later: Billed, with credit to start.
   final bool billed;
+
+  /// The open tab a round goes on, instead of paying now.
+  final ({int id, String name})? tab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (billed) return const AmountPadScreen(billed: true);
     final items = ref.watch(itemsProvider);
     final measures = ref.watch(measuresProvider).value ?? const {};
+    final held = ref.watch(heldOnTabsProvider).value ?? const {};
     return switch (items) {
       AsyncData(:final value) when value.isNotEmpty => _TilesSell(
-        value,
+        [
+          // What is on open tabs is still on the shelf but already sold.
+          for (final i in value)
+            held[i.id] == null ? i : i.withStock(i.stockMilli - held[i.id]!),
+        ],
         measures: measures,
+        tab: tab,
+        openTabs: ref.watch(openTabsProvider).value?.length ?? 0,
       ),
       AsyncData() || AsyncError() => const AmountPadScreen(),
       _ => const Scaffold(
@@ -298,19 +312,30 @@ class _PayBar extends StatelessWidget {
 
 /// Sell with items: a tile for each, a tap adds one; Other sale types an
 /// amount. The total sits where the tab bar was.
-class _TilesSell extends StatefulWidget {
-  const _TilesSell(this.items, {required this.measures});
+class _TilesSell extends ConsumerStatefulWidget {
+  const _TilesSell(
+    this.items, {
+    required this.measures,
+    required this.tab,
+    required this.openTabs,
+  });
 
   final List<Item> items;
 
   /// Other ways each item sells, by item.
   final Map<int, List<Measure>> measures;
 
+  /// The tab this round goes on, instead of paying now.
+  final ({int id, String name})? tab;
+
+  /// How many tabs are open.
+  final int openTabs;
+
   @override
-  State<_TilesSell> createState() => _TilesSellState();
+  ConsumerState<_TilesSell> createState() => _TilesSellState();
 }
 
-class _TilesSellState extends State<_TilesSell> {
+class _TilesSellState extends ConsumerState<_TilesSell> {
   /// How much of each item is in the sale, by item and way of selling (null
   /// for its own unit), in thousandths.
   final _counts = <(int, int?), int>{};
@@ -430,6 +455,26 @@ class _TilesSellState extends State<_TilesSell> {
     );
   }
 
+  /// Puts the lines on a tab, the one this screen is for or one chosen.
+  Future<void> _toTab() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final lines = _lines;
+    final tab = widget.tab;
+    final String? name;
+    if (tab != null) {
+      await ref
+          .read(tabsRepositoryProvider)
+          .add(tab.id, lines, at: ref.read(clockProvider)());
+      name = tab.name;
+    } else {
+      name = await showAddToTabSheet(context, lines: lines);
+    }
+    if (name == null || !mounted) return;
+    navigator.pop();
+    messenger.showSnackBar(SnackBar(content: Text('Added to $name.')));
+  }
+
   Future<void> _pay() async {
     final lines = _lines;
     final saved = await showPaySheet(
@@ -460,8 +505,26 @@ class _TilesSellState extends State<_TilesSell> {
     final total = lines.fold(0, (sum, l) => sum + l.totalMinor);
     final count = lines.length;
 
+    final tab = widget.tab;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sell')),
+      appBar: AppBar(
+        title: Text(tab == null ? 'Sell' : 'Add to ${tab.name}'),
+        actions: [
+          if (tab == null && widget.openTabs > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: OutlinedButton(
+                key: const Key('sell-open-tabs'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OpenTabsScreen(),
+                  ),
+                ),
+                child: Text('Open tabs · ${widget.openTabs}'),
+              ),
+            ),
+        ],
+      ),
       body: SafeArea(
         bottom: false,
         child: ListView(
@@ -535,11 +598,40 @@ class _TilesSellState extends State<_TilesSell> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-        child: _PayBar(
-          what: count == 1 ? '1 item' : '$count items',
-          amount: formatMoney(Money(total)),
-          onPay: total > 0 ? _pay : null,
-        ),
+        child: tab != null
+            ? _PayBar(
+                what: count == 1 ? '1 item' : '$count items',
+                amount: formatMoney(Money(total)),
+                action: 'Add',
+                onPay: total > 0 ? _toTab : null,
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    height: PillNavigationBar.height,
+                    child: OutlinedButton(
+                      key: const Key('sell-add-to-tab'),
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      onPressed: total > 0 ? _toTab : null,
+                      child: const Text('Add to a tab'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _PayBar(
+                      what: count == 1 ? '1 item' : '$count items',
+                      amount: formatMoney(Money(total)),
+                      onPay: total > 0 ? _pay : null,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -82,3 +82,28 @@ Slip daySummarySlip({
     SlipCentre('Printed $printedAt'),
   ]);
 }
+
+/// A tab's bill before it is paid: each line and the total.
+Slip billSlip({
+  required String business,
+  required String tab,
+  required String date,
+  required String time,
+  required List<(String, int)> lines,
+  required String currency,
+  required String Function(int minor) plain,
+}) => Slip([
+  SlipCentre(business, bold: true, large: true),
+  SlipCentre('Bill · $tab'),
+  SlipPair(date, time),
+  const SlipRule(),
+  for (final (label, amount) in lines) SlipPair(label, plain(amount)),
+  const SlipRule(),
+  SlipPair(
+    'TOTAL',
+    '$currency ${plain(lines.fold(0, (sum, l) => sum + l.$2))}',
+    bold: true,
+  ),
+  const SlipRule(),
+  const SlipCentre('Your receipt comes when you pay.'),
+]);

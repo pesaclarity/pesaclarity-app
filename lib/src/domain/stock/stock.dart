@@ -35,6 +35,19 @@ class Item {
 
   bool get isProduct => kind == ItemKind.product;
 
+  /// This item with [stockMilli] on hand.
+  Item withStock(int stockMilli) => Item(
+    id: id,
+    kind: kind,
+    name: name,
+    unit: unit,
+    priceMinor: priceMinor,
+    stockMilli: stockMilli,
+    averageCostMinor: averageCostMinor,
+    warnBelowMilli: warnBelowMilli,
+    grouping: grouping,
+  );
+
   /// Below "warn me below".
   bool get isLow =>
       isProduct && warnBelowMilli != null && stockMilli < warnBelowMilli!;
