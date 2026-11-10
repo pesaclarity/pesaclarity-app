@@ -234,9 +234,10 @@ class ButtonPair extends StatelessWidget {
   );
 }
 
-/// A row's detail line: [lead], such as the category, wraps onto a second
-/// line and only then shortens with "…", and [tail], such as the account
-/// ("M-Pesa"), always shows whole after a " · " on the last line.
+/// A row's detail line, up to two lines: [lead], such as the category,
+/// flows and wraps like any text, and [tail], such as the account
+/// ("Equity Bank ···8765"), always shows whole after a " · ". When both
+/// do not fit, [lead] shortens with "…".
 class DetailLine extends StatelessWidget {
   const DetailLine(this.lead, this.tail, {this.style, super.key});
 
@@ -244,23 +245,61 @@ class DetailLine extends StatelessWidget {
   final String tail;
   final TextStyle? style;
 
+  static const _maxLines = 2;
+
+  /// [text] with no place to break a line: spaces stay together and a
+  /// hyphen keeps its word ("M-Pesa").
+  static String _unbroken(String text) =>
+      text.replaceAll(' ', ' ').replaceAll('-', '-⁠');
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$lead · $tail',
-    excludeSemantics: true,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Flexible(
-          child: Text(
-            lead,
-            maxLines: 2,
+  Widget build(BuildContext context) {
+    final shown = DefaultTextStyle.of(context).style.merge(style);
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    // The dot stays with the end of [lead]; the line may break after it.
+    final end = ' · ${_unbroken(tail)}';
+    return Semantics(
+      label: '$lead · $tail',
+      excludeSemantics: true,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          bool fits(String text) {
+            final painter = TextPainter(
+              text: TextSpan(text: text, style: shown),
+              textDirection: direction,
+              textScaler: scaler,
+              maxLines: _maxLines,
+            )..layout(maxWidth: constraints.maxWidth);
+            final fit = !painter.didExceedMaxLines;
+            painter.dispose();
+            return fit;
+          }
+
+          var text = '$lead$end';
+          if (!fits(text)) {
+            final chars = lead.characters.toList();
+            String cut(int n) => '${chars.take(n).join().trimRight()}…$end';
+            var low = 0;
+            var high = chars.length;
+            while (low < high) {
+              final mid = (low + high + 1) ~/ 2;
+              if (fits(cut(mid))) {
+                low = mid;
+              } else {
+                high = mid - 1;
+              }
+            }
+            text = cut(low);
+          }
+          return Text(
+            text,
+            maxLines: _maxLines,
             overflow: TextOverflow.ellipsis,
             style: style,
-          ),
-        ),
-        Text(' · $tail', maxLines: 1, softWrap: false, style: style),
-      ],
-    ),
-  );
+          );
+        },
+      ),
+    );
+  }
 }

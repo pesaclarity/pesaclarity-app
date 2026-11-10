@@ -68,44 +68,50 @@ void main() {
   testWidgets('a long category wraps; the account always shows whole', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 220,
-            child: DetailLine('Groceries and household supplies', 'M-Pesa'),
+    Future<RenderParagraph> show(String lead, String tail, double width) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: width, child: DetailLine(lead, tail)),
           ),
         ),
-      ),
-    );
-    final tail = tester.renderObject<RenderParagraph>(find.text(' · M-Pesa'));
-    expect(tail.didExceedMaxLines, isFalse);
-    expect(tester.getSize(find.text(' · M-Pesa')).height, lessThan(30));
-    // With a little more room, the category takes two lines rather than
-    // cutting short, and the account sits on the last of them.
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 400,
-            child: DetailLine('Groceries and household supplies', 'M-Pesa'),
-          ),
+      );
+      return tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.byType(DetailLine),
+          matching: find.byType(RichText),
         ),
-      ),
+      );
+    }
+
+    String said(RenderParagraph p) =>
+        p.text.toPlainText().replaceAll(' ', ' ').replaceAll('⁠', '');
+
+    // Room for all of it on two lines: nothing is cut.
+    var line = await show('Groceries and household supplies', 'M-Pesa', 400);
+    expect(said(line), 'Groceries and household supplies · M-Pesa');
+    expect(line.didExceedMaxLines, isFalse);
+    expect(line.size.height, greaterThan(30));
+
+    // A short category with a long account flows as one sentence rather
+    // than squeezing the category into a narrow column.
+    line = await show('Salary', 'Equity Bank ···8765', 300);
+    expect(said(line), 'Salary · Equity Bank ···8765');
+    expect(line.didExceedMaxLines, isFalse);
+    final first = line.getBoxesForSelection(
+      const TextSelection(baseOffset: 0, extentOffset: 6),
     );
-    final lead = find.text('Groceries and household supplies');
+    expect(first, hasLength(1), reason: 'Salary stays on one line');
+
+    // Too little room: the category shortens and the account stays whole.
+    line = await show('Groceries and household supplies', 'M-Pesa', 220);
+    expect(said(line), endsWith('… · M-Pesa'));
+    expect(said(line), startsWith('Groceries'));
+    expect(line.didExceedMaxLines, isFalse);
+
+    final widget = tester.widget<DetailLine>(find.byType(DetailLine));
     expect(
-      tester.renderObject<RenderParagraph>(lead).didExceedMaxLines,
-      isFalse,
-    );
-    expect(tester.getSize(lead).height, greaterThan(30));
-    expect(
-      tester.getBottomLeft(find.text(' · M-Pesa')).dy,
-      tester.getBottomLeft(lead).dy,
-    );
-    final line = tester.widget<DetailLine>(find.byType(DetailLine));
-    expect(
-      '${line.lead} · ${line.tail}',
+      '${widget.lead} · ${widget.tail}',
       'Groceries and household supplies · M-Pesa',
     );
     expect(tester.takeException(), isNull);
