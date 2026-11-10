@@ -523,6 +523,10 @@ class _UntilNextMoneyCard extends StatelessWidget {
     final String when;
     if (result.overTodayMinor > 0) {
       when = "${_kes(context, result.overTodayMinor)} over today's amount";
+    } else if (result.fromUsualDay) {
+      when = result.today.isWeekend
+          ? 'What you usually spend on a weekend day'
+          : 'What you usually spend on a weekday';
     } else if (result.basis == NextMoneyBasis.rhythm && next != null) {
       when = 'Until about ${_dayLabel(next)}, when money usually comes';
     } else if (result.basis == NextMoneyBasis.noDate) {
@@ -530,7 +534,7 @@ class _UntilNextMoneyCard extends StatelessWidget {
           ? 'Spread over what you have'
           : 'Lasts until about ${_dayLabel(lasts)} at this pace';
     } else {
-      when = 'For the next $rollingPlanDays days';
+      when = 'For the next ${result.days} days';
     }
     final onHand = '${_plain(context, result.onHandMinor)} on hand';
     final setAside = [
