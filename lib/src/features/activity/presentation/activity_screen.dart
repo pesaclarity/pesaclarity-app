@@ -258,20 +258,13 @@ class _Filters extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _Chip(
-          label: 'All accounts',
-          selected: filter.accountId == null,
-          onTap: () => onChanged((f) => f.copyWith(accountId: () => null)),
-        ),
-        for (final a in accounts.values)
-          _Chip(
-            label: mixed ? '${a.name} · ${a.currency}' : a.name,
-            selected: filter.accountId == a.id,
-            onTap: () => onChanged(
-              (f) => f.copyWith(
-                accountId: () => f.accountId == a.id ? null : a.id,
-              ),
-            ),
+        if (accounts.length > 1)
+          _AccountMenu(
+            accounts: accounts,
+            selected: filter.accountId,
+            mixed: mixed,
+            onSelected: (id) =>
+                onChanged((f) => f.copyWith(accountId: () => id)),
           ),
         for (final type in ActivityType.values.skip(1))
           _Chip(
@@ -304,6 +297,88 @@ class _Filters extends StatelessWidget {
                 onChanged((f) => f.copyWith(from: () => null, to: () => null)),
           ),
       ],
+    );
+  }
+}
+
+/// Which account to show, as one drop-down: All accounts, or one of them
+/// with its currency when they differ.
+class _AccountMenu extends StatelessWidget {
+  const _AccountMenu({
+    required this.accounts,
+    required this.selected,
+    required this.mixed,
+    required this.onSelected,
+  });
+
+  final Map<int, Account> accounts;
+  final int? selected;
+  final bool mixed;
+  final ValueChanged<int?> onSelected;
+
+  String _label(Account a) => mixed ? '${a.name} · ${a.currency}' : a.name;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final chosen = accounts[selected];
+    final label = chosen == null ? 'All accounts' : _label(chosen);
+    final sorted = accounts.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final colors = PesaColors.of(context);
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 4),
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(scheme.surface),
+        elevation: const WidgetStatePropertyAll(4),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.border),
+          ),
+        ),
+      ),
+      menuChildren: [
+        for (final (id, text) in [
+          (null, 'All accounts'),
+          for (final a in sorted) (a.id, _label(a)),
+        ])
+          MenuItemButton(
+            key: Key('activity-account-${id ?? 'all'}'),
+            leadingIcon: Icon(
+              Icons.check,
+              size: 18,
+              color: id == selected ? scheme.primary : Colors.transparent,
+            ),
+            onPressed: () => onSelected(id),
+            child: Text(text),
+          ),
+      ],
+      builder: (context, menu, _) => Semantics(
+        button: true,
+        label: 'Account: $label. Change',
+        excludeSemantics: true,
+        child: ActionChip(
+          key: const Key('activity-accounts'),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 2),
+              Icon(
+                Icons.arrow_drop_down,
+                size: 20,
+                color: chosen == null ? null : scheme.onPrimary,
+              ),
+            ],
+          ),
+          backgroundColor: chosen == null ? null : scheme.primary,
+          labelStyle: TextStyle(
+            color: chosen == null ? null : scheme.onPrimary,
+          ),
+          onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+        ),
+      ),
     );
   }
 }

@@ -174,12 +174,25 @@ void main() {
     expect(find.text('Naivas Juja City'), findsOneWidget);
 
     await tester.tap(find.text('Spending only'));
-    await tester.tap(find.text('I&M'));
+    await tester.tap(find.byKey(const Key('activity-accounts')));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('I&M').last);
+    await tester.pumpAndSettle();
+    // The menu shows the chosen account.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('activity-accounts')),
+        matching: find.text('I&M'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Naivas Juja City'), findsNothing);
     expect(find.text('Employer Ltd'), findsOneWidget);
 
-    await tester.tap(find.text('All accounts'));
+    await tester.tap(find.byKey(const Key('activity-accounts')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('activity-account-all')));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'naivas');
     await tester.pumpAndSettle();
     expect(find.text('Naivas Juja City'), findsOneWidget);
