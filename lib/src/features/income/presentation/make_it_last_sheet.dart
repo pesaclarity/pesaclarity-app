@@ -122,7 +122,7 @@ class _MakeItLastSheetState extends ConsumerState<MakeItLastSheet> {
           ),
           const SizedBox(height: 4),
           Text(
-            formatMoney(Money(widget.arrivalMinor)),
+            plain(widget.arrivalMinor),
             style: AppTypography.headlineFigure(onSurface),
           ),
           const SizedBox(height: 8),

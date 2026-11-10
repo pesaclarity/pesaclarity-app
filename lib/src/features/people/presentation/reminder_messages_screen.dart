@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/people/reminder_text.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/business_reminders.dart';
@@ -22,20 +23,33 @@ class ReminderMessagesScreen extends ConsumerWidget {
     ReminderSetup setup, {
     ReminderTemplate? template,
   }) async {
-    final edited = await showAdaptiveDialog<ReminderTemplate>(
+    final result = await showAdaptiveDialog<_Edited>(
       context: context,
-      builder: (context) => _TemplateDialog(template: template),
-    );
-    if (edited == null) return;
-    final exists = setup.templates.any((t) => t.id == edited.id);
-    await _save(
-      ref,
-      setup.copyWith(
-        templates: exists
-            ? [for (final t in setup.templates) t.id == edited.id ? edited : t]
-            : [...setup.templates, edited],
+      builder: (context) => _TemplateDialog(
+        template: template,
+        // Remind always keeps one message to offer.
+        canDelete: template != null && setup.templates.length > 1,
       ),
     );
+    switch (result) {
+      case null:
+        return;
+      case _Delete():
+        if (context.mounted) await _delete(context, ref, setup, template!);
+      case _Save(template: final saved):
+        final exists = setup.templates.any((t) => t.id == saved.id);
+        await _save(
+          ref,
+          setup.copyWith(
+            templates: exists
+                ? [
+                    for (final t in setup.templates)
+                      t.id == saved.id ? saved : t,
+                  ]
+                : [...setup.templates, saved],
+          ),
+        );
+    }
   }
 
   /// Deletes [template] once the owner confirms.
@@ -70,7 +84,18 @@ class ReminderMessagesScreen extends ConsumerWidget {
     final setup = loaded.value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reminder messages')),
+      appBar: AppBar(
+        title: const Text('Reminder messages'),
+        actions: [
+          if (setup != null)
+            AddButton(
+              key: const Key('add-message'),
+              tooltip: 'Add a message',
+              onPressed: () => _edit(context, ref, setup),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: loaded.hasError && !loaded.hasValue
           ? ErrorView(
               'Your reminder messages could not load.',
@@ -104,29 +129,12 @@ class ReminderMessagesScreen extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () => _edit(context, ref, setup, template: t),
-                          trailing: setup.templates.length > 1
-                              ? IconButton(
-                                  tooltip: 'Delete ${t.name}',
-                                  icon: const Icon(Icons.delete_outline),
-                                  onPressed: () =>
-                                      _delete(context, ref, setup, t),
-                                )
-                              : null,
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const Key('add-message'),
-                    onPressed: () => _edit(context, ref, setup),
-                    child: const Text('Add a message'),
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'Send reminders with',
                   style: theme.textTheme.bodyMedium!.copyWith(
@@ -262,10 +270,28 @@ class _TillFieldState extends State<_TillField> {
   );
 }
 
+/// How the message dialog ends: saved, or deleted.
+sealed class _Edited {
+  const _Edited();
+}
+
+class _Save extends _Edited {
+  const _Save(this.template);
+
+  final ReminderTemplate template;
+}
+
+class _Delete extends _Edited {
+  const _Delete();
+}
+
 class _TemplateDialog extends StatefulWidget {
-  const _TemplateDialog({this.template});
+  const _TemplateDialog({this.template, this.canDelete = false});
 
   final ReminderTemplate? template;
+
+  /// Offers Delete, for a message that is not the only one.
+  final bool canDelete;
 
   @override
   State<_TemplateDialog> createState() => _TemplateDialogState();
@@ -308,6 +334,13 @@ class _TemplateDialogState extends State<_TemplateDialog> {
       ),
     ),
     actions: [
+      if (widget.canDelete)
+        DialogAction(
+          key: const Key('message-delete'),
+          destructive: true,
+          onPressed: () => Navigator.of(context).pop(const _Delete()),
+          child: const Text('Delete'),
+        ),
       DialogAction(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
@@ -319,12 +352,14 @@ class _TemplateDialogState extends State<_TemplateDialog> {
           final text = _text.text.trim();
           if (name.isEmpty || text.isEmpty) return;
           Navigator.of(context).pop(
-            widget.template?.copyWith(name: name, text: text) ??
-                ReminderTemplate(
-                  id: 'custom_${DateTime.now().microsecondsSinceEpoch}',
-                  name: name,
-                  text: text,
-                ),
+            _Save(
+              widget.template?.copyWith(name: name, text: text) ??
+                  ReminderTemplate(
+                    id: 'custom_${DateTime.now().microsecondsSinceEpoch}',
+                    name: name,
+                    text: text,
+                  ),
+            ),
           );
         },
         child: const Text('Save'),

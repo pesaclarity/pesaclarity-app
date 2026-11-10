@@ -58,18 +58,28 @@ class _StockScreenState extends ConsumerState<StockScreen> {
               services ? 'Services' : 'Stock',
               semanticsId: SemanticIds.titleStock,
               actions: [
-                if (services)
-                  TextButton(
+                if (services) ...[
+                  PillButton(
                     key: const Key('services-hours'),
+                    label: 'Hours',
                     onPressed: () => context.push(AppRoutes.hours),
-                    child: const Text('Hours'),
                   ),
-                if (products.isNotEmpty)
-                  TextButton(
+                  const SizedBox(width: 8),
+                ],
+                if (products.isNotEmpty) ...[
+                  PillButton(
                     key: const Key('count-stock'),
+                    label: 'Count stock',
                     onPressed: () => context.push(AppRoutes.countStock),
-                    child: const Text('Count stock'),
                   ),
+                  const SizedBox(width: 8),
+                ],
+                AddButton(
+                  key: const Key('add-item'),
+                  tooltip: 'Add an item',
+                  onPressed: () =>
+                      showItemSheet(context, servicesOnly: services),
+                ),
                 const AmountsEye(),
               ],
             ),
@@ -145,22 +155,9 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                     ],
                   ),
                 ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                key: const Key('add-item'),
-                onPressed: () => showItemSheet(context, servicesOnly: services),
-                child: const Text('Add an item'),
-              ),
             ],
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('stock-sell'),
-        tooltip: 'Sell',
-        shape: const CircleBorder(),
-        onPressed: () => context.push(AppRoutes.sell),
-        child: const Icon(Icons.add),
       ),
     );
   }

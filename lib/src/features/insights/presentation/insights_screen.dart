@@ -18,7 +18,6 @@ import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../home/application/health_index_provider.dart';
-import '../../statements/data/pdf_text_extractor.dart';
 import '../application/insights_providers.dart';
 import '../application/insights_report.dart';
 import '../application/month_labels.dart';
@@ -215,13 +214,14 @@ String findingDetail(Finding f, {bool hidden = false}) => switch (f) {
   },
 };
 
-class _EmptyCard extends ConsumerWidget {
+/// Before anything is read: one button, to choose the accounts. A
+/// statement to import is in the + menu.
+class _EmptyCard extends StatelessWidget {
   const _EmptyCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canImport = ref.watch(statementImportAvailableProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -241,14 +241,6 @@ class _EmptyCard extends ConsumerWidget {
               onPressed: () => context.go(AppRoutes.chooseAccounts),
               child: const Text('Choose my accounts'),
             ),
-            if (canImport) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(
-                key: const Key('insights-import'),
-                onPressed: () => context.go(AppRoutes.importStatement),
-                child: const Text('Import a statement'),
-              ),
-            ],
           ],
         ),
       ),
@@ -491,7 +483,6 @@ class _HealthCard extends ConsumerWidget {
                             ? 'Adds up to 1 point.'
                             : 'Adds up to ${action.gainPoints} points.',
                         style: theme.textTheme.bodyMedium!.copyWith(
-                          color: colors.link,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

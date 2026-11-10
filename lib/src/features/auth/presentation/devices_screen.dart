@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
@@ -147,9 +148,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : TextButton(
+                            : PillButton(
+                                label: 'Sign out',
                                 onPressed: () => _signOut(device),
-                                child: const Text('Sign out'),
                               ),
                       ),
                     ],

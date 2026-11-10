@@ -210,6 +210,19 @@ void main() {
       expect(find.text('Delivery'), findsOneWidget);
     });
 
+    testAppWidgets('Add sits in the title row, beside Count stock', (
+      tester,
+    ) async {
+      await pump(tester, const StockScreen());
+      expect(find.byKey(const Key('count-stock')), findsOneWidget);
+      expect(find.text('Add an item'), findsNothing);
+
+      await tester.tap(find.byTooltip('Add an item'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add an item'), findsOneWidget);
+      expect(find.byKey(const Key('item-name')), findsOneWidget);
+    });
+
     testAppWidgets('an item hides its price, cost and profit behind the eye', (
       tester,
     ) async {

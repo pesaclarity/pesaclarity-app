@@ -13,6 +13,7 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -50,15 +51,16 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               services ? 'Clients' : 'People',
               semanticsId: SemanticIds.titlePeople,
               actions: [
-                TextButton(
+                PillButton(
                   key: const Key('people-invoices'),
+                  label: 'Invoices',
                   onPressed: () => context.push(AppRoutes.invoices),
-                  child: const Text('Invoices'),
                 ),
-                TextButton(
+                const SizedBox(width: 8),
+                PillButton(
                   key: const Key('reminder-messages'),
+                  label: 'Messages',
                   onPressed: () => context.push(AppRoutes.reminderMessages),
-                  child: const Text('Messages'),
                 ),
                 const AmountsEye(),
               ],
@@ -186,10 +188,10 @@ class _Customers extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        OutlinedButton(
+                        PillButton(
                           key: Key('remind-${c.name}'),
+                          label: 'Remind',
                           onPressed: () => remindCustomer(context, ref, c),
-                          child: const Text('Remind'),
                         ),
                       ],
                     ),

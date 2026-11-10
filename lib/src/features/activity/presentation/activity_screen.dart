@@ -179,7 +179,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 EmptyNote(
                   entries.isEmpty
                       ? 'Transactions show here once your messages are read, '
-                            'or when you add one with + on Home.'
+                            'or when you add one with +.'
                       : 'Nothing matches these filters.',
                 )
               else
@@ -503,14 +503,14 @@ class _ActivityRow extends StatelessWidget {
             : '$name? ${suggestion!.percent}%',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium!.copyWith(color: colors.link),
+        style: theme.textTheme.bodyMedium,
       ),
       amount: _entryAmount(context, entry),
       trailing: name == null
           ? null
           : IconButton(
               tooltip: 'Accept $name',
-              icon: Icon(Icons.check_circle_outline, color: colors.link),
+              icon: const Icon(Icons.check_circle_outline),
               onPressed: () => onAccept(entry, suggestion!),
             ),
       onTap: () => showCategorySuggestionSheet(
@@ -662,7 +662,7 @@ String _initials(String name) {
 }
 
 /// A row's initials, or an own transfer's arrow, in a square the size and
-/// shape of an [IconBadge].
+/// shape of an [IconBadge], and as neutral unless it asks for something.
 class _Avatar extends StatelessWidget {
   const _Avatar.text(this.text, {required this.colors, this.warning = false})
     : icon = null;
@@ -683,7 +683,7 @@ class _Avatar extends StatelessWidget {
         ? colors.warning
         : isTransfer
         ? colors.successText
-        : colors.link;
+        : Theme.of(context).colorScheme.onSurface;
     return Container(
       width: 44,
       height: 44,
@@ -693,7 +693,7 @@ class _Avatar extends StatelessWidget {
             ? colors.warningSoft
             : isTransfer
             ? colors.successSoft
-            : colors.brandSoft,
+            : colors.border,
         borderRadius: BorderRadius.circular(12),
       ),
       child: icon != null
@@ -708,8 +708,8 @@ class _Avatar extends StatelessWidget {
 }
 
 /// After messages were read again: how many amounts moved to the currency
-/// and account their messages show. Closes with OK; See them filters to
-/// that account.
+/// and account their messages show. Its one action, See them, filters to
+/// that account and marks the note seen.
 class _FixedNote extends ConsumerWidget {
   const _FixedNote({required this.accounts, required this.onSeeThem});
 
@@ -742,7 +742,7 @@ class _FixedNote extends ConsumerWidget {
               '${notice.currency}. ${n == 1 ? 'It is' : 'They are'} now in '
               '${account.name}, counted in ${notice.currency}.'
         : '$amounts at $bank ${n == 1 ? 'is' : 'are'} now in ${account.name}.';
-    // A success Notice's box, with a title and two buttons.
+    // A success Notice's box, with a title and one button.
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Container(
@@ -763,19 +763,15 @@ class _FixedNote extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(body, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
-            ButtonPair(
-              primary: FilledButton(
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: PillButton(
                 key: const Key('recheck-see'),
+                label: 'See them',
                 onPressed: () {
                   onSeeThem(account.id);
                   unawaited(_close(ref));
                 },
-                child: const Text('See them'),
-              ),
-              secondary: OutlinedButton(
-                key: const Key('recheck-ok'),
-                onPressed: () => _close(ref),
-                child: const Text('OK'),
               ),
             ),
           ],

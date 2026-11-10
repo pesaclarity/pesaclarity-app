@@ -49,7 +49,7 @@ class _Checklist extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    String kes(int minor) => shownMoney(context, minor);
+    String kes(int minor) => shownMoney(context, minor, withCurrency: true);
     final payday = proposal.payday;
     final checklist = proposal.checklist;
     final tasks = checklist.tasks;
@@ -62,7 +62,8 @@ class _Checklist extends ConsumerWidget {
     );
     if (checklist.shortfallMinor > 0) {
       caption.write(
-        'The plan needs ${kes(checklist.shortfallMinor)} more than this. ',
+        'The plan needs ${shownMoney(context, checklist.shortfallMinor)} '
+        'more than this. ',
       );
     }
     caption.write('$done of ${tasks.length} done.');

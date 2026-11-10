@@ -58,7 +58,15 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hours'),
-        actions: const [AmountsEye(), SizedBox(width: 8)],
+        actions: [
+          AddButton(
+            key: const Key('hours-log'),
+            tooltip: 'Log hours',
+            onPressed: () => showLogHoursSheet(context, day: _day),
+          ),
+          const AmountsEye(),
+          const SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -123,12 +131,6 @@ class _HoursScreenState extends ConsumerState<HoursScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          FilledButton(
-            key: const Key('hours-log'),
-            onPressed: () => showLogHoursSheet(context, day: _day),
-            child: const Text('Log hours'),
-          ),
-          const SizedBox(height: 8),
           Text(
             'Hours stay on this phone with the business.',
             textAlign: TextAlign.center,

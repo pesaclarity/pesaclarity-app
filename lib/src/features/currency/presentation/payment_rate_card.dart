@@ -7,6 +7,7 @@ import '../../../data/repositories/transactions_repository.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/currency_controller.dart';
@@ -83,34 +84,22 @@ class PaymentRateCard extends ConsumerWidget {
             ],
             const SizedBox(height: 4),
             Text(note, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            // One action: the dialog also offers the day's rate back.
             Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  TextButton(
-                    key: const Key('rate-got'),
-                    onPressed: () => showRateGotDialog(
-                      context,
-                      record: record,
-                      base: base,
-                      current: converted?.baseBuys,
-                    ),
-                    child: Text(
-                      converted?.kind == RateKind.got
-                          ? 'Change the rate I got'
-                          : 'Use the rate I got',
-                    ),
-                  ),
-                  if (converted?.kind == RateKind.got)
-                    TextButton(
-                      key: const Key('rate-day'),
-                      onPressed: () => ref
-                          .read(transactionsRepositoryProvider)
-                          .setRateGot(record.id, currency: base),
-                      child: const Text("Use the day's rate"),
-                    ),
-                ],
+              alignment: AlignmentDirectional.centerStart,
+              child: PillButton(
+                key: const Key('rate-got'),
+                onPressed: () => showRateGotDialog(
+                  context,
+                  record: record,
+                  base: base,
+                  current: converted?.baseBuys,
+                  dayRateBack: converted?.kind == RateKind.got,
+                ),
+                label: converted?.kind == RateKind.got
+                    ? 'Change the rate I got'
+                    : 'Use the rate I got',
               ),
             ),
           ],
@@ -147,10 +136,15 @@ Future<void> showRateGotDialog(
   required TransactionRecord record,
   required String base,
   double? current,
+  bool dayRateBack = false,
 }) => showAdaptiveDialog<void>(
   context: context,
-  builder: (context) =>
-      _RateGotDialog(record: record, base: base, current: current),
+  builder: (context) => _RateGotDialog(
+    record: record,
+    base: base,
+    current: current,
+    dayRateBack: dayRateBack,
+  ),
 );
 
 class _RateGotDialog extends ConsumerStatefulWidget {
@@ -158,11 +152,15 @@ class _RateGotDialog extends ConsumerStatefulWidget {
     required this.record,
     required this.base,
     required this.current,
+    required this.dayRateBack,
   });
 
   final TransactionRecord record;
   final String base;
   final double? current;
+
+  /// Offers to go back to the day's rate, once a rate I got is set.
+  final bool dayRateBack;
 
   @override
   ConsumerState<_RateGotDialog> createState() => _RateGotDialogState();
@@ -225,6 +223,18 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
         ),
       ),
       actions: [
+        if (widget.dayRateBack)
+          DialogAction(
+            key: const Key('rate-day'),
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await ref
+                  .read(transactionsRepositoryProvider)
+                  .setRateGot(widget.record.id, currency: widget.base);
+              navigator.pop();
+            },
+            child: const Text("Use the day's rate"),
+          ),
         DialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),

@@ -202,7 +202,7 @@ class _Statement extends ConsumerWidget {
   final String standing;
   final List<StatementLine> history;
 
-  /// The buttons under the figure: Got paid and Remind, or Paid.
+  /// The buttons under the card: Got paid and Remind, or Paid.
   final Widget actions;
 
   @override
@@ -244,12 +244,12 @@ class _Statement extends ConsumerWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
-                actions,
               ],
             ),
           ),
         ),
+        const SizedBox(height: Layout.cardGap),
+        actions,
         const SectionLabel('History'),
         Card(
           child: Column(

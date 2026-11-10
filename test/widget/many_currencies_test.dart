@@ -119,6 +119,9 @@ void main() {
     expect(find.text('The rate you got for this payment.'), findsOneWidget);
     expect(find.text('≈ USD 193.80'), findsWidgets);
 
+    // Back to the day's rate, from the same one action.
+    await tester.tap(find.text('Change the rate I got'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rate-day')));
     await tester.pumpAndSettle();
     expect(find.text('Use the rate I got'), findsOneWidget);
@@ -155,7 +158,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('recheck-ok')));
+    // One action: See them shows that account and marks the note seen.
+    expect(find.text('OK'), findsNothing);
+    await tester.tap(find.byKey(const Key('recheck-see')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('recheck-note')), findsNothing);
   });

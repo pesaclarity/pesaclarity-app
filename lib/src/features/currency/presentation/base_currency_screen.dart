@@ -161,7 +161,7 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
         ? 'Rates updated today'
         : 'Rates from ${shortDate(fetched)}';
 
-    return Card(
+    final card = Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
@@ -202,41 +202,57 @@ class _RatesCardState extends ConsumerState<_RatesCard> {
                             child: Text(
                               'Rates by ${source.name}',
                               style: theme.textTheme.bodySmall!.copyWith(
-                                color: colors.link,
+                                color: theme.colorScheme.onSurface,
                                 decoration: TextDecoration.underline,
-                                decorationColor: colors.link,
+                                decorationColor: theme.colorScheme.onSurface,
                               ),
                             ),
                           ),
                         ),
                       ),
               ),
-            Wrap(
-              spacing: 8,
-              children: [
-                if (widget.configured)
-                  TextButton.icon(
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh rates'),
-                  ),
-                TextButton.icon(
-                  key: const Key('own-rate'),
-                  onPressed: () => showOwnRateDialog(context, settings),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Set my own rate'),
-                ),
-                TextButton.icon(
-                  key: const Key('open-converter'),
-                  onPressed: () => context.push(AppRoutes.converter),
-                  icon: const Icon(Icons.currency_exchange),
-                  label: const Text('Currency converter'),
-                ),
-              ],
-            ),
           ],
         ),
       ),
+    );
+    // One action a row, under the card that says where rates come from.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        const SizedBox(height: Layout.cardGap),
+        GroupedSection(
+          children: [
+            if (widget.configured)
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Refresh rates'),
+                trailing: _refreshing
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : null,
+                onTap: _refreshing ? null : _refresh,
+              ),
+            ListTile(
+              key: const Key('own-rate'),
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Set my own rate'),
+              onTap: () => showOwnRateDialog(context, settings),
+            ),
+            ListTile(
+              key: const Key('open-converter'),
+              leading: const Icon(Icons.currency_exchange),
+              title: const Text('Currency converter'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(AppRoutes.converter),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

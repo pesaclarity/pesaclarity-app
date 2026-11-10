@@ -122,24 +122,25 @@ class ItemScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    ButtonPair(
-                      primary: FilledButton(
-                        key: const Key('item-restock'),
-                        onPressed: () =>
-                            showBoughtSheet(context, itemId: item.id),
-                        child: const Text('Restock'),
-                      ),
-                      secondary: OutlinedButton(
-                        key: const Key('item-count'),
-                        onPressed: () => context.push(AppRoutes.countStock),
-                        child: const Text('Count'),
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
+          if (item.isProduct) ...[
+            const SizedBox(height: 12),
+            ButtonPair(
+              primary: FilledButton(
+                key: const Key('item-restock'),
+                onPressed: () => showBoughtSheet(context, itemId: item.id),
+                child: const Text('Restock'),
+              ),
+              secondary: OutlinedButton(
+                key: const Key('item-count'),
+                onPressed: () => context.push(AppRoutes.countStock),
+                child: const Text('Count'),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Card(
             child: Column(

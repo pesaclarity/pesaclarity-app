@@ -12,6 +12,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/progress_ring.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
@@ -81,9 +82,9 @@ class GoalsScreen extends ConsumerWidget {
         'Debts',
         action: Semantics(
           identifier: SemanticIds.goalsSeeDebts,
-          child: TextButton(
+          child: PillButton(
+            label: 'See debts',
             onPressed: () => context.go(AppRoutes.debts),
-            child: const Text('See debts'),
           ),
         ),
       ),
@@ -101,9 +102,9 @@ class GoalsScreen extends ConsumerWidget {
         ),
       SectionTitle(
         'Saving for',
-        action: TextButton(
+        action: AddButton(
+          tooltip: 'Add a goal',
           onPressed: () => showGoalSheet(context, today: overview.today),
-          child: const Text('Add a goal'),
         ),
       ),
       if (overview.goals.isEmpty)
@@ -133,7 +134,7 @@ class _DebtFreeCard extends StatelessWidget {
     final month = overview.plan?.plan.debtFreeMonth;
 
     final String label;
-    final String figure;
+    final String? figure;
     final String caption;
     final hasDebts = debts.count > 0;
     if (!hasDebts) {
@@ -146,10 +147,14 @@ class _DebtFreeCard extends StatelessWidget {
       caption = 'All ${debts.count} cleared.';
     } else {
       label = 'Debt-free by';
-      figure = month == null ? 'Not yet' : monthLabel(month);
-      caption =
+      final left =
           '${shownMoney(context, debts.remainingMinor, withCurrency: false)} '
           'left · ${debts.clearedCount} of ${debts.count} cleared';
+      // With no date yet, the card says how to get one instead.
+      figure = month == null ? null : monthLabel(month);
+      caption = month == null
+          ? 'Pay a little more each month to set a debt-free date.\n$left'
+          : left;
     }
 
     return HeroFigureCard(

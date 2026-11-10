@@ -122,7 +122,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('JOHN KAMAU'), findsOneWidget);
-    expect(find.text('-KES 350'), findsOneWidget);
+    expect(find.text('-350'), findsOneWidget);
     expect(find.text('Tap to name this payee'), findsOneWidget);
     expect(find.text('Choose later'), findsOneWidget);
 
@@ -220,10 +220,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('JOHN KAMAU'), findsOneWidget);
-    expect(
-      find.text('0700000001 · 2 transactions · KES 550 out'),
-      findsOneWidget,
-    );
+    expect(find.text('0700000001 · 2 transactions · 550 out'), findsOneWidget);
     expect(find.text('Payees you name show here.'), findsOneWidget);
 
     await tester.tap(find.text('Export'));

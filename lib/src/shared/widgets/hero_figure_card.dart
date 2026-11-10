@@ -13,7 +13,7 @@ import 'amounts_hidden.dart';
 class HeroFigureCard extends StatelessWidget {
   const HeroFigureCard({
     required this.label,
-    required this.figure,
+    this.figure,
     this.caption,
     this.footer,
     this.onTap,
@@ -22,7 +22,10 @@ class HeroFigureCard extends StatelessWidget {
   });
 
   final String label;
-  final String figure;
+
+  /// The one number; null while there is nothing to count yet, and then
+  /// [caption] says what will show and when, in its place.
+  final String? figure;
 
   /// Lines under the figure, one per entry in the text.
   final String? caption;
@@ -40,8 +43,10 @@ class HeroFigureCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final hidden = AmountsHidden.of(context);
+    final figure = this.figure;
     final hasAmount =
-        containsAmount(figure) || (caption != null && containsAmount(caption!));
+        (figure != null && containsAmount(figure)) ||
+        (caption != null && containsAmount(caption!));
 
     return Card(
       color: scheme.primary,
@@ -68,18 +73,22 @@ class HeroFigureCard extends StatelessWidget {
                   if (showEye ?? hasAmount) AmountsEye(color: scheme.onPrimary),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                maskAmountsIf(hidden, figure),
-                style: AppTypography.leadFigure(scheme.onPrimary),
-              ),
+              if (figure != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  maskAmountsIf(hidden, figure),
+                  style: AppTypography.leadFigure(scheme.onPrimary),
+                ),
+              ],
               if (caption != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   maskAmountsIf(hidden, caption!),
-                  style: textTheme.bodyMedium!.copyWith(
-                    color: scheme.onPrimary,
-                  ),
+                  style:
+                      (figure == null
+                              ? textTheme.bodyLarge
+                              : textTheme.bodyMedium)!
+                          .copyWith(color: scheme.onPrimary),
                 ),
               ],
               if (footer != null) ...[const SizedBox(height: 16), footer!],

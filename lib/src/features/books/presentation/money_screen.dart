@@ -58,10 +58,10 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
               'Money',
               semanticsId: SemanticIds.titleMoney,
               actions: [
-                TextButton(
+                PillButton(
                   key: const Key('money-close-day'),
+                  label: 'Close the day',
                   onPressed: () => context.push(AppRoutes.closeDay),
-                  child: const Text('Close the day'),
                 ),
                 IconButton(
                   key: const Key('money-search'),
@@ -134,13 +134,6 @@ class _MoneyScreenState extends ConsumerState<MoneyScreen> {
             ],
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('money-sell'),
-        tooltip: 'Sell',
-        shape: const CircleBorder(),
-        onPressed: () => context.push(AppRoutes.sell),
-        child: const Icon(Icons.add),
       ),
     );
   }

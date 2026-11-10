@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/money/money.dart';
-import '../../../core/money/money_format.dart';
 import '../../../domain/sales/sale_matching.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/app_sheet.dart';
+import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/sales_providers.dart';
 import 'choose_payments_sheet.dart';
 import 'pay_sheet.dart';
 
 /// Sales on Today whose M-Pesa or bank payment has not come in yet. Each
-/// matches on its own when the message arrives.
+/// matches on its own when the message arrives; tapping one offers what
+/// else to do with it.
 class WaitingPaymentsCard extends ConsumerWidget {
   const WaitingPaymentsCard({super.key});
 
@@ -40,7 +41,7 @@ class WaitingPaymentsCard extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 'Each one matches on its own when the message comes.',
                 style: theme.textTheme.bodySmall!.copyWith(
@@ -48,50 +49,95 @@ class WaitingPaymentsCard extends ConsumerWidget {
                 ),
               ),
             ),
-            for (final w in waiting)
+            for (final w in waiting) ...[
+              const Divider(height: 1),
               ListTile(
                 key: Key('waiting-${w.kind.name}-${w.id}'),
-                // A sale can be paid by payments of other amounts.
-                onTap: w.kind == WaitingKind.sale
-                    ? () => showChoosePaymentsSheet(context, w)
-                    : null,
-                title: Text(shownAmounts(context, waitingTitle(w))),
-                subtitle: Text(
-                  [
-                    switch (w.kind) {
-                      WaitingKind.sale => w.note ?? 'Other sale',
-                      WaitingKind.bought => w.note ?? 'Bought',
-                      WaitingKind.gotPaid => 'What they owe',
-                      WaitingKind.paid => 'What you owe',
-                      WaitingKind.paidYourself => 'Pay yourself',
-                      WaitingKind.payFromBusiness => 'From your business',
-                      WaitingKind.change => 'Change',
-                    },
-                    formatTime(w.at),
-                  ].join(' · '),
-                ),
-                trailing: PopupMenuButton<_Choice>(
-                  tooltip: 'More',
-                  onSelected: (choice) => switch (choice) {
-                    _Choice.cash => controller.paidInCash(w),
-                    _Choice.remove => _confirmRemove(context, controller, w),
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: _Choice.cash,
-                      child: Text('It was paid in cash'),
+                onTap: () => _choose(context, controller, w),
+                title: Text(waitingTitle(w)),
+                subtitle: Text(_detail(w)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      shownMoney(context, w.amountMinor, currency: w.currency),
+                      style: AppTypography.rowAmount(
+                        theme.colorScheme.onSurface,
+                      ),
                     ),
-                    PopupMenuItem(
-                      value: _Choice.remove,
-                      child: Text('Delete it'),
-                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right, color: colors.textMuted),
                   ],
                 ),
               ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// A small sheet with what can be done with [payment]: choose its
+  /// payments (a sale can be paid by payments of other amounts), say it
+  /// was paid in cash, or delete it.
+  Future<void> _choose(
+    BuildContext context,
+    SalesController controller,
+    WaitingPayment payment,
+  ) async {
+    final amount = shownMoney(
+      context,
+      payment.amountMinor,
+      currency: payment.currency,
+    );
+    final choice = await showAppSheet<_Choice>(
+      context: context,
+      builder: (context) {
+        final error = Theme.of(context).colorScheme.error;
+        return SheetBody(
+          title: waitingTitle(payment),
+          subtitle: '$amount · ${_detail(payment)}',
+          children: [
+            if (payment.kind == WaitingKind.sale)
+              ListTile(
+                key: const Key('waiting-choose'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.checklist_outlined),
+                title: const Text('Choose payments'),
+                subtitle: const Text('When it came in parts or another amount'),
+                onTap: () => Navigator.pop(context, _Choice.choose),
+              ),
+            ListTile(
+              key: const Key('waiting-cash'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('It was paid in cash'),
+              onTap: () => Navigator.pop(context, _Choice.cash),
+            ),
+            ListTile(
+              key: const Key('waiting-delete'),
+              contentPadding: EdgeInsets.zero,
+              iconColor: error,
+              textColor: error,
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Delete it'),
+              onTap: () => Navigator.pop(context, _Choice.remove),
+            ),
+          ],
+        );
+      },
+    );
+    if (!context.mounted) return;
+    switch (choice) {
+      case _Choice.choose:
+        await showChoosePaymentsSheet(context, payment);
+      case _Choice.cash:
+        await controller.paidInCash(payment);
+      case _Choice.remove:
+        await _confirmRemove(context, controller, payment);
+      case null:
+        break;
+    }
   }
 
   Future<void> _confirmRemove(
@@ -109,23 +155,35 @@ class WaitingPaymentsCard extends ConsumerWidget {
   }
 }
 
-enum _Choice { cash, remove }
+enum _Choice { choose, cash, remove }
 
-/// What a waiting payment is, in a line: `KES 180 sale by M-Pesa`,
-/// `Otieno paid KES 1,200 by M-Pesa`.
+/// What it was for and when: `Avocados · 14:30`.
+String _detail(WaitingPayment w) => [
+  switch (w.kind) {
+    WaitingKind.sale => w.note ?? 'Other sale',
+    WaitingKind.bought => w.note ?? 'Bought',
+    WaitingKind.gotPaid => 'What they owe',
+    WaitingKind.paid => 'What you owe',
+    WaitingKind.paidYourself => 'Pay yourself',
+    WaitingKind.payFromBusiness => 'From your business',
+    WaitingKind.change => 'Change',
+  },
+  formatTime(w.at),
+].join(' · ');
+
+/// What a waiting payment is, in a line: `Sale by M-Pesa`, `Otieno paid by
+/// M-Pesa`. Its amount shows at the end of its row.
 String waitingTitle(WaitingPayment w) {
-  final amount = formatMoney(Money(w.amountMinor, currency: w.currency));
   final how = methodName(w.method);
   final who = w.party;
   return switch (w.kind) {
-    WaitingKind.sale => '$amount sale by $how',
-    WaitingKind.bought =>
-      who == null ? '$amount bought by $how' : '$amount to $who by $how',
-    WaitingKind.gotPaid => '${who ?? 'A customer'} paid $amount by $how',
-    WaitingKind.paid => 'Paid ${who ?? 'a supplier'} $amount by $how',
-    WaitingKind.paidYourself => 'Paid yourself $amount by $how',
-    WaitingKind.payFromBusiness => '$amount from your business by $how',
+    WaitingKind.sale => 'Sale by $how',
+    WaitingKind.bought => who == null ? 'Bought by $how' : 'To $who by $how',
+    WaitingKind.gotPaid => '${who ?? 'A customer'} paid by $how',
+    WaitingKind.paid => 'Paid ${who ?? 'a supplier'} by $how',
+    WaitingKind.paidYourself => 'Paid yourself by $how',
+    WaitingKind.payFromBusiness => 'From your business by $how',
     WaitingKind.change =>
-      '$amount change${who == null ? '' : ' to $who'} by $how',
+      who == null ? 'Change by $how' : 'Change to $who by $how',
   };
 }

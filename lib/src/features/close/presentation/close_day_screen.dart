@@ -321,9 +321,10 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                                     theme.colorScheme.onSurface,
                                   ),
                                 ),
-                                TextButton(
+                                const SizedBox(width: 10),
+                                PillButton(
+                                  label: 'Match',
                                   onPressed: () => _match(e),
-                                  child: const Text('Match'),
                                 ),
                               ],
                             ),
