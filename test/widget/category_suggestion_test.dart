@@ -84,7 +84,7 @@ void main() {
     await tester.tap(find.byTooltip('Accept Groceries and household'));
     await _settle(tester);
 
-    expect(find.text('Groceries and household · M-Pesa'), findsOneWidget);
+    expect(findDetailLine('Groceries and household · M-Pesa'), findsOneWidget);
     final log = await tester.runAsync(
       () => db.select(db.categoryConfirmations).get(),
     );
@@ -105,7 +105,7 @@ void main() {
     await tester.tap(find.text('Eating out'));
     await _settle(tester);
 
-    expect(find.text('Eating out · M-Pesa'), findsOneWidget);
+    expect(findDetailLine('Eating out · M-Pesa'), findsOneWidget);
     expect(find.text('Eating out? 100%'), findsOneWidget);
 
     // The sheet shows the suggestion with its source; Change picks another.
@@ -121,7 +121,7 @@ void main() {
     await tester.tap(find.text('Groceries and household'));
     await _settle(tester);
 
-    expect(find.text('Groceries and household · M-Pesa'), findsOneWidget);
-    expect(find.text('Eating out · M-Pesa'), findsOneWidget);
+    expect(findDetailLine('Groceries and household · M-Pesa'), findsOneWidget);
+    expect(findDetailLine('Eating out · M-Pesa'), findsOneWidget);
   });
 }

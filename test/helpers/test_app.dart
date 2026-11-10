@@ -25,6 +25,7 @@ import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.d
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 import 'package:pesaclarity/src/features/statements/application/statement_importer.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
 
 import 'fake_app_lock.dart';
 import 'fake_auth.dart';
@@ -185,3 +186,10 @@ Future<void> settleFrames(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
+
+/// A row's detail line that reads [text], such as
+/// `Groceries and household · M-Pesa`.
+Finder findDetailLine(String text) => find.byWidgetPredicate(
+  (w) => w is DetailLine && '${w.lead} · ${w.tail}' == text,
+  description: 'detail line "$text"',
+);

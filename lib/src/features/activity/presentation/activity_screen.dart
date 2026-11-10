@@ -446,8 +446,9 @@ class _ActivityRow extends StatelessWidget {
         context,
         avatar: _Avatar.text(_initials(_title(entry)), colors: colors),
         title: _title(entry),
-        subtitle: Text(
-          [_categoryLabel(entry), _account(entry.accountId)].join(' · '),
+        subtitle: DetailLine(
+          _categoryLabel(entry),
+          _account(entry.accountId),
           style: muted,
         ),
         amount: _entryAmount(context, entry),
@@ -468,9 +469,9 @@ class _ActivityRow extends StatelessWidget {
         context,
         avatar: const IconBadge(Icons.layers_outlined),
         title: noiseTitle(noise.group),
-        subtitle: Text(
-          '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'} · '
-          '${_account(noise.accountId)}',
+        subtitle: DetailLine(
+          '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'}',
+          _account(noise.accountId),
           style: muted,
         ),
         amount: _amount(
