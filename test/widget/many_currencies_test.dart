@@ -164,11 +164,9 @@ void main() {
     tester,
   ) async {
     await pump(tester, const Scaffold(body: AddTransactionSheet()));
-    expect(find.widgetWithText(TextField, 'Amount (KES)'), findsOneWidget);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Amount (KES)'),
-      '1,200',
-    );
+    final field = find.widgetWithText(TextField, 'Amount');
+    expect(tester.widget<TextField>(field).decoration!.prefixText, 'KES ');
+    await tester.enterText(find.widgetWithText(TextField, 'Amount'), '1,200');
     await tester.pumpAndSettle();
     expect(find.text("≈ USD 9.29 at today's rate"), findsOneWidget);
   });

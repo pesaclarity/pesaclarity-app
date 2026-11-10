@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/payees_repository.dart';
 import '../../../data/repositories/purpose_repository.dart';
-import '../../../domain/categories/default_categories.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/payees/payee_identifier.dart';
 import '../../../shared/names.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
 import 'category_picker.dart';
@@ -17,25 +17,25 @@ import 'category_picker.dart';
 /// name, category and leak type apply to every past and future transaction
 /// from that number, till or paybill.
 ///
+/// [moneyIn], when known, is the way the money moved: money in asks what it
+/// was and offers no spending categories; money out offers no income ones.
+///
 /// Returns the payee id once saved, or null when dismissed.
 Future<int?> showPayeeSheet(
   BuildContext context, {
   PayeeIdentifier? identifier,
   Payee? payee,
   String? suggestedName,
+  bool? moneyIn,
 }) {
   assert(identifier != null || payee != null, 'needs something to name');
-  return showModalBottomSheet<int>(
+  return showAppSheet<int>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: PayeeSheet(
-        identifier: identifier,
-        payee: payee,
-        suggestedName: suggestedName,
-      ),
+    builder: (context) => PayeeSheet(
+      identifier: identifier,
+      payee: payee,
+      suggestedName: suggestedName,
+      moneyIn: moneyIn,
     ),
   );
 }
@@ -45,12 +45,16 @@ class PayeeSheet extends ConsumerStatefulWidget {
     this.identifier,
     this.payee,
     this.suggestedName,
+    this.moneyIn,
     super.key,
   });
 
   final PayeeIdentifier? identifier;
   final Payee? payee;
   final String? suggestedName;
+
+  /// The way the money moved, when the sheet opens from one transaction.
+  final bool? moneyIn;
 
   @override
   ConsumerState<PayeeSheet> createState() => _PayeeSheetState();
@@ -114,84 +118,73 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
     final name = _name.text.trim();
     final canSave = !_saving && name.isNotEmpty && name.length <= 80;
     final who = widget.identifier?.label;
+    final moneyIn = widget.moneyIn;
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.payee == null ? 'Name this payee' : 'Edit payee',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              who == null
-                  ? 'Changes apply to every past and future payment.'
-                  : 'Applies to every past and future payment to $who.',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _name,
-              autofocus: widget.payee == null,
-              maxLength: 80,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'For example, John (brother) or Naivas',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const SizedBox(height: 12),
-            CategorySelectorField(
-              key: const Key('payee-category'),
-              selectedId: _categoryId,
-              noneLabel: uncategorisedName,
-              onChanged: (id) => setState(() => _categoryId = id),
-            ),
-            const SizedBox(height: 4),
-            if (widget.payee != null)
-              SwitchListTile(
-                key: const Key('payee-ask-purpose'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Ask what money from them is for'),
-                subtitle: const Text(
-                  'For people whose money means different things',
-                ),
-                value: _askPurpose,
-                onChanged: (v) => setState(() => _askPurpose = v),
-              ),
-            const SizedBox(height: 8),
-            Text('Leak type', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text('Leaks add up on Insights.', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 8),
-            ChoiceMenu<LeakType>(
-              key: const Key('payee-leak-type'),
-              name: 'Leak type',
-              expand: true,
-              options: [for (final t in LeakType.values) (t, leakTypeLabel(t))],
-              value: _leakType,
-              itemKey: (t) => Key('payee-leak-${t.name}'),
-              onChanged: (t) => setState(() => _leakType = t),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: canSave ? _save : null,
-                child: const Text('Save payee'),
-              ),
-            ),
-          ],
+    return SheetBody(
+      title: widget.payee == null ? 'Name this payee' : 'Edit payee',
+      subtitle: who == null
+          ? 'Changes apply to every past and future payment.'
+          : 'Applies to every past and future payment to $who.',
+      children: [
+        TextField(
+          controller: _name,
+          autofocus: widget.payee == null,
+          maxLength: 80,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            hintText: 'John (brother) or Naivas',
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        CategorySelectorField(
+          key: const Key('payee-category'),
+          label: moneyIn ?? false
+              ? 'What was it? Gift, loan or repayment'
+              : 'Category',
+          selectedId: _categoryId,
+          allowType: moneyIn == null
+              ? null
+              : (type) => moneyIn
+                    ? type != CategoryType.expense
+                    : type != CategoryType.income,
+          onChanged: (id) => setState(() => _categoryId = id),
+        ),
+        const SizedBox(height: 4),
+        if (widget.payee != null)
+          SwitchListTile.adaptive(
+            key: const Key('payee-ask-purpose'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Ask what money from them is for'),
+            subtitle: const Text(
+              'For people whose money means different things',
+            ),
+            value: _askPurpose,
+            onChanged: (v) => setState(() => _askPurpose = v),
+          ),
+        const SizedBox(height: 8),
+        Text(
+          'Leak type',
+          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
+        ),
+        const SizedBox(height: 4),
+        Text('Leaks add up on Insights.', style: theme.textTheme.bodySmall),
+        const SizedBox(height: 8),
+        ChoiceMenu<LeakType>(
+          key: const Key('payee-leak-type'),
+          name: 'Leak type',
+          expand: true,
+          options: [for (final t in LeakType.values) (t, leakTypeLabel(t))],
+          value: _leakType,
+          itemKey: (t) => Key('payee-leak-${t.name}'),
+          onChanged: (t) => setState(() => _leakType = t),
+        ),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: canSave ? _save : null,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

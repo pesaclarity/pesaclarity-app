@@ -118,6 +118,9 @@ void main() {
       200,
       scrollable: sheet,
     );
+    // The first scroll may only grow the sheet; this one moves the list.
+    await tester.ensureVisible(find.byKey(const Key('category-show-all')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('category-show-all')));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Tax'), 200, scrollable: sheet);

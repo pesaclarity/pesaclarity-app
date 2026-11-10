@@ -5,6 +5,9 @@ import '../../../domain/categories/default_categories.dart';
 import '../../../domain/enums.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../export/application/export_service.dart';
 import '../../export/presentation/export_sheet.dart';
@@ -20,31 +23,39 @@ class PayeesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final unnamed = ref.watch(unnamedPartiesProvider).value ?? const [];
-    final named = ref.watch(payeeSummariesProvider).value ?? const [];
+    final unnamedAsync = ref.watch(unnamedPartiesProvider);
+    final namedAsync = ref.watch(payeeSummariesProvider);
+    final unnamed = unnamedAsync.value ?? const [];
+    final named = namedAsync.value ?? const [];
 
-    Widget heading(String text) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Text(
-        text.toUpperCase(),
-        style: theme.textTheme.labelMedium!.copyWith(
-          color: colors.textMuted,
-          letterSpacing: 1,
-        ),
-      ),
+    final appBar = AppBar(
+      title: const Text('Payees'),
+      actions: [
+        ExportButton(scope: () => const PayeesExport()),
+        const AmountsEye(),
+        const SizedBox(width: 8),
+      ],
     );
+    if ((unnamedAsync.hasError && !unnamedAsync.hasValue) ||
+        (namedAsync.hasError && !namedAsync.hasValue)) {
+      return Scaffold(
+        appBar: appBar,
+        body: ErrorView(
+          'Payees could not load.',
+          onRetry: () => ref
+            ..invalidate(unnamedPartiesProvider)
+            ..invalidate(payeeSummariesProvider),
+        ),
+      );
+    }
+    if (!unnamedAsync.hasValue || !namedAsync.hasValue) {
+      return Scaffold(appBar: appBar, body: const LoadingView());
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Payees'),
-        actions: [
-          ExportButton(scope: () => const PayeesExport()),
-          const AmountsEye(),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: appBar,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           Text(
             'Name a number or till once. Its category and leak type then '
@@ -52,7 +63,7 @@ class PayeesScreen extends ConsumerWidget {
             style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
           ),
           if (unnamed.isNotEmpty) ...[
-            heading('To name'),
+            const SectionLabel('To name'),
             Card(
               child: Column(
                 children: [
@@ -68,12 +79,7 @@ class PayeesScreen extends ConsumerWidget {
                             '${shownMoney(context, party.outMinor)} out',
                         ].join(' · '),
                       ),
-                      trailing: Text(
-                        'Name',
-                        style: theme.textTheme.labelLarge!.copyWith(
-                          color: colors.link,
-                        ),
-                      ),
+                      trailing: const TrailingLink('Name'),
                       onTap: () => showPayeeSheet(
                         context,
                         identifier: party.identifier,
@@ -85,12 +91,9 @@ class PayeesScreen extends ConsumerWidget {
               ),
             ),
           ],
-          heading('Named'),
+          const SectionLabel('Named'),
           if (named.isEmpty)
-            Text(
-              'Payees you name show here.',
-              style: theme.textTheme.bodyMedium,
-            )
+            const EmptyNote('Payees you name show here.')
           else
             Card(
               child: Column(
