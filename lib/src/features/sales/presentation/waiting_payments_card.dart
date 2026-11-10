@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/sales/sale_matching.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../theme/pesa_colors.dart';
@@ -28,12 +29,11 @@ class WaitingPaymentsCard extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
         key: const Key('waiting-payments'),
-        margin: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
               child: Text(
                 'Waiting for payment',
                 style: theme.textTheme.titleMedium,
@@ -83,7 +83,7 @@ class WaitingPaymentsCard extends ConsumerWidget {
                     ),
                     PopupMenuItem(
                       value: _Choice.remove,
-                      child: Text('Remove it'),
+                      child: Text('Delete it'),
                     ),
                   ],
                 ),
@@ -99,28 +99,13 @@ class WaitingPaymentsCard extends ConsumerWidget {
     SalesController controller,
     WaitingPayment payment,
   ) async {
-    final remove = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove this?'),
-        content: Text(
-          payment.kind == WaitingKind.sale
-              ? "It comes off today's sales."
-              : 'It comes off your records.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep it'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final sale = payment.kind == WaitingKind.sale;
+    final remove = await confirmDelete(
+      context,
+      title: sale ? 'Delete this sale?' : 'Delete this record?',
+      body: sale ? "It comes off today's sales." : 'It comes off your records.',
     );
-    if (remove == true) await controller.removeWaiting(payment);
+    if (remove) await controller.removeWaiting(payment);
   }
 }
 

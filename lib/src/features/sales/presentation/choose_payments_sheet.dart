@@ -11,13 +11,15 @@ import '../../../domain/spaces/space.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
+import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../tax/application/tax_providers.dart';
 import '../application/sales_providers.dart';
-import 'pay_sheet.dart';
 import 'records_sheets.dart';
 
 /// Payment messages near a waiting sale part, to choose from.
@@ -31,19 +33,9 @@ final _candidatesProvider =
 Future<bool?> showChoosePaymentsSheet(
   BuildContext context,
   WaitingPayment waiting,
-) => showModalBottomSheet<bool>(
+) => showAppSheet<bool>(
   context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (context) => Padding(
-    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: _ChoosePayments(waiting),
-      ),
-    ),
-  ),
+  builder: (context) => _ChoosePayments(waiting),
 );
 
 class _ChoosePayments extends ConsumerStatefulWidget {
@@ -56,6 +48,7 @@ class _ChoosePayments extends ConsumerStatefulWidget {
 }
 
 class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
+  final _form = GlobalKey<FormState>();
   final _picked = <int>{};
   ShortBy _short = ShortBy.theyOweIt;
 
@@ -81,12 +74,8 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
     final paid = chosen.fold(0, (sum, e) => sum + e.amountMinor);
     final short = paid < widget.waiting.amountMinor;
     final customer = _customer.text.trim();
-    if (short && _short == ShortBy.theyOweIt && customer.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter who owes the rest.')));
-      return;
-    }
+    // Who owes the rest is asked for in its field.
+    if (!(_form.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
     setState(() => _saving = true);
     try {
@@ -148,169 +137,169 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
       _short = ShortBy.taxWithheld;
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('Choose payments', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 6),
-        Text(
-          'Pick the payments for this sale of '
-          '${formatMoney(Money(w.amountMinor))}.',
-          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
-        ),
-        const SizedBox(height: 12),
-        if (candidates == null)
-          const Center(child: CircularProgressIndicator.adaptive())
-        else if (candidates.isEmpty)
-          Text(
-            'Payments that come in around the time of the sale show here.',
-            style: theme.textTheme.bodyMedium,
-          )
-        else
-          for (final e in candidates)
-            CheckboxListTile(
-              key: Key('choose-${e.id}'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _picked.contains(e.id),
-              onChanged: (on) => setState(() {
-                on == true ? _picked.add(e.id) : _picked.remove(e.id);
-                if (_customer.text.isEmpty) {
-                  _customer.text = e.payeeName ?? e.counterpartyName ?? '';
-                }
-              }),
-              title: Text(
-                '${e.payeeName ?? e.counterpartyName ?? 'Payment'} · '
-                '${_plain(e.amountMinor)}',
+    return Form(
+      key: _form,
+      child: SheetBody(
+        title: 'Choose payments',
+        subtitle:
+            'Choose the payments for this sale of '
+            '${formatMoney(Money(w.amountMinor))}.',
+        children: [
+          if (candidates == null)
+            const LoadingView(inList: true)
+          else if (candidates.isEmpty)
+            const EmptyNote(
+              'Payments that come in around the time of the sale show here.',
+            )
+          else
+            for (final e in candidates)
+              CheckboxListTile(
+                key: Key('choose-${e.id}'),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _picked.contains(e.id),
+                onChanged: (on) => setState(() {
+                  on == true ? _picked.add(e.id) : _picked.remove(e.id);
+                  if (_customer.text.isEmpty) {
+                    _customer.text = e.payeeName ?? e.counterpartyName ?? '';
+                  }
+                }),
+                title: Text(
+                  '${e.payeeName ?? e.counterpartyName ?? 'Payment'} · '
+                  '${_plain(e.amountMinor)}',
+                ),
+                subtitle: Text(
+                  '${accounts[e.accountId]?.name ?? 'Account'} · '
+                  '${formatTime(e.occurredAt)}',
+                ),
               ),
-              subtitle: Text(
-                '${accounts[e.accountId]?.name ?? 'Account'} · '
-                '${formatTime(e.occurredAt)}',
-              ),
+          if (chosen.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Notice(
+              gap == 0
+                  ? '${[for (final e in chosen) _plain(e.amountMinor)].join(' + ')}'
+                        ' = ${_plain(paid)}. That covers this sale.'
+                  : gap > 0
+                  ? 'That is ${_plain(gap)} less than the sale.'
+                  : 'That is ${_plain(-gap)} more than the sale.',
+              tone: gap == 0 ? Tone.success : Tone.warning,
+              key: const Key('choose-total'),
             ),
-        if (chosen.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          InfoNote(
-            gap == 0
-                ? '${[for (final e in chosen) _plain(e.amountMinor)].join(' + ')}'
-                      ' = ${_plain(paid)}. That covers this sale.'
-                : gap > 0
-                ? 'That is ${_plain(gap)} less than the sale.'
-                : 'That is ${_plain(-gap)} more than the sale.',
-            key: const Key('choose-total'),
+            if (gap > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                'What about the ${_plain(gap)}?',
+                style: theme.textTheme.bodyMedium!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ChoiceMenu<ShortBy>(
+                key: const Key('choose-short'),
+                name: 'The difference',
+                expand: true,
+                options: [
+                  if (withholding != null)
+                    (
+                      ShortBy.taxWithheld,
+                      'Tax withheld (${rateText(withholding)})',
+                    ),
+                  (ShortBy.theyOweIt, 'They owe it'),
+                  (ShortBy.restInCash, 'Paid the rest in cash'),
+                  (ShortBy.anotherPayment, 'Another payment'),
+                  (ShortBy.discount, 'Gave a discount'),
+                ],
+                value: _short,
+                itemKey: (choice) => Key('short-${choice.name}'),
+                onChanged: (choice) => setState(() {
+                  _short = choice;
+                  _shortPicked = true;
+                }),
+              ),
+              if (_short == ShortBy.taxWithheld && withholding != null) ...[
+                const SizedBox(height: 12),
+                Notice(
+                  '${_plain(gap)} is ${rateText(withholding)} of the sale, so it '
+                  'looks like withholding tax. It counts as tax already paid, '
+                  'and the sale is paid in full.',
+                  key: const Key('choose-tax-note'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('choose-certificate'),
+                  controller: _certificate,
+                  decoration: const InputDecoration(
+                    labelText: 'Certificate number (optional)',
+                    hintText: 'Add it when it comes',
+                  ),
+                ),
+                if (_customer.text.trim().isNotEmpty)
+                  SwitchListTile.adaptive(
+                    key: const Key('choose-expect-tax'),
+                    contentPadding: EdgeInsets.zero,
+                    value: _expectTax,
+                    onChanged: (on) => setState(() => _expectTax = on),
+                    title: Text(
+                      'Expect ${rateText(withholding)} from '
+                      '${_customer.text.trim()} from now on',
+                    ),
+                  ),
+              ],
+              if (_short == ShortBy.theyOweIt) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('choose-customer'),
+                  controller: _customer,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Who owes it'),
+                  validator: (text) => (text ?? '').trim().isEmpty
+                      ? 'Enter who owes the rest, such as Otieno.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                DueDateChips(
+                  today: today,
+                  value: _due,
+                  onChanged: (d) => setState(() => _due = d),
+                ),
+              ],
+            ],
+            if (gap < 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                'What happened to the ${_plain(-gap)}?',
+                style: theme.textTheme.bodyMedium!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ChoiceMenu<OverBy>(
+                key: const Key('choose-over'),
+                name: 'The difference',
+                expand: true,
+                options: const [
+                  (OverBy.changeInCash, 'Gave change in cash'),
+                  (OverBy.changeByMpesa, 'Gave change by M-Pesa'),
+                  (OverBy.keepWithSale, 'Keep it with the sale'),
+                ],
+                value: _over,
+                itemKey: (choice) => Key('over-${choice.name}'),
+                onChanged: (choice) => setState(() => _over = choice),
+              ),
+            ],
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('choose-save'),
+            onPressed: chosen.isEmpty || _saving ? null : () => _save(chosen),
+            child: Text(
+              chosen.length == 1
+                  ? 'Use this payment'
+                  : 'Use these ${chosen.length} payments',
+            ),
           ),
-          if (gap > 0) ...[
-            const SizedBox(height: 12),
-            Text(
-              'What about the ${_plain(gap)}?',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ChoiceMenu<ShortBy>(
-              key: const Key('choose-short'),
-              name: 'The difference',
-              expand: true,
-              options: [
-                if (withholding != null)
-                  (
-                    ShortBy.taxWithheld,
-                    'Tax withheld (${rateText(withholding)})',
-                  ),
-                (ShortBy.theyOweIt, 'They owe it'),
-                (ShortBy.restInCash, 'Paid the rest in cash'),
-                (ShortBy.anotherPayment, 'Another payment'),
-                (ShortBy.discount, 'Gave a discount'),
-              ],
-              value: _short,
-              itemKey: (choice) => Key('short-${choice.name}'),
-              onChanged: (choice) => setState(() {
-                _short = choice;
-                _shortPicked = true;
-              }),
-            ),
-            if (_short == ShortBy.taxWithheld && withholding != null) ...[
-              const SizedBox(height: 12),
-              InfoNote(
-                '${_plain(gap)} is ${rateText(withholding)} of the sale, so it '
-                'looks like withholding tax. It counts as tax already paid, '
-                'and the sale is paid in full.',
-                key: const Key('choose-tax-note'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('choose-certificate'),
-                controller: _certificate,
-                decoration: const InputDecoration(
-                  labelText: 'Certificate number (optional)',
-                  hintText: 'Add it when it comes',
-                ),
-              ),
-              if (_customer.text.trim().isNotEmpty)
-                CheckboxListTile(
-                  key: const Key('choose-expect-tax'),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _expectTax,
-                  onChanged: (on) => setState(() => _expectTax = on ?? false),
-                  title: Text(
-                    'Expect ${rateText(withholding)} from '
-                    '${_customer.text.trim()} from now on',
-                  ),
-                ),
-            ],
-            if (_short == ShortBy.theyOweIt) ...[
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('choose-customer'),
-                controller: _customer,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Who owes it'),
-              ),
-              const SizedBox(height: 12),
-              DueDateChips(
-                today: today,
-                value: _due,
-                onChanged: (d) => setState(() => _due = d),
-              ),
-            ],
-          ],
-          if (gap < 0) ...[
-            const SizedBox(height: 12),
-            Text(
-              'What happened to the ${_plain(-gap)}?',
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ChoiceMenu<OverBy>(
-              key: const Key('choose-over'),
-              name: 'The difference',
-              expand: true,
-              options: const [
-                (OverBy.changeInCash, 'Gave change in cash'),
-                (OverBy.changeByMpesa, 'Gave change by M-Pesa'),
-                (OverBy.keepWithSale, 'Keep it with the sale'),
-              ],
-              value: _over,
-              itemKey: (choice) => Key('over-${choice.name}'),
-              onChanged: (choice) => setState(() => _over = choice),
-            ),
-          ],
         ],
-        const SizedBox(height: 16),
-        FilledButton(
-          key: const Key('choose-save'),
-          onPressed: chosen.isEmpty || _saving ? null : () => _save(chosen),
-          child: Text(
-            chosen.length == 1
-                ? 'Use this payment'
-                : 'Use these ${chosen.length} payments',
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
