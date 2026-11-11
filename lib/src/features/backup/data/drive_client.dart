@@ -185,6 +185,16 @@ class DriveBackupLocation implements BackupLocation {
   }
 
   @override
+  Future<void> delete(BackupEntry entry) async {
+    final response = await _client.delete(
+      _api.resolve('files/${Uri.encodeComponent(entry.id)}'),
+      headers: await _headers(),
+    );
+    if (response.statusCode == 404) return;
+    _check(response);
+  }
+
+  @override
   Future<void> download(BackupEntry entry, File destination) async {
     final request = http.Request(
       'GET',

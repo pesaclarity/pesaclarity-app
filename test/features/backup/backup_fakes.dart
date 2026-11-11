@@ -88,6 +88,9 @@ class MemoryLocation implements BackupLocation {
   @override
   Future<void> download(BackupEntry entry, File destination) =>
       destination.writeAsBytes(files[entry.id]!);
+
+  @override
+  Future<void> delete(BackupEntry entry) async => files.remove(entry.id);
 }
 
 /// A folder picker and file store with no platform channel.

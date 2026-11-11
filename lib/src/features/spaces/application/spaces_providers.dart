@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
@@ -54,6 +55,33 @@ class SpacesController extends AsyncNotifier<List<Space>> {
     await _save([
       for (final s in current) s.id == id ? s.copyWith(name: clean) : s,
     ]);
+  }
+
+  /// Makes [id] a [kind] of space. Its records stay; its categories follow
+  /// the new kind. [db] is that space's database.
+  Future<void> changeKind(String id, SpaceKind kind, AppDatabase db) async {
+    if (id == personalSpaceId) return;
+    final current = await future;
+    await db.becomeSpace(kind);
+    await _save([
+      for (final s in current) s.id == id ? s.copyWith(kind: kind) : s,
+    ]);
+  }
+
+  /// Takes [id] off the list. Its files are handled by the caller.
+  Future<void> remove(String id) async {
+    if (id == personalSpaceId) return;
+    await _save([
+      for (final s in await future)
+        if (s.id != id) s,
+    ]);
+  }
+
+  /// Puts [space] back on the list, as it was.
+  Future<void> putBack(Space space) async {
+    final current = await future;
+    if (current.any((s) => s.id == space.id)) return;
+    await _save([...current, space]);
   }
 
   Future<void> _save(List<Space> spaces) async {

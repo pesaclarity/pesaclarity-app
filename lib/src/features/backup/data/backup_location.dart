@@ -36,6 +36,9 @@ abstract interface class BackupLocation {
   Future<List<BackupEntry>> list();
 
   Future<void> download(BackupEntry entry, File destination);
+
+  /// Removes [entry] from this location for good.
+  Future<void> delete(BackupEntry entry);
 }
 
 /// A location that is switched on but cannot be reached.

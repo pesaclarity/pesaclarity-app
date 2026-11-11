@@ -52,6 +52,7 @@ import '../features/spaces/presentation/add_space_screen.dart';
 import '../features/spaces/presentation/business_or_personal_screen.dart';
 import '../features/spaces/presentation/business_setup_screens.dart';
 import '../features/spaces/presentation/choose_space_screen.dart';
+import '../features/spaces/presentation/manage_spaces_screens.dart';
 import '../features/statements/presentation/statement_import_screen.dart';
 import '../features/stock/presentation/count_stock_screen.dart';
 import '../features/stock/presentation/item_screen.dart';
@@ -255,6 +256,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'income',
                         builder: (context, state) =>
                             const IncomeSourcesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'spaces',
+                        builder: (context, state) => const SpacesScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'deleted',
+                            builder: (context, state) =>
+                                const RecentlyDeletedScreen(),
+                          ),
+                          GoRoute(
+                            path: 'delete-all',
+                            builder: (context, state) =>
+                                const DeleteAllScreen(),
+                          ),
+                          GoRoute(
+                            path: ':id',
+                            builder: (context, state) => SpaceSettingsScreen(
+                              spaceId: state.pathParameters['id']!,
+                            ),
+                            routes: [
+                              GoRoute(
+                                path: 'clear',
+                                builder: (context, state) => ClearSpaceScreen(
+                                  spaceId: state.pathParameters['id']!,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'support',
