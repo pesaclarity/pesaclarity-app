@@ -13,7 +13,10 @@ abstract interface class SpaceMoveRepository {
   /// institution or name; its category comes along when the other space has
   /// one with the same key. The open space remembers the move, so reading
   /// the same message again does not bring it back.
-  Future<void> move(int transactionId, String spaceId);
+  Future<void> move(int transactionId, String spaceId, {int? toCategoryId});
+
+  /// The categories in [spaceId], to choose one for what moves there.
+  Future<List<({int id, String name})>> categoriesIn(String spaceId);
 }
 
 class DriftSpaceMoveRepository implements SpaceMoveRepository {
@@ -25,7 +28,26 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
   final Future<(AppDatabase, bool)> Function(String spaceId) _openTarget;
 
   @override
-  Future<void> move(int transactionId, String spaceId) async {
+  Future<List<({int id, String name})>> categoriesIn(String spaceId) async {
+    final (target, close) = await _openTarget(spaceId);
+    try {
+      return [
+        for (final c in await (target.select(
+          target.categories,
+        )..orderBy([(c) => OrderingTerm.asc(c.name)])).get())
+          (id: c.id, name: c.name),
+      ];
+    } finally {
+      if (close) await target.close();
+    }
+  }
+
+  @override
+  Future<void> move(
+    int transactionId,
+    String spaceId, {
+    int? toCategoryId,
+  }) async {
     final tx = await (_source.select(
       _source.transactions,
     )..where((t) => t.id.equals(transactionId))).getSingle();
@@ -69,7 +91,9 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     accountId: Value(accountId),
                     payeeId: const Value(null),
                     transferPairId: const Value(null),
-                    categoryOverrideId: Value(targetCategory?.id),
+                    categoryOverrideId: Value(
+                      toCategoryId ?? targetCategory?.id,
+                    ),
                     autoCategoryId: const Value(null),
                     autoCategorySource: const Value(null),
                     autoCategoryConfidence: const Value(null),

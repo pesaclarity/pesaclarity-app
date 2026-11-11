@@ -138,6 +138,39 @@ void main() {
     });
   });
 
+  testAppWidgets('clearing a date range keeps what is outside it', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    final container = ProviderContainer(overrides: _overrides(db, _Files()));
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      await _seed(db);
+      final account = (await db.select(db.accounts).get()).first.id;
+      await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 10, 5),
+              amountMinor: 5000,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.manual,
+            ),
+          );
+      await container
+          .read(spaceManagerProvider)
+          .clear(
+            Space.personal,
+            keep: false,
+            from: DateTime.utc(2026, 11),
+            to: DateTime.utc(2026, 12),
+          );
+      final left = await db.select(db.transactions).get();
+      expect(left.single.occurredAt.toUtc(), DateTime.utc(2026, 10, 5));
+    });
+  });
+
   testAppWidgets('deleting a space removes only that space', (tester) async {
     final db = openTestDatabase();
     final files = _Files();
@@ -303,17 +336,28 @@ void main() {
     await tester.tap(find.byKey(const Key('activity-move-chosen')));
     await tester.pumpAndSettle();
     expect(find.text('Move 2 transactions'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('move-chosen-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move-chosen-category-7')).last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('move-chosen-confirm')));
     await settleFrames(tester);
-    expect(moves.moved.map((m) => m.$2), ['shop1', 'shop1']);
+    expect(moves.moved.map((m) => (m.$2, m.$3)), [('shop1', 7), ('shop1', 7)]);
     expect(find.text('2 chosen'), findsNothing);
   });
 }
 
 class _Moves implements SpaceMoveRepository {
-  final moved = <(int, String)>[];
+  final moved = <(int, String, int?)>[];
 
   @override
-  Future<void> move(int transactionId, String spaceId) async =>
-      moved.add((transactionId, spaceId));
+  Future<void> move(
+    int transactionId,
+    String spaceId, {
+    int? toCategoryId,
+  }) async => moved.add((transactionId, spaceId, toCategoryId));
+
+  @override
+  Future<List<({int id, String name})>> categoriesIn(String spaceId) async =>
+      const [(id: 7, name: 'Stock bought')];
 }

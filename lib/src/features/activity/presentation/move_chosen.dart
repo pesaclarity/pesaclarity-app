@@ -79,6 +79,13 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
   late var _to = widget.others.first;
   var _busy = false;
 
+  /// Null matches each one's category in the other space.
+  int? _category;
+  late var _categories = _load();
+
+  Future<List<({int id, String name})>> _load() =>
+      ref.read(spaceMoveRepositoryProvider).categoriesIn(_to.id);
+
   @override
   Widget build(BuildContext context) {
     final from = ref.watch(activeSpaceProvider).name;
@@ -101,15 +108,41 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
               options: [for (final s in widget.others) (s, s.name)],
               value: _to,
               itemKey: (s) => Key('move-chosen-to-${s.id}'),
-              onChanged: (s) => setState(() => _to = s),
+              onChanged: (s) => setState(() {
+                _to = s;
+                _category = null;
+                _categories = _load();
+              }),
             ),
           ),
+        ),
+        FutureBuilder(
+          future: _categories,
+          builder: (context, snapshot) {
+            final list = snapshot.data ?? const [];
+            return Card(
+              child: ListTile(
+                title: const Text('Category there'),
+                subtitle: Text('Chosen in ${_to.name}'),
+                trailing: ChoiceMenu<int?>(
+                  key: const Key('move-chosen-category'),
+                  name: 'Category there',
+                  options: [
+                    (null, 'Match each one'),
+                    for (final c in list) (c.id, c.name),
+                  ],
+                  value: _category,
+                  itemKey: (id) => Key('move-chosen-category-${id ?? 'match'}'),
+                  onChanged: (id) => setState(() => _category = id),
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
         Notice(
           'They move, not copy: $from will not have them any more. Only the '
-          'transactions go, with a matching category where ${_to.name} has '
-          'one; payees stay in $from.',
+          'transactions go; payees stay in $from.',
           icon: Icons.lock_outline,
         ),
         const SizedBox(height: 16),
@@ -122,7 +155,7 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
                   final navigator = Navigator.of(context);
                   final repo = ref.read(spaceMoveRepositoryProvider);
                   for (final id in widget.ids) {
-                    await repo.move(id, _to.id);
+                    await repo.move(id, _to.id, toCategoryId: _category);
                   }
                   navigator.pop(_to.name);
                 },
