@@ -23,7 +23,7 @@ void main() {
     expect(back.expiredAt(DateTime.utc(2026, 12)), isTrue);
     expect(
       keptFromJson({
-        'kept': ['junk', {}],
+        'kept': ['junk', <String, Object?>{}],
       }),
       isEmpty,
     );
