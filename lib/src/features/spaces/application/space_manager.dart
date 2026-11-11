@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:drift/drift.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -118,14 +120,23 @@ class SpaceManager {
 
   /// Removes [space]'s records, keeping the space, its accounts, categories
   /// and settings. With [keep], a locked copy stays for 30 days.
+  ///
+  /// With [from] and [to], only what happened in that range goes: its
+  /// transactions, sales and quick records; everything else stays.
   Future<void> clear(
     Space space, {
     required bool keep,
     bool deleteOnline = false,
+    DateTime? from,
+    DateTime? to,
   }) async {
     if (keep) await _keep(space, KeptKind.cleared);
     final (db, close) = await _open(space.id);
     try {
+      if (from != null && to != null) {
+        await _clearRange(db, from, to);
+        return;
+      }
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
         await db.transaction(() async {
@@ -142,6 +153,39 @@ class SpaceManager {
     }
     if (deleteOnline) await _deleteOnline(space.id);
   }
+
+  /// Removes what happened from [from] up to [to] in [db]. Rows that point
+  /// at what goes let go of it, as the database's own rules say.
+  Future<void> _clearRange(AppDatabase db, DateTime from, DateTime to) =>
+      db.transaction(() async {
+        final ids = [
+          for (final t
+              in await (db.select(db.transactions)..where(
+                    (t) =>
+                        t.occurredAt.isBiggerOrEqualValue(from) &
+                        t.occurredAt.isSmallerThanValue(to),
+                  ))
+                  .get())
+            t.id,
+        ];
+        if (ids.isNotEmpty) {
+          await (db.update(db.transactions)
+                ..where((t) => t.transferPairId.isIn(ids)))
+              .write(const TransactionsCompanion(transferPairId: Value(null)));
+          await (db.delete(db.transactions)..where((t) => t.id.isIn(ids))).go();
+        }
+        await (db.delete(db.sales)..where(
+              (s) =>
+                  s.soldAt.isBiggerOrEqualValue(from) &
+                  s.soldAt.isSmallerThanValue(to),
+            ))
+            .go();
+        await (db.delete(db.quickRecords)..where(
+              (q) =>
+                  q.at.isBiggerOrEqualValue(from) & q.at.isSmallerThanValue(to),
+            ))
+            .go();
+      });
 
   /// Deletes [space] and everything in it from this phone. With [keep], a
   /// locked copy stays for 30 days. Personal is never deleted on its own.

@@ -576,6 +576,26 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
   var _online = false;
   var _busy = false;
 
+  /// Null clears everything; a range clears only what happened in it.
+  DateTimeRange? _range;
+  var _onlyRange = false;
+
+  Future<void> _pickRange() async {
+    final now = ref.read(clockProvider)();
+    final picked = await pickDateRange(
+      context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: _range,
+    );
+    if (picked != null) setState(() => _range = picked);
+  }
+
+  String _rangeLabel(DateTimeRange r) {
+    String day(DateTime d) => shortDate(CalendarDate(d.year, d.month, d.day));
+    return '${day(r.start)} to ${day(r.end)} ${r.end.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final space = (ref.watch(spacesProvider).value ?? const [])
@@ -596,6 +616,39 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
             style: _muted(context),
           ),
           const SizedBox(height: 16),
+          AdaptiveSegmented<bool>(
+            key: const Key('clear-what'),
+            name: 'What to clear',
+            segments: const [(false, 'Everything'), (true, 'A date range')],
+            segmentKey: (only) => Key(only ? 'clear-range' : 'clear-all'),
+            selected: _onlyRange,
+            onChanged: (only) async {
+              setState(() => _onlyRange = only);
+              if (only && _range == null) await _pickRange();
+            },
+          ),
+          if (_onlyRange) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                key: const Key('clear-range-dates'),
+                title: const Text('Dates'),
+                subtitle: Text(
+                  _range == null
+                      ? 'Choose the first and last day'
+                      : _rangeLabel(_range!),
+                ),
+                trailing: const TrailingLink('Change'),
+                onTap: _pickRange,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Only transactions, sales and records in these days go.',
+              style: _muted(context),
+            ),
+          ],
+          const SizedBox(height: 16),
           OutlinedButton(
             key: const Key('clear-back-up'),
             onPressed: _busy ? null : () => _backUp(context, ref),
@@ -611,9 +664,10 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
           const SizedBox(height: 24),
           FilledButton(
             key: const Key('clear-confirm'),
-            onPressed: _busy
+            onPressed: _busy || (_onlyRange && _range == null)
                 ? null
                 : () async {
+                    final range = _onlyRange ? _range : null;
                     final yes = await confirmDelete(
                       context,
                       title: 'Clear ${space.name}?',
@@ -627,7 +681,25 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
                     setState(() => _busy = true);
                     await ref
                         .read(spaceManagerProvider)
-                        .clear(space, keep: _keep, deleteOnline: _online);
+                        .clear(
+                          space,
+                          keep: _keep,
+                          deleteOnline: _online,
+                          from: range == null
+                              ? null
+                              : CalendarDate(
+                                  range.start.year,
+                                  range.start.month,
+                                  range.start.day,
+                                ).startInstant,
+                          to: range == null
+                              ? null
+                              : CalendarDate(
+                                  range.end.year,
+                                  range.end.month,
+                                  range.end.day,
+                                ).addDays(1).startInstant,
+                        );
                     if (!context.mounted) return;
                     showNote(context, '${space.name} is cleared.');
                     Navigator.of(context).pop();
