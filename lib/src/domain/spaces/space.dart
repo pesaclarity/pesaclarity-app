@@ -52,8 +52,8 @@ class Space {
   String get initial =>
       name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
 
-  Space copyWith({String? name}) =>
-      Space(id: id, name: name ?? this.name, kind: kind);
+  Space copyWith({String? name, SpaceKind? kind}) =>
+      Space(id: id, name: name ?? this.name, kind: kind ?? this.kind);
 
   static Space? fromJson(Object? json) {
     if (json is! Map) return null;

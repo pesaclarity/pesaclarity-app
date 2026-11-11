@@ -37,6 +37,7 @@ import '../../payees/presentation/transaction_sheet.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
+import 'move_chosen.dart';
 
 String _plain(int minor) => formatMoney(Money(minor), withCurrency: false);
 
@@ -80,6 +81,13 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
   late var _filter = widget.initialFilter;
   final _search = TextEditingController();
   var _pages = 1;
+
+  /// Transactions chosen with a long press, to move to another space.
+  final _chosen = <int>{};
+
+  void _toggle(int id) => setState(
+    () => _chosen.contains(id) ? _chosen.remove(id) : _chosen.add(id),
+  );
 
   @override
   void dispose() {
@@ -134,11 +142,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
             children: [
-              const TabHeader(
-                'Activity',
-                semanticsId: SemanticIds.titleActivity,
-                actions: [ActivityExportButton(), AmountsEye()],
-              ),
+              if (_chosen.isEmpty)
+                const TabHeader(
+                  'Activity',
+                  semanticsId: SemanticIds.titleActivity,
+                  actions: [ActivityExportButton(), AmountsEye()],
+                )
+              else
+                MoveChosenBar(
+                  chosen: _chosen,
+                  onDone: () => setState(_chosen.clear),
+                ),
               TextField(
                 controller: _search,
                 onChanged: (q) => _update((f) => f.copyWith(query: q)),
@@ -186,16 +200,21 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 for (final day in days) ...[
                   SectionLabel(dayHeading(day.date, today: today)),
                   for (final line in day.lines)
-                    _ActivityRow(
-                      line: line,
-                      accounts: accounts,
-                      categoryName: categoryName,
-                      categories: categories,
-                      suggest: (e) => suggester?.suggest(e),
-                      onAccept: (e, s) =>
-                          confirmCategory(ref, e, s.categoryId, s),
-                      base: base,
-                      code: code,
+                    _Choosable(
+                      id: line is EntryLine ? line.entry.id : null,
+                      chosen: _chosen,
+                      onToggle: _toggle,
+                      child: _ActivityRow(
+                        line: line,
+                        accounts: accounts,
+                        categoryName: categoryName,
+                        categories: categories,
+                        suggest: (e) => suggester?.suggest(e),
+                        onAccept: (e, s) =>
+                            confirmCategory(ref, e, s.categoryId, s),
+                        base: base,
+                        code: code,
+                      ),
                     ),
                 ],
               if (_filter.from == null && entries.isNotEmpty) ...[
@@ -777,6 +796,53 @@ class _FixedNote extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A row that a long press chooses, and a tap then chooses or lets go,
+/// while any row is chosen. Rows without an [id] cannot be chosen.
+class _Choosable extends StatelessWidget {
+  const _Choosable({
+    required this.id,
+    required this.chosen,
+    required this.onToggle,
+    required this.child,
+  });
+
+  final int? id;
+  final Set<int> chosen;
+  final ValueChanged<int> onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = this.id;
+    if (id == null) return child;
+    final choosing = chosen.isNotEmpty;
+    final on = chosen.contains(id);
+    return GestureDetector(
+      key: Key('activity-choose-$id'),
+      behavior: HitTestBehavior.opaque,
+      onLongPress: () => onToggle(id),
+      onTap: choosing ? () => onToggle(id) : null,
+      child: Row(
+        children: [
+          if (choosing)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                on ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: on
+                    ? Theme.of(context).colorScheme.onSurface
+                    : PesaColors.of(context).textMuted,
+              ),
+            ),
+          Expanded(
+            child: AbsorbPointer(absorbing: choosing, child: child),
+          ),
+        ],
       ),
     );
   }

@@ -195,4 +195,9 @@ class DeviceFolderLocation implements BackupLocation {
   @override
   Future<void> download(BackupEntry entry, File destination) =>
       _storage.copyToFile(entry.id, destination);
+
+  /// Backups in a folder on the phone stay: only online copies are deleted.
+  @override
+  Future<void> delete(BackupEntry entry) =>
+      throw UnsupportedError('Backups in a folder are not deleted from here.');
 }

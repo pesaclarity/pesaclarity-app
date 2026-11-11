@@ -44,6 +44,11 @@ abstract final class AppRoutes {
   static const backupSetup = '/home/profile/backup/setup';
   static const privacy = '/home/profile/privacy';
   static const support = '/home/profile/support';
+  static const spaces = '/home/profile/spaces';
+  static const recentlyDeleted = '/home/profile/spaces/deleted';
+  static const deleteAll = '/home/profile/spaces/delete-all';
+  static String spaceSettings(String id) => '/home/profile/spaces/$id';
+  static String clearSpace(String id) => '/home/profile/spaces/$id/clear';
   static const supportGifts = '/home/profile/support/gifts';
   static const signIn = '/home/profile/sign-in';
   static const devices = '/home/profile/devices';

@@ -118,6 +118,15 @@ class VaultBackupLocation implements BackupLocation {
   }
 
   @override
+  Future<void> delete(BackupEntry entry) async {
+    final response = await _call(
+      () async => _client.delete(_backups(entry.id), headers: await _auth()),
+    );
+    if (response.statusCode == 404) return;
+    _check(response.statusCode, response.body);
+  }
+
+  @override
   Future<void> download(BackupEntry entry, File destination) async {
     final request = http.Request('GET', _backups(entry.id))
       ..headers.addAll(await _auth());

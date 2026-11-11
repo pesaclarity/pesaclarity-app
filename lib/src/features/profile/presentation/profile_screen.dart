@@ -222,7 +222,16 @@ class ProfileScreen extends ConsumerWidget {
             .save(BusinessDay(endsAtHour: hour)),
       ),
     );
+    final spacesRow = ListTile(
+      key: const Key('profile-spaces'),
+      leading: const RowIcon(Icons.workspaces_outline),
+      title: const Text('Spaces'),
+      subtitle: const Text('Settings, clear or delete, each kept apart'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go(AppRoutes.spaces),
+    );
     final money = [
+      spacesRow,
       myAccounts,
       if (ref.watch(activeSpaceProvider).kind == SpaceKind.business) ...[
         businessRouting,

@@ -250,6 +250,25 @@ class BackupController extends AsyncNotifier<BackupSettings> {
       if (settings.enabled.contains(id)) ?locationFor(id, settings),
   ];
 
+  /// Deletes every online copy of [spaceId]'s backups (the vault and Google
+  /// Drive). Returns how many locations could not be reached.
+  Future<int> deleteOnlineBackups(String spaceId) async {
+    final settings = await future;
+    var failed = 0;
+    for (final id in const [BackupLocationId.vault, BackupLocationId.drive]) {
+      final location = locationFor(id, settings);
+      if (location == null) continue;
+      try {
+        for (final entry in await location.list()) {
+          if (entry.space == spaceId) await location.delete(entry);
+        }
+      } on BackupLocationException {
+        failed++;
+      }
+    }
+    return failed;
+  }
+
   /// Backs up to every switched-on location.
   Future<BackupRunReport> backUpNow() async {
     final settings = await future;

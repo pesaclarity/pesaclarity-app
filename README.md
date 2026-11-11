@@ -220,6 +220,17 @@ Every feature is free; giving never unlocks anything (`lib/src/features/support`
 - **Support Pesa Clarity** (Profile, or the card) explains why gifts help, picks 50, 100, 200, 500 or another amount, and opens the giving page in the browser, where M-Pesa asks for the PIN. The app sends nothing until that tap, and the address carries only the amount.
 - **Thank you.** A payment to one of the payees is read as a gift from its own M-Pesa message. When one comes in, Home says thank you once, and **Your gifts** lists each gift's day, M-Pesa code and amount, on the phone only.
 
+## Spaces
+
+Each space has its own encrypted database; no data is shared or read across spaces (`lib/src/features/spaces`).
+
+- **Profile › Spaces** lists every space, where the app opens, Recently deleted, and Delete all my data.
+- **A space's settings:** name, kind (any but Personal, after a warning of what comes in and goes away), what a business sells (products, services or both), and for the open space its accounts, base currency, day end, receipts and invoices, tax and backup. A space that is not open shows its name and kind, and opens for the rest.
+- **Moving transactions.** Transactions are never edited, only recategorised or moved. Long-press in Activity to choose several, then Move: they leave this space and go to the other, with a matching category where it has one; payees stay.
+- **Clear data** removes a space's records and keeps its name, accounts, categories and settings. **Delete space** removes the space and its file (Personal cannot be deleted on its own; the name must be typed). Both can keep a locked copy for 30 days (`spaces.kept` in Personal's settings, the copy under `kept/`) and can also delete the space's backups in the vault and Google Drive.
+- **Recently deleted** restores a copy into its space, or deletes it now; copies past 30 days go when Spaces opens.
+- **Delete all my data** asks for the app lock PIN (or DELETE without one), can also delete online backups and the sign-in, then removes every file and secret the app keeps and closes the app, which opens again at setup.
+
 ## Timezone
 
 Every date, day start, month and export timestamp uses one timezone: the one picked in Profile › Timezone, or the phone's own (`UserTimeZone` in `lib/src/domain/time/calendar.dart`). It is a fixed offset, with no daylight-saving rules yet. Tests pin East Africa Time in `test/flutter_test_config.dart`, so they pass on any machine.
