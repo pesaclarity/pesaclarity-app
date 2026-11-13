@@ -165,7 +165,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
             key: const Key('ask-back'),
             tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go(AppRoutes.home),
           ),
@@ -333,7 +333,7 @@ class _Empty extends StatelessWidget {
               backgroundColor: colors.brandSoft,
               child: Icon(
                 Icons.chat_bubble_outline,
-                color: theme.colorScheme.primary,
+                color: PesaColors.of(context).link,
               ),
             ),
             const SizedBox(height: 16),
@@ -368,7 +368,9 @@ class _Starters extends StatelessWidget {
     return DecoratedBox(
       key: const Key('ask-starters'),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(Layout.panelRadius),
         border: Border.all(color: colors.border),
         boxShadow: [
@@ -414,7 +416,7 @@ class _Starters extends StatelessWidget {
                       Icon(
                         Icons.auto_awesome_outlined,
                         size: 16,
-                        color: theme.colorScheme.primary,
+                        color: PesaColors.of(context).link,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -457,9 +459,11 @@ class _Tags extends StatelessWidget {
               child: InputChip(
                 key: Key('ask-tag-${kind.name}'),
                 label: Text(name),
-                backgroundColor: colors.brandSoft,
-                side: BorderSide.none,
-                deleteIcon: const Icon(Icons.close, size: 14),
+                backgroundColor: Colors.transparent,
+                side: BorderSide(
+                  color: colors.textMuted.withValues(alpha: 0.5),
+                ),
+                deleteIcon: const Icon(Icons.close, size: 16),
                 deleteButtonTooltipMessage: AskStrings.dropTag(name),
                 onDeleted: () => onDrop(kind),
               ),

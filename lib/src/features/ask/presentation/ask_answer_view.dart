@@ -37,7 +37,7 @@ class QuestionBubble extends StatelessWidget {
         margin: const EdgeInsets.only(left: 48, bottom: Layout.cardGap),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: PesaColors.of(context).brandSoft,
+          color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(Layout.panelRadius),
         ),
         child: Text(
@@ -266,7 +266,9 @@ class MonthBars extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: b.highlight
                             ? theme.colorScheme.primary
-                            : colors.brandSoft,
+                            : theme.colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.22,
+                              ),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -478,7 +480,15 @@ class SuggestionChips extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final s in suggestions)
-          ActionChip(label: Text(s), onPressed: () => onTap(s)),
+          ActionChip(
+            avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
+            label: Text(s),
+            backgroundColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
+            side: BorderSide.none,
+            onPressed: () => onTap(s),
+          ),
       ],
     ),
   );

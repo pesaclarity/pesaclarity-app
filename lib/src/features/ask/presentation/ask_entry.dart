@@ -52,7 +52,7 @@ class AskHomeButton extends ConsumerWidget {
         style: IconButton.styleFrom(
           backgroundColor: away ? colors.brandSoft : theme.colorScheme.surface,
           foregroundColor: away
-              ? theme.colorScheme.primary
+              ? PesaColors.of(context).link
               : theme.colorScheme.onSurface,
           side: BorderSide(
             color: away ? theme.colorScheme.primary : colors.border,
@@ -82,7 +82,9 @@ class AskBar extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         key: const Key('ask-bar'),
-        color: theme.colorScheme.surface,
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surface,
         shape: StadiumBorder(
           side: BorderSide(
             color: Color.alphaBlend(
@@ -102,7 +104,7 @@ class AskBar extends StatelessWidget {
                 Icon(
                   Icons.chat_bubble_outline,
                   size: 20,
-                  color: theme.colorScheme.primary,
+                  color: PesaColors.of(context).link,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -120,13 +122,13 @@ class AskBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   alignment: Alignment.center,
                   decoration: ShapeDecoration(
-                    color: colors.brandSoft,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     shape: const StadiumBorder(),
                   ),
                   child: Text(
                     AskStrings.send,
                     style: theme.textTheme.labelLarge!.copyWith(
-                      color: theme.colorScheme.primary,
+                      color: PesaColors.of(context).link,
                     ),
                   ),
                 ),
@@ -211,11 +213,11 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [background.withValues(alpha: 0), background],
-                        stops: const [0, 0.4],
+                        stops: const [0, 0.55],
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
                       child: AskBar(label: label, route: widget.route),
                     ),
                   ),
@@ -260,13 +262,13 @@ class AskAboutLink extends ConsumerWidget {
             Icon(
               Icons.chat_bubble_outline,
               size: 14,
-              color: theme.colorScheme.primary,
+              color: PesaColors.of(context).link,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: theme.textTheme.bodySmall!.copyWith(
-                color: theme.colorScheme.primary,
+                color: PesaColors.of(context).link,
                 fontWeight: FontWeight.w600,
               ),
             ),
