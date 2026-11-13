@@ -34,6 +34,8 @@ class SmsScanScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
+          // A new stage starts at the top, so its heading is seen first.
+          key: ValueKey(state.stage),
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: switch (state.stage) {
             SmsScanStage.explain || SmsScanStage.asking => [
