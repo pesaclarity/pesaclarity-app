@@ -88,7 +88,8 @@ void main() {
 
     await tapText(tester, 'Allow access to messages');
     expect(find.text('Allow messages in Settings'), findsOneWidget);
-    expect(find.textContaining('Allow restricted settings'), findsOneWidget);
+    expect(find.textContaining('Allow restricted settings'), findsWidgets);
+    expect(find.text('How to install with Obtainium'), findsOneWidget);
     await tapText(tester, 'Open settings');
     expect(sms.settingsOpened, 1);
 

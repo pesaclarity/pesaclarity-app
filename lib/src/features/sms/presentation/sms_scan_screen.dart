@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../config/links.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../onboarding/application/onboarding_controller.dart';
@@ -32,6 +34,8 @@ class SmsScanScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
+          // A new stage starts at the top, so its heading is seen first.
+          key: ValueKey(state.stage),
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: switch (state.stage) {
             SmsScanStage.explain || SmsScanStage.asking => [
@@ -115,6 +119,22 @@ class SmsScanScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               const ExplainBody(
                 'On some phones the ⋮ menu is at the bottom of App info.',
+              ),
+              const SizedBox(height: 16),
+              const ExplainHeading('Xiaomi, Redmi or POCO?'),
+              const SizedBox(height: 8),
+              const ExplainBody(
+                'If SMS says App was denied access and ⋮ has no Allow '
+                'restricted settings, install Pesa Clarity through Obtainium, '
+                'a free app store. Apps it installs can read SMS.',
+              ),
+              TextButton(
+                key: const Key('sms-install-guide'),
+                onPressed: () => launchUrl(
+                  Uri.parse(installGuideUrl),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('How to install with Obtainium'),
               ),
               const SizedBox(height: 24),
               FilledButton(
