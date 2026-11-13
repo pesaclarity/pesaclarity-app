@@ -60,13 +60,16 @@ part 'app_database.g.dart';
     InvoiceLines,
     EtimsCosts,
     RateSnapshots,
+    AskConversations,
+    AskMessages,
+    AskShortcuts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -250,6 +253,7 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(tabs);
         await m.createTable(tabLines);
       }
+      if (from < 33) await _addAsk(m);
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(
@@ -283,6 +287,29 @@ class AppDatabase extends _$AppDatabase {
     }
     await m.createTable(debtInstalments);
   }
+
+  /// Ask's conversations, messages and shortcuts. Safe to run more than
+  /// once.
+  Future<void> _addAsk(Migrator m) async {
+    for (final TableInfo<Table, Object?> table in [
+      askConversations,
+      askMessages,
+      askShortcuts,
+    ]) {
+      if (!await _exists('table', table.actualTableName)) {
+        await m.createTable(table);
+      }
+    }
+    await _createIndexIfMissing(m, askMessagesConversation);
+  }
+
+  /// Tables only Ask uses. They stay on this phone: backups leave them
+  /// empty.
+  List<TableInfo<Table, Object?>> get askTables => [
+    askMessages,
+    askConversations,
+    askShortcuts,
+  ];
 
   /// Saved amounts on goals, money lent, and part payments on family loans.
   /// Safe to run more than once.

@@ -57,7 +57,7 @@ abstract interface class LocalDataStore {
 /// Copies [db] into [file] with `sqlcipher_export`, under a fresh random key.
 ///
 /// The copy is taken in one statement, so it is consistent even while the
-/// app keeps writing.
+/// app keeps writing. Ask's conversations and shortcuts are left out.
 Future<String> exportDatabase(AppDatabase db, File file) async {
   final key = generateDatabaseKey();
   if (file.existsSync()) await file.delete();
@@ -67,6 +67,12 @@ Future<String> exportDatabase(AppDatabase db, File file) async {
   ]);
   try {
     await db.customSelect("SELECT sqlcipher_export('backup_snapshot')").get();
+    // Ask conversations stay on this phone: the copy keeps the tables, empty.
+    for (final table in db.askTables) {
+      await db.customStatement(
+        'DELETE FROM backup_snapshot.${table.actualTableName}',
+      );
+    }
     await db.customStatement(
       'PRAGMA backup_snapshot.user_version = ${db.schemaVersion}',
     );

@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../data/database/database_providers.dart';
 import '../domain/ledger/activity_feed.dart';
+import '../domain/time/calendar.dart';
 import '../features/accounts/presentation/choose_accounts_screen.dart';
 import '../features/accounts/presentation/my_accounts_settings_screen.dart';
 import '../features/activity/presentation/activity_screen.dart';
+import '../features/ask/presentation/ask_conversations_screen.dart';
+import '../features/ask/presentation/ask_screen.dart';
+import '../features/ask/presentation/ask_settings_screen.dart';
 import '../features/auth/presentation/devices_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
@@ -103,6 +107,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.closeDay,
         builder: (context, state) => const CloseDayScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.ask,
+        builder: (context, state) => AskScreen(
+          categoryId: int.tryParse(state.uri.queryParameters['category'] ?? ''),
+          month: _yearMonth(state.uri.queryParameters['month']),
+          from: parseCalendarDate(state.uri.queryParameters['from']),
+          to: parseCalendarDate(state.uri.queryParameters['to']),
+        ),
+        routes: [
+          GoRoute(
+            path: 'conversations',
+            builder: (context, state) => const AskConversationsScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => AskScreen(
+                  conversationId: int.tryParse(state.pathParameters['id']!),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'settings',
+            builder: (context, state) => const AskSettingsScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.sell,
@@ -492,4 +523,14 @@ String? onboardingRedirect(
     return askSpace ? AppRoutes.chooseSpace : AppRoutes.home;
   }
   return null;
+}
+
+/// `2026-10` as a month, or null.
+YearMonth? _yearMonth(String? text) {
+  final parts = text?.split('-');
+  if (parts == null || parts.length != 2) return null;
+  final year = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  if (year == null || month == null || month < 1 || month > 12) return null;
+  return YearMonth(year, month);
 }

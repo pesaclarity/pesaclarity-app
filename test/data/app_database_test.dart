@@ -1138,5 +1138,41 @@ void main() {
         expect(await db.select(db.reviewItems).get(), hasLength(1));
       },
     );
+
+    test(
+      'migrates a version 32 database: Ask tables, safe to run twice',
+      () async {
+        final old = AppDatabase(NativeDatabase(file));
+        for (final t in [
+          'ask_messages',
+          'ask_conversations',
+          'ask_shortcuts',
+        ]) {
+          await old.customStatement('DROP TABLE $t');
+        }
+        await old.customStatement('PRAGMA user_version = 32');
+        await old.close();
+
+        final db = AppDatabase(NativeDatabase(file));
+        expect(await userVersion(db), db.schemaVersion);
+        final id = await db
+            .into(db.askConversations)
+            .insert(
+              AskConversationsCompanion.insert(
+                title: 'Food spending',
+                createdAt: DateTime.utc(2026, 11, 2),
+                updatedAt: DateTime.utc(2026, 11, 2),
+              ),
+            );
+        await db.customStatement('PRAGMA user_version = 32');
+        await db.close();
+
+        final again = AppDatabase(NativeDatabase(file));
+        addTearDown(again.close);
+        expect(await userVersion(again), again.schemaVersion);
+        final kept = await again.select(again.askConversations).getSingle();
+        expect(kept.id, id);
+      },
+    );
   });
 }

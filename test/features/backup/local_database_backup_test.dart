@@ -61,6 +61,34 @@ void main() {
     expect(reopened.select('PRAGMA user_version').first.values.first, schema);
   });
 
+  test('leaves Ask conversations out of the copy', () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.customStatement(
+      'INSERT INTO ask_conversations (title, created_at, updated_at) '
+      "VALUES ('Food spending', 0, 0)",
+    );
+    await db.customStatement(
+      'INSERT INTO ask_messages (conversation_id, role, body, created_at) '
+      "VALUES (1, 'person', 'How much on food?', 0)",
+    );
+    await db.customStatement(
+      'INSERT INTO ask_shortcuts (word, entity_kind, entity_key, created_at) '
+      "VALUES ('john', 'payee', 'p:1', 0)",
+    );
+    final file = File(p.join(dir.path, 'ask.sqlite'));
+    final key = await exportDatabase(db, file);
+    final copy = sqlite3.open(file.path);
+    addTearDown(copy.close);
+    applyCipherKey(copy, key);
+    for (final t in ['ask_conversations', 'ask_messages', 'ask_shortcuts']) {
+      expect(copy.select('SELECT * FROM $t'), isEmpty, reason: t);
+    }
+    // Still on the phone.
+    final kept = await db.customSelect('SELECT * FROM ask_messages').get();
+    expect(kept, hasLength(1));
+  });
+
   test('refuses a backup from a newer schema', () async {
     final (file, key) = await exportSample();
     expect(

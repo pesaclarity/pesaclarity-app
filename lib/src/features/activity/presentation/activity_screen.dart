@@ -15,6 +15,7 @@ import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/payees/payee_identifier.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
@@ -27,6 +28,8 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
+import '../../ask/presentation/ask_entry.dart';
+import '../../ask/presentation/ask_strings.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
@@ -135,98 +138,104 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       today: today,
     );
 
+    final askFilter = askAboutFilter(_filter, categories, today);
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: AmountsHiddenScope(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-            children: [
-              if (_chosen.isEmpty)
-                const TabHeader(
-                  'Activity',
-                  semanticsId: SemanticIds.titleActivity,
-                  actions: [ActivityExportButton(), AmountsEye()],
-                )
-              else
-                MoveChosenBar(
-                  chosen: _chosen,
-                  onDone: () => setState(_chosen.clear),
-                ),
-              TextField(
-                controller: _search,
-                onChanged: (q) => _update((f) => f.copyWith(query: q)),
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'Search payee, amount, note',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _filter.query.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'Clear search',
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            _search.clear();
-                            _update((f) => f.copyWith(query: ''));
-                          },
-                        ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _Filters(
-                filter: _filter,
-                accounts: accounts,
-                categories: categories,
-                onChanged: _update,
-              ),
-              _FixedNote(
-                accounts: accounts,
-                onSeeThem: (id) =>
-                    _update((f) => f.copyWith(accountId: () => id)),
-              ),
-              const SizedBox(height: 16),
-              _WeekCard(week, code: code, others: others),
-              const SizedBox(height: 8),
-              if (loaded.isLoading && !loaded.hasValue)
-                const LoadingView(inList: true)
-              else if (days.isEmpty)
-                EmptyNote(
-                  entries.isEmpty
-                      ? 'Transactions show here once your messages are read, '
-                            'or when you add one with +.'
-                      : 'Nothing matches these filters.',
-                )
-              else
-                for (final day in days) ...[
-                  SectionLabel(dayHeading(day.date, today: today)),
-                  for (final line in day.lines)
-                    _Choosable(
-                      id: line is EntryLine ? line.entry.id : null,
-                      chosen: _chosen,
-                      onToggle: _toggle,
-                      child: _ActivityRow(
-                        line: line,
-                        accounts: accounts,
-                        categoryName: categoryName,
-                        categories: categories,
-                        suggest: (e) => suggester?.suggest(e),
-                        onAccept: (e, s) =>
-                            confirmCategory(ref, e, s.categoryId, s),
-                        base: base,
-                        code: code,
-                      ),
-                    ),
-                ],
-              if (_filter.from == null && entries.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: () => setState(() => _pages++),
-                    child: const Text('Show older'),
+          child: AskBarScope(
+            enabled: askFilter != null,
+            label: askFilter?.$1,
+            route: askFilter?.$2 ?? AppRoutes.ask,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+              children: [
+                if (_chosen.isEmpty)
+                  const TabHeader(
+                    'Activity',
+                    semanticsId: SemanticIds.titleActivity,
+                    actions: [ActivityExportButton(), AmountsEye()],
+                  )
+                else
+                  MoveChosenBar(
+                    chosen: _chosen,
+                    onDone: () => setState(_chosen.clear),
+                  ),
+                TextField(
+                  controller: _search,
+                  onChanged: (q) => _update((f) => f.copyWith(query: q)),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search payee, amount, note',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _filter.query.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _search.clear();
+                              _update((f) => f.copyWith(query: ''));
+                            },
+                          ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                _Filters(
+                  filter: _filter,
+                  accounts: accounts,
+                  categories: categories,
+                  onChanged: _update,
+                ),
+                _FixedNote(
+                  accounts: accounts,
+                  onSeeThem: (id) =>
+                      _update((f) => f.copyWith(accountId: () => id)),
+                ),
+                const SizedBox(height: 16),
+                _WeekCard(week, code: code, others: others),
+                const SizedBox(height: 8),
+                if (loaded.isLoading && !loaded.hasValue)
+                  const LoadingView(inList: true)
+                else if (days.isEmpty)
+                  EmptyNote(
+                    entries.isEmpty
+                        ? 'Transactions show here once your messages are read, '
+                              'or when you add one with +.'
+                        : 'Nothing matches these filters.',
+                  )
+                else
+                  for (final day in days) ...[
+                    SectionLabel(dayHeading(day.date, today: today)),
+                    for (final line in day.lines)
+                      _Choosable(
+                        id: line is EntryLine ? line.entry.id : null,
+                        chosen: _chosen,
+                        onToggle: _toggle,
+                        child: _ActivityRow(
+                          line: line,
+                          accounts: accounts,
+                          categoryName: categoryName,
+                          categories: categories,
+                          suggest: (e) => suggester?.suggest(e),
+                          onAccept: (e, s) =>
+                              confirmCategory(ref, e, s.categoryId, s),
+                          base: base,
+                          code: code,
+                        ),
+                      ),
+                  ],
+                if (_filter.from == null && entries.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _pages++),
+                      child: const Text('Show older'),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -846,4 +855,33 @@ class _Choosable extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The Ask bar's words and route for [filter], such as "Ask about Food,
+/// 1 to 27 Oct", or null when nothing is filtered.
+(String, String)? askAboutFilter(
+  ActivityFilter filter,
+  Map<int, Category> categories,
+  CalendarDate today,
+) {
+  final category = filter.categoryId == null
+      ? null
+      : categories[filter.categoryId]?.name;
+  final from = filter.from;
+  final to = filter.to ?? (from == null ? null : today);
+  final range = from == null || to == null
+      ? null
+      : from.yearMonth == to.yearMonth
+      ? '${from.day} to ${shortDate(to)}'
+      : '${shortDate(from)} to ${shortDate(to)}';
+  final parts = [?category, ?range];
+  if (parts.isEmpty) return null;
+  return (
+    AskStrings.askAbout(parts.join(', ')),
+    AppRoutes.askAbout(
+      categoryId: category == null ? null : filter.categoryId,
+      from: from == null ? null : formatCalendarDate(from),
+      to: to == null ? null : formatCalendarDate(to),
+    ),
+  );
 }

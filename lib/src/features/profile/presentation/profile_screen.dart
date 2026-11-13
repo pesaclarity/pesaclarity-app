@@ -18,6 +18,7 @@ import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../ask/presentation/ask_strings.dart';
 import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
@@ -230,6 +231,14 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.spaces),
     );
+    final askRow = ListTile(
+      key: const Key('profile-ask'),
+      leading: const RowIcon(Icons.chat_bubble_outline),
+      title: const Text(AskStrings.profileRow),
+      subtitle: const Text(AskStrings.profileRowDetail),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(AppRoutes.askSettings),
+    );
     final money = [
       spacesRow,
       myAccounts,
@@ -245,6 +254,7 @@ class ProfileScreen extends ConsumerWidget {
       timezone,
       look,
       subscriptionsRow,
+      askRow,
     ];
     final data = [export, if (canImport) importRow, backup];
     final about = [privacy, ?support, buildRow];

@@ -876,3 +876,55 @@ class EtimsCosts extends Table {
   @override
   Set<Column<Object>> get primaryKey => {transactionId};
 }
+
+/// Ask: one conversation in this space. Kept on this phone only, never in
+/// backups (see `exportDatabase`).
+@DataClassName('AskConversationRecord')
+class AskConversations extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// From the first understood question until the person renames it.
+  TextColumn get title => text().withLength(min: 1, max: 80)();
+
+  /// What the conversation is about now, as `AskContext` JSON.
+  TextColumn get contextJson => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+/// Ask: a question or a reply.
+@DataClassName('AskMessageRecord')
+@TableIndex(name: 'ask_messages_conversation', columns: {#conversationId})
+class AskMessages extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get conversationId => integer().references(
+    AskConversations,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// `person` or `reply`.
+  TextColumn get role => text()();
+  TextColumn get body => text()();
+
+  /// What the reader made of a question, as `Understanding` JSON.
+  TextColumn get understandingJson => text().nullable()();
+
+  /// A reply's numbers, facts and "as of" time, as `AskAnswer` JSON.
+  TextColumn get answerJson => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// Ask: a word the person taught it, such as "john" for one payee.
+@DataClassName('AskShortcutRecord')
+class AskShortcuts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get word => text().withLength(min: 1, max: 60).unique()();
+
+  /// A `SlotKind` name.
+  TextColumn get entityKind => text()();
+
+  /// The entity's Ask key, such as `p:12`.
+  TextColumn get entityKey => text()();
+  DateTimeColumn get createdAt => dateTime()();
+}

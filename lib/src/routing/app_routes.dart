@@ -137,6 +137,27 @@ abstract final class AppRoutes {
   /// A business: sell, then pay. Full screen, over the tabs.
   static const sell = '/sell';
 
+  /// Ask about the open space's money; with [categoryId] or [month] from
+  /// "Ask about this".
+  static const ask = '/ask';
+  static String askAbout({
+    int? categoryId,
+    String? month,
+    String? from,
+    String? to,
+  }) => Uri(
+    path: ask,
+    queryParameters: {
+      if (categoryId != null) 'category': '$categoryId',
+      'month': ?month,
+      'from': ?from,
+      'to': ?to,
+    },
+  ).toString();
+  static const askConversations = '/ask/conversations';
+  static String askConversation(int id) => '/ask/conversations/$id';
+  static const askSettings = '/ask/settings';
+
   /// A services business: work done, billed to pay later.
   static const billed = '/people/invoices/new';
 }
