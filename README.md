@@ -126,12 +126,12 @@ State is managed with Riverpod and navigation with go_router.
 From the spec's "Mobile security" section:
 
 - Database encrypted with SQLCipher. The 256-bit key is generated on the phone and kept in Android Keystore-backed secure storage. The app refuses to open the database if SQLCipher is not loaded.
-- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
+- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so the UI flows can capture screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` (to restore reminders after a restart), `INTERNET` (sign-in, backups and the privacy policy), and `BLUETOOTH_CONNECT` (`BLUETOOTH` before Android 12) for a receipt printer a business pairs, asked for only when it chooses one. `test/android/manifest_permissions_test.dart` fails if the list changes. Cleartext traffic is off.
 - Cleartext traffic is refused. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`). Our servers are pinned to their certificate authorities, not their keys, because the hosting providers renew certificates with new keys every few months: connections to the hosts in `PESACLARITY_PINNED_HOSTS` trust only the roots in `PESACLARITY_TRUSTED_ROOTS` (two or more), and a misconfiguration refuses every connection. Third-party services (Google Drive) use the platform's authorities. A test fails if code creates an `HttpClient` any other way. The real values are set once the server is deployed.
 - Device integrity: `IntegrityAttestor` (`lib/src/core/integrity`) supplies a token header for backup and federated-learning requests; the `play` stub returns "unavailable" until the Play project exists, and `foss` never attests. A light root and tamper check (`DeviceIntegrityChannel.kt`) shows a one-time notice in Profile and never blocks use.
-- Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
+- Dependencies are scanned with OSV-Scanner by `tool/check` before each push (`tool/check --deps` on its own) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
 - App lock: with a PIN (and fingerprint or Face ID) set, the database key is released only after unlocking (`UnlockedDatabaseKeyStore`).
@@ -287,29 +287,29 @@ Each space keeps double-entry books (`lib/src/domain/books/`), the base for the 
 ## Testing
 
 ```sh
-dart format --output=none --set-exit-if-changed .
-flutter analyze --fatal-infos
-flutter test
+tool/setup-hooks   # once: git push then runs tool/check
+tool/check         # format, analyse, all tests, dependency scan
+tool/check --fast  # format, analyse, quick tests
 ```
 
 Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, SMS capture against a fake inbox (mapping, dedupe, sender filtering, review inbox, scans), the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
-CI runs the same checks on every pull request and builds a `foss` APK.
+The checks run on your machine (CONTRIBUTING.md, Checks run on your machine); GitHub Actions only builds and releases, including a `foss` APK on pull requests that change the Android build.
 
 ## UI screenshots
 
-The `UI screenshots` workflow (`.github/workflows/ui-screenshots.yml`) builds a `foss` debug APK, starts an Android 14 emulator (Pixel 6 profile) and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports are uploaded as the `ui-screenshots` artifact, and the job summary lists the captured names.
+`tool/check --ui` builds a `foss` debug APK, installs it on the connected emulator or phone and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports land in `build/maestro/`.
 
-It runs on demand (Actions tab, any branch) and on pull requests that change the flows or the workflow. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
+The full `tool/check` runs it when the branch changes the flows or their scripts. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
 
-The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release builds keep it.
+The flows use the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Branches and releases
 
 `main` is what users get; nothing lands there untested.
 
-1. Pull requests go to `dev`, with a [Conventional Commits](https://www.conventionalcommits.org) title (`feat: …`, `fix: …`, `feat!: …` for a breaking change; `docs`, `test`, `ci`, `chore`, `refactor`, `build`, `perf`, `style`, `revert` too). The `PR title` check enforces it, and squash merges keep the title as the commit message.
-2. Each push to `dev` runs CI and the `APK` workflow (`test-apk.yml`), which builds `play` and `foss` release APKs, one per chip (64-bit ARM, and `-32bit` for older phones), each checked to be under 25 MB (native libraries are compressed in APKs; about 19 MB for 64-bit `play`), with debug symbols kept as a separate artifact for reading crash traces, against the `DEV_PESACLARITY_*` variables (`DEV_PESACLARITY_API_URL` is the server), named like `0.2.0-dev.31`, and keeps them as artifacts for 30 days. When the dev key below is set, it also puts them on the `test-build` pre-release, with the changes since the last release as its notes, so the newest test build is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk), with no GitHub login needed. The tests run in CI, not again in the APK build.
+1. Pull requests go to `dev`, with a [Conventional Commits](https://www.conventionalcommits.org) title (`feat: …`, `fix: …`, `feat!: …` for a breaking change; `docs`, `test`, `ci`, `chore`, `refactor`, `build`, `perf`, `style`, `revert` too). The pre-push hook checks each commit's title, and squash merges keep the title as the commit message.
+2. Each push to `dev` runs the `APK` workflow (`test-apk.yml`), which builds `play` and `foss` release APKs, one per chip (64-bit ARM, and `-32bit` for older phones), each checked to be under 25 MB (native libraries are compressed in APKs; about 19 MB for 64-bit `play`), with debug symbols kept as a separate artifact for reading crash traces, against the `DEV_PESACLARITY_*` variables (`DEV_PESACLARITY_API_URL` is the server), named like `0.2.0-dev.31`, and keeps them as artifacts for 30 days. When the dev key below is set, it also puts them on the `test-build` pre-release, with the changes since the last release as its notes, so the newest test build is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk), with no GitHub login needed. The tests run before the push (`tool/check`), not in the APK build.
 3. When `dev` is ready, open a pull request from `dev` to `main`. The `Release gate` check allows only `dev` (or the release pull request) into `main`, and its QA job waits for a reviewer in the `qa` environment to approve after trying the test APK. Merge it with a merge commit, not a squash, so each change keeps its own title.
 4. On `main`, release-please keeps a release pull request open with the next version (SemVer from the titles: `feat` bumps the minor, `fix` the patch; before 1.0 a breaking change bumps the minor) and the `CHANGELOG.md` entry. Merging it tags `vX.Y.Z`, makes a GitHub release with that changelog entry as its notes, and merges the release back into `dev`; the `APK` workflow adds the `0.2.0`-style APKs to the release, so the newest release is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-foss.apk). Other pushes to `main` build APKs (`0.2.0-main.32`) as artifacts only, against the release `PESACLARITY_*` server variables. The release also uploads to Google Play (below) once `PLAY_PACKAGE_NAME` is set. release-please needs the organisation and repository to allow GitHub Actions to create pull requests (Settings › Actions › General).
 
@@ -337,7 +337,7 @@ The play build signs in with Google through Android's Credential Manager (`Googl
 Without Actions minutes, build the bundle locally with `tool/build_release.sh` and upload it in Play Console; see RELEASING.md, "Manual release to Google Play".
 
 
-The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) runs the tests, builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
+The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
 
 One-time setup:
 

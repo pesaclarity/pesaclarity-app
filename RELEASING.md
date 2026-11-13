@@ -6,7 +6,7 @@ How a release of the app is built, signed and published. Nothing here has been s
 
 1. Bump `version` in `pubspec.yaml` (`name+code`, for example `0.2.0+2`). The code must go up on every release.
 2. Add `fastlane/metadata/android/en-US/changelogs/<code>.txt`: a few plain sentences on what changed. F-Droid and the release notes read this file.
-3. Make sure CI and the dependency scan are green on the release commit, then tag it `vX.Y.Z`.
+3. Make sure `tool/check` (tests and dependency scan) passes on the release commit, then tag it `vX.Y.Z`.
 
 ## 2. Build settings
 
