@@ -142,7 +142,7 @@ void main() {
     expect(find.text('KES 4,850'), findsOneWidget);
     expect(
       find.text(
-        'Cash 800 · M-Pesa 2,900 · On credit 1,150\nUp 12% on a usual '
+        'Cash 800 · M-Pesa 2,900 · On credit 1,150 · Up 12% on a usual '
         'Friday',
       ),
       findsOneWidget,

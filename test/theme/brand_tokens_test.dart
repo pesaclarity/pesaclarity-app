@@ -49,6 +49,8 @@ void main() {
     final app = {
       'background': BrandTokens.darkBackground,
       'surface': BrandTokens.darkSurface,
+      'field': BrandTokens.darkField,
+      'floating': BrandTokens.darkFloating,
       'border': BrandTokens.darkBorder,
       'text': BrandTokens.darkText,
       'textMuted': BrandTokens.darkTextMuted,

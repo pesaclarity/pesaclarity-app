@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../theme/pesa_colors.dart';
 import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -93,7 +94,8 @@ class MainAddButton extends ConsumerWidget {
           key: const Key('home-add'),
           color: scheme.primary,
           shape: const CircleBorder(),
-          elevation: 3,
+          // A soft lift in light; flat in dark.
+          elevation: PesaColors.of(context).floatingElevation,
           shadowColor: scheme.primary.withValues(alpha: 0.4),
           clipBehavior: Clip.antiAlias,
           child: InkWell(

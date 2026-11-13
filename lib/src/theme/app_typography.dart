@@ -25,7 +25,7 @@ abstract final class AppTypography {
   );
 
   /// The one number a red lead card shows.
-  static const leadFigureSize = 40.0;
+  static const leadFigureSize = 36.0;
 
   /// The main number on a white card that leads a screen.
   static const headlineFigureSize = 32.0;

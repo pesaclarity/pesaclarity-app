@@ -31,10 +31,7 @@ class PrivacyScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          const SectionLabel(
-            'In plain words',
-            padding: EdgeInsets.only(bottom: 8),
-          ),
+          const SectionLabel('In plain words'),
           const PrivacyPromisesCard(),
           const SectionLabel('Your choices'),
           ConsentSwitchesCard(

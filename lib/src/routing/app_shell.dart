@@ -227,7 +227,7 @@ class PillDestination {
 }
 
 /// The floating pill from the design: icons over labels, the current tab in
-/// the brand colour and bold, with no indicator behind it. A
+/// the text colour and bold, with no indicator behind it. A
 /// [selectedIndex] of -1 shows no tab as current.
 class PillNavigationBar extends StatelessWidget {
   const PillNavigationBar({
@@ -245,23 +245,15 @@ class PillNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final colors = PesaColors.of(context);
     const shape = StadiumBorder();
 
     return Container(
       height: height,
       decoration: ShapeDecoration(
-        color: scheme.surface,
+        color: colors.floating,
         shape: StadiumBorder(side: BorderSide(color: colors.border)),
-        shadows: [
-          BoxShadow(
-            color: scheme.onSurface.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        shadows: colors.floatingShadow,
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -302,7 +294,9 @@ class _PillItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final color = selected
+        ? PesaColors.of(context).link
+        : scheme.onSurfaceVariant;
 
     return Semantics(
       identifier: destination.id,
@@ -329,7 +323,7 @@ class _PillItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: color,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],

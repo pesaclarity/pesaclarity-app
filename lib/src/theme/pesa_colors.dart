@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'brand_tokens.dart';
+import 'layout.dart';
 
 /// Brand colours that have no slot in Material's [ColorScheme].
 @immutable
@@ -16,6 +17,10 @@ class PesaColors extends ThemeExtension<PesaColors> {
     required this.markBlue,
     required this.markPurple,
     required this.markTeal,
+    required this.selected,
+    required this.field,
+    required this.floating,
+    required this.shadow,
   });
 
   static const light = PesaColors(
@@ -29,6 +34,17 @@ class PesaColors extends ThemeExtension<PesaColors> {
     markBlue: BrandTokens.markBlue,
     markPurple: BrandTokens.markPurple,
     markTeal: BrandTokens.markTeal,
+    selected: BrandTokens.selected,
+    field: BrandTokens.surface,
+    floating: BrandTokens.surface,
+    shadow: BrandTokens.shadow,
+  );
+
+  /// [light] for the phone's high-contrast setting.
+  static final lightHighContrast = light.copyWith(
+    link: BrandTokens.hcText,
+    border: BrandTokens.hcBorder,
+    textMuted: BrandTokens.hcTextMuted,
   );
 
   static const dark = PesaColors(
@@ -42,6 +58,18 @@ class PesaColors extends ThemeExtension<PesaColors> {
     markBlue: BrandTokens.darkMarkBlue,
     markPurple: BrandTokens.darkMarkPurple,
     markTeal: BrandTokens.darkMarkTeal,
+    selected: BrandTokens.darkSelected,
+    field: BrandTokens.darkField,
+    floating: BrandTokens.darkFloating,
+    // No shadows in dark: the floating surface is lighter instead.
+    shadow: BrandTokens.darkShadow,
+  );
+
+  /// [dark] for the phone's high-contrast setting.
+  static final darkHighContrast = dark.copyWith(
+    link: BrandTokens.darkHcText,
+    border: BrandTokens.darkHcBorder,
+    textMuted: BrandTokens.darkHcTextMuted,
   );
 
   final Color brandSoft;
@@ -56,6 +84,32 @@ class PesaColors extends ThemeExtension<PesaColors> {
   final Color markBlue;
   final Color markPurple;
   final Color markTeal;
+
+  /// A selected chip or menu choice: a neutral tint.
+  final Color selected;
+
+  /// The fill of a chip or a field, a step above a card in dark.
+  final Color field;
+
+  /// Parts that float over the page: the tab bar, sheets, menus, popups.
+  final Color floating;
+
+  /// The shadow under [floating] parts; clear in dark.
+  final Color shadow;
+
+  /// The Material elevation of a floating part: none in dark.
+  double get floatingElevation => shadow.a == 0 ? 0 : Layout.floatingElevation;
+
+  /// A soft shadow for a floating part, or none in dark.
+  List<BoxShadow> get floatingShadow => shadow.a == 0
+      ? const []
+      : [
+          BoxShadow(
+            color: shadow,
+            blurRadius: Layout.shadowBlur,
+            offset: const Offset(0, Layout.shadowDrop),
+          ),
+        ];
 
   /// A light fill behind good news, such as a matched payment.
   Color get successSoft => success.withValues(alpha: 0.10);
@@ -78,6 +132,10 @@ class PesaColors extends ThemeExtension<PesaColors> {
     Color? markBlue,
     Color? markPurple,
     Color? markTeal,
+    Color? selected,
+    Color? field,
+    Color? floating,
+    Color? shadow,
   }) => PesaColors(
     brandSoft: brandSoft ?? this.brandSoft,
     link: link ?? this.link,
@@ -89,6 +147,10 @@ class PesaColors extends ThemeExtension<PesaColors> {
     markBlue: markBlue ?? this.markBlue,
     markPurple: markPurple ?? this.markPurple,
     markTeal: markTeal ?? this.markTeal,
+    selected: selected ?? this.selected,
+    field: field ?? this.field,
+    floating: floating ?? this.floating,
+    shadow: shadow ?? this.shadow,
   );
 
   @override
@@ -105,6 +167,10 @@ class PesaColors extends ThemeExtension<PesaColors> {
       markBlue: Color.lerp(markBlue, other.markBlue, t)!,
       markPurple: Color.lerp(markPurple, other.markPurple, t)!,
       markTeal: Color.lerp(markTeal, other.markTeal, t)!,
+      selected: Color.lerp(selected, other.selected, t)!,
+      field: Color.lerp(field, other.field, t)!,
+      floating: Color.lerp(floating, other.floating, t)!,
+      shadow: Color.lerp(shadow, other.shadow, t)!,
     );
   }
 }

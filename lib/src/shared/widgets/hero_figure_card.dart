@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../features/security/application/balance_visibility.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/brand_tokens.dart';
+import '../../theme/layout.dart';
 import 'amounts_hidden.dart';
 
 /// Brand-red card that leads a screen with its one primary number. Every
@@ -27,7 +28,7 @@ class HeroFigureCard extends StatelessWidget {
   /// [caption] says what will show and when, in its place.
   final String? figure;
 
-  /// Lines under the figure, one per entry in the text.
+  /// A line under the figure; line breaks in the text show as " · ".
   final String? caption;
 
   /// Below the caption, such as a [HeroProgress] bar. Mask its amounts
@@ -47,6 +48,9 @@ class HeroFigureCard extends StatelessWidget {
     final hasAmount =
         (figure != null && containsAmount(figure)) ||
         (caption != null && containsAmount(caption!));
+    final eye = showEye ?? hasAmount;
+    // The label and caption are softened so the figure leads.
+    const soft = BrandTokens.onBrandSoft;
 
     return Card(
       color: scheme.primary,
@@ -55,45 +59,58 @@ class HeroFigureCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: textTheme.labelLarge!.copyWith(
-                        color: scheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  if (showEye ?? hasAmount) AmountsEye(color: scheme.onPrimary),
-                ],
+        // The card starts at its minimum height and grows with its text.
+        child: Stack(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: Layout.heroMinHeight,
+                minWidth: double.infinity,
               ),
-              if (figure != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  maskAmountsIf(hidden, figure),
-                  style: AppTypography.leadFigure(scheme.onPrimary),
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  Layout.heroPadding,
+                  Layout.heroPadding,
+                  eye ? Layout.heroEyeSpace : Layout.heroPadding,
+                  Layout.heroPadding,
                 ),
-              ],
-              if (caption != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  maskAmountsIf(hidden, caption!),
-                  style:
-                      (figure == null
-                              ? textTheme.bodyLarge
-                              : textTheme.bodyMedium)!
-                          .copyWith(color: scheme.onPrimary),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      label,
+                      style: textTheme.labelLarge!.copyWith(color: soft),
+                    ),
+                    if (figure != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        maskAmountsIf(hidden, figure),
+                        style: AppTypography.leadFigure(scheme.onPrimary),
+                      ),
+                    ],
+                    if (caption != null) ...[
+                      SizedBox(height: figure == null ? 6 : 8),
+                      Text(
+                        maskAmountsIf(hidden, caption!.replaceAll('\n', ' · ')),
+                        style: textTheme.bodyMedium!.copyWith(color: soft),
+                      ),
+                    ],
+                    if (footer != null) ...[
+                      const SizedBox(height: 12),
+                      footer!,
+                    ],
+                  ],
                 ),
-              ],
-              if (footer != null) ...[const SizedBox(height: 16), footer!],
-            ],
-          ),
+              ),
+            ),
+            if (eye)
+              PositionedDirectional(
+                top: Layout.heroEyeInset,
+                end: Layout.heroEyeInset,
+                child: AmountsEye(color: scheme.onPrimary),
+              ),
+          ],
         ),
       ),
     );

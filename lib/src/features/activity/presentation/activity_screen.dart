@@ -327,13 +327,10 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A long amount with its code shrinks to fit rather than wrapping.
-    Widget figure(String text, Color color, AlignmentGeometry alignment) =>
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: alignment,
-          child: Text(text, style: AppTypography.tileFigure(color)),
-        );
+    // A long amount with its code wraps and the card grows; money is
+    // never shrunk to fit.
+    Widget figure(String text, Color color, TextAlign align) =>
+        Text(text, textAlign: align, style: AppTypography.tileFigure(color));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -357,7 +354,7 @@ class _WeekCard extends StatelessWidget {
                                 ),
                         ),
                         theme.colorScheme.onSurface,
-                        AlignmentDirectional.centerStart,
+                        TextAlign.start,
                       ),
                     ],
                   ),
@@ -376,7 +373,7 @@ class _WeekCard extends StatelessWidget {
                               )
                             : '0',
                         colors.successText,
-                        AlignmentDirectional.centerEnd,
+                        TextAlign.end,
                       ),
                     ],
                   ),

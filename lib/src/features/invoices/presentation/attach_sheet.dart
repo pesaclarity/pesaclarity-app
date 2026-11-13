@@ -140,7 +140,7 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                         p.file.mimeType == 'application/pdf'
                             ? Icons.picture_as_pdf_outlined
                             : Icons.image_outlined,
-                        color: theme.colorScheme.primary,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 12),
                       Expanded(

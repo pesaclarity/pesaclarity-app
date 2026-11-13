@@ -146,9 +146,7 @@ class _Figure extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(
-          color: theme.colorScheme.primary.withValues(alpha: .3),
-        ),
+        side: BorderSide(color: colors.warning.withValues(alpha: .3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -163,20 +161,16 @@ class _Figure extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  value,
-                  style: AppTypography.tileFigure(theme.colorScheme.onSurface),
-                ),
+              Text(
+                value,
+                style: AppTypography.tileFigure(theme.colorScheme.onSurface),
               ),
               if (note != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   note!,
                   style: theme.textTheme.bodySmall!.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: colors.warning,
                   ),
                 ),
               ],

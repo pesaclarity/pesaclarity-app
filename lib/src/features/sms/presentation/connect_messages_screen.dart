@@ -168,7 +168,6 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
               ),
             if (widget.onboarding &&
                 ref.watch(statementImportAvailableProvider)) ...[
-              const SizedBox(height: 12),
               GroupedSection(
                 header: 'Past months',
                 footer:

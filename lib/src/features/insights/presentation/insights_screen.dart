@@ -266,12 +266,10 @@ class _LeakageCard extends StatelessWidget {
     );
 
     return Card(
-      // Picked out with a brand-coloured edge.
+      // Picked out with a warning-coloured edge: worth a look, not danger.
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(
-          color: theme.colorScheme.primary.withValues(alpha: .3),
-        ),
+        side: BorderSide(color: colors.warning.withValues(alpha: .3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -301,7 +299,7 @@ class _LeakageCard extends StatelessWidget {
                     child: Text(
                       '${percentLabel(share)} of income',
                       style: theme.textTheme.labelLarge!.copyWith(
-                        color: theme.colorScheme.primary,
+                        color: colors.warning,
                       ),
                     ),
                   ),

@@ -23,6 +23,9 @@ class PesaClarityApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      // When the phone asks for more contrast: stronger text and edges.
+      highContrastTheme: AppTheme.lightHighContrast,
+      highContrastDarkTheme: AppTheme.darkHighContrast,
       themeMode: themeModeFor(theme),
       routerConfig: ref.watch(appRouterProvider),
       builder: (context, child) => AmountsHiddenScope(

@@ -243,10 +243,10 @@ void main() {
     expect(find.byKey(const Key('until-next-money')), findsOneWidget);
     // 5,000 less a 500 buffer and 1,500 of rent, over 10 days.
     expect(find.text('KES 300'), findsOneWidget);
-    // The red card's caption: one line each.
+    // The red card's caption: its parts on one line, between dots.
     expect(
       find.text(
-        'Until about Tue 24 Nov, when money usually comes\n'
+        'Until about Tue 24 Nov, when money usually comes · '
         '5,000 on hand · 1,500 for bills',
       ),
       findsOneWidget,

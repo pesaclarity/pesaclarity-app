@@ -5,66 +5,99 @@ import 'package:flutter/material.dart';
 import '../domain/look/look_settings.dart';
 import 'app_typography.dart';
 import 'brand_tokens.dart';
+import 'layout.dart';
 import 'pesa_colors.dart';
 
 /// Light and dark Material themes built from the brand tokens.
 abstract final class AppTheme {
   static ThemeData get light => _build(
-    brightness: Brightness.light,
-    scheme: const ColorScheme(
-      brightness: Brightness.light,
-      primary: BrandTokens.brand,
-      onPrimary: BrandTokens.onBrand,
-      primaryContainer: BrandTokens.brandSoft,
-      onPrimaryContainer: BrandTokens.text,
-      secondary: BrandTokens.text,
-      onSecondary: BrandTokens.surface,
-      tertiary: BrandTokens.success,
-      onTertiary: BrandTokens.onBrand,
-      error: BrandTokens.danger,
-      onError: BrandTokens.onBrand,
-      surface: BrandTokens.surface,
-      onSurface: BrandTokens.text,
-      onSurfaceVariant: BrandTokens.textMuted,
-      surfaceContainerLowest: BrandTokens.surface,
-      surfaceContainerLow: BrandTokens.surface,
-      surfaceContainer: BrandTokens.surface,
-      surfaceContainerHigh: BrandTokens.background,
-      surfaceContainerHighest: BrandTokens.border,
-      outline: BrandTokens.textMuted,
-      outlineVariant: BrandTokens.border,
-    ),
+    scheme: _lightScheme,
     background: BrandTokens.background,
     colors: PesaColors.light,
   );
 
   static ThemeData get dark => _build(
-    brightness: Brightness.dark,
-    scheme: const ColorScheme(
-      brightness: Brightness.dark,
-      primary: BrandTokens.darkBrand,
-      onPrimary: BrandTokens.darkOnBrand,
-      primaryContainer: BrandTokens.darkBrandSoft,
-      onPrimaryContainer: BrandTokens.darkText,
-      secondary: BrandTokens.darkText,
-      onSecondary: BrandTokens.darkSurface,
-      tertiary: BrandTokens.darkSuccess,
-      onTertiary: BrandTokens.darkOnBrand,
-      error: BrandTokens.darkDanger,
-      onError: BrandTokens.darkOnBrand,
-      surface: BrandTokens.darkSurface,
-      onSurface: BrandTokens.darkText,
-      onSurfaceVariant: BrandTokens.darkTextMuted,
-      surfaceContainerLowest: BrandTokens.darkBackground,
-      surfaceContainerLow: BrandTokens.darkSurface,
-      surfaceContainer: BrandTokens.darkSurface,
-      surfaceContainerHigh: BrandTokens.darkSurface,
-      surfaceContainerHighest: BrandTokens.darkBorder,
-      outline: BrandTokens.darkTextMuted,
-      outlineVariant: BrandTokens.darkBorder,
-    ),
+    scheme: _darkScheme,
     background: BrandTokens.darkBackground,
     colors: PesaColors.dark,
+  );
+
+  /// [light] with stronger text and edges, for the phone's high-contrast
+  /// setting.
+  static ThemeData get lightHighContrast => _build(
+    scheme: _lightScheme.copyWith(
+      onSurface: BrandTokens.hcText,
+      onSurfaceVariant: BrandTokens.hcTextMuted,
+      onPrimaryContainer: BrandTokens.hcText,
+      secondary: BrandTokens.hcText,
+      outline: BrandTokens.hcTextMuted,
+      outlineVariant: BrandTokens.hcBorder,
+    ),
+    background: BrandTokens.background,
+    colors: PesaColors.lightHighContrast,
+  );
+
+  /// [dark] with stronger text and edges, for the phone's high-contrast
+  /// setting.
+  static ThemeData get darkHighContrast => _build(
+    scheme: _darkScheme.copyWith(
+      onSurface: BrandTokens.darkHcText,
+      onSurfaceVariant: BrandTokens.darkHcTextMuted,
+      onPrimaryContainer: BrandTokens.darkHcText,
+      secondary: BrandTokens.darkHcText,
+      outline: BrandTokens.darkHcTextMuted,
+      outlineVariant: BrandTokens.darkHcBorder,
+    ),
+    background: BrandTokens.darkBackground,
+    colors: PesaColors.darkHighContrast,
+  );
+
+  static const _lightScheme = ColorScheme(
+    brightness: Brightness.light,
+    primary: BrandTokens.brand,
+    onPrimary: BrandTokens.onBrand,
+    primaryContainer: BrandTokens.brandSoft,
+    onPrimaryContainer: BrandTokens.text,
+    secondary: BrandTokens.text,
+    onSecondary: BrandTokens.surface,
+    tertiary: BrandTokens.success,
+    onTertiary: BrandTokens.onBrand,
+    error: BrandTokens.danger,
+    onError: BrandTokens.onBrand,
+    surface: BrandTokens.surface,
+    onSurface: BrandTokens.text,
+    onSurfaceVariant: BrandTokens.textMuted,
+    surfaceContainerLowest: BrandTokens.surface,
+    surfaceContainerLow: BrandTokens.surface,
+    surfaceContainer: BrandTokens.surface,
+    surfaceContainerHigh: BrandTokens.background,
+    surfaceContainerHighest: BrandTokens.border,
+    outline: BrandTokens.textMuted,
+    outlineVariant: BrandTokens.border,
+  );
+
+  static const _darkScheme = ColorScheme(
+    brightness: Brightness.dark,
+    primary: BrandTokens.darkBrand,
+    onPrimary: BrandTokens.darkOnBrand,
+    primaryContainer: BrandTokens.darkBrandSoft,
+    onPrimaryContainer: BrandTokens.darkText,
+    secondary: BrandTokens.darkText,
+    onSecondary: BrandTokens.darkSurface,
+    tertiary: BrandTokens.darkSuccess,
+    onTertiary: BrandTokens.darkBackground,
+    error: BrandTokens.darkDanger,
+    onError: BrandTokens.darkBackground,
+    surface: BrandTokens.darkSurface,
+    onSurface: BrandTokens.darkText,
+    onSurfaceVariant: BrandTokens.darkTextMuted,
+    surfaceContainerLowest: BrandTokens.darkBackground,
+    surfaceContainerLow: BrandTokens.darkSurface,
+    surfaceContainer: BrandTokens.darkField,
+    surfaceContainerHigh: BrandTokens.darkFloating,
+    surfaceContainerHighest: BrandTokens.darkFloating,
+    outline: BrandTokens.darkTextMuted,
+    outlineVariant: BrandTokens.darkBorder,
   );
 
   /// [base] with text fields drawn as [style]: underlined, as the theme
@@ -90,11 +123,19 @@ abstract final class AppTheme {
   }
 
   static ThemeData _build({
-    required Brightness brightness,
     required ColorScheme scheme,
     required Color background,
     required PesaColors colors,
   }) {
+    final brightness = scheme.brightness;
+    final dark = brightness == Brightness.dark;
+    // Floating parts sit on a lighter surface in dark and on a soft shadow
+    // in light.
+    final floatingElevation = colors.floatingElevation;
+    final floatingShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(Layout.panelRadius),
+      side: BorderSide(color: colors.border),
+    );
     final textTheme = AppTypography.textTheme(
       scheme.onSurface,
       scheme.onSurfaceVariant,
@@ -131,6 +172,10 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
+      ),
+      // One back arrow on every pushed screen and sheet.
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (context) => const Icon(Icons.arrow_back),
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -170,12 +215,47 @@ abstract final class AppTheme {
           textStyle: textTheme.labelLarge,
         ),
       ),
+      // Chips sit a step above the card; a selected one takes a neutral
+      // tint. The theme's padded tap target keeps each one, and its ×,
+      // at least 48 dp tall.
       chipTheme: ChipThemeData(
-        backgroundColor: scheme.surface,
-        selectedColor: colors.brandSoft,
+        backgroundColor: colors.field,
+        selectedColor: colors.selected,
+        checkmarkColor: scheme.onSurface,
+        deleteIconColor: scheme.onSurfaceVariant,
         side: BorderSide(color: colors.border),
         shape: const StadiumBorder(),
         labelStyle: textTheme.labelMedium,
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colors.floating,
+        surfaceTintColor: Colors.transparent,
+        elevation: floatingElevation,
+        shadowColor: colors.shadow,
+        shape: floatingShape,
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(colors.floating),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          elevation: WidgetStatePropertyAll(floatingElevation),
+          shadowColor: WidgetStatePropertyAll(colors.shadow),
+          shape: WidgetStatePropertyAll(floatingShape),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.floating,
+        modalBackgroundColor: colors.floating,
+        surfaceTintColor: Colors.transparent,
+        elevation: floatingElevation,
+        modalElevation: floatingElevation,
+        shadowColor: colors.shadow,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.floating,
+        surfaceTintColor: Colors.transparent,
+        elevation: floatingElevation,
+        shadowColor: colors.shadow,
       ),
       dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
       listTileTheme: ListTileThemeData(
@@ -184,10 +264,20 @@ abstract final class AppTheme {
         titleTextStyle: textTheme.bodyLarge,
         subtitleTextStyle: textTheme.bodySmall,
       ),
+      // On is calm green, so red stays for danger and the main action.
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
           (states) =>
-              states.contains(WidgetState.selected) ? scheme.primary : null,
+              states.contains(WidgetState.selected) ? colors.success : null,
+        ),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? BrandTokens.darkBackground : BrandTokens.surface)
+              : null,
+        ),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.success : null,
         ),
       ),
     );
