@@ -9,21 +9,27 @@ Thank you for helping. The organisation-wide code of conduct, security policy an
 3. `dart run build_runner build --delete-conflicting-outputs` (re-run after changing Drift tables)
 4. `flutter run --flavor foss`
 
-## Before you open a pull request
+## Checks run on your machine
 
-Run the same checks as CI:
+GitHub only builds and releases; the checks run locally. Once per clone, run:
 
 ```sh
-dart format --output=none --set-exit-if-changed .
-flutter analyze --fatal-infos
-flutter test
+tool/setup-hooks
 ```
+
+Then every `git push` first checks that each commit being pushed has a [Conventional Commits](https://www.conventionalcommits.org) title, and runs `tool/check`: formatting, `flutter analyze --fatal-infos --fatal-warnings`, the whole test suite (a few minutes), an [OSV-Scanner](https://google.github.io/osv-scanner/) dependency scan, and the UI flows when your branch changes them. A step whose tool is not installed is skipped with a notice saying how to install it.
+
+- `tool/check --fast`: formatting, analysis and the quick tests, in under a minute. Handy while you work.
+- `tool/check --deps`: only the dependency scan. Run it now and then; new advisories appear without any change here.
+- `tool/check --ui`: only the UI flows (below).
+
+Versions, test folders and the title rule are in `tool/check.env`. In an emergency, `git push --no-verify` skips the hook; run `tool/check` soon after.
 
 ## UI flows
 
-The [Maestro](https://maestro.mobile.dev) flows in `.maestro/` drive the app on a device and save screenshots. CI runs them in the `UI screenshots` workflow. To run them locally:
+The [Maestro](https://maestro.mobile.dev) flows in `.maestro/` drive the app on a device and save screenshots. `tool/check` runs them when your branch changes them, and `tool/check --ui` runs them any time; it builds and installs the app itself. To run them by hand:
 
-1. Install the Maestro CLI (CI pins the version in `.github/workflows/ui-screenshots.yml`) and start an Android emulator or connect a test phone with USB debugging on.
+1. Install the Maestro CLI (the version is in `tool/check.env`) and start an Android emulator or connect a test phone with USB debugging on.
 2. Build and install the app:
 
    ```sh
@@ -50,6 +56,6 @@ Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_id
 
 - Small, focused pull requests against `dev`, with a short description of what changed and why. `main` takes only `dev` and release pull requests (see [Branches and releases](README.md#branches-and-releases)).
 - Pull request titles follow [Conventional Commits](https://www.conventionalcommits.org): `feat: add payee table`, `fix: …`, `feat!: …` for a breaking change. They set the next version and the changelog.
-- Clear, one-line commit messages in the imperative ("Add payee table").
-- Link the issue the change addresses. UI changes should include screenshots in light and dark mode; run the `UI screenshots` workflow on your branch from the Actions tab and its artifact has both.
-- CI must pass before review.
+- Commit titles follow the same rule (the pre-push hook checks them): `feat: add payee table`.
+- Link the issue the change addresses. UI changes should include screenshots in light and dark mode; `tool/check --ui` saves both in `build/maestro/`.
+- `tool/check` must pass before review; the pre-push hook runs it.

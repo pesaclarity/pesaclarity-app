@@ -1,0 +1,6 @@
+#!/bin/sh
+# Points git at the hooks in .githooks/ (run once per clone; safe to rerun).
+set -e
+cd "$(dirname "$0")/.."
+git config core.hooksPath .githooks
+echo "Git hooks enabled: pre-push runs tool/check (skip once with git push --no-verify)."

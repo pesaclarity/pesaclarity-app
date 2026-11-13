@@ -11,7 +11,7 @@ name: APK
 #   that version's release, whose notes are the changelog.
 #   https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-play.apk
 #
-# CI (ci.yml) runs the tests on the same push, so they are not repeated here.
+# Tests run on the developer's machine before each push (tool/check), not here.
 on:
   push:
     branches: [dev, main]
