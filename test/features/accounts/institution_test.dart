@@ -13,6 +13,7 @@ void main() {
       'im_bank',
       'kcb',
       'loop',
+      'standard_chartered',
     ]);
     expect(
       institutionCatalogue.map((i) => i.id).toSet(),
