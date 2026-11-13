@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,7 @@ import 'package:pesaclarity/src/features/ask/presentation/ask_conversations_scre
 import 'package:pesaclarity/src/features/ask/presentation/ask_entry.dart';
 import 'package:pesaclarity/src/features/ask/presentation/ask_screen.dart';
 import 'package:pesaclarity/src/features/ask/presentation/ask_settings_screen.dart';
+import 'package:pesaclarity/src/features/insights/presentation/insights_screen.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -48,6 +50,10 @@ Future<ProviderContainer> pumpAsk(
         path: AppRoutes.ask,
         builder: (_, state) => AskScreen(
           categoryId: int.tryParse(state.uri.queryParameters['category'] ?? ''),
+          month: switch (state.uri.queryParameters['month']?.split('-')) {
+            [final y, final m] => YearMonth(int.parse(y), int.parse(m)),
+            _ => null,
+          },
           from: parseCalendarDate(state.uri.queryParameters['from']),
           to: parseCalendarDate(state.uri.queryParameters['to']),
         ),
@@ -274,4 +280,48 @@ void main() {
     await askQuestion(tester, 'how much?');
     expect(find.text('KES 10,230'), findsOneWidget);
   });
+
+  testAppWidgets('Insights: What changed rows ask about the category', (
+    tester,
+  ) async {
+    await addNovemberFood(db);
+    await pumpAsk(tester, db, location: '/home', home: const InsightsScreen());
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byKey(const Key('ask-about')), 200);
+    expect(find.text('Ask about food this month'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('ask-about')));
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const Key('ask-tag-category')), findsOneWidget);
+    expect(find.byKey(const Key('ask-tag-period')), findsOneWidget);
+  });
+}
+
+/// Much more food this month than last, so Insights shows a change.
+Future<void> addNovemberFood(AppDatabase db) async {
+  final account = (await db.select(db.accounts).get()).first.id;
+  final food = (await db.select(db.categories).get()).firstWhere(
+    (c) => c.name == 'Food',
+  );
+  await db
+      .into(db.transactions)
+      .insert(
+        TransactionsCompanion.insert(
+          accountId: account,
+          occurredAt: eat(2026, 11, 5),
+          amountMinor: kes(22800),
+          direction: TransactionDirection.outflow,
+          kind: const Value(TransactionKind.till),
+          categoryOverrideId: Value(food.id),
+          source: TransactionSource.manual,
+          receiptNo: const Value('TESTNOV'),
+        ),
+      );
 }

@@ -79,11 +79,31 @@ class _AskConversationsScreenState
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('ask-new-conversation'),
-        icon: const Icon(Icons.add),
-        label: const Text(AskStrings.newConversation),
-        onPressed: () => context.pushReplacement(AppRoutes.ask),
+      floatingActionButton: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FilledButton.icon(
+          key: const Key('ask-new-conversation'),
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            minimumSize: const Size(0, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            shape: const StadiumBorder(),
+            side: BorderSide.none,
+          ),
+          icon: const Icon(Icons.add),
+          label: const Text(AskStrings.newConversation),
+          onPressed: () => context.pushReplacement(AppRoutes.ask),
+        ),
       ),
       body: all == null
           ? const LoadingView()

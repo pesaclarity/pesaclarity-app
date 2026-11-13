@@ -157,13 +157,28 @@ class _AskScreenState extends ConsumerState<AskScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leadingWidth: Layout.gutter + 44,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: Layout.gutter - 4),
+          child: IconButton(
+            key: const Key('ask-back'),
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go(AppRoutes.home),
+          ),
+        ),
         titleSpacing: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               session.title ?? AskStrings.title,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge!.copyWith(fontSize: 18),
             ),
             if (session.title != null)
               Text(
@@ -177,28 +192,32 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         actions: [
           IconButton(
             key: const Key('ask-conversations'),
+            visualDensity: VisualDensity.compact,
             tooltip: AskStrings.conversations,
             icon: const Icon(Icons.menu),
             onPressed: () => context.push(AppRoutes.askConversations),
           ),
           if (session.isEmpty)
             Padding(
-              padding: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.only(right: Layout.gutter - 8),
               child: Chip(label: Text(space.name)),
             )
           else ...[
             IconButton(
               key: const Key('ask-new'),
+              visualDensity: VisualDensity.compact,
               tooltip: AskStrings.newConversation,
               icon: const Icon(Icons.add),
               onPressed: _controller.startNew,
             ),
             IconButton(
               key: const Key('ask-menu'),
+              visualDensity: VisualDensity.compact,
               tooltip: AskStrings.more,
               icon: const Icon(Icons.more_vert),
               onPressed: () => showAskMenu(context, ref),
             ),
+            const SizedBox(width: Layout.gutter - 16),
           ],
         ],
       ),
