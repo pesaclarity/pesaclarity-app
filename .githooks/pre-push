@@ -31,4 +31,7 @@ if [ -n "$bad" ]; then
   exit 1
 fi
 
+# Git sets these for hooks; Flutter reads its own version with git, so they
+# must not point it at this repository.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 exec tool/check
