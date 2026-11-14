@@ -1,13 +1,19 @@
 name: iOS build
 
-# Compiles the iPhone app without signing, to check the Swift code and the
-# Xcode project. Run by hand: macOS runners cost ten times the minutes of
-# Linux ones. Signing and TestFlight need an Apple developer account first.
+# Builds the iPhone app without signing. The unsigned .ipa is for testers who
+# sideload with their own Apple ID (SideStore or AltStore re-sign it, and it
+# lasts 7 days per signing). Run by hand. TestFlight needs an Apple developer
+# account first.
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Put the unsigned .ipa on the test-build release
+        type: boolean
+        default: true
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   FLUTTER_VERSION: "3.47.8"
@@ -59,6 +65,30 @@ jobs:
             --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL"
+
+      # An .ipa is the .app inside a Payload folder, zipped. Unsigned: the
+      # sideloading tool signs it with the tester's Apple ID, which leaves out
+      # App Attest, so sign-in stays off on these builds.
+      - name: Package the unsigned .ipa
+        run: |
+          out="$RUNNER_TEMP/ipa"
+          mkdir -p "$out/Payload"
+          cp -R build/ios/iphoneos/Runner.app "$out/Payload/"
+          (cd "$out" && zip -qr pesaclarity-ios-unsigned.ipa Payload)
+          echo "IPA=$out/pesaclarity-ios-unsigned.ipa" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pesaclarity-ios-unsigned
+          path: ${{ env.IPA }}
+          retention-days: 14
+
+      - name: Put on the test-build release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload test-build "$IPA" --clobber
 
       - name: Build for the simulator
         run: flutter build ios --simulator --debug
