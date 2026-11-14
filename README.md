@@ -8,7 +8,7 @@ Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M
 
 **Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
 
-**Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`, most phones) or [for older 32-bit phones](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play-32bit.apk), and the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services; [32-bit](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss-32bit.apk)). The privacy policy and terms ship in `assets/policy/` and match the website. "Email me a copy" opens the phone's email app; with none, a signed-in person can have the server email the policy as text and a PDF (`POST /v1/privacy/copy`, which only sends a policy whose SHA-256 the server lists in `NGOME_PRIVACY_POLICY_SHA256`: `sha256sum assets/policy/privacy_policy.md`).
+**Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`, most phones) or [for older 32-bit phones](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play-32bit.apk), and the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services; [32-bit](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss-32bit.apk)). For iPhone, the [unsigned iPhone build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-ios-unsigned.ipa) installs with SideStore or AltStore, which sign it with your own Apple ID for 7 days at a time (sign-in is off on it; it comes from the iOS build workflow, run by hand). The privacy policy and terms ship in `assets/policy/` and match the website. "Email me a copy" opens the phone's email app; with none, a signed-in person can have the server email the policy as text and a PDF (`POST /v1/privacy/copy`, which only sends a policy whose SHA-256 the server lists in `NGOME_PRIVACY_POLICY_SHA256`: `sha256sum assets/policy/privacy_policy.md`).
 
 <p align="center">
   <img src="docs/media/demo.gif" width="300" alt="Pesa Clarity: Home, Insights, one category's transactions, a health pillar, Plan and Debts">
@@ -191,6 +191,30 @@ flutter run -d <simulator or iPhone>           # Xcode signs with your team
 ```
 
 To check the Swift without a Mac or Actions minutes, run `tool/swift_typecheck/typecheck.sh` (needs Docker). It type-checks `ios/Runner` with Linux Swift against stand-ins for Apple's frameworks in `tool/swift_typecheck/stubs/`; add any new Apple API there. It cannot link, sign or resolve CocoaPods.
+
+### Install on your own iPhone with Xcode
+
+For testers with a Mac. A free Apple ID works; the app then lasts 7 days before you run it again. A paid developer account makes it last a year.
+
+1. Install Xcode from the Mac App Store, and Flutter stable (see Quick start). Open Xcode once to accept its licence and let it add the iPhone platform.
+2. Get the code and its generated files:
+   ```sh
+   git clone https://github.com/pesaclarity/pesaclarity-app.git
+   cd pesaclarity-app && git checkout dev
+   flutter pub get
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+3. Open `ios/Runner.xcworkspace` in Xcode (the workspace, not the project). Select **Runner** › **Signing & Capabilities**:
+   - **Team**: add your Apple ID in Xcode › Settings › Accounts, then pick it (a free one shows as *Personal Team*).
+   - **Bundle Identifier**: change `com.pesaclarity.app` to something only you use, such as `com.yourname.pesaclarity`. Apple won't sign the project's own id for another team.
+   - With a free Apple ID, remove the **App Attest** capability (the minus beside it): free teams can't use it. Sign-in then stays off, as on the unsigned build.
+4. On the iPhone: connect it by cable and tap **Trust**. Turn on **Settings › Privacy & Security › Developer Mode** and restart when asked.
+5. Back in Xcode, pick your iPhone as the run destination at the top and press **Run** (▶), or from the terminal: `flutter run --release -d <your iPhone>` (`flutter devices` lists it).
+6. The first time, iOS blocks the app until you trust its developer: **Settings › General › VPN & Device Management** › your Apple ID › **Trust**. Then open Pesa Clarity.
+
+Don't commit the changed bundle id, team or removed capability; they're for your phone only.
+
+Without a Mac, use the unsigned build on Releases with SideStore or AltStore (see Download).
 
 The `iOS build` workflow (Actions tab, run by hand) compiles an unsigned release and a simulator build on macOS. Linux CI cannot compile Swift, so run it after changing `ios/`. App Store uploads need an Apple Developer account and signing, which are not set up yet.
 
