@@ -11,7 +11,9 @@ import 'ledger_entry.dart';
 /// never shows a negative fee in either month.
 ///
 /// A repayment for a draw older than the ledger looks like a fee; the 90-day
-/// first scan keeps this to the very start of the history.
+/// first scan keeps this to the very start of the history. A repayment the
+/// person added by hand, for a draw whose message never came, is never a
+/// fee.
 class FulizaLedger {
   FulizaLedger._(this._feeByRepaymentId, this.outstandingMinor);
 
@@ -38,7 +40,9 @@ class FulizaLedger {
             ? entry.amountMinor
             : outstanding;
         outstanding -= principal;
-        fees[entry.id] = entry.amountMinor - principal;
+        fees[entry.id] = entry.source == TransactionSource.manual
+            ? 0
+            : entry.amountMinor - principal;
       }
     }
     return FulizaLedger._(fees, outstanding);

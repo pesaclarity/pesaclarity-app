@@ -23,6 +23,7 @@ import '../../income/application/income_providers.dart';
 import '../application/balances_providers.dart';
 import 'add_account_sheet.dart';
 import 'balance_text.dart';
+import 'fuliza_paid.dart';
 import 'set_balance_sheet.dart';
 
 /// Every account in the space with what it holds now and whether its
@@ -308,17 +309,30 @@ class _AccountSheet extends ConsumerWidget {
             child: Column(
               children: [
                 LabelValueRow(
-                  label: 'In the wallet',
+                  label: BalanceText.inTheWallet,
                   value: money(balance.walletMinor),
                 ),
                 LabelValueRow(
-                  label: 'Fuliza owed',
+                  label: BalanceText.fulizaOwedLabel,
                   value: money(-balance.fulizaOwedMinor),
                 ),
                 LabelValueRow(
-                  label: 'Worth',
+                  label: BalanceText.worth,
                   value: money(balance.heldMinor),
                   strong: true,
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                    child: FulizaPaidButton(
+                      accountId: balance.account.id,
+                      walletMinor: balance.walletMinor,
+                      owedMinor: balance.fulizaOwedMinor,
+                      currency: currency,
+                      onDone: () => Navigator.pop(context),
+                    ),
+                  ),
                 ),
               ],
             ),

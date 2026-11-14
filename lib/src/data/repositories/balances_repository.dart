@@ -30,6 +30,28 @@ abstract interface class BalancesRepository {
     required String currency,
   });
 
+  /// Records that the Fuliza on M-Pesa account [accountId] is paid, as the
+  /// person says: a visible "Fuliza is paid" correction at [at] that keeps
+  /// the wallet at [walletMinor] and owes nothing, so the account is worth
+  /// [owedMinor] more. Undone like any correction. Returns its id.
+  Future<int> markFulizaPaid(
+    int accountId, {
+    required int walletMinor,
+    required int owedMinor,
+    required DateTime at,
+    required String currency,
+  });
+
+  /// Records that M-Pesa kept [amountMinor] of money in on [accountId] to
+  /// repay Fuliza, at [at], as the person says: a Fuliza repayment added by
+  /// hand. Returns its id.
+  Future<int> addFulizaRepayment(
+    int accountId, {
+    required int amountMinor,
+    required DateTime at,
+    required String currency,
+  });
+
   /// Removes correction [id]. Only corrections can be undone this way.
   Future<void> undoCorrection(int id);
 
@@ -51,6 +73,12 @@ abstract interface class BalancesRepository {
   });
 }
 
+/// The note on the correction "Fuliza is paid" records.
+const fulizaPaidNote = 'Fuliza is paid';
+
+/// The name on a Fuliza repayment added from a gap.
+const fulizaRepaymentName = 'Fuliza M-Pesa';
+
 class DriftBalancesRepository implements BalancesRepository {
   DriftBalancesRepository(this._db);
 
@@ -62,6 +90,7 @@ class DriftBalancesRepository implements BalancesRepository {
     required DateTime at,
     required String currency,
     int? statedMinor,
+    String? note,
   }) => TransactionsCompanion.insert(
     accountId: accountId,
     occurredAt: at,
@@ -73,7 +102,49 @@ class DriftBalancesRepository implements BalancesRepository {
     currency: Value(currency),
     source: TransactionSource.manual,
     balanceAfterMinor: Value(statedMinor),
+    item: Value(note),
   );
+
+  @override
+  Future<int> addFulizaRepayment(
+    int accountId, {
+    required int amountMinor,
+    required DateTime at,
+    required String currency,
+  }) => _db
+      .into(_db.transactions)
+      .insert(
+        TransactionsCompanion.insert(
+          accountId: accountId,
+          occurredAt: at,
+          amountMinor: amountMinor,
+          direction: TransactionDirection.outflow,
+          kind: const Value(TransactionKind.fulizaRepayment),
+          currency: Value(currency),
+          source: TransactionSource.manual,
+          counterpartyName: const Value(fulizaRepaymentName),
+        ),
+      );
+
+  @override
+  Future<int> markFulizaPaid(
+    int accountId, {
+    required int walletMinor,
+    required int owedMinor,
+    required DateTime at,
+    required String currency,
+  }) => _db
+      .into(_db.transactions)
+      .insert(
+        _correction(
+          accountId,
+          differenceMinor: owedMinor,
+          at: at,
+          currency: currency,
+          statedMinor: walletMinor,
+          note: fulizaPaidNote,
+        ),
+      );
 
   @override
   Future<int> setBalance(

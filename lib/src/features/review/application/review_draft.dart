@@ -73,10 +73,19 @@ class ReviewDraft {
       amountMinor! > 0;
 
   /// When it happened: the date and time read, or when the message arrived.
+  /// A date read without a time on the day the message arrived keeps the
+  /// time it arrived, so it does not jump to midnight, before the messages
+  /// that came earlier that day.
   DateTime occurredAt(DateTime receivedAt) {
     final day = date;
     if (day == null) return receivedAt.toUtc();
-    return day.startInstant.add(Duration(minutes: minutes ?? 0));
+    final time = minutes;
+    if (time == null) {
+      return day == CalendarDate.of(receivedAt)
+          ? receivedAt.toUtc()
+          : day.startInstant;
+    }
+    return day.startInstant.add(Duration(minutes: time));
   }
 
   ReviewDraft copyWith({
@@ -102,14 +111,22 @@ class ReviewDraft {
   /// The ledger row for the institution's account [accountId], in
   /// [currency]: the one printed with the amount, else the institution's.
   /// Keeps the values and the message hash, never the message text.
+  ///
+  /// [ledgerKind] is what the message's own words say it is, such as a
+  /// Fuliza repayment, which then sets the direction too.
   TransactionsCompanion toTransaction({
     required int accountId,
     required DateTime receivedAt,
     required String messageHash,
     required String currency,
+    TransactionKind? ledgerKind,
   }) {
     final when = occurredAt(receivedAt);
-    final out = kind == MessageKind.moneyOut;
+    final out = switch (ledgerKind) {
+      TransactionKind.fulizaRepayment => true,
+      TransactionKind.fulizaDraw => false,
+      _ => kind == MessageKind.moneyOut,
+    };
     // Read amounts are in hundredths; some currencies have other minor units.
     int inCurrency(int hundredths) => rescaleMinor(
       hundredths,
@@ -129,7 +146,9 @@ class ReviewDraft {
       direction: out
           ? TransactionDirection.outflow
           : TransactionDirection.inflow,
-      kind: Value(out ? TransactionKind.sent : TransactionKind.received),
+      kind: Value(
+        ledgerKind ?? (out ? TransactionKind.sent : TransactionKind.received),
+      ),
       feeMinor: Value(inCurrency(feeMinor ?? 0)),
       currency: Value(currency),
       counterpartyKind: Value(phone?.kind),

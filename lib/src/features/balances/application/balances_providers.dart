@@ -7,6 +7,7 @@ import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/ledger/balances.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/on_hand.dart';
 import '../../../domain/ledger/own_transfers.dart';
@@ -161,6 +162,21 @@ final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
         : a.account.name.toLowerCase().compareTo(b.account.name.toLowerCase());
   });
   return BalancesOverview(accounts: list, entries: entries, now: now);
+});
+
+/// What M-Pesa's balances show Fuliza did with no message of its own, by
+/// the entry whose balance shows it, for Activity.
+final fulizaAutoProvider = FutureProvider<Map<int, FulizaAuto>>((ref) async {
+  final overview = await ref.watch(balancesOverviewProvider.future);
+  return {
+    for (final a in overview.accounts)
+      if (a.opening.canOweFuliza)
+        for (final auto in WalletWalk.of(
+          a.opening,
+          overview.entries,
+        ).fuliza.auto)
+          auto.entry.id: auto,
+  };
 });
 
 /// Day-to-day money at the start of today, for Home's On hand and its
