@@ -13,6 +13,7 @@ import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
+import '../../balances/presentation/balance_warning.dart';
 import '../application/review_draft.dart';
 import '../application/review_providers.dart';
 
@@ -50,6 +51,7 @@ class ReviewInboxScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
+            const BalanceWarningCards(),
             if (items.isEmpty)
               const EmptyNote(
                 'All checked. Messages with new wording show here.',

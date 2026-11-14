@@ -57,6 +57,7 @@ class UntilNextMoney {
     this.bills = const [],
     this.pinned = false,
     this.fromUsualDay = false,
+    this.fulizaOwedMinor = 0,
   });
 
   /// Works out today's amount.
@@ -82,6 +83,7 @@ class UntilNextMoney {
     CalendarDate? nextMoney,
     List<BillDue> bills = const [],
     int? pinnedDailyMinor,
+    int fulizaOwedMinor = 0,
   }) {
     final onHand = onHandAtStartMinor < 0 ? 0 : onHandAtStartMinor;
     final buffer = onHand * nextMoneyBufferPercent ~/ 100;
@@ -107,14 +109,16 @@ class UntilNextMoney {
     final affordable = usable <= 0 ? 0 : usable ~/ days;
     final fromUsualDay = knowsUsualDay && usualTodayMinor < affordable;
     final worked = fromUsualDay ? usualTodayMinor : affordable;
-    final daily = pinnedDailyMinor ?? worked;
+    // Nothing is safe to spend once bills and the buffer take it all, or
+    // the accounts are below zero: not even an amount chosen earlier.
+    final daily = usable <= 0 ? 0 : pinnedDailyMinor ?? worked;
     final lastsDays = paceMinor <= 0
         ? null
         : (onHand - billsMinor) ~/ paceMinor;
     return UntilNextMoney(
       today: today,
       basis: basis,
-      onHandMinor: onHand,
+      onHandMinor: onHandAtStartMinor,
       billsMinor: billsMinor,
       bufferMinor: buffer,
       days: days,
@@ -125,16 +129,29 @@ class UntilNextMoney {
           ? null
           : today.addDays(lastsDays < 0 ? 0 : lastsDays),
       bills: bills,
-      pinned: pinnedDailyMinor != null,
+      pinned: pinnedDailyMinor != null && usable > 0,
       fromUsualDay: pinnedDailyMinor == null && fromUsualDay,
+      fulizaOwedMinor: fulizaOwedMinor,
     );
   }
 
   final CalendarDate today;
   final NextMoneyBasis basis;
 
-  /// Day-to-day money at the start of today.
+  /// Day-to-day money at the start of today, Fuliza owed taken off. Below
+  /// zero when more is owed than held.
   final int onHandMinor;
+
+  /// Fuliza owed, already taken off [onHandMinor].
+  final int fulizaOwedMinor;
+
+  /// Whether bills and the buffer leave nothing to spend, or the accounts
+  /// are below zero.
+  bool get nothingSafe =>
+      onHandMinor <= 0 || onHandMinor - bufferMinor - billsMinor <= 0;
+
+  /// Whether the accounts together are below zero.
+  bool get belowZero => onHandMinor < 0;
 
   /// Bills set aside before the next money.
   final int billsMinor;
@@ -174,7 +191,11 @@ class UntilNextMoney {
 
   /// What is left once bills, the buffer and the daily amounts are covered.
   int get spareMinor {
-    final spare = onHandMinor - billsMinor - bufferMinor - dailyMinor * days;
+    final spare =
+        (onHandMinor < 0 ? 0 : onHandMinor) -
+        billsMinor -
+        bufferMinor -
+        dailyMinor * days;
     return spare < 0 ? 0 : spare;
   }
 

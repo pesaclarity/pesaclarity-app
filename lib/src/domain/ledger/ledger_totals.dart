@@ -71,6 +71,8 @@ class LedgerTotals {
           if (entry.isOutflow) transfers += amount;
         case LedgerRole.awaitingPayee:
           awaiting += amount;
+        case LedgerRole.correction:
+          break;
         case LedgerRole.reversal:
           if (entry.isInflow) {
             spending -= amount;

@@ -11,6 +11,8 @@ import '../features/auth/presentation/devices_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/backup/presentation/backup_screen.dart';
 import '../features/backup/presentation/backup_setup_screen.dart';
+import '../features/balances/presentation/balance_check_screen.dart';
+import '../features/balances/presentation/balances_screen.dart';
 import '../features/books/presentation/money_screen.dart';
 import '../features/business_insights/presentation/full_records_screen.dart';
 import '../features/business_insights/presentation/insights_tab.dart';
@@ -204,6 +206,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                             path: 'choose',
                             builder: (context, state) =>
                                 const ChooseAccountsScreen(),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: 'balances',
+                        builder: (context, state) => const BalancesScreen(),
+                        routes: [
+                          GoRoute(
+                            path: 'check',
+                            builder: (context, state) =>
+                                const BalanceCheckScreen(),
                           ),
                         ],
                       ),

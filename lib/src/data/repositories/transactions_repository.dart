@@ -41,6 +41,28 @@ abstract interface class TransactionsRepository {
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
 
+  /// Finds and stores own transfers (see `findOwnTransfers`) among the
+  /// transactions from [from] to [to], every one when not given, widened by
+  /// the time a named transfer waits for its other side. Returns how many
+  /// pairs were made. [addNew] runs it after every new transaction, so
+  /// message scans, new messages, statements and checked messages all pair.
+  Future<int> pairOwnTransfers({DateTime? from, DateTime? to});
+
+  /// Pairs [outflowId] and [inflowId] as one own transfer, as the person
+  /// chose.
+  Future<void> match(int outflowId, int inflowId);
+
+  /// Undoes the own transfer [id] is half of, so both count as they were
+  /// and pairing never matches them again.
+  Future<void> unmatch(int id);
+
+  /// Marks [id] as money moved to or from the person's own [accountId], or
+  /// clears that with null, then pairs it if its other side is here.
+  Future<void> setTransferAccount(int id, int? accountId);
+
+  /// Pairs the person unmatched.
+  Future<Set<TransferPair>> declinedTransfers();
+
   /// Saves the rate the person got for transaction [id]: one [currency]
   /// bought [rate] of the transaction's currency. A null [rate] goes back to
   /// the rates of its day.
@@ -125,6 +147,8 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.transaction(() async {
         final directory = await payeeDirectory(_db);
         var added = 0;
+        DateTime? earliest;
+        DateTime? latest;
         for (final transaction in transactions) {
           final key = transaction.dedupeKey.present
               ? transaction.dedupeKey.value
@@ -134,7 +158,11 @@ class DriftTransactionsRepository implements TransactionsRepository {
               .into(_db.transactions)
               .insert(_withPayee(transaction, directory));
           added++;
+          final at = transaction.occurredAt.value;
+          if (earliest == null || at.isBefore(earliest)) earliest = at;
+          if (latest == null || at.isAfter(latest)) latest = at;
         }
+        if (added > 0) await pairOwnTransfers(from: earliest, to: latest);
         return added;
       });
 
@@ -258,6 +286,98 @@ class DriftTransactionsRepository implements TransactionsRepository {
       });
 
   @override
+  Future<int> pairOwnTransfers({DateTime? from, DateTime? to}) =>
+      _db.transaction(() async {
+        final t = _db.transactions;
+        final query = _db.select(t);
+        if (from != null) {
+          query.where(
+            (t) => t.occurredAt.isBiggerOrEqualValue(
+              from.subtract(waitingTransferWindow),
+            ),
+          );
+        }
+        if (to != null) {
+          query.where(
+            (t) => t.occurredAt.isSmallerOrEqualValue(
+              to.add(waitingTransferWindow),
+            ),
+          );
+        }
+        final categories = {
+          for (final c in await _db.select(_db.categories).get()) c.id: c,
+        };
+        final payees = {
+          for (final p in await _db.select(_db.payees).get()) p.id: p,
+        };
+        // Amounts as stored: a transfer moves in one currency.
+        final entries = [
+          for (final r in await query.get())
+            _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
+        ];
+        final pairs = findOwnTransfers(
+          entries,
+          declined: await declinedTransfers(),
+        );
+        await saveTransferPairs(pairs);
+        return pairs.length;
+      });
+
+  @override
+  Future<void> match(int outflowId, int inflowId) => _db.transaction(() async {
+    await (_db.delete(_db.declinedTransfers)..where(
+          (d) => d.outflowId.equals(outflowId) & d.inflowId.equals(inflowId),
+        ))
+        .go();
+    await saveTransferPairs([TransferPair(outflowId, inflowId)]);
+  });
+
+  @override
+  Future<void> unmatch(int id) => _db.transaction(() async {
+    final row = await (_db.select(
+      _db.transactions,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    final partnerId = row?.transferPairId;
+    if (row == null || partnerId == null) return;
+    final out = row.direction == TransactionDirection.outflow;
+    await _db
+        .into(_db.declinedTransfers)
+        .insertOnConflictUpdate(
+          DeclinedTransfersCompanion.insert(
+            outflowId: out ? id : partnerId,
+            inflowId: out ? partnerId : id,
+          ),
+        );
+    await (_db.update(
+      _db.transactions,
+    )..where((t) => t.id.isIn([id, partnerId]))).write(
+      const TransactionsCompanion(
+        transferPairId: Value(null),
+        transferAccountId: Value(null),
+      ),
+    );
+  });
+
+  @override
+  Future<void> setTransferAccount(int id, int? accountId) async {
+    final row =
+        await (_db.update(
+          _db.transactions,
+        )..where((t) => t.id.equals(id))).writeReturning(
+          TransactionsCompanion(transferAccountId: Value(accountId)),
+        );
+    if (accountId == null || row.isEmpty) return;
+    final at = row.single.occurredAt;
+    await pairOwnTransfers(from: at, to: at);
+  }
+
+  @override
+  Future<Set<TransferPair>> declinedTransfers() async => {
+    for (final d in await _db.select(_db.declinedTransfers).get())
+      TransferPair(d.outflowId, d.inflowId),
+  };
+
+  @override
   Stream<TransactionDetail?> watchDetail(int id) {
     final t = _db.transactions;
     final query = _db.select(t).join([
@@ -305,6 +425,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
     TableUpdateQuery.onAllTables([
       _db.transactions,
       _db.transactionTags,
+      _db.declinedTransfers,
       _db.payees,
       _db.payeeIdentifiers,
       _db.categories,
@@ -405,6 +526,8 @@ LedgerEntry _toLedgerEntry(
     categoryIsAuto: applied.isCategoryAuto,
     needsPurpose: applied.needsPurpose,
     transferPairId: record.transferPairId,
+    transferAccountId: record.transferAccountId,
+    source: record.source,
     payeeName: applied.displayName,
     leakType: applied.leakType,
     tagIds: tags[record.id] ?? const {},
@@ -413,6 +536,9 @@ LedgerEntry _toLedgerEntry(
     counterpartyValue: record.counterpartyValue,
     note: record.item,
     balanceAfterMinor: inBase(record.balanceAfterMinor),
+    claimedBalanceMinor: inBase(record.claimedBalanceMinor),
+    owedAfterMinor: inBase(record.owedAfterMinor),
+    owedDueAt: record.owedDueAt,
     originalAmountMinor: converted ? record.amountMinor : null,
     originalCurrency: converted ? record.currency : null,
   );

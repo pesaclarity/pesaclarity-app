@@ -32,7 +32,7 @@ final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
       );
 
   return CashFlowForecast.project(
-    balanceMinor: totalBalanceAt(
+    balanceMinor: totalHeldAt(
       accounts,
       entries,
       at: tomorrow,

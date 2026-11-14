@@ -11,7 +11,8 @@ class NetWorth {
     required this.startOfMonthMinor,
   });
 
-  /// Net worth at [now] in [currency]: every account balance plus money lent
+  /// Net worth at [now] in [currency]: every account balance (Fuliza owed
+  /// taken off) plus money lent
   /// and still owed back, less every debt.
   ///
   /// The start of the month uses balances just before the month began, the
@@ -31,13 +32,8 @@ class NetWorth {
     final monthStart = YearMonth.local(now).startInstant;
     bool inCurrency(AccountOpening a) => a.currency == currency;
     final list = entries.toList();
-    final balancesNow = totalBalanceAt(
-      accounts,
-      list,
-      at: now,
-      where: inCurrency,
-    );
-    final balancesThen = totalBalanceAt(
+    final balancesNow = totalHeldAt(accounts, list, at: now, where: inCurrency);
+    final balancesThen = totalHeldAt(
       accounts,
       list,
       at: monthStart,

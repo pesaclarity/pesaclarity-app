@@ -141,7 +141,9 @@ class ReviewDraft {
       dedupeKey: Value(
         dedupeKeyFor(receipt: reference, amountMinor: amountMinor!, time: when),
       ),
-      balanceAfterMinor: Value(
+      // What the reader found or the person typed is a claim, used only
+      // when it agrees with the account's reported balances.
+      claimedBalanceMinor: Value(
         balanceMinor == null ? null : inCurrency(balanceMinor!),
       ),
     );

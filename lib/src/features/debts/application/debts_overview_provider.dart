@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -8,6 +9,7 @@ import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
 import '../../../domain/debts/payoff_order.dart';
 import '../../../domain/debts/payoff_plan.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
 import '../../../domain/time/calendar.dart';
 
 /// Where the chosen payoff strategy is kept.
@@ -76,6 +78,7 @@ class DebtsOverview {
     required this.preference,
     required this.plan,
     required this.fuliza,
+    this.fulizaDebt,
   });
 
   final CalendarDate today;
@@ -93,6 +96,10 @@ class DebtsOverview {
 
   /// This month's Fuliza use; null when there was none.
   final FulizaTrackerMonth? fuliza;
+
+  /// Fuliza owed now, its due date and this month's daily charges, as
+  /// Fuliza's own messages put them. Null when nothing is owed.
+  final FulizaDebt? fulizaDebt;
 
   int get remainingMinor => debts.fold(0, (sum, d) => sum + d.balanceMinor);
 
@@ -128,6 +135,25 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
       );
   final fuliza = FulizaTracker.of(entries, asOf: today).month(month);
 
+  // Fuliza owed needs the whole M-Pesa history, back to the last message
+  // that printed the total.
+  FulizaDebt? fulizaDebt;
+  for (final account
+      in await ref.watch(accountsRepositoryProvider).openings()) {
+    if (!account.canOweFuliza) continue;
+    final history = await ref
+        .watch(transactionsRepositoryProvider)
+        .ledgerEntries(
+          from: account.openingDate,
+          to: today.addDays(1).startInstant,
+        );
+    final debt = FulizaDebt.of([
+      for (final e in history)
+        if (e.accountId == account.id) e,
+    ]);
+    if (debt.owedMinor > 0) fulizaDebt = debt;
+  }
+
   return DebtsOverview(
     today: today,
     debts: ordered,
@@ -135,5 +161,6 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
     preference: preference,
     plan: PayoffPlan.simulate(ordered, preference.options(month)),
     fuliza: fuliza.usage.drawCount == 0 ? null : fuliza,
+    fulizaDebt: fulizaDebt,
   );
 });

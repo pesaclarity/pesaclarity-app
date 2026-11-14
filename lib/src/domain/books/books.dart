@@ -488,13 +488,24 @@ JournalEntry postEntry(
           ? BookAccount.ownerPay
           : BookAccount.ownTransfers;
       e.isInflow ? inFrom(other, amount) : outTo(other, amount);
+    case LedgerRole.correction:
+      e.isInflow
+          ? inFrom(BookAccount.balanceDifferences, amount)
+          : outTo(BookAccount.balanceDifferences, amount);
     case LedgerRole.reversal:
       // A refund in takes spending back; money sent back takes income back.
       e.isInflow
           ? inFrom(spendingAccount(), amount)
           : outTo(incomeAccount(), amount);
   }
-  if (e.feeMinor > 0) outTo(BookAccount.fees, e.feeMinor);
+  if (e.feeMinor > 0 && e.kind == TransactionKind.fulizaDraw) {
+    // Fuliza's access fee is added to what is owed, not taken from M-Pesa.
+    lines
+      ..add(JournalLine(BookAccount.fees, e.feeMinor))
+      ..add(JournalLine(BookAccount.borrowed, -e.feeMinor));
+  } else if (e.feeMinor > 0) {
+    outTo(BookAccount.fees, e.feeMinor);
+  }
 
   return JournalEntry(
     source: JournalSource.transaction,
@@ -512,7 +523,12 @@ List<JournalEntry> _openingAndDifferences(
   List<LedgerEntry> all,
 ) {
   final money = BookAccount.money(account.id);
-  int change(LedgerEntry e) => e.signedMinor - e.feeMinor;
+  final walk = WalletWalk.of(account, all);
+  // What [postEntry] moved the money account by.
+  int posted(LedgerEntry e) => e.kind == TransactionKind.fulizaDraw
+      ? e.signedMinor
+      : e.signedMinor - e.feeMinor;
+  int change(LedgerEntry e) => posted(e);
   final mine = [
     for (final e in all)
       if (e.accountId == account.id && e.currency == account.currency) e,
@@ -558,10 +574,10 @@ List<JournalEntry> _openingAndDifferences(
       .fold(0, (s, e) => s + change(e));
   var running = account.openingBalanceMinor + before;
   var start = account.openingBalanceMinor;
-  final first = own.indexWhere((e) => e.balanceAfterMinor != null);
+  final first = own.indexWhere(walk.isCheckpoint);
   if (first >= 0) {
-    final upToFirst = own.take(first + 1).fold(0, (s, e) => s + change(e));
-    start = own[first].balanceAfterMinor! - upToFirst;
+    final upToFirst = own.take(first + 1).fold(0, (s, e) => s + walk.change(e));
+    start = walk.checkpoints[own[first].id]! - upToFirst;
   }
   if (start != running) {
     out.add(
@@ -577,7 +593,21 @@ List<JournalEntry> _openingAndDifferences(
   }
   for (final e in own) {
     running += change(e);
-    final reported = e.balanceAfterMinor;
+    // A Fuliza draw that funded a payment already in its reported balance.
+    final unposted = walk.change(e) - change(e);
+    if (unposted != 0) {
+      out.add(
+        adjust(
+          JournalSource.balanceDifference,
+          e.id,
+          e.occurredAt,
+          unposted,
+          BookAccount.balanceDifferences,
+        ),
+      );
+      running += unposted;
+    }
+    final reported = walk.checkpoints[e.id];
     if (reported != null && reported != running) {
       out.add(
         adjust(

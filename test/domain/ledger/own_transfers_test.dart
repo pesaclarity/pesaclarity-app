@@ -81,12 +81,19 @@ void main() {
           at: eat(2026, 10, 5, 9, 1),
           amount: kes(5000),
         ),
-        // Different amount.
+        // More in than went out.
         inflow(
           id: 3,
           accountId: mpesa,
           at: eat(2026, 10, 5, 9, 1),
-          amount: kes(4999),
+          amount: kes(5001),
+        ),
+        // Less in by far more than a fee.
+        inflow(
+          id: 30,
+          accountId: mpesa,
+          at: eat(2026, 10, 5, 9, 1),
+          amount: kes(4000),
         ),
         // Too late.
         inflow(
