@@ -1,5 +1,7 @@
 import '../../../data/database/app_database.dart';
 import '../../../domain/ledger/balance_check.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
+import 'add_missing_sheet.dart';
 
 /// The words of Balances, Set the balance, the balance check, Add an
 /// account and own transfers, in one place.
@@ -19,6 +21,13 @@ abstract final class BalanceText {
   static String said(String amount, String when) => 'Said $amount · $when';
   static String counted(String when) => 'Counted $when';
   static String fulizaOwed(String amount) => '$amount Fuliza owed';
+  static const inTheWallet = 'In the wallet';
+  static const fulizaOwedLabel = 'Fuliza owed';
+  static const worth = 'Worth';
+  static const fulizaIsPaid = 'Fuliza is paid';
+  static const fulizaMarkedPaid =
+      'Fuliza marked as paid. It shows in Activity as a balance correction.';
+  static const undo = 'Undo';
   static String onHandRule(String accounts, String fund, String total) =>
       'On hand on Home is day-to-day money less your rainy day fund: '
       '$accounts − $fund = $total.';
@@ -72,6 +81,90 @@ abstract final class BalanceText {
   static String gapHeader(String account, String amount, bool more) =>
       '$account · $amount ${more ? 'more' : 'less'} than the app';
   static const addCorrectionInstead = 'Add a correction instead';
+  static const justACorrection = "It's just a correction";
+  static const addWhatsMissing = "Add what's missing";
+  static String addMissingIntro(String account) =>
+      'It goes in $account as a normal transaction, so your plan and '
+      'insights count it.';
+  static const moneyOut = 'Money out';
+  static const moneyIn = 'Money in';
+  static const whatWasIt = 'What was it?';
+  static const paidTo = 'Paid to';
+  static const receivedFrom = 'Received from';
+  static const optional = 'Optional';
+  static String placedBetween(String from, String to) =>
+      'Placed between the two messages, $from and $to.';
+  static const addIt = 'Add it';
+  static const missingAdded = 'Added. The balances add up again.';
+  static const missingFees = 'Fees and charges';
+  static String missingKind(MissingKind kind) => switch (kind) {
+    MissingKind.sentToSomeone => 'Sent to someone',
+    MissingKind.airtime => 'Airtime or bundles',
+    MissingKind.fulizaRepayment => 'Fuliza repayment',
+    MissingKind.fees => 'Fees or charges',
+    MissingKind.loanRepayment => 'Loan repayment',
+    MissingKind.otherOut => 'Something else',
+    MissingKind.receivedFromSomeone => 'Received from someone',
+    MissingKind.refund => 'A refund or reversal',
+    MissingKind.otherIn => 'Something else',
+  };
+
+  // The gap sheet.
+  static const likelyTheMissingOne = 'LIKELY THE MISSING ONE';
+  static const otherLeads = 'COULD ALSO BE';
+  static const waitingToCheck = 'WAITING IN MESSAGES TO CHECK';
+  static String everythingOn(String account) => 'EVERYTHING ON $account';
+  static const fulizaWorkedOut = 'FULIZA, FROM THE BALANCES';
+  static const checkThisMessage = 'Check this message';
+  static const moveItHere = 'Move it here';
+  static const itWentToFuliza = 'It went to Fuliza';
+  static const removeTheCopy = 'Remove the copy';
+  static String unreadExact(String amount, String direction, String when) =>
+      'A message from $when is still waiting to be checked. It reads as '
+      '$amount $direction, exactly the gap.';
+  static String unreadOther(String amount, String direction, String when) =>
+      'A message from $when is still waiting to be checked: $amount '
+      '$direction.';
+  static const unreadNoAmount = 'No amount found yet';
+  static String otherAccount(String what, String amount, String account) =>
+      '"$what" $amount is under $account. Its amount is exactly the gap.';
+  static String wentToFuliza(String amount, String from) =>
+      'M-Pesa repays Fuliza from money coming in before the wallet gets it. '
+      'If Fuliza was owed, $amount of the money from $from went to it.';
+  static String copyOf(String what, String amount) =>
+      '$what $amount is in twice.';
+  static const outWord = 'out';
+  static const inWord = 'in';
+  static const outsideTheGap = 'Same day, outside the gap';
+  static String fulizaAutoLine(FulizaAuto auto, String amount, String fee) =>
+      switch (auto.kind) {
+        FulizaAutoKind.repaid =>
+          'Fuliza repaid automatically: $amount kept from this money'
+              '${fee.isEmpty ? '' : ', $fee of it daily charges'}',
+        FulizaAutoKind.drawn =>
+          'Fuliza covered $amount of this, plus a $fee access fee',
+        FulizaAutoKind.cleared =>
+          'Fuliza cleared: M-Pesa shows money in the wallet, so the $amount '
+              'owed was repaid',
+      };
+  static const fulizaAutoNote =
+      'A debt repayment, not spending. Worked out from the balance M-Pesa '
+      'reported; no Fuliza message was read for it.';
+
+  // Where it went.
+  static String whereItWent(
+    String period,
+    String fees,
+    String fuliza,
+    String notExplained,
+  ) => [
+    '$period: fees $fees',
+    'Fuliza charges $fuliza',
+    'not explained $notExplained',
+  ].join(' · ');
+  static const thisMonth = 'This month';
+  static const whereItWentTitle = 'Where it went';
+  static const seeLeakage = 'See leakage in Insights';
   static const fixed = 'Fixed.';
 
   static String causeTitle(GapCause cause) => switch (cause) {

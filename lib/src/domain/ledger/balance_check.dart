@@ -178,16 +178,23 @@ AccountCheck checkAccount(
       lastCounted = e.occurredAt;
     }
     running += walk.change(e) + walk.fundedBy(e);
-    final trusted = e.balanceAfterMinor != null;
+    // A repayment message read before the money it came from shows the
+    // balance after both; the walk leaves it out.
+    final trusted = e.balanceAfterMinor != null && walk.isCheckpoint(e);
     final claimed = e.claimedBalanceMinor;
-    if (!trusted && claimed == null) continue;
+    if (!trusted && (claimed == null || e.balanceAfterMinor != null)) {
+      continue;
+    }
     if (!e.isCorrection) lastReported = e;
 
     if (trusted) {
       final reported = checkpointWallet(account, e);
       // The first reported balance starts the account; a correction is
       // the person's own figure.
-      if (previous != null && !e.isCorrection && reported != running) {
+      // A gap of at most one unit is rounding in fees and charges.
+      if (previous != null &&
+          !e.isCorrection &&
+          (reported - running).abs() > tolerance) {
         final between = since(previous, e);
         gaps.add(
           BalanceGap(

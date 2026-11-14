@@ -10,6 +10,7 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/reader/fuliza_wording.dart';
 import '../../../domain/reader/message_reading.dart';
 import '../../../domain/reader/reader_tokens.dart';
 import '../../../domain/reader/reading_template.dart';
@@ -106,6 +107,7 @@ class ReviewController {
         receivedAt: item.receivedAt,
         messageHash: item.messageHash,
         currency: currency,
+        ledgerKind: item.body == null ? null : fulizaKindIn(item.body!),
       ),
     ]);
     final body = item.body;

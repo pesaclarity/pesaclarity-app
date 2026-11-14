@@ -11,6 +11,7 @@ import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/payees/payee_identifier.dart';
@@ -27,6 +28,8 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
+import '../../balances/application/balances_providers.dart';
+import '../../balances/presentation/balance_text.dart';
 import '../../balances/presentation/own_transfer_sheets.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
@@ -110,6 +113,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = ref.watch(activityCategoriesProvider).value ?? const {};
     final suggester = ref.watch(categorySuggesterProvider);
+    final fulizaAuto = ref.watch(fulizaAutoProvider).value ?? const {};
     final base = ref.watch(baseCurrencyProvider);
     final others = _otherCurrencies(entries, base);
     // With more than one currency, every amount shows its code.
@@ -215,6 +219,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                             confirmCategory(ref, e, s.categoryId, s),
                         base: base,
                         code: code,
+                        fulizaAuto: fulizaAuto,
                       ),
                     ),
                 ],
@@ -415,9 +420,13 @@ class _ActivityRow extends StatelessWidget {
     required this.onAccept,
     required this.base,
     this.code,
+    this.fulizaAuto = const {},
   });
 
   final ActivityLine line;
+
+  /// Fuliza worked out from M-Pesa's balances, by entry id.
+  final Map<int, FulizaAuto> fulizaAuto;
 
   /// The base currency, which totals are counted in.
   final String base;
@@ -437,7 +446,41 @@ class _ActivityRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final muted = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    final row = _line(context, theme, colors, muted);
+    final auto = line is EntryLine
+        ? fulizaAuto[(line as EntryLine).entry.id]
+        : null;
+    if (auto == null) return row;
+    String money(int minor) => _orHidden(
+      context,
+      formatMoney(Money(minor, currency: auto.entry.currency)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row,
+        Padding(
+          key: Key('activity-fuliza-auto-${auto.entry.id}'),
+          padding: const EdgeInsetsDirectional.only(start: 54, bottom: 8),
+          child: Text(
+            BalanceText.fulizaAutoLine(
+              auto,
+              money(auto.amountMinor),
+              auto.feeMinor == 0 ? '' : money(auto.feeMinor),
+            ),
+            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _line(
+    BuildContext context,
+    ThemeData theme,
+    PesaColors colors,
+    TextStyle muted,
+  ) {
     return switch (line) {
       EntryLine(:final entry) when _canName(entry) => _row(
         context,
