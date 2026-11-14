@@ -27,6 +27,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
+import '../../balances/presentation/own_transfer_sheets.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
@@ -457,6 +458,18 @@ class _ActivityRow extends StatelessWidget {
           moneyIn: entry.isInflow,
         ),
       ),
+      EntryLine(:final entry) when entry.isCorrection => _row(
+        context,
+        avatar: _Avatar.icon(Icons.tune, colors: colors),
+        title: kindLabel(entry.kind),
+        subtitle: DetailLine(
+          'Not income or spending',
+          _account(entry.accountId),
+          style: muted,
+        ),
+        amount: _entryAmount(context, entry),
+        onTap: () => showTransactionSheet(context, entry.id),
+      ),
       EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
         context,
         entry,
@@ -473,16 +486,18 @@ class _ActivityRow extends StatelessWidget {
         amount: _entryAmount(context, entry),
         onTap: () => showTransactionSheet(context, entry.id),
       ),
-      OwnTransferLine(:final outflow, :final inflow, :final shown) => _row(
+      OwnTransferLine(:final shown) && final transfer => _row(
         context,
-        avatar: _Avatar.icon(Icons.north_east, colors: colors),
-        title: outflow != null && inflow != null
-            ? '${_account(outflow.accountId)} → ${_account(inflow.accountId)}'
-            : outflow != null
-            ? 'From ${_account(outflow.accountId)}'
-            : 'To ${_account(inflow!.accountId)}',
-        subtitle: Text('Own transfer · not spending', style: muted),
+        avatar: _Avatar.icon(Icons.swap_horiz, colors: colors),
+        title: transferTitle(transfer, accounts),
+        subtitle: Text(
+          transferSubtitle(context, transfer, accounts),
+          style: muted,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         amount: _entryAmount(context, shown, transfer: true),
+        onTap: () => showOwnTransferSheet(context, transfer),
       ),
       DailyNoiseLine() && final noise => _row(
         context,

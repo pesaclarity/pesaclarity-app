@@ -8,6 +8,8 @@ import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
 import '../../../domain/debts/payoff_order.dart';
 import '../../../domain/debts/payoff_plan.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
+import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
@@ -74,6 +76,10 @@ class DebtsScreen extends ConsumerWidget {
                   _StrategyPicker(overview),
                   const SizedBox(height: Layout.cardGap),
                   _DebtList(overview),
+                ],
+                if (overview.fulizaDebt case final owed?) ...[
+                  const SizedBox(height: Layout.cardGap),
+                  _FulizaOwedCard(owed, today: overview.today),
                 ],
                 if (overview.fuliza case final fuliza?) ...[
                   const SizedBox(height: Layout.cardGap),
@@ -282,6 +288,34 @@ class _DebtItem extends StatelessWidget {
           : details,
       captionColor: cleared == null ? colors.warning : null,
       onTap: onTap,
+    );
+  }
+}
+
+/// Fuliza owed now: a debt, taken off M-Pesa in Balances and On hand.
+class _FulizaOwedCard extends StatelessWidget {
+  const _FulizaOwedCard(this.debt, {required this.today});
+
+  final FulizaDebt debt;
+  final CalendarDate today;
+
+  @override
+  Widget build(BuildContext context) {
+    final due = debt.dueAt;
+    final charges = debt.chargesIn(today.yearMonth);
+    final details = [
+      if (due != null) 'Due ${dayLabel(CalendarDate.local(due))}',
+      if (charges > 0)
+        '${shownMoney(context, charges, withCurrency: false)} in daily '
+            'charges this month',
+      'Taken off M-Pesa in Balances',
+    ].join(' · ');
+    return DebtRow(
+      key: const Key('debts-fuliza-owed'),
+      name: 'Fuliza',
+      amount: shownMoney(context, debt.owedMinor, withCurrency: false),
+      paidFraction: 0,
+      caption: details,
     );
   }
 }

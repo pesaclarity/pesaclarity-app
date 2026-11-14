@@ -29,6 +29,9 @@ import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../balances/presentation/balance_text.dart';
+import '../../balances/presentation/balance_warning.dart';
+import '../../balances/presentation/on_hand_sheet.dart';
 import '../../business_insights/application/business_report_providers.dart';
 import '../../hours/application/hours_providers.dart';
 import '../../hours/presentation/log_hours_sheet.dart';
@@ -170,6 +173,7 @@ class HomeScreen extends ConsumerWidget {
                       thisMonth.copyWith(type: ActivityType.dayToDay),
                     ),
                   ),
+                const BalanceWarningLine(),
                 const SizedBox(height: 12),
                 SupportHomeCard(
                   moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
@@ -185,6 +189,7 @@ class HomeScreen extends ConsumerWidget {
                         key: const Key('home-on-hand'),
                         label: 'On hand',
                         value: _plain(context, untilNext.onHandMinor),
+                        onTap: () => showOnHandSheet(context),
                       )
                     else if (safeToSpend == null)
                       const FigureTile(
@@ -339,7 +344,9 @@ class _SafeToSpendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = result.today;
     final String detail;
-    if (result.isBudgetUsedUp) {
+    if (result.nothingOnHand) {
+      detail = BalanceText.belowZero;
+    } else if (result.isBudgetUsedUp) {
       detail = 'This month\'s day-to-day budget is used up';
     } else if (result.overTodayMinor > 0) {
       detail = '${_plain(context, result.overTodayMinor)} over today\'s limit';
@@ -393,7 +400,13 @@ class _UntilNextMoneyCard extends StatelessWidget {
     final next = result.nextMoney;
     final lasts = result.lastsUntil;
     final String when;
-    if (result.overTodayMinor > 0) {
+    if (result.belowZero) {
+      when = result.fulizaOwedMinor > 0
+          ? BalanceText.belowZeroFuliza
+          : BalanceText.belowZero;
+    } else if (result.nothingSafe) {
+      when = BalanceText.billsTakeIt;
+    } else if (result.overTodayMinor > 0) {
       when = "${_plain(context, result.overTodayMinor)} over today's amount";
     } else if (result.fromUsualDay) {
       when = result.today.isWeekend

@@ -140,7 +140,7 @@ final spaceSummaryProvider = FutureProvider<SpaceSummary?>((ref) async {
     },
     balanceMinor: accounts.isEmpty
         ? 0
-        : totalBalanceAt(
+        : totalHeldAt(
             accounts,
             entries,
             at: today.addDays(1).startInstant,
