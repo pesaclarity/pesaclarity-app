@@ -29,6 +29,7 @@ part 'app_database.g.dart';
     LoanPayments,
     Transactions,
     MovedTransactions,
+    DeclinedTransfers,
     TransactionTags,
     Recurring,
     BudgetItems,
@@ -66,7 +67,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -249,6 +250,32 @@ class AppDatabase extends _$AppDatabase {
       if (from < 32) {
         await m.createTable(tabs);
         await m.createTable(tabLines);
+      }
+      // Own transfers waiting for their other side, and pairs unmatched.
+      if (from < 33) {
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.transferAccountId,
+        );
+        if (!await _exists('table', declinedTransfers.actualTableName)) {
+          await m.createTable(declinedTransfers);
+        }
+        // Balances saved from "Check this message" were the reader's guess
+        // or typed by hand: they become claims, not checkpoints.
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.claimedBalanceMinor,
+        );
+        await _addColumnIfMissing(m, transactions, transactions.owedAfterMinor);
+        await _addColumnIfMissing(m, transactions, transactions.owedDueAt);
+        await customStatement(
+          'UPDATE transactions SET claimed_balance_minor = '
+          'balance_after_minor, balance_after_minor = NULL '
+          'WHERE balance_after_minor IS NOT NULL AND message_hash IN '
+          '(SELECT message_hash FROM review_items)',
+        );
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

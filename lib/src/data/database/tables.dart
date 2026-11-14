@@ -235,11 +235,32 @@ class Transactions extends Table {
   TextColumn get dedupeKey => text().nullable()();
 
   /// The account balance the message reported after this transaction.
+  /// Only a parser rule or a statement sets it: it is a checkpoint.
   IntColumn get balanceAfterMinor => integer().nullable()();
+
+  /// A balance read by the on-phone reader or typed while checking a
+  /// message. Used only when it agrees with the checkpoint before it and
+  /// the entries since; otherwise the balance check flags it.
+  IntColumn get claimedBalanceMinor => integer().nullable()();
+
+  /// What a Fuliza message said is owed in all after it ("Total Fuliza
+  /// M-PESA outstanding amount"), and when it is due. A checkpoint on the
+  /// Fuliza debt, as a reported balance is on the wallet.
+  IntColumn get owedAfterMinor => integer().nullable()();
+  DateTimeColumn get owedDueAt => dateTime().nullable()();
 
   /// The other half of an own-account transfer, which never counts as spending.
   IntColumn get transferPairId =>
       integer().nullable().references(Transactions, #id)();
+
+  /// The person said this moved money to or from this other account of
+  /// theirs. Until its other side is paired it waits, counted as an own
+  /// transfer, never spending or income.
+  IntColumn get transferAccountId => integer().nullable().references(
+    Accounts,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   /// The category predicted automatically by the on-device ML model or rules.
   IntColumn get autoCategoryId => integer().nullable().references(
@@ -254,6 +275,19 @@ class Transactions extends Table {
 
   /// Prediction confidence score between 0.0 and 1.0.
   RealColumn get autoCategoryConfidence => real().nullable()();
+}
+
+/// Own-transfer pairs the person unmatched, so pairing never makes them
+/// again.
+@DataClassName('DeclinedTransferRow')
+class DeclinedTransfers extends Table {
+  IntColumn get outflowId =>
+      integer().references(Transactions, #id, onDelete: KeyAction.cascade)();
+  IntColumn get inflowId =>
+      integer().references(Transactions, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  Set<Column> get primaryKey => {outflowId, inflowId};
 }
 
 class TransactionTags extends Table {

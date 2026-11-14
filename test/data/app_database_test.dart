@@ -703,6 +703,83 @@ void main() {
       expect(await db.select(db.movedTransactions).get(), isEmpty);
     });
 
+    test('migrates a version 32 database: own transfers and claimed '
+        'balances', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      // A balance saved from "Check this message" before claims existed.
+      await old
+          .into(old.reviewItems)
+          .insert(
+            ReviewItemsCompanion.insert(
+              institutionId: 'mpesa',
+              sender: 'MPESA',
+              receivedAt: DateTime.utc(2026, 11, 2),
+              messageHash: 'checked',
+              reason: 'no rule matched',
+            ),
+          );
+      for (final (hash, balance) in [('checked', 3800000), ('parsed', 5000)]) {
+        await old
+            .into(old.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: account,
+                occurredAt: DateTime.utc(2026, 11, 2),
+                amountMinor: 100,
+                direction: TransactionDirection.outflow,
+                source: TransactionSource.sms,
+                messageHash: Value(hash),
+                balanceAfterMinor: Value(balance),
+              ),
+            );
+      }
+      await old.customStatement('DROP TABLE declined_transfers');
+      // transfer_account_id stays: SQLite cannot drop a foreign key column,
+      // and the step adds it only when missing.
+      for (final column in [
+        'claimed_balance_minor',
+        'owed_after_minor',
+        'owed_due_at',
+      ]) {
+        await old.customStatement(
+          'ALTER TABLE transactions DROP COLUMN $column',
+        );
+      }
+      await old.customStatement('PRAGMA user_version = 32');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final rows = {
+        for (final r in await db.select(db.transactions).get())
+          r.messageHash: r,
+      };
+      expect(rows['checked']!.balanceAfterMinor, isNull);
+      expect(rows['checked']!.claimedBalanceMinor, 3800000);
+      expect(rows['parsed']!.balanceAfterMinor, 5000);
+      expect(rows['parsed']!.claimedBalanceMinor, isNull);
+      expect(await db.select(db.declinedTransfers).get(), isEmpty);
+    });
+
+    test('the version 33 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 32');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+    });
+
     test('migrates a version 31 database: open tabs', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE tab_lines');

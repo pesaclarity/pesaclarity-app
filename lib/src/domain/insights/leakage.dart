@@ -66,6 +66,7 @@ class LeakageBreakdown {
             LedgerRole.borrowing ||
             LedgerRole.saving ||
             LedgerRole.awaitingPayee ||
+            LedgerRole.correction ||
             LedgerRole.reversal:
           break;
       }

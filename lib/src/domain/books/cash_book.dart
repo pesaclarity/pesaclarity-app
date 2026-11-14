@@ -21,7 +21,7 @@ enum CashColumn {
 CashColumn? cashColumnOf(AccountType type) => switch (type) {
   AccountType.cash => CashColumn.cash,
   AccountType.mpesa => CashColumn.mpesa,
-  AccountType.bank => CashColumn.bank,
+  AccountType.bank || AccountType.other => CashColumn.bank,
   AccountType.sacco || AccountType.moneyMarket => null,
 };
 

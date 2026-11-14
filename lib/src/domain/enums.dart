@@ -1,5 +1,14 @@
 /// Kinds of account the app tracks.
-enum AccountType { bank, mpesa, sacco, moneyMarket, cash }
+enum AccountType {
+  bank,
+  mpesa,
+  sacco,
+  moneyMarket,
+  cash,
+
+  /// An account added by hand that is none of the above.
+  other,
+}
 
 /// Whether money came in or went out of an account.
 enum TransactionDirection { inflow, outflow }
@@ -26,6 +35,11 @@ enum TransactionKind {
   charge,
   reversal,
   bank,
+
+  /// The difference recorded when the person sets an account's real
+  /// balance, or explains a gap between two reported balances. Neither
+  /// income nor spending.
+  correction,
 }
 
 /// Where a transaction came from.

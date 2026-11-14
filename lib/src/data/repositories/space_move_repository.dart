@@ -91,6 +91,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     accountId: Value(accountId),
                     payeeId: const Value(null),
                     transferPairId: const Value(null),
+                    transferAccountId: const Value(null),
                     categoryOverrideId: Value(
                       toCategoryId ?? targetCategory?.id,
                     ),
@@ -124,6 +125,10 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
               ),
             );
       }
+      // An own transfer's other half stays here, now on its own.
+      await (_source.update(_source.transactions)
+            ..where((t) => t.transferPairId.equals(transactionId)))
+          .write(const TransactionsCompanion(transferPairId: Value(null)));
       await (_source.delete(
         _source.transactions,
       )..where((t) => t.id.equals(transactionId))).go();

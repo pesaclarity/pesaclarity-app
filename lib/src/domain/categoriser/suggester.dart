@@ -70,6 +70,7 @@ const _noCategoryRoles = {
   LedgerRole.borrowing,
   LedgerRole.awaitingPayee,
   LedgerRole.reversal,
+  LedgerRole.correction,
 };
 
 /// Whether [entry] has no category and is the kind of line a category is

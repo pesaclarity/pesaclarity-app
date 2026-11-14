@@ -66,6 +66,7 @@ SalePaymentMethod? _wayOf(
         AccountType.cash => SalePaymentMethod.cash,
         AccountType.mpesa => SalePaymentMethod.mpesa,
         AccountType.bank ||
+        AccountType.other ||
         AccountType.sacco ||
         AccountType.moneyMarket => SalePaymentMethod.bank,
         null => null,
