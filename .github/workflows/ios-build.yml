@@ -77,6 +77,19 @@ jobs:
           (cd "$out" && zip -qr pesaclarity-ios-unsigned.ipa Payload)
           echo "IPA=$out/pesaclarity-ios-unsigned.ipa" >> "$GITHUB_ENV"
 
+      # A SideStore/AltStore source: a small list naming the newest build, so
+      # testers who add it see Update in SideStore when a new one is out.
+      - name: Write the SideStore source
+        run: |
+          plist=build/ios/iphoneos/Runner.app/Info.plist
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$plist")" \
+          BUILD="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$plist")" \
+          MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print MinimumOSVersion' "$plist")" \
+          SIZE="$(stat -f%z "$IPA")" \
+          IPA_URL="https://github.com/${{ github.repository }}/releases/download/test-build/pesaclarity-ios-unsigned.ipa" \
+          python3 tool/sidestore_source.py > "$RUNNER_TEMP/ipa/pesaclarity-sidestore.json"
+          echo "SOURCE=$RUNNER_TEMP/ipa/pesaclarity-sidestore.json" >> "$GITHUB_ENV"
+
       - uses: actions/upload-artifact@v7
         with:
           name: pesaclarity-ios-unsigned
@@ -88,7 +101,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload test-build "$IPA" --clobber
+        run: gh release upload test-build "$IPA" "$SOURCE" --clobber
 
       - name: Build for the simulator
         run: flutter build ios --simulator --debug
