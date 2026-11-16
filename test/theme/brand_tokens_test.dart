@@ -33,11 +33,13 @@ void main() {
       'success': BrandTokens.success,
       'successText': BrandTokens.successText,
       'warning': BrandTokens.warning,
+      'warningStrong': BrandTokens.warningStrong,
       'danger': BrandTokens.danger,
       'dangerText': BrandTokens.dangerText,
       'markBlue': BrandTokens.markBlue,
       'markPurple': BrandTokens.markPurple,
       'markTeal': BrandTokens.markTeal,
+      'selected': BrandTokens.selected,
     };
     final names = (tokens['color']! as Map<String, Object?>).keys.toSet();
     expect(app.keys.toSet(), names, reason: 'every light token is used');
@@ -62,11 +64,13 @@ void main() {
       'success': BrandTokens.darkSuccess,
       'successText': BrandTokens.darkSuccessText,
       'warning': BrandTokens.darkWarning,
+      'warningStrong': BrandTokens.darkWarningStrong,
       'danger': BrandTokens.darkDanger,
       'dangerText': BrandTokens.darkDangerText,
       'markBlue': BrandTokens.darkMarkBlue,
       'markPurple': BrandTokens.darkMarkPurple,
       'markTeal': BrandTokens.darkMarkTeal,
+      'selected': BrandTokens.darkSelected,
     };
     final names = (tokens['dark']! as Map<String, Object?>).keys.toSet();
     expect(app.keys.toSet(), names, reason: 'every dark token is used');
