@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   archive: ^4.6.0
-  drift: ^2.35.3
+  drift: ^2.35.4
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
   go_router: ^18.1.2
