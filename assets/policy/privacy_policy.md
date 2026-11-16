@@ -3,7 +3,7 @@
 ## The short version
 
 Pesa Clarity works out your budget on your phone. Your transactions,
-messages and statements stay on it. Our server does three narrow jobs
+messages, statements and the questions you ask about them stay on it. Our server does three narrow jobs
 and never sees a transaction.
 
 ## What stays on your phone
@@ -21,6 +21,19 @@ and never sees a transaction.
 All of this sits in an encrypted database. The key is held by your
 phone's secure hardware and released only after you unlock the app with
 your PIN, fingerprint or Face ID.
+
+## Ask
+
+Ask answers questions about your money in your own words, such as "how
+much did I spend on food last month?". Small models that ship inside the
+app read your question and word the answer, on your phone. Every number
+comes from your own records in the space you have open.
+
+- Nothing is sent anywhere. Your questions, the answers and the records they come from never leave your phone, and Ask works without internet.
+- Ask has no federated learning. "Improve the app" never includes anything from Ask.
+- Conversations are kept in the space's encrypted database for as long as you choose in Ask settings: until you delete them, or for a year, 90, 30 or 7 days. You can also switch saving off.
+- Words you teach Ask, such as "chakula" for Food, stay in that space too.
+- You can delete one conversation, or every conversation in a space. Backups leave conversations out.
 
 ## What our server holds
 
@@ -68,6 +81,17 @@ To count money in other currencies, the app downloads today's exchange
 rates from a public rates service. The request carries only your base
 currency's code, such as KES; the service sees your IP address, as any
 website does. You can set your own rates instead.
+
+## Giving (F-Droid build)
+
+The F-Droid build has a Support screen for anyone who wants to give a
+small gift by M-Pesa. Giving is your choice and never unlocks anything.
+
+- The Support screen opens CitaPay's page in your browser. Its address carries only the amount you chose.
+- CitaPay, run by Citatech, and Safaricom's M-Pesa process the payment. They see what any M-Pesa payment shows, such as your phone number and name, plus the amount and any note you type.
+- CitaPay's terms cover the payment: pay.citatech.cloud/legal/terms.
+- Pesa Clarity receives only the money and the M-Pesa notice of it.
+- The app sends nothing to CitaPay. To say thank you, it recognises your gift from your own M-Pesa message, on your phone.
 
 ## Your choices
 
