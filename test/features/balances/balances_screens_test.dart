@@ -104,11 +104,12 @@ void main() {
       final figure = tester.widget<Text>(
         find.descendant(of: onHand, matching: find.text('-1,150')),
       );
-      // The same token as the lead card's below-zero figure, with no fill.
+      // The danger colour on the plain tile; the red lead card keeps its
+      // figure white.
       expect(figure.style!.color, colors.danger);
       expect(
         tester.widget<Text>(find.text('KES 0')).style!.color,
-        colors.danger,
+        theme.colorScheme.onPrimary,
       );
       final card = tester.widget<Card>(
         find.descendant(of: onHand, matching: find.byType(Card)),

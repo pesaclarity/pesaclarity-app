@@ -146,7 +146,7 @@ class _Figure extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.warning.withValues(alpha: .3)),
+        side: BorderSide(color: colors.link.withValues(alpha: .3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -170,7 +170,7 @@ class _Figure extends StatelessWidget {
                 Text(
                   note!,
                   style: theme.textTheme.bodySmall!.copyWith(
-                    color: colors.warning,
+                    color: colors.link,
                   ),
                 ),
               ],

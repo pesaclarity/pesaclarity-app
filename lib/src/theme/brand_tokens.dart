@@ -8,7 +8,7 @@ import 'package:flutter/painting.dart';
 /// it. When the brand tokens change, copy the new file and update these.
 abstract final class BrandTokens {
   static const brand = Color(0xFFC8102E);
-  static const brandLink = Color(0xFFC8102E);
+  static const brandLink = Color(0xFFB81D2F);
   static const brandSoft = Color(0xFFFDECEE);
   static const background = Color(0xFFF6F1EE);
   static const surface = Color(0xFFFFFFFF);

@@ -4,14 +4,12 @@ import '../../features/security/application/balance_visibility.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/brand_tokens.dart';
 import '../../theme/layout.dart';
-import '../../theme/pesa_colors.dart';
 import 'amounts_hidden.dart';
 import 'figures.dart';
 
-/// The card that leads a screen with its one primary number: a calm
-/// surface card, its figure in the theme's display type. Every lead card is
-/// this one, so they all look and behave the same. Brand red is kept for
-/// actions, so the card is never filled red.
+/// Brand-red card that leads a screen with its one primary number, in
+/// white. Every red card is this one, so they all look and behave the
+/// same. In dark it keeps the same red, never a pink.
 ///
 /// Amounts in [figure] and [caption] are masked while balances are hidden,
 /// and the card then offers the eye button that shows or hides them.
@@ -44,24 +42,26 @@ class HeroFigureCard extends StatelessWidget {
   /// Whether the eye shows; by default, when the card shows an amount.
   final bool? showEye;
 
-  /// Whether the person is below zero: the figure then takes the danger
-  /// colour, the one restrained sign of it. Say why in [caption].
+  /// Whether the person is below zero. On the red card the figure stays
+  /// white and its minus sign shows it; say why in [caption].
   final bool belowZero;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-    final colors = PesaColors.of(context);
     final hidden = AmountsHidden.of(context);
     final figure = this.figure;
     final hasAmount =
         (figure != null && containsAmount(figure)) ||
         (caption != null && containsAmount(caption!));
     final eye = showEye ?? hasAmount;
-    final figureColor = belowZero ? colors.danger : theme.colorScheme.onSurface;
+    final scheme = theme.colorScheme;
+    final onCard = scheme.onPrimary;
+    final figureColor = onCard;
 
     return Card(
+      color: scheme.primary,
       child: InkWell(
         onTap: onTap,
         // The card starts at its minimum height and grows with its text.
@@ -86,9 +86,7 @@ class HeroFigureCard extends StatelessWidget {
                 final besideEye = eye && !underEye;
                 final labelText = Text(
                   label,
-                  style: textTheme.labelLarge!.copyWith(
-                    color: colors.textMuted,
-                  ),
+                  style: textTheme.labelLarge!.copyWith(color: onCard),
                 );
                 return ConstrainedBox(
                   constraints: const BoxConstraints(
@@ -135,7 +133,7 @@ class HeroFigureCard extends StatelessWidget {
                               caption!.replaceAll('\n', ' · '),
                             ),
                             style: textTheme.bodyMedium!.copyWith(
-                              color: colors.textMuted,
+                              color: onCard,
                             ),
                           ),
                         ],
@@ -153,7 +151,7 @@ class HeroFigureCard extends StatelessWidget {
               PositionedDirectional(
                 top: Layout.heroEyeInset,
                 end: Layout.heroEyeInset,
-                child: AmountsEye(color: colors.textMuted),
+                child: AmountsEye(color: onCard),
               ),
           ],
         ),
@@ -162,8 +160,8 @@ class HeroFigureCard extends StatelessWidget {
   }
 }
 
-/// A bar on a lead card, such as how much of the month's plan is used,
-/// with an optional [label] under it.
+/// A bar on a red card, such as how much of the month's plan is used, with
+/// an optional [label] under it.
 class HeroProgress extends StatelessWidget {
   const HeroProgress({required this.value, this.label, super.key});
 
@@ -174,7 +172,7 @@ class HeroProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
+    final onCard = theme.colorScheme.onPrimary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -183,18 +181,15 @@ class HeroProgress extends StatelessWidget {
           child: LinearProgressIndicator(
             value: value,
             minHeight: 8,
-            // The brand accent on a neutral track, as other bars are.
-            color: colors.link,
-            backgroundColor: colors.border,
+            color: onCard,
+            backgroundColor: onCard.withValues(alpha: 0.25),
           ),
         ),
         if (label != null) ...[
           const SizedBox(height: 8),
           Text(
             label!,
-            style: theme.textTheme.bodyMedium!.copyWith(
-              color: colors.textMuted,
-            ),
+            style: theme.textTheme.bodyMedium!.copyWith(color: onCard),
           ),
         ],
       ],

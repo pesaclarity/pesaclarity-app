@@ -612,7 +612,7 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
                       style: OutlinedButton.styleFrom(
                         shape: const StadiumBorder(),
                         side: BorderSide(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: PesaColors.of(context).link,
                           width: 1.5,
                         ),
                       ),
@@ -683,7 +683,7 @@ class _Tile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Layout.panelRadius),
         side: BorderSide(
-          color: picked ? theme.colorScheme.onSurface : colors.border,
+          color: picked ? colors.link : colors.border,
           width: picked ? 2 : 1,
         ),
       ),
@@ -724,11 +724,11 @@ class _Tile extends StatelessWidget {
                   top: 0,
                   child: CircleAvatar(
                     radius: 13,
-                    backgroundColor: theme.colorScheme.onSurface,
+                    backgroundColor: theme.colorScheme.primary,
                     child: Text(
                       quantityText(count),
                       style: theme.textTheme.labelMedium!.copyWith(
-                        color: theme.colorScheme.surface,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     ),
                   ),

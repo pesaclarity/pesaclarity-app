@@ -52,7 +52,7 @@ class TickPoints extends StatelessWidget {
                   child: Icon(
                     Icons.check_circle_outline,
                     size: 20,
-                    color: PesaColors.of(context).successText,
+                    color: PesaColors.of(context).link,
                   ),
                 ),
                 Expanded(child: Text(point, style: theme.textTheme.bodyLarge)),

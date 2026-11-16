@@ -355,7 +355,7 @@ class TaxScreen extends ConsumerWidget {
                         height: 8,
                         margin: const EdgeInsets.only(top: 6, right: 12),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: PesaColors.of(context).link,
                           shape: BoxShape.circle,
                         ),
                       ),

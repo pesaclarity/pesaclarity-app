@@ -86,7 +86,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 Icon(
                   Icons.lock_outline,
                   size: 32,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: PesaColors.of(context).link,
                 ),
                 const SizedBox(height: 16),
                 PinPad(

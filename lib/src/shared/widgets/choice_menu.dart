@@ -45,10 +45,9 @@ class ChoiceMenu<T> extends StatelessWidget {
         .map((o) => o.$2)
         .firstOrNull;
     final text = current ?? '';
-    // A choice that narrows the list is picked out in the brand accent on
-    // the soft tint, as a switch's chosen side is.
-    final fill = highlight ? colors.brandSoft : colors.field;
-    final ink = highlight ? colors.link : scheme.onSurface;
+    // A choice that narrows the list is filled with the brand red.
+    final fill = highlight ? scheme.primary : colors.field;
+    final ink = highlight ? scheme.onPrimary : scheme.onSurface;
     return MenuAnchor(
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
@@ -71,7 +70,7 @@ class ChoiceMenu<T> extends StatelessWidget {
         child: Material(
           color: fill,
           shape: StadiumBorder(
-            side: BorderSide(color: highlight ? ink : colors.border),
+            side: BorderSide(color: highlight ? fill : colors.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(

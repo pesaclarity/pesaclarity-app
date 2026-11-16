@@ -173,17 +173,16 @@ class _PaddedCard extends StatelessWidget {
   );
 }
 
-/// Colours for the income bar, from the text colour to lighter neutrals,
-/// so neighbouring groups stay apart; brand red is kept for actions. The
-/// legend names each one.
+/// Colours for the income bar, darkest to lightest red, so neighbouring
+/// groups stay apart. The legend names each one.
 Color _groupColour(BuildContext context, PlanGroup group) {
   final scheme = Theme.of(context).colorScheme;
   final colors = PesaColors.of(context);
   return switch (group) {
-    PlanGroup.debt => colors.warning,
+    PlanGroup.debt => colors.link,
     PlanGroup.tax => colors.link,
-    PlanGroup.living => colors.textMuted,
-    PlanGroup.school => Color.lerp(colors.textMuted, scheme.surface, 0.5)!,
+    PlanGroup.living => Color.lerp(colors.link, scheme.onSurface, 0.45)!,
+    PlanGroup.school => Color.lerp(colors.brandSoft, colors.link, 0.25)!,
     PlanGroup.savings => colors.success,
   };
 }

@@ -23,8 +23,8 @@ void main() {
     test('exposes brand colours outside the Material scheme', () {
       final colors = theme.extension<PesaColors>()!;
       expect(colors.brandSoft, const Color(0xFFFDECEE));
-      // Links are in the text colour.
-      expect(colors.link, const Color(0xFFC8102E));
+      // Links, progress and the current tab are in the brand's link red.
+      expect(colors.link, const Color(0xFFB81D2F));
       expect(colors.border, const Color(0xFFEFE6E7));
       expect(colors.successText, const Color(0xFF047857));
       expect(colors.warning, const Color(0xFFB45309));

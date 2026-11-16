@@ -800,7 +800,6 @@ class _WithholdingSheetState extends State<_WithholdingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final rate = rateText(widget.rate);
     final fees = widget.feesMinor;
@@ -850,7 +849,7 @@ class _WithholdingSheetState extends State<_WithholdingSheet> {
                       borderRadius: BorderRadius.circular(Layout.panelRadius),
                       side: BorderSide(
                         color: _value == value
-                            ? theme.colorScheme.onSurface
+                            ? PesaColors.of(context).link
                             : colors.border,
                         width: _value == value ? 2 : 1,
                       ),

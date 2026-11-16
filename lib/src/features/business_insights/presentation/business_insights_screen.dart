@@ -415,7 +415,7 @@ class _SalesByDay extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: i == best
                                     ? colors.link
-                                    : colors.selected,
+                                    : colors.brandSoft,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                             ),
@@ -479,7 +479,7 @@ class _Sentences extends StatelessWidget {
                       height: 8,
                       margin: const EdgeInsets.only(top: 6, right: 12),
                       decoration: BoxDecoration(
-                        color: PesaColors.of(context).textMuted,
+                        color: PesaColors.of(context).link,
                         shape: BoxShape.circle,
                       ),
                     ),

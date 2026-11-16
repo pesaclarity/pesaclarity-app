@@ -156,8 +156,10 @@ class AccountLetter extends StatelessWidget {
   final String name;
 
   @override
-  Widget build(BuildContext context) =>
-      InitialsBadge(name.trim().isEmpty ? '#' : name.trim()[0].toUpperCase());
+  Widget build(BuildContext context) => InitialsBadge(
+    name.trim().isEmpty ? '#' : name.trim()[0].toUpperCase(),
+    tinted: true,
+  );
 }
 
 /// The badge an account's check earns.

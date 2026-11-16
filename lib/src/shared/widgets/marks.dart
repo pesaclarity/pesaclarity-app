@@ -120,12 +120,14 @@ class IconBadge extends StatelessWidget {
   }
 }
 
-/// A name's initials in a neutral square the size and shape of an
-/// [IconBadge], as an Activity row's are: brand red is kept for actions.
+/// A name's initials in a square the size and shape of an [IconBadge]:
+/// neutral, as an Activity row's are, or [tinted] with the brand, as an
+/// account's letter on Balances is.
 class InitialsBadge extends StatelessWidget {
-  const InitialsBadge(this.text, {super.key});
+  const InitialsBadge(this.text, {this.tinted = false, super.key});
 
   final String text;
+  final bool tinted;
 
   @override
   Widget build(BuildContext context) {
@@ -135,13 +137,14 @@ class InitialsBadge extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: colors.border,
+        color: tinted ? colors.brandSoft : colors.border,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelLarge!
-            .copyWith(color: Theme.of(context).colorScheme.onSurface),
+        style: Theme.of(context).textTheme.labelLarge!.copyWith(
+          color: tinted ? colors.link : Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -158,13 +161,13 @@ class TrailingLink extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: Theme.of(context).textTheme.labelLarge!
-        .copyWith(color: PesaColors.of(context).link),
+        .copyWith(color: Theme.of(context).colorScheme.onSurface),
   );
 }
 
 /// A small outlined pill for an action beside a title, in a row or under a
-/// card: "Count stock", "See all", "Remind". Outlined in the brand accent;
-/// the one main button is the filled red one.
+/// card: "Count stock", "See all", "Remind". Neutral, so red stays for the
+/// lead card, the main button and the current tab.
 class PillButton extends StatelessWidget {
   const PillButton({
     required this.label,
@@ -183,10 +186,7 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = PesaColors.of(context).link;
     final style = OutlinedButton.styleFrom(
-      foregroundColor: accent,
-      side: BorderSide(color: accent),
       minimumSize: const Size(0, 36),
       padding: EdgeInsets.fromLTRB(icon == null ? 14 : 10, 0, 14, 0),
       tapTargetSize: MaterialTapTargetSize.padded,
