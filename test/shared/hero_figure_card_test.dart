@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
-import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 void main() {
   for (final (name, theme) in [
