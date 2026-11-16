@@ -17,6 +17,7 @@ String kindLabel(TransactionKind kind) => switch (kind) {
   TransactionKind.charge => 'Charge',
   TransactionKind.reversal => 'Reversal',
   TransactionKind.bank => 'Bank transaction',
+  TransactionKind.correction => 'Balance correction',
 };
 
 /// The title of a day's [NoiseGroup] line.

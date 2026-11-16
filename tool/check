@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# Runs the project's checks on your machine. GitHub only builds and releases,
+# so this is what keeps dev green. The pre-push hook runs it in full.
+#
+#   tool/check          everything: format, analyse, all tests, dependency
+#                       scan, and the UI flows when they changed
+#   tool/check --fast   format, analyse and the quick pure-Dart tests
+#   tool/check --deps   only the dependency scan
+#   tool/check --ui     only the UI flows (needs Maestro and a device)
+#
+# Settings (versions, test folders, paths) are in tool/check.env.
+set -uo pipefail
+
+cd "$(dirname "$0")/.." || exit 1
+. tool/check.env
+
+mode="${1:-full}"
+case "$mode" in
+  full | --fast | --deps | --ui) ;;
+  -h | --help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) echo "Unknown option: $mode (try --help)" >&2; exit 2 ;;
+esac
+
+bold=$(tput bold 2>/dev/null || true)
+reset=$(tput sgr0 2>/dev/null || true)
+
+# step NAME HOW-TO-FIX COMMAND...: runs COMMAND, stops everything if it fails.
+step() {
+  local name="$1" fix="$2"
+  shift 2
+  echo "${bold}==> $name${reset}"
+  local start=$SECONDS
+  if ! "$@"; then
+    echo
+    echo "${bold}FAILED: $name${reset}"
+    echo "Fix: $fix"
+    exit 1
+  fi
+  echo "    ok ($((SECONDS - start)) s)"
+}
+
+skip() { echo "${bold}--> Skipped: $1${reset}"; echo "    $2"; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+need_flutter() {
+  if ! have flutter || ! have dart; then
+    echo "FAILED: Flutter is not on PATH."
+    echo "Install Flutter $FLUTTER_VERSION: https://docs.flutter.dev/get-started/install"
+    exit 1
+  fi
+  local version
+  version=$(flutter --version 2>/dev/null | sed -n 's/^Flutter \([^ ]*\).*/\1/p')
+  if [ "$version" != "$FLUTTER_VERSION" ]; then
+    echo "Note: you have Flutter $version; the builds use $FLUTTER_VERSION. Results may differ."
+  fi
+}
+
+android_sdk() { echo "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"; }
+
+# Code generation, as every build does; analysis and tests need its output.
+prepare() {
+  step "Install dependencies" "check pubspec.yaml, then run: flutter pub get" \
+    flutter pub get
+  step "Generate code" "fix the errors build_runner prints (Drift tables, Riverpod providers)" \
+    dart run build_runner build --delete-conflicting-outputs
+}
+
+format_and_analyse() {
+  step "Check formatting" "run: dart format ." \
+    dart format --output=none --set-exit-if-changed .
+  step "Analyse" "fix the issues above (infos count too)" \
+    flutter analyze --fatal-infos --fatal-warnings
+}
+
+# OSV-Scanner over pub and, with the Android SDK, the resolved Gradle
+# dependencies. Uses the network to fetch advisories.
+deps() {
+  if ! have osv-scanner; then
+    skip "Dependency scan (osv-scanner is not installed)" \
+      "Install osv-scanner v$OSV_SCANNER_VERSION: https://google.github.io/osv-scanner/installation/"
+    return
+  fi
+  local args=(--lockfile=pubspec.lock)
+  if [ -n "$(android_sdk)" ]; then
+    # The repo has no Gradle lockfiles, so resolve them for the scan and
+    # delete them afterwards.
+    trap 'find android -name gradle.lockfile -delete' EXIT
+    step "Resolve Gradle dependencies" "run ./gradlew dependencies in android/ and fix the build" \
+      sh -c 'flutter build apk --config-only >/dev/null && cd android &&
+        ./gradlew --init-script ../.github/gradle/lock-all.init.gradle.kts \
+          dependencies --write-locks --quiet >/dev/null'
+    args+=(--recursive ./android)
+  else
+    skip "Gradle part of the dependency scan (no Android SDK)" \
+      "Set ANDROID_HOME to scan the Android dependencies too; pub is still scanned."
+  fi
+  # shellcheck disable=SC2086
+  step "Dependency scan" "update the packages named above (flutter pub upgrade <name>, or the Gradle version). If it could not reach api.osv.dev, see OSV_SCANNER_FLAGS in tool/check.env" \
+    osv-scanner $OSV_SCANNER_FLAGS "${args[@]}"
+}
+
+# The Maestro flows in light and dark mode, on a connected device or emulator.
+ui_flows() {
+  local missing=""
+  have maestro || missing="$missing Maestro CLI $MAESTRO_VERSION (https://maestro.mobile.dev),"
+  have adb || missing="$missing adb (Android SDK platform-tools),"
+  [ -n "$(android_sdk)" ] || missing="$missing ANDROID_HOME,"
+  if [ -z "$missing" ] && [ "$(adb get-state 2>/dev/null)" != device ]; then
+    missing=" a running emulator or a phone with USB debugging,"
+  fi
+  if [ -n "$missing" ]; then
+    skip "UI flows" "They need:${missing%,}. See CONTRIBUTING.md, UI flows."
+    return
+  fi
+  step "Build debug APK" "fix the build errors above" \
+    flutter build apk --debug --flavor foss
+  step "Install the app" "check the device is connected (adb devices)" \
+    tool/install_app.sh build/app/outputs/flutter-apk/app-foss-debug.apk
+  tool/ui_diagnostics.sh build/maestro/diagnostics/startup || true
+  step "UI flows" "see the reports and screenshots in build/maestro/" \
+    tool/run_ui_flows.sh build/maestro
+}
+
+# True when this branch (committed or not) changes the UI flows.
+ui_changed() {
+  local base
+  base=$(git merge-base HEAD "origin/$BASE_BRANCH" 2>/dev/null) || return 0
+  # shellcheck disable=SC2086
+  [ -n "$(git diff --name-only "$base" -- $UI_PATHS)" ]
+}
+
+start=$SECONDS
+need_flutter
+case "$mode" in
+  --fast)
+    prepare
+    format_and_analyse
+    # shellcheck disable=SC2086
+    step "Quick tests ($FAST_TESTS)" "fix the failing tests; rerun one with: flutter test <file>" \
+      flutter test $FAST_TESTS
+    ;;
+  --deps) deps ;;
+  --ui) prepare; ui_flows ;;
+  full)
+    prepare
+    format_and_analyse
+    step "Tests" "fix the failing tests; rerun one with: flutter test <file>" \
+      flutter test
+    deps
+    if ui_changed; then
+      ui_flows
+    else
+      echo "--> UI flows not run: nothing changed under $UI_PATHS. Run them with: tool/check --ui"
+    fi
+    ;;
+esac
+echo "${bold}All checks passed ($((SECONDS - start)) s).${reset}"

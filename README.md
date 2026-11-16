@@ -6,9 +6,9 @@
 
 Pesa Clarity is a free, ad-free, open-source Android and iPhone app that turns M-Pesa and bank SMS into a clear daily plan: what you can safely spend today, which bills are due, where money leaks, and when you will be debt-free. All analysis runs on the phone. This repository holds the Flutter app.
 
-**Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
+**Status:** pre-release, not yet in any store. Working: onboarding, SMS capture on Android and Shortcuts capture on iPhone, statement import, the review inbox with the message reader, Home (safe to spend, forecast, Financial Health Index), Balances, Activity, Plan, Goals and debts, Insights, subscriptions, base currency, encrypted backups, sign-in and app lock. The server is not deployed yet, so sign-in and the vault are off in builds without a server address.
 
-**Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`, most phones) or [for older 32-bit phones](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play-32bit.apk), and the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services; [32-bit](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss-32bit.apk)). The privacy policy and terms ship in `assets/policy/` and match the website. "Email me a copy" opens the phone's email app; with none, a signed-in person can have the server email the policy as text and a PDF (`POST /v1/privacy/copy`, which only sends a policy whose SHA-256 the server lists in `NGOME_PRIVACY_POLICY_SHA256`: `sha256sum assets/policy/privacy_policy.md`).
+**Download:** the newest test build is on [Releases](https://github.com/pesaclarity/pesaclarity-app/releases): [Android](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) (`play`, most phones) or [for older 32-bit phones](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play-32bit.apk), and the [F-Droid build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk) (`foss`, no Google services; [32-bit](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss-32bit.apk)). For iPhone, the [unsigned iPhone build](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-ios-unsigned.ipa) installs with SideStore or AltStore, which sign it with your own Apple ID for 7 days at a time; add the source `https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-sidestore.json` in SideStore or AltStore to get each new build as an update (sign-in is off on it; it comes from the iOS build workflow, run by hand). The privacy policy and terms ship in `assets/policy/` and match the website. "Email me a copy" opens the phone's email app; with none, a signed-in person can have the server email the policy as text and a PDF (`POST /v1/privacy/copy`, which only sends a policy whose SHA-256 the server lists in `NGOME_PRIVACY_POLICY_SHA256`: `sha256sum assets/policy/privacy_policy.md`).
 
 <p align="center">
   <img src="docs/media/demo.gif" width="300" alt="Pesa Clarity: Home, Insights, one category's transactions, a health pillar, Plan and Debts">
@@ -126,12 +126,12 @@ State is managed with Riverpod and navigation with go_router.
 From the spec's "Mobile security" section:
 
 - Database encrypted with SQLCipher. The 256-bit key is generated on the phone and kept in Android Keystore-backed secure storage. The app refuses to open the database if SQLCipher is not loaded.
-- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so CI can capture UI screenshots; release builds are never debuggable.
+- `FLAG_SECURE` on the main activity blocks screenshots, recording and app-switcher previews in release builds. Debuggable builds skip it so the UI flows can capture screenshots; release builds are never debuggable.
 - Android auto-backup and device transfer are off (`allowBackup="false"` plus extraction rules that exclude everything).
 - Permissions: `READ_SMS`, `RECEIVE_SMS`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` (to restore reminders after a restart), `INTERNET` (sign-in, backups and the privacy policy), and `BLUETOOTH_CONNECT` (`BLUETOOTH` before Android 12) for a receipt printer a business pairs, asked for only when it chooses one. `test/android/manifest_permissions_test.dart` fails if the list changes. Cleartext traffic is off.
 - Cleartext traffic is refused. Every `HttpClient` comes from `HttpClientFactory` (`lib/src/core/network`). Our servers are pinned to their certificate authorities, not their keys, because the hosting providers renew certificates with new keys every few months: connections to the hosts in `PESACLARITY_PINNED_HOSTS` trust only the roots in `PESACLARITY_TRUSTED_ROOTS` (two or more), and a misconfiguration refuses every connection. Third-party services (Google Drive) use the platform's authorities. A test fails if code creates an `HttpClient` any other way. The real values are set once the server is deployed.
 - Device integrity: `IntegrityAttestor` (`lib/src/core/integrity`) supplies a token header for backup and federated-learning requests; the `play` stub returns "unavailable" until the Play project exists, and `foss` never attests. A light root and tamper check (`DeviceIntegrityChannel.kt`) shows a one-time notice in Profile and never blocks use.
-- Dependencies are scanned with OSV-Scanner in CI (`.github/workflows/dependency-scan.yml`) and updated by Dependabot.
+- Dependencies are scanned with OSV-Scanner by `tool/check` before each push (`tool/check --deps` on its own) and updated by Dependabot.
 - R8 minification and resource shrinking on release builds; Dart obfuscation via `--obfuscate`.
 
 - App lock: with a PIN (and fingerprint or Face ID) set, the database key is released only after unlocking (`UnlockedDatabaseKeyStore`).
@@ -172,6 +172,17 @@ SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers]
 - **Review inbox.** A message from a selected sender that no rule matches is kept for review, text included. It lives only in the SQLCipher database and its text is deleted when the item is resolved; the hash stays so a later scan does not bring it back. Home shows "N messages to check"; each one opens with the message reader's suggestions to confirm, and "Read messages like this the same way" saves the layout (the words around the fields, numbers only as their layout, fields as empty slots) so later messages like it are added during capture. See [spec 0004](docs/specs/0004-message-reader.md).
 - **Message reader.** `lib/src/domain/reader/` implements pesaclarity-ml's reader input (`docs/READER.md`), checked against `test/fixtures/reader/reader_vectors.v1.json`. A trained `reader.tflite` is used when installed in the app's `reader` folder with a matching `reader-manifest.json`; until then `RuleMessageReader` reads currency amounts, dates, times and payees with plain rules.
 
+## Balances
+
+Profile › Balances shows what each account holds now, and whether it matches its messages (`lib/src/domain/ledger/balances.dart`, `lib/src/features/balances/`).
+
+- **From the messages.** An account's balance is its last checkpoint plus what happened since. A balance a parser rule or statement reported, or one the person set, is a checkpoint. A balance the message reader suggested or the person typed while checking a message is only a claim. It counts once it is within one unit of the last checkpoint plus the entries since.
+- **Fuliza is a debt on M-Pesa** (`fuliza_debt.dart`). The owed amount comes from the latest total a Fuliza message prints, with daily charges worked out between totals. M-Pesa's balances show what Fuliza did, even without its message. A payment that leaves the wallet at 0 though it took more than the wallet held was covered by Fuliza, so that is owed. Money in while Fuliza is owed repays it first. Any balance above 0 means nothing is owed. While Fuliza is owed, M-Pesa shows below zero and On hand on Home counts it. "Fuliza is paid" on Debts and the M-Pesa sheet clears it with a visible correction.
+- **Balance check.** Check all balances goes through every message with a balance. Where two don't agree, it names the likely cause. The gap sheet lists the whole day, messages waiting to be checked, rows in other accounts, Fuliza and copies, and ranks the likely missing one (`gap_leads.dart`). **Add what's missing** adds the gap as a real transaction placed between the two messages, so the plan and insights count it. **Where it went** sums up, for each account this month, what went on fees, on Fuliza charges and on gaps nothing recorded explains. Gaps of 1.00 or less match.
+- **Set the balance** records the difference to what the account really holds as a balance correction. The correction shows in Activity, is never income or spending, and can be undone.
+- **Add an account** makes an account with no messages, such as Cash, with its currency and the balance today.
+- **Own transfers** pair with a fee allowance after every new transaction, and a matched pair shows as one line in Activity.
+
 ## iPhone
 
 The iPhone app (`ios/`, bundle id `com.pesaclarity.app`, iOS 16 or later, iPhone only, portrait) shares all the Dart code. What differs:
@@ -192,7 +203,31 @@ flutter run -d <simulator or iPhone>           # Xcode signs with your team
 
 To check the Swift without a Mac or Actions minutes, run `tool/swift_typecheck/typecheck.sh` (needs Docker). It type-checks `ios/Runner` with Linux Swift against stand-ins for Apple's frameworks in `tool/swift_typecheck/stubs/`; add any new Apple API there. It cannot link, sign or resolve CocoaPods.
 
-The `iOS build` workflow (Actions tab, run by hand) compiles an unsigned release and a simulator build on macOS. Linux CI cannot compile Swift, so run it after changing `ios/`. App Store uploads need an Apple Developer account and signing, which are not set up yet.
+### Install on your own iPhone with Xcode
+
+For testers with a Mac. A free Apple ID works; the app then lasts 7 days before you run it again. A paid developer account makes it last a year.
+
+1. Install Xcode from the Mac App Store, and Flutter stable (see Quick start). Open Xcode once to accept its licence and let it add the iPhone platform.
+2. Get the code and its generated files:
+   ```sh
+   git clone https://github.com/pesaclarity/pesaclarity-app.git
+   cd pesaclarity-app && git checkout dev
+   flutter pub get
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+3. Open `ios/Runner.xcworkspace` in Xcode (the workspace, not the project). Select **Runner** › **Signing & Capabilities**:
+   - **Team**: add your Apple ID in Xcode › Settings › Accounts, then pick it (a free one shows as *Personal Team*).
+   - **Bundle Identifier**: change `com.pesaclarity.app` to something only you use, such as `com.yourname.pesaclarity`. Apple won't sign the project's own id for another team.
+   - With a free Apple ID, remove the **App Attest** capability (the minus beside it): free teams can't use it. Sign-in then stays off, as on the unsigned build.
+4. On the iPhone: connect it by cable and tap **Trust**. Turn on **Settings › Privacy & Security › Developer Mode** and restart when asked.
+5. Back in Xcode, pick your iPhone as the run destination at the top and press **Run** (▶), or from the terminal: `flutter run --release -d <your iPhone>` (`flutter devices` lists it).
+6. The first time, iOS blocks the app until you trust its developer: **Settings › General › VPN & Device Management** › your Apple ID › **Trust**. Then open Pesa Clarity.
+
+Don't commit the changed bundle id, team or removed capability; they're for your phone only.
+
+Without a Mac, use the unsigned build on Releases with SideStore or AltStore (see Download).
+
+The `iOS build` workflow (Actions tab, run by hand) compiles an unsigned release and a simulator build on macOS. Swift cannot be compiled on Linux, so run it after changing `ios/`. App Store uploads need an Apple Developer account and signing, which are not set up yet.
 
 
 Shortcuts only passes messages as they arrive; iOS gives no way to read the messages already on the phone. So iPhone setup offers "Past months › Import a statement" on the Connect step, which ends setup and opens the statement import for the months before.
@@ -264,6 +299,8 @@ Each space keeps double-entry books (`lib/src/domain/books/`), the base for the 
 - Each account opens with its opening balance. Where a message reports a balance the records do not reach (a missing message, say), a balance difference entry keeps the account equal to the balance the app already shows.
 - Tests check that every entry balances, that the trial balance is zero, and that profit and balances agree with the rest of the app, including on random histories.
 
+**The journal, stage 1** ([decision 0018](https://github.com/pesaclarity/docs/blob/main/decisions/0018-double-entry-journal.md), [plan](https://github.com/pesaclarity/docs/blob/main/plans/journal.md)). Each space's database also keeps a stored double-entry journal (`journal_entries` and `postings`, schema 34). Every transaction, each account's opening and each reported-balance gap posts a balanced entry (`lib/src/domain/books/journal.dart`, `lib/src/data/repositories/journal_repository.dart`). It is kept in step after every write, and a changed source posts a reversal and a new entry, never an edit. Nothing reads the journal yet: balances, Home, the books and every other figure still come from the transactions as above.
+
 - **Business setup.** A new business asks "What do you sell?" (Products, Services or Both, kept with the space as `business.setup`) after its accounts are picked, then **Start your records**: cash in the drawer (a Cash account is made for it), each M-Pesa, till and bank account's balance today (filled in from the latest reported balance when there is one), and links to add customers who owe and suppliers owed. The books count each account from today's opening. Existing businesses get a "Set up your business records" card on Home until it is done.
 - **Business or personal.** In a business, Profile › Business or personal sets each account (an M-Pesa line, a bank) to the business, Personal, or "Ask me" for an account used for both. "Ask me" keeps the account in Personal only, so each message is read once, and business Home asks about each recent payment on it: "Grace Wambui sent you KES 650. Was this for the business?". Business sale moves the payment into the business with the existing move; Personal keeps it. "Always do this for …" remembers the person (by their number, or name), and from then on their payments are sorted as soon as Personal reads them. The rules sit in Personal's settings (`routing.rules`); see `lib/src/features/spaces/application/routing_providers.dart`.
 - **Business bar and Money.** A business swaps the personal tabs for its own in the same floating bar: **Today · Money · People · Stock · Insights**, with Clients and Services for a services business (`tabsFor` in `lib/src/routing/app_shell.dart`). **Money** is the cash book: what Cash, M-Pesa and Bank hold, then each day's entries with the account they moved through and the day's money in and out. A move between the business's own accounts shows once and counts neither in nor out, so in less out is how much the book changed (`lib/src/domain/books/cash_book.dart`). The search button opens the full Activity list, which shows as Money in the bar.
@@ -287,29 +324,29 @@ Each space keeps double-entry books (`lib/src/domain/books/`), the base for the 
 ## Testing
 
 ```sh
-dart format --output=none --set-exit-if-changed .
-flutter analyze --fatal-infos
-flutter test
+tool/setup-hooks   # once: git push then runs tool/check
+tool/check         # format, analyse, all tests, dependency scan
+tool/check --fast  # format, analyse, quick tests
 ```
 
 Tests cover the domain rules with synthetic ledgers, money formatting, the theme against the brand tokens, the flavour rules, the database (including a check that the bundled SQLite really is SQLCipher), the My accounts selection and saved onboarding state, SMS capture against a fake inbox (mapping, dedupe, sender filtering, review inbox, scans), the onboarding redirect, and widget tests through onboarding, My accounts and the five tabs. Test data is synthetic only; never commit real SMS, statements or phone numbers.
 
-CI runs the same checks on every pull request and builds a `foss` APK.
+The checks run on your machine (CONTRIBUTING.md, Checks run on your machine); GitHub Actions only builds and releases, including a `foss` APK on pull requests that change the Android build.
 
 ## UI screenshots
 
-The `UI screenshots` workflow (`.github/workflows/ui-screenshots.yml`) builds a `foss` debug APK, starts an Android 14 emulator (Pixel 6 profile) and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports are uploaded as the `ui-screenshots` artifact, and the job summary lists the captured names.
+`tool/check --ui` builds a `foss` debug APK, installs it on the connected emulator or phone and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports land in `build/maestro/`.
 
-It runs on demand (Actions tab, any branch) and on pull requests that change the flows or the workflow. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
+The full `tool/check` runs it when the branch changes the flows or their scripts. Flows select widgets by Semantics identifiers listed in `lib/src/shared/semantic_ids.dart`; `test/widget/semantic_ids_test.dart` fails if one goes missing.
 
-The screenshot workflow uses the debug APK, which skips `FLAG_SECURE`; release builds keep it.
+The flows use the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Branches and releases
 
 `main` is what users get; nothing lands there untested.
 
-1. Pull requests go to `dev`, with a [Conventional Commits](https://www.conventionalcommits.org) title (`feat: …`, `fix: …`, `feat!: …` for a breaking change; `docs`, `test`, `ci`, `chore`, `refactor`, `build`, `perf`, `style`, `revert` too). The `PR title` check enforces it, and squash merges keep the title as the commit message.
-2. Each push to `dev` runs CI and the `APK` workflow (`test-apk.yml`), which builds `play` and `foss` release APKs, one per chip (64-bit ARM, and `-32bit` for older phones), each checked to be under 25 MB (native libraries are compressed in APKs; about 19 MB for 64-bit `play`), with debug symbols kept as a separate artifact for reading crash traces, against the `DEV_PESACLARITY_*` variables (`DEV_PESACLARITY_API_URL` is the server), named like `0.2.0-dev.31`, and keeps them as artifacts for 30 days. When the dev key below is set, it also puts them on the `test-build` pre-release, with the changes since the last release as its notes, so the newest test build is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk), with no GitHub login needed. The tests run in CI, not again in the APK build.
+1. Pull requests go to `dev`, with a [Conventional Commits](https://www.conventionalcommits.org) title (`feat: …`, `fix: …`, `feat!: …` for a breaking change; `docs`, `test`, `ci`, `chore`, `refactor`, `build`, `perf`, `style`, `revert` too). The pre-push hook checks each commit's title, and squash merges keep the title as the commit message.
+2. Each push to `dev` runs the `APK` workflow (`test-apk.yml`), which builds `play` and `foss` release APKs, one per chip (64-bit ARM, and `-32bit` for older phones), each checked to be under 25 MB (native libraries are compressed in APKs; about 19 MB for 64-bit `play`), with debug symbols kept as a separate artifact for reading crash traces, against the `DEV_PESACLARITY_*` variables (`DEV_PESACLARITY_API_URL` is the server), named like `0.2.0-dev.31`, and keeps them as artifacts for 30 days. When the dev key below is set, it also puts them on the `test-build` pre-release, with the changes since the last release as its notes, so the newest test build is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-foss.apk), with no GitHub login needed. The tests run before the push (`tool/check`), not in the APK build.
 3. When `dev` is ready, open a pull request from `dev` to `main`. The `Release gate` check allows only `dev` (or the release pull request) into `main`, and its QA job waits for a reviewer in the `qa` environment to approve after trying the test APK. Merge it with a merge commit, not a squash, so each change keeps its own title.
 4. On `main`, release-please keeps a release pull request open with the next version (SemVer from the titles: `feat` bumps the minor, `fix` the patch; before 1.0 a breaking change bumps the minor) and the `CHANGELOG.md` entry. Merging it tags `vX.Y.Z`, makes a GitHub release with that changelog entry as its notes, and merges the release back into `dev`; the `APK` workflow adds the `0.2.0`-style APKs to the release, so the newest release is always at [pesaclarity-play.apk](https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-play.apk) and [pesaclarity-foss.apk](https://github.com/pesaclarity/pesaclarity-app/releases/latest/download/pesaclarity-foss.apk). Other pushes to `main` build APKs (`0.2.0-main.32`) as artifacts only, against the release `PESACLARITY_*` server variables. The release also uploads to Google Play (below) once `PLAY_PACKAGE_NAME` is set. release-please needs the organisation and repository to allow GitHub Actions to create pull requests (Settings › Actions › General).
 
@@ -337,7 +374,7 @@ The play build signs in with Google through Android's Credential Manager (`Googl
 Without Actions minutes, build the bundle locally with `tool/build_release.sh` and upload it in Play Console; see RELEASING.md, "Manual release to Google Play".
 
 
-The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) runs the tests, builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
+The `Release to Google Play` workflow (`.github/workflows/release-play.yml`) builds a signed `play` App Bundle and uploads it to Google Play. It runs when release-please tags a release, by hand from the Actions tab with a track and status, or on a tag such as `v0.1.0` pushed by hand. Releases and tags go to the track and status set in `PLAY_TAG_TRACK` and `PLAY_TAG_STATUS`. Each upload gets version code `run number + PLAY_VERSION_CODE_OFFSET`, leaving room for builds uploaded by hand; the version name comes from `pubspec.yaml`. The bundle, R8 mapping and Dart symbols are kept as the `pesaclarity-play-release` artifact.
 
 One-time setup:
 

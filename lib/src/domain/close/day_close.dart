@@ -1,3 +1,4 @@
+import '../books/journal_balances.dart';
 import '../ledger/balances.dart';
 import '../ledger/ledger_entry.dart';
 import '../time/business_day.dart';
@@ -21,11 +22,12 @@ class DayCash {
   int get expectedMinor => startMinor + inMinor - outMinor;
 }
 
-/// The drawer on [day], from the [cash] accounts' [entries], for a
-/// business whose day ends as [business] says.
+/// The drawer on [day], from the [cash] accounts' [entries] and the
+/// journal's [balances], for a business whose day ends as [business] says.
 DayCash dayCash(
   Iterable<AccountOpening> cash,
   Iterable<LedgerEntry> entries, {
+  required JournalBalances balances,
   required CalendarDate day,
   BusinessDay business = BusinessDay.midnight,
 }) {
@@ -50,7 +52,7 @@ DayCash dayCash(
     outMinor += e.feeMinor;
   }
   return DayCash(
-    startMinor: totalBalanceAt(accounts, list, at: start, where: (_) => true),
+    startMinor: balances.totalWalletAt(accounts, at: start, where: (_) => true),
     inMinor: inMinor,
     outMinor: outMinor,
   );

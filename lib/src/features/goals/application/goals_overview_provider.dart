@@ -4,7 +4,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/goals_repository.dart';
-import '../../../data/repositories/transactions_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/goals/debt_progress.dart';
 import '../../../domain/goals/net_worth.dart';
@@ -49,18 +49,11 @@ final goalsOverviewProvider = FutureProvider<GoalsOverview>((ref) async {
   );
 
   final accounts = await ref.watch(accountsRepositoryProvider).openings();
-  var from = month.startInstant;
-  for (final a in accounts) {
-    if (a.openingDate.isBefore(from)) from = a.openingDate;
-  }
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: now);
 
   final netWorth = NetWorth.at(
     now: now,
     accounts: accounts,
-    entries: entries,
+    balances: await readJournal(ref),
     debtsOwedMinor: progress.remainingMinor,
     debtsRepaidThisMonthMinor: await debtsRepository.repaidBetween(
       month.startInstant,

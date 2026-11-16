@@ -8,12 +8,16 @@ import 'package:pesaclarity/src/data/database/connection.dart';
 import 'package:pesaclarity/src/data/database/database_key_store.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
+import 'package:pesaclarity/src/data/repositories/journal_repository.dart';
 import 'package:pesaclarity/src/data/repositories/onboarding_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
+import 'package:pesaclarity/src/domain/books/books.dart';
 import 'package:pesaclarity/src/domain/categories/default_categories.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
 import 'package:pesaclarity/src/domain/ledger/own_transfers.dart';
 import 'package:sqlite3/sqlite3.dart';
+
+import '../helpers/balance_oracle.dart';
 
 void main() {
   group('SQLCipher', () {
@@ -701,6 +705,272 @@ void main() {
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
       expect(await db.select(db.movedTransactions).get(), isEmpty);
+    });
+
+    test('migrates a version 32 database: own transfers and claimed '
+        'balances', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      // A balance saved from "Check this message" before claims existed.
+      await old
+          .into(old.reviewItems)
+          .insert(
+            ReviewItemsCompanion.insert(
+              institutionId: 'mpesa',
+              sender: 'MPESA',
+              receivedAt: DateTime.utc(2026, 11, 2),
+              messageHash: 'checked',
+              reason: 'no rule matched',
+            ),
+          );
+      for (final (hash, balance) in [('checked', 3800000), ('parsed', 5000)]) {
+        await old
+            .into(old.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: account,
+                occurredAt: DateTime.utc(2026, 11, 2),
+                amountMinor: 100,
+                direction: TransactionDirection.outflow,
+                source: TransactionSource.sms,
+                messageHash: Value(hash),
+                balanceAfterMinor: Value(balance),
+              ),
+            );
+      }
+      await old.customStatement('DROP TABLE declined_transfers');
+      // transfer_account_id stays: SQLite cannot drop a foreign key column,
+      // and the step adds it only when missing.
+      for (final column in [
+        'claimed_balance_minor',
+        'owed_after_minor',
+        'owed_due_at',
+      ]) {
+        await old.customStatement(
+          'ALTER TABLE transactions DROP COLUMN $column',
+        );
+      }
+      await old.customStatement('PRAGMA user_version = 32');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final rows = {
+        for (final r in await db.select(db.transactions).get())
+          r.messageHash: r,
+      };
+      expect(rows['checked']!.balanceAfterMinor, isNull);
+      expect(rows['checked']!.claimedBalanceMinor, 3800000);
+      expect(rows['parsed']!.balanceAfterMinor, 5000);
+      expect(rows['parsed']!.claimedBalanceMinor, isNull);
+      expect(await db.select(db.declinedTransfers).get(), isEmpty);
+    });
+
+    test('the version 33 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 32');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+    });
+
+    test(
+      'migrates a version 33 database: the journal from every record',
+      () async {
+        final old = AppDatabase(NativeDatabase(file));
+        Future<int> account(String name, AccountType type) => old
+            .into(old.accounts)
+            .insert(
+              AccountsCompanion.insert(
+                name: name,
+                type: type,
+                openingBalanceMinor: const Value(100000),
+                openingDate: DateTime.utc(2026, 11),
+              ),
+            );
+        final mpesa = await account('M-Pesa', AccountType.mpesa);
+        final kcb = await account('KCB', AccountType.bank);
+        var n = 0;
+        Future<int> add(
+          int accountId,
+          int day,
+          int amount,
+          TransactionDirection direction,
+          TransactionKind kind, {
+          int fee = 0,
+          int? balance,
+        }) => old
+            .into(old.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: accountId,
+                occurredAt: DateTime.utc(2026, 11, day, 9),
+                amountMinor: amount,
+                direction: direction,
+                kind: Value(kind),
+                feeMinor: Value(fee),
+                source: TransactionSource.sms,
+                dedupeKey: Value('k${n++}'),
+                balanceAfterMinor: Value(balance),
+              ),
+            );
+        const out = TransactionDirection.outflow;
+        const into = TransactionDirection.inflow;
+        await add(mpesa, 2, 120000, out, TransactionKind.till, balance: 0);
+        await add(mpesa, 3, 20000, into, TransactionKind.fulizaDraw, fee: 200);
+        await add(mpesa, 4, 50000, into, TransactionKind.received, balance: 0);
+        final sent = await add(
+          kcb,
+          5,
+          30000,
+          out,
+          TransactionKind.bank,
+          fee: 50,
+        );
+        final got = await add(mpesa, 5, 30000, into, TransactionKind.received);
+        await DriftTransactionsRepository(old).match(sent, got);
+        await old.customStatement('DROP TABLE postings');
+        await old.customStatement('DROP TABLE journal_entries');
+        await old.customStatement('PRAGMA user_version = 33');
+        await old.close();
+
+        final db = AppDatabase(NativeDatabase(file));
+        addTearDown(db.close);
+        expect(await userVersion(db), db.schemaVersion);
+        final entries = await db.select(db.journalEntries).get();
+        final posted = {
+          for (final e in entries)
+            if (e.sourceKind == JournalSource.transaction) e.sourceId,
+        };
+        expect(posted, {
+          for (final t in await db.select(db.transactions).get()) t.id,
+        });
+        final journal = JournalRepository(db);
+        expect(await journal.unbalanced(), isEmpty);
+        expect(
+          await reconcileWithOracle(db, at: DateTime.utc(2026, 12)),
+          isEmpty,
+        );
+        expect((await journal.sync()).changed, isFalse);
+      },
+    );
+
+    test('migrates a version 34 database: entries carry their account and '
+        'sync account by account', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      for (final (day, balance) in [(2, 9000), (3, 7000)]) {
+        await old
+            .into(old.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: account,
+                occurredAt: DateTime.utc(2026, 11, day),
+                amountMinor: 1000,
+                direction: TransactionDirection.outflow,
+                source: TransactionSource.sms,
+                balanceAfterMinor: Value(balance),
+              ),
+            );
+      }
+      await JournalRepository(old).rebuild();
+      final before = await old.select(old.journalEntries).get();
+      // As version 34 left it.
+      await old.customStatement('UPDATE journal_entries SET account_id = NULL');
+      for (final name in [
+        for (final r
+            in await old
+                .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'trigger'",
+                )
+                .get())
+          r.read<String>('name'),
+      ]) {
+        await old.customStatement('DROP TRIGGER $name');
+      }
+      await old.customStatement('DROP TABLE journal_dirty');
+      await old.customStatement('PRAGMA user_version = 34');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final entries = await db.select(db.journalEntries).get();
+      // Tagged in place; nothing needed reposting.
+      expect(entries, hasLength(before.length));
+      expect(entries.map((e) => e.accountId).toSet(), {account});
+      // The triggers are back: a new payment marks the account.
+      await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 11, 4),
+              amountMinor: 1000,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.sms,
+            ),
+          );
+      expect(
+        [for (final d in await db.select(db.journalDirty).get()) d.accountId],
+        [account],
+      );
+      final journal = JournalRepository(db);
+      expect((await journal.sync()).posted, 1);
+      expect((await journal.rebuild()).changed, isFalse);
+    });
+
+    test('the version 34 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'Cash',
+              type: AccountType.cash,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      await old
+          .into(old.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 11, 2),
+              amountMinor: 500,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.manual,
+            ),
+          );
+      await old.customStatement('PRAGMA user_version = 33');
+      await old.close();
+      var db = AppDatabase(NativeDatabase(file));
+      final first = await db.select(db.journalEntries).get();
+      expect(first, hasLength(2));
+      await db.customStatement('PRAGMA user_version = 33');
+      await db.close();
+      db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await db.select(db.journalEntries).get(), hasLength(2));
     });
 
     test('migrates a version 31 database: open tabs', () async {

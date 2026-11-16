@@ -109,6 +109,9 @@ void main() {
             ),
           );
 
+      // Listened, as Home does, so a change to the ledger while it works
+      // rebuilds it instead of pausing it.
+      container.listen(safeToSpendTodayProvider, (_, _) {});
       final result = await container.read(safeToSpendTodayProvider.future);
       expect(result, isNotNull);
       expect(result!.today, CalendarDate(2026, 10, 26));

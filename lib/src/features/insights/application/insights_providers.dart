@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/categories_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/insights/findings.dart';
@@ -23,7 +24,11 @@ final insightsSummaryProvider = FutureProvider<InsightsSummary>((ref) async {
         from: month.addMonths(-6).startInstant,
         to: month.endInstant,
       );
-  return InsightsSummary.of(entries, month: month);
+  return InsightsSummary.of(
+    entries,
+    month: month,
+    journal: await readJournal(ref),
+  );
 });
 
 /// Tag names by id.
@@ -50,7 +55,12 @@ final firstInsightProvider = FutureProvider<FirstInsight>((ref) async {
   final from =
       range.firstDay(today)?.startInstant ??
       (entries.isEmpty ? today.startInstant : entries.first.occurredAt);
-  return FirstInsight.of(entries, from: from, to: to);
+  return FirstInsight.of(
+    entries,
+    from: from,
+    to: to,
+    journal: await readJournal(ref),
+  );
 });
 
 /// The period the spending charts show.

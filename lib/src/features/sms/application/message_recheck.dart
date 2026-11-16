@@ -129,6 +129,7 @@ class MessageRecheck {
             amountMinor: fresh.amountMinor,
             feeMinor: fresh.feeMinor,
             balanceAfterMinor: fresh.balanceAfterMinor,
+            owedAfterMinor: fresh.owedAfterMinor,
             // A rate got for the old currency no longer describes it.
             fxRateCurrency: currencyChanged
                 ? const Value(null)

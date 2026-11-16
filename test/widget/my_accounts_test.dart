@@ -48,11 +48,11 @@ void main() {
       isTrue,
     );
 
+    await scrollTo(tester, _button('Scan my messages'));
     expect(
       tester.widget<FilledButton>(_button('Scan my messages')).enabled,
       isTrue,
     );
-    await scrollTo(tester, _button('Scan my messages'));
     await tester.tap(_button('Scan my messages'));
     await tester.pumpAndSettle();
     expect(

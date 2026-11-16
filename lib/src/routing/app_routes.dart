@@ -39,6 +39,10 @@ abstract final class AppRoutes {
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
+
+  /// Every account's balance, and the balance check.
+  static const balances = '/home/profile/balances';
+  static const balanceCheck = '/home/profile/balances/check';
   static const chooseAccounts = '/home/profile/accounts/choose';
   static const backup = '/home/profile/backup';
   static const backupSetup = '/home/profile/backup/setup';

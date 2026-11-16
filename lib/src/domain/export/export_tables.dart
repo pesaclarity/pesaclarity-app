@@ -294,6 +294,7 @@ String kindLabel(TransactionKind kind) => switch (kind) {
   TransactionKind.charge => 'Charge',
   TransactionKind.reversal => 'Reversal',
   TransactionKind.bank => 'Bank',
+  TransactionKind.correction => 'Balance correction',
 };
 
 String leakTypeLabel(LeakType type) => switch (type) {
@@ -325,4 +326,5 @@ String accountTypeLabel(AccountType type) => switch (type) {
   AccountType.sacco => 'SACCO',
   AccountType.moneyMarket => 'Money market',
   AccountType.cash => 'Cash',
+  AccountType.other => 'Other',
 };

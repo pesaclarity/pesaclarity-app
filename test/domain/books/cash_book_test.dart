@@ -6,6 +6,7 @@ import 'package:pesaclarity/src/domain/ledger/balances.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
+import '../../helpers/journal_reads.dart';
 import '../fixtures.dart';
 
 void main() {
@@ -45,6 +46,7 @@ void main() {
   CashBook book(List<LedgerEntry> entries, {CalendarDate? from}) => CashBook.of(
     entries,
     accounts: accounts,
+    journal: journalOf(accounts, entries),
     to: to,
     from: from ?? CalendarDate(2026, 11, 1),
   );
@@ -66,6 +68,7 @@ void main() {
     final b = CashBook.of(
       const [],
       accounts: [accounts.first],
+      journal: journalOf([accounts.first], const []),
       to: to,
       from: CalendarDate(2026, 11, 1),
     );

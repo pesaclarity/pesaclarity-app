@@ -5,6 +5,7 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/day_closes_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/sales_repository.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -222,6 +223,7 @@ final reportCashBookProvider = FutureProvider.family<CashBook, ReportPeriod>((
   return CashBook.of(
     entries,
     accounts: accounts,
+    journal: await readJournal(ref),
     to: to,
     from: period.from,
     currency: BaseCurrency.code,

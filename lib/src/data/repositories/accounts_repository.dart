@@ -13,6 +13,9 @@ import '../database/database_providers.dart';
 abstract interface class AccountsRepository {
   Stream<List<Account>> watchAll();
 
+  /// Every account, by name, once.
+  Future<List<Account>> all();
+
   Future<int> add(AccountsCompanion account);
 
   /// The account a message from [institutionId] belongs to. [reference]
@@ -70,6 +73,11 @@ class DriftAccountsRepository implements AccountsRepository {
   Stream<List<Account>> watchAll() => (_db.select(
     _db.accounts,
   )..orderBy([(a) => OrderingTerm(expression: a.name)])).watch();
+
+  @override
+  Future<List<Account>> all() => (_db.select(
+    _db.accounts,
+  )..orderBy([(a) => OrderingTerm(expression: a.name)])).get();
 
   @override
   Future<int> add(AccountsCompanion account) =>

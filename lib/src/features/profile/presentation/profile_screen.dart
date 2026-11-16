@@ -21,6 +21,8 @@ import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/account_section.dart';
 import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
+import '../../balances/application/balances_providers.dart';
+import '../../balances/presentation/balance_text.dart';
 import '../../close/application/business_day_providers.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../export/application/export_service.dart';
@@ -61,6 +63,22 @@ class ProfileScreen extends ConsumerWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => context.go(AppRoutes.myAccounts),
       ),
+    );
+    final balances = ref.watch(balancesOverviewProvider).value;
+    final balancesRow = ListTile(
+      key: const Key('profile-balances'),
+      leading: const RowIcon(Icons.account_balance_wallet_outlined),
+      title: const Text(BalanceText.balancesTitle),
+      subtitle: Text(
+        balances == null
+            ? 'What each account holds'
+            : BalanceText.profileRow(
+                balances.accounts.length,
+                balances.needALook.length,
+              ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go(AppRoutes.balances),
     );
     final connect = ListTile(
       key: const Key('profile-connect-messages'),
@@ -233,6 +251,7 @@ class ProfileScreen extends ConsumerWidget {
     final money = [
       spacesRow,
       myAccounts,
+      balancesRow,
       if (ref.watch(activeSpaceProvider).kind == SpaceKind.business) ...[
         businessRouting,
         documents,

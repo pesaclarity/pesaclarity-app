@@ -71,6 +71,12 @@ TransactionsCompanion transactionFromParsed(
           ? null
           : inCurrencyMinor(parsed.balanceMinor!, parsed.currency),
     ),
+    owedAfterMinor: Value(
+      parsed.owedMinor == null
+          ? null
+          : inCurrencyMinor(parsed.owedMinor!, parsed.currency),
+    ),
+    owedDueAt: Value(parsed.due),
   );
 }
 

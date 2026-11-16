@@ -1,20 +1,63 @@
 name: iOS build
 
-# Compiles the iPhone app without signing, to check the Swift code and the
-# Xcode project. Run by hand: macOS runners cost ten times the minutes of
-# Linux ones. Signing and TestFlight need an Apple developer account first.
+# Builds the iPhone app without signing. The unsigned .ipa is for testers who
+# sideload with their own Apple ID (SideStore or AltStore re-sign it, and it
+# lasts 7 days per signing). Run by hand. TestFlight needs an Apple developer
+# account first. evening-builds.yml starts it on dev each evening; it only
+# builds when dev has moved since the last iPhone build, unless forced.
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Put the unsigned .ipa on the test-build release
+        type: boolean
+        default: true
+      force:
+        description: Build even if this commit is already the iPhone test build
+        type: boolean
+        default: false
+      simulator:
+        description: Also build for the simulator
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   FLUTTER_VERSION: "3.47.8"
 
 jobs:
+  # A cheap Linux check first, so an unchanged evening costs no macOS time.
+  changes:
+    name: Anything new to build?
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$FORCE" = true ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          built="$(gh release download test-build -p pesaclarity-ios-commit.txt -O - 2>/dev/null || true)"
+          if [ "$built" = "$GITHUB_SHA" ]; then
+            echo "The iPhone test build is already ${GITHUB_SHA::7}; nothing to build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build for iPhone (unsigned)
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -60,10 +103,53 @@ jobs:
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL"
 
+      # An .ipa is the .app inside a Payload folder, zipped. Unsigned: the
+      # sideloading tool signs it with the tester's Apple ID, which leaves out
+      # App Attest, so sign-in stays off on these builds.
+      - name: Package the unsigned .ipa
+        run: |
+          out="$RUNNER_TEMP/ipa"
+          mkdir -p "$out/Payload"
+          cp -R build/ios/iphoneos/Runner.app "$out/Payload/"
+          (cd "$out" && zip -qr pesaclarity-ios-unsigned.ipa Payload)
+          echo "IPA=$out/pesaclarity-ios-unsigned.ipa" >> "$GITHUB_ENV"
+
+      # A SideStore/AltStore source: a small list naming the newest build, so
+      # testers who add it see Update in SideStore when a new one is out.
+      - name: Write the SideStore source
+        run: |
+          plist=build/ios/iphoneos/Runner.app/Info.plist
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$plist")" \
+          BUILD="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$plist")" \
+          MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print MinimumOSVersion' "$plist")" \
+          SIZE="$(stat -f%z "$IPA")" \
+          IPA_URL="https://github.com/${{ github.repository }}/releases/download/test-build/pesaclarity-ios-unsigned.ipa" \
+          python3 tool/sidestore_source.py > "$RUNNER_TEMP/ipa/pesaclarity-sidestore.json"
+          echo "SOURCE=$RUNNER_TEMP/ipa/pesaclarity-sidestore.json" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pesaclarity-ios-unsigned
+          path: ${{ env.IPA }}
+          retention-days: 14
+
+      - name: Put on the test-build release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        # The commit file tells the next evening run what is already built.
+        run: |
+          echo "$GITHUB_SHA" > "$RUNNER_TEMP/ipa/pesaclarity-ios-commit.txt"
+          gh release upload test-build "$IPA" "$SOURCE" \
+            "$RUNNER_TEMP/ipa/pesaclarity-ios-commit.txt" --clobber
+
       - name: Build for the simulator
+        if: inputs.simulator
         run: flutter build ios --simulator --debug
 
       - uses: actions/upload-artifact@v7
+        if: inputs.simulator
         with:
           name: pesaclarity-ios-simulator
           path: build/ios/iphonesimulator/Runner.app

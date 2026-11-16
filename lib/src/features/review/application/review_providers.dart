@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,7 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/reader/fuliza_wording.dart';
 import '../../../domain/reader/message_reading.dart';
 import '../../../domain/reader/reader_tokens.dart';
 import '../../../domain/reader/reading_template.dart';
@@ -105,6 +107,7 @@ class ReviewController {
         receivedAt: item.receivedAt,
         messageHash: item.messageHash,
         currency: currency,
+        ledgerKind: item.body == null ? null : fulizaKindIn(item.body!),
       ),
     ]);
     final body = item.body;
@@ -117,6 +120,67 @@ class ReviewController {
       }
     }
     await _ref.read(reviewInboxRepositoryProvider).resolve(item.id);
+  }
+
+  /// The account [item]'s messages feed, made the first time it is needed.
+  Future<int?> messageAccount(ReviewItem item, {String? currency}) async {
+    final institution = _institution(item.institutionId);
+    if (institution == null) return null;
+    return _ref
+        .read(accountsRepositoryProvider)
+        .accountForInstitution(
+          institution.id,
+          name: institution.name,
+          type: institution.type,
+          openingDate: item.receivedAt,
+          currency: currency ?? institution.pack.currency,
+        );
+  }
+
+  /// Adds [item] as money moved between the person's own accounts: out of
+  /// the message's account into [otherAccountId] when [messageIsFrom], else
+  /// the other way. It pairs at once with [partnerId] when the other side is
+  /// already here, else it waits up to three days for it. Returns the new
+  /// transaction's id, or null when the accounts are the same.
+  Future<int?> confirmOwnTransfer(
+    ReviewItem item, {
+    required bool messageIsFrom,
+    required int otherAccountId,
+    required int amountMinor,
+    required int feeMinor,
+    required DateTime at,
+    required String currency,
+    int? partnerId,
+  }) async {
+    final own = await messageAccount(item, currency: currency);
+    if (own == null || own == otherAccountId) return null;
+    final transactions = _ref.read(transactionsRepositoryProvider);
+    final id = await transactions.add(
+      TransactionsCompanion.insert(
+        accountId: own,
+        occurredAt: at,
+        amountMinor: amountMinor,
+        direction: messageIsFrom
+            ? TransactionDirection.outflow
+            : TransactionDirection.inflow,
+        kind: const Value(TransactionKind.bank),
+        feeMinor: Value(messageIsFrom ? feeMinor : 0),
+        currency: Value(currency),
+        source: TransactionSource.sms,
+        messageHash: Value(item.messageHash),
+        transferAccountId: Value(otherAccountId),
+      ),
+    );
+    if (partnerId != null) {
+      await transactions.match(
+        messageIsFrom ? id : partnerId,
+        messageIsFrom ? partnerId : id,
+      );
+    } else {
+      await transactions.pairOwnTransfers(from: at, to: at);
+    }
+    await _ref.read(reviewInboxRepositoryProvider).resolve(item.id);
+    return id;
   }
 
   /// Clears [item]: it holds no transaction.

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/spaces/business_setup.dart';
 import '../domain/spaces/space.dart';
+import '../features/balances/application/balances_providers.dart';
 import '../features/currency/application/currency_controller.dart';
 import '../features/home/presentation/add_menu.dart';
 import '../features/invoices/application/invoice_providers.dart';
@@ -158,6 +159,7 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(liveSmsCaptureProvider, (_, _) {});
+    ref.listen(pairHistoryOnceProvider, (_, _) {});
     ref.listen(reminderSyncProvider, (_, _) {});
     ref.listen(ratesRefreshProvider, (_, _) {});
     ref.listen(saleMatcherProvider, (_, _) {});
