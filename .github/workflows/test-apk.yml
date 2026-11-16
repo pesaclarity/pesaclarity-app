@@ -4,8 +4,10 @@ name: APK
 # signed with the dev key (or a throwaway key without it), for ARM phones.
 # Each run keeps them as artifacts for 30 days, and puts them on Releases:
 #
-# - dev, every push: the test-build pre-release, for QA to try before dev is
-#   merged to main. Its notes list the changes since the last release.
+# - dev, once each evening (started by evening-builds.yml) or by hand: the
+#   test-build pre-release, for QA to try before dev is merged to main. It
+#   only builds when dev has moved since the last test build. Its notes list
+#   the changes since the last release.
 #   https://github.com/pesaclarity/pesaclarity-app/releases/download/test-build/pesaclarity-play.apk
 # - main, when the push is a release (merging release-please's pull request):
 #   that version's release, whose notes are the changelog.
@@ -14,12 +16,19 @@ name: APK
 # Tests run on the developer's machine before each push (tool/check), not here.
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
     paths-ignore:
       - "*.md"
       - docs/**
       - .github/ISSUE_TEMPLATE/**
+  # Run on dev for a test build. It skips itself when the test-build release
+  # already has dev's newest commit, unless forced.
   workflow_dispatch:
+    inputs:
+      force:
+        description: Build even if this commit is already the test build
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,8 +43,35 @@ env:
   FLUTTER_VERSION: "3.47.8"
 
 jobs:
+  changes:
+    name: Anything new to build?
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/dev ] || [ "$FORCE" = true ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          built="$(gh api "repos/$GH_REPO/git/ref/tags/test-build" --jq .object.sha 2>/dev/null || true)"
+          if [ "$built" = "$GITHUB_SHA" ]; then
+            echo "The test build is already ${GITHUB_SHA::7}; nothing to build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build ${{ matrix.flavor }} APK
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -270,7 +306,6 @@ jobs:
   website:
     name: Refresh the website
     needs: build
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -282,7 +317,7 @@ jobs:
             echo "::warning::Website not refreshed; add the WEB_DISPATCH_TOKEN secret (README, Website)."
             exit 0
           fi
-          gh api repos/pesaclarity/pesaclarity-web/dispatches \
+          gh api repos/pesaclarity/pesaclarity.github.io/dispatches \
             -f event_type=app-build \
             -f "client_payload[ref]=$GITHUB_REF_NAME" \
             -f "client_payload[sha]=$GITHUB_SHA"

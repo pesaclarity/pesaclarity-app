@@ -1,0 +1,30 @@
+name: Evening test builds
+
+# Once each evening, asks for an Android and an iPhone test build of dev.
+# Each workflow checks first and skips itself when dev has not moved since
+# its last test build, so a quiet day costs a few seconds. Feature branches
+# and pushes to dev run nothing here: tool/check runs before every push.
+#
+# A schedule only runs from the default branch (main), so this starts working
+# once it reaches main. Until then, run test-apk.yml and ios-build.yml on dev
+# by hand.
+on:
+  schedule:
+    - cron: "37 16 * * *" # 19:37 in Nairobi
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  start:
+    name: Start the test builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh workflow run test-apk.yml --ref dev
+          gh workflow run ios-build.yml --ref dev

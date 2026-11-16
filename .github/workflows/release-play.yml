@@ -3,9 +3,7 @@ name: Release to Google Play
 # Builds a signed play-flavour App Bundle and uploads it to Google Play.
 # Runs by hand from the Actions tab, when release-please tags a release, or
 # on a version tag such as v0.2.0 (releases and tags use the PLAY_TAG_TRACK
-# and PLAY_TAG_STATUS variables). Pull requests
-# that change this workflow or the app's Gradle build check the signed build
-# with a throwaway key and skip the upload. Tests run before each push
+# and PLAY_TAG_STATUS variables). Tests run before each push
 # (tool/check, from the pre-push hook), not here.
 #
 # Secrets: PLAY_UPLOAD_KEYSTORE_BASE64, PLAY_UPLOAD_KEYSTORE_PASSWORD,
@@ -41,10 +39,6 @@ on:
       status:
         type: string
         required: false
-  pull_request:
-    paths:
-      - .github/workflows/release-play.yml
-      - android/app/build.gradle.kts
 
 permissions:
   contents: read

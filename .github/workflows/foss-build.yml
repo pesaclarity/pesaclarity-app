@@ -1,8 +1,8 @@
 name: Foss build
 
 # A release build of the foss flavour, checked for Google sign-in code.
-# Pull requests run it only when the Android build or dependencies change;
-# main runs it after every app change, to catch release-only build failures.
+# main runs it after every app change, to catch release-only build failures;
+# run it by hand to check a branch first. Pull requests don't run it.
 on:
   push:
     branches: [main]
@@ -15,15 +15,6 @@ on:
       - tool/prepare_foss.sh
       - tool/foss/**
       - tool/support.env
-      - .github/workflows/foss-build.yml
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - android/**
-      - pubspec.yaml
-      - pubspec.lock
-      - tool/prepare_foss.sh
-      - tool/foss/**
       - .github/workflows/foss-build.yml
   workflow_dispatch:
 

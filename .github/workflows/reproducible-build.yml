@@ -18,16 +18,6 @@ on:
       - tool/foss/**
       - tool/compare_apks.py
       - .github/workflows/reproducible-build.yml
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - android/**
-      - pubspec.yaml
-      - pubspec.lock
-      - tool/prepare_foss.sh
-      - tool/foss/**
-      - tool/compare_apks.py
-      - .github/workflows/reproducible-build.yml
   workflow_dispatch:
 
 permissions:
