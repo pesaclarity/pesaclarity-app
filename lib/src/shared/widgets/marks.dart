@@ -158,13 +158,13 @@ class TrailingLink extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: Theme.of(context).textTheme.labelLarge!
-        .copyWith(color: Theme.of(context).colorScheme.onSurface),
+        .copyWith(color: PesaColors.of(context).link),
   );
 }
 
 /// A small outlined pill for an action beside a title, in a row or under a
-/// card: "Count stock", "See all", "Remind". Neutral, so red stays for the
-/// one main button.
+/// card: "Count stock", "See all", "Remind". Outlined in the brand accent;
+/// the one main button is the filled red one.
 class PillButton extends StatelessWidget {
   const PillButton({
     required this.label,
@@ -183,7 +183,10 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = PesaColors.of(context).link;
     final style = OutlinedButton.styleFrom(
+      foregroundColor: accent,
+      side: BorderSide(color: accent),
       minimumSize: const Size(0, 36),
       padding: EdgeInsets.fromLTRB(icon == null ? 14 : 10, 0, 14, 0),
       tapTargetSize: MaterialTapTargetSize.padded,

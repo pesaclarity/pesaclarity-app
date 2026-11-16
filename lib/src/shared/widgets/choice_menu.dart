@@ -45,10 +45,10 @@ class ChoiceMenu<T> extends StatelessWidget {
         .map((o) => o.$2)
         .firstOrNull;
     final text = current ?? '';
-    // A choice that narrows the list is picked out with a neutral tint and
-    // a text-coloured edge, not red.
-    final fill = highlight ? colors.selected : colors.field;
-    final ink = scheme.onSurface;
+    // A choice that narrows the list is picked out in the brand accent on
+    // the soft tint, as a switch's chosen side is.
+    final fill = highlight ? colors.brandSoft : colors.field;
+    final ink = highlight ? colors.link : scheme.onSurface;
     return MenuAnchor(
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
@@ -58,7 +58,7 @@ class ChoiceMenu<T> extends StatelessWidget {
             leadingIcon: Icon(
               Icons.check,
               size: 18,
-              color: option == value ? scheme.onSurface : Colors.transparent,
+              color: option == value ? colors.link : Colors.transparent,
             ),
             onPressed: () => onChanged(option),
             child: Text(label),

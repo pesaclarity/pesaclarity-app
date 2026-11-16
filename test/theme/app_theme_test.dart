@@ -24,7 +24,7 @@ void main() {
       final colors = theme.extension<PesaColors>()!;
       expect(colors.brandSoft, const Color(0xFFFDECEE));
       // Links are in the text colour.
-      expect(colors.link, const Color(0xFF1C1215));
+      expect(colors.link, const Color(0xFFC8102E));
       expect(colors.border, const Color(0xFFEFE6E7));
       expect(colors.successText, const Color(0xFF047857));
       expect(colors.warning, const Color(0xFFB45309));
@@ -130,7 +130,7 @@ void main() {
       expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFCFC3C6));
       expect(colors.textMuted, const Color(0xFFCFC3C6));
       expect(colors.border, const Color(0xFF5A4A4F));
-      expect(colors.link, const Color(0xFFF5EEF0));
+      expect(colors.link, const Color(0xFFFF3C5B));
     });
 
     test('light strengthens text, muted text and edges', () {

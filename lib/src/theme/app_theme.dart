@@ -215,13 +215,29 @@ abstract final class AppTheme {
           textStyle: textTheme.labelLarge,
         ),
       ),
-      // Chips sit a step above the card; a selected one takes a neutral
-      // tint. The theme's padded tap target keeps each one, and its ×,
-      // at least 48 dp tall.
+      // The chosen side of a switch is picked out in the brand accent on a
+      // soft tint: light red in light, neutral in dark, never pink.
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) =>
+                states.contains(WidgetState.selected) ? colors.brandSoft : null,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.link
+                : scheme.onSurface,
+          ),
+          side: WidgetStatePropertyAll(BorderSide(color: colors.border)),
+        ),
+      ),
+      // Chips sit a step above the card; a selected one takes the soft
+      // tint with an accent tick. The theme's padded tap target keeps each
+      // one, and its ×, at least 48 dp tall.
       chipTheme: ChipThemeData(
         backgroundColor: colors.field,
-        selectedColor: colors.selected,
-        checkmarkColor: scheme.onSurface,
+        selectedColor: colors.brandSoft,
+        checkmarkColor: colors.link,
         deleteIconColor: scheme.onSurfaceVariant,
         side: BorderSide(color: colors.border),
         shape: const StadiumBorder(),

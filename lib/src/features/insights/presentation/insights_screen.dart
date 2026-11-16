@@ -467,7 +467,7 @@ class _HealthCard extends ConsumerWidget {
                     value: '${pillarPoints(index, pillar)} of 25',
                     fraction: index.pillarCentipoints(pillar) / 2500,
                     color: pillar == index.weakestPillar
-                        ? colors.link
+                        ? Theme.of(context).colorScheme.onSurface
                         : colors.textMuted,
                   ),
                 ),
