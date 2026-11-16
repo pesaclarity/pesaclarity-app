@@ -173,7 +173,7 @@ void main() {
             expect(a.kind, ReplyKind.nothingIn);
             expect(
               filled(a),
-              "Nothing came in this month. The 3,920 that moved between your "
+              'Nothing came in this month. The 3,920 that moved between your '
               "own accounts isn't counted as money in.",
             );
           });

@@ -657,7 +657,7 @@ void main() {
         expect(a.figureMinor, 0, reason: q);
         expect(
           text(a),
-          "Nothing came in this month. The 3920 that moved between your own "
+          'Nothing came in this month. The 3920 that moved between your own '
           "accounts isn't counted as money in.",
           reason: q,
         );
