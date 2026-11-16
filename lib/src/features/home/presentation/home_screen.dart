@@ -382,6 +382,8 @@ class _SafeToSpendCard extends StatelessWidget {
       ),
       // The figure is already masked while hidden: keep the eye to show it.
       showEye: true,
+      // Below zero is the one sign of trouble: a danger-coloured figure.
+      belowZero: (result.onHandMinor ?? 0) < 0,
       onTap: onTap,
     );
   }
@@ -442,6 +444,7 @@ class _UntilNextMoneyCard extends StatelessWidget {
       figure: _kes(context, result.leftTodayMinor),
       caption: '$when\n$onHand$setAside',
       showEye: true,
+      belowZero: result.belowZero,
       onTap: onTap,
     );
   }

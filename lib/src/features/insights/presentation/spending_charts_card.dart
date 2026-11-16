@@ -24,13 +24,12 @@ String _amount(BuildContext context, int minor) =>
 /// Colours for chart series, from the theme, told apart by lightness as well
 /// as hue. The last is for "Other".
 List<Color> chartSeries(BuildContext context) {
-  final scheme = Theme.of(context).colorScheme;
   final colors = PesaColors.of(context);
   return [
-    scheme.primary,
+    colors.link,
     colors.warning,
     colors.success,
-    scheme.primary.withValues(alpha: .45),
+    colors.link.withValues(alpha: .45),
     colors.textMuted,
     colors.border,
   ];
@@ -387,7 +386,7 @@ class _SoFarCard extends StatelessWidget {
                       chart.window.days,
                       chart.previousCumulative.length,
                     ),
-                    currentColor: theme.colorScheme.primary,
+                    currentColor: PesaColors.of(context).link,
                     previousColor: colors.textMuted,
                     gridColor: colors.border,
                   ),
@@ -397,7 +396,7 @@ class _SoFarCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                _Key(color: theme.colorScheme.primary, label: 'This $name'),
+                _Key(color: PesaColors.of(context).link, label: 'This $name'),
                 const SizedBox(width: 16),
                 _Key(
                   color: colors.textMuted,
@@ -570,7 +569,7 @@ class MonthlyTrendCard extends StatelessWidget {
                                         fraction(m.spendingMinor),
                                 decoration: BoxDecoration(
                                   color: i == trend.length - 1
-                                      ? theme.colorScheme.primary
+                                      ? PesaColors.of(context).link
                                       : colors.border,
                                   borderRadius: BorderRadius.circular(8),
                                 ),

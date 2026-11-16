@@ -59,7 +59,11 @@ void main() {
     await pumpBalances(tester, db, AppRoutes.balances);
     expect(find.text('DAY TO DAY'), findsOneWidget);
     expect(find.text('SAVINGS'), findsOneWidget);
-    expect(find.text('Off by 1,200'), findsOneWidget);
+    expect(find.text('1,200 short'), findsOneWidget);
+    expect(
+      find.text('1 matches · 1 needs a look · 2 have no messages'),
+      findsOneWidget,
+    );
     expect(find.text('Count again'), findsOneWidget);
     expect(find.textContaining('1,300 Fuliza owed'), findsOneWidget);
     // The total leaves savings out, as On hand does: -1,300 + 50 + 100.

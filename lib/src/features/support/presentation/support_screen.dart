@@ -70,7 +70,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     if (config == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Support Pesa Clarity')),
-        body: const EmptyNote('Giving is on the website.'),
+        body: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: Layout.gutter),
+          child: EmptyNote('Giving is on the website.'),
+        ),
       );
     }
     final state = ref.watch(supportStateProvider).value;

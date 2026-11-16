@@ -155,7 +155,7 @@ class _Body extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: (fund / target).clamp(0, 1).toDouble(),
                       minHeight: 8,
-                      color: theme.colorScheme.primary,
+                      color: colors.link,
                       backgroundColor: colors.border,
                     ),
                   ),

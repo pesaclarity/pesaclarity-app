@@ -14,6 +14,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     required this.success,
     required this.successText,
     required this.warning,
+    required this.warningStrong,
     required this.markBlue,
     required this.markPurple,
     required this.markTeal,
@@ -31,6 +32,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: BrandTokens.success,
     successText: BrandTokens.successText,
     warning: BrandTokens.warning,
+    warningStrong: BrandTokens.warningStrong,
     markBlue: BrandTokens.markBlue,
     markPurple: BrandTokens.markPurple,
     markTeal: BrandTokens.markTeal,
@@ -55,6 +57,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: BrandTokens.darkSuccess,
     successText: BrandTokens.darkSuccessText,
     warning: BrandTokens.darkWarning,
+    warningStrong: BrandTokens.darkWarningStrong,
     markBlue: BrandTokens.darkMarkBlue,
     markPurple: BrandTokens.darkMarkPurple,
     markTeal: BrandTokens.darkMarkTeal,
@@ -79,6 +82,9 @@ class PesaColors extends ThemeExtension<PesaColors> {
   final Color success;
   final Color successText;
   final Color warning;
+
+  /// The worse of two warnings, such as a struggling health score.
+  final Color warningStrong;
 
   /// Only for marking the parts of a message, each its own colour.
   final Color markBlue;
@@ -129,6 +135,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     Color? success,
     Color? successText,
     Color? warning,
+    Color? warningStrong,
     Color? markBlue,
     Color? markPurple,
     Color? markTeal,
@@ -144,6 +151,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     success: success ?? this.success,
     successText: successText ?? this.successText,
     warning: warning ?? this.warning,
+    warningStrong: warningStrong ?? this.warningStrong,
     markBlue: markBlue ?? this.markBlue,
     markPurple: markPurple ?? this.markPurple,
     markTeal: markTeal ?? this.markTeal,
@@ -164,6 +172,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
       success: Color.lerp(success, other.success, t)!,
       successText: Color.lerp(successText, other.successText, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
+      warningStrong: Color.lerp(warningStrong, other.warningStrong, t)!,
       markBlue: Color.lerp(markBlue, other.markBlue, t)!,
       markPurple: Color.lerp(markPurple, other.markPurple, t)!,
       markTeal: Color.lerp(markTeal, other.markTeal, t)!,

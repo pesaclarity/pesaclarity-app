@@ -10,6 +10,7 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
@@ -117,11 +118,7 @@ class _ItemTile extends ConsumerWidget {
 
     return ListTile(
       key: Key('review-item-${item.id}'),
-      leading: CircleAvatar(
-        backgroundColor: colors.warningSoft,
-        foregroundColor: colors.warning,
-        child: Text(_initials(name)),
-      ),
+      leading: InitialsBadge(_initials(name)),
       title: Row(
         children: [
           Expanded(child: Text(name)),

@@ -53,7 +53,8 @@ class EmptyNote extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
     padding: const EdgeInsets.symmetric(vertical: 32),
     child: Text(
       text,

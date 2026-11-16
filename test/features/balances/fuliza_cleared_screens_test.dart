@@ -109,7 +109,8 @@ void main() {
         await pumpBalances(tester, db, AppRoutes.balances);
         expect(find.textContaining('Fuliza owed'), findsNothing);
         expect(find.text('Matches'), findsOneWidget);
-        expect(find.textContaining('Off by'), findsNothing);
+        expect(find.textContaining(' short'), findsNothing);
+        expect(find.textContaining(' over'), findsNothing);
         await tester.tap(find.byKey(Key('balance-account-$mpesa')));
         await settle(tester);
         expect(find.text('KES 6,843.73'), findsWidgets);

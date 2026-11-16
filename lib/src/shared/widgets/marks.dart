@@ -120,6 +120,33 @@ class IconBadge extends StatelessWidget {
   }
 }
 
+/// A name's initials in a neutral square the size and shape of an
+/// [IconBadge], as an Activity row's are: brand red is kept for actions.
+class InitialsBadge extends StatelessWidget {
+  const InitialsBadge(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = PesaColors.of(context);
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: colors.border,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelLarge!
+            .copyWith(color: Theme.of(context).colorScheme.onSurface),
+      ),
+    );
+  }
+}
+
 /// An action word at the end of a row, such as "Edit" or "Change", in the
 /// same style as a text button.
 class TrailingLink extends StatelessWidget {

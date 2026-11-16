@@ -265,7 +265,7 @@ class _HowPeoplePay extends StatelessWidget {
                           value: total <= 0 ? 0 : value / total,
                           minHeight: 8,
                           backgroundColor: colors.border,
-                          color: theme.colorScheme.primary,
+                          color: colors.link,
                         ),
                       ),
                     ),
@@ -414,8 +414,8 @@ class _SalesByDay extends StatelessWidget {
                                   : 4 + 92 * byWeekday[i] / most,
                               decoration: BoxDecoration(
                                 color: i == best
-                                    ? theme.colorScheme.primary
-                                    : colors.brandSoft,
+                                    ? colors.link
+                                    : colors.selected,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                             ),
@@ -479,7 +479,7 @@ class _Sentences extends StatelessWidget {
                       height: 8,
                       margin: const EdgeInsets.only(top: 6, right: 12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
+                        color: PesaColors.of(context).textMuted,
                         shape: BoxShape.circle,
                       ),
                     ),

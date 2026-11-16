@@ -62,7 +62,6 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
     final spaces = ref.watch(spacesProvider).value ?? const [Space.personal];
     final activeId = ref.watch(activeSpaceIdProvider);
     final kept = ref.watch(keptDataProvider).value ?? const [];
-    final colors = PesaColors.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Spaces'),
@@ -88,11 +87,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
               for (final space in spaces)
                 ListTile(
                   key: Key('spaces-${space.id}'),
-                  leading: CircleAvatar(
-                    backgroundColor: colors.border,
-                    foregroundColor: Theme.of(context).colorScheme.onSurface,
-                    child: Text(space.initial),
-                  ),
+                  leading: InitialsBadge(space.initial),
                   title: Text(space.name),
                   subtitle: Text(space.kind.label),
                   trailing: Row(

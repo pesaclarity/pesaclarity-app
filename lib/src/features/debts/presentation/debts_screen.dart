@@ -325,24 +325,27 @@ class _FulizaOwedCard extends StatelessWidget {
       'Taken off M-Pesa in Balances',
     ].join(' · ');
     final on = account;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DebtRow(
-          key: const Key('debts-fuliza-owed'),
-          name: 'Fuliza',
-          amount: shownMoney(context, debt.owedMinor, withCurrency: false),
-          paidFraction: 0,
-          caption: details,
-        ),
-        if (on != null)
-          FulizaPaidButton(
-            accountId: on.id,
-            walletMinor: walletMinor,
-            owedMinor: debt.owedMinor,
-            currency: on.currency,
+    // A card, as every other debt is.
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DebtRow(
+            key: const Key('debts-fuliza-owed'),
+            name: 'Fuliza',
+            amount: shownMoney(context, debt.owedMinor, withCurrency: false),
+            paidFraction: 0,
+            caption: details,
           ),
-      ],
+          if (on != null)
+            FulizaPaidButton(
+              accountId: on.id,
+              walletMinor: walletMinor,
+              owedMinor: debt.owedMinor,
+              currency: on.currency,
+            ),
+        ],
+      ),
     );
   }
 }

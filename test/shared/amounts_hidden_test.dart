@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
 import 'package:pesaclarity/src/shared/widgets/marks.dart';
+import 'package:pesaclarity/src/theme/app_theme.dart';
 
 void main() {
   test('money shows as dots while hidden, with or without the code', () {
@@ -21,13 +22,14 @@ void main() {
     expect(moneyOrHidden(5000, hidden: true, currency: 'USD'), 'USD •••••');
   });
 
-  testWidgets('one eye: the same look on a red card and on a title row', (
+  testWidgets('one eye: the same look on a lead card and on a title row', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
         child: MaterialApp(
-          home: AmountsHiddenScope(
+          theme: AppTheme.light,
+          home: const AmountsHiddenScope(
             child: Scaffold(
               body: Column(
                 children: [

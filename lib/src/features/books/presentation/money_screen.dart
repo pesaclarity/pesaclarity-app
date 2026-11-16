@@ -169,7 +169,11 @@ class CashBookRow extends StatelessWidget {
         ),
         account: _account(entry.accountId),
         when: formatTime(entry.occurredAt),
-        amount: _signed(context, entry.signedMinor),
+        amount: _signed(
+          context,
+          entry.signedMinor,
+          borrowed: entry.kind == TransactionKind.fulizaDraw,
+        ),
         onTap: () => showTransactionSheet(context, entry.id),
       ),
       OwnTransferLine(:final outflow, :final inflow, :final shown) => _row(
@@ -194,6 +198,8 @@ class CashBookRow extends StatelessWidget {
           noise.direction == TransactionDirection.inflow
               ? noise.totalMinor
               : -noise.totalMinor,
+          // Fuliza is borrowed money: it comes in, but it is not income.
+          borrowed: noise.group == NoiseGroup.fulizaDraws,
         ),
       ),
     };
@@ -249,13 +255,19 @@ class CashBookRow extends StatelessWidget {
     );
   }
 
-  Widget _signed(BuildContext context, int signedMinor) {
+  Widget _signed(
+    BuildContext context,
+    int signedMinor, {
+    bool borrowed = false,
+  }) {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0;
     return Text(
       inflow ? '+${plain(signedMinor)}' : '-${plain(-signedMinor)}',
       style: AppTypography.rowAmount(
-        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
+        inflow && !borrowed
+            ? colors.successText
+            : Theme.of(context).colorScheme.onSurface,
       ),
     );
   }

@@ -17,7 +17,11 @@ abstract final class BalanceText {
   static const matches = 'Matches';
   static const countAgain = 'Count again';
   static const notReported = 'Not reported';
-  static String offBy(String amount) => 'Off by $amount';
+
+  /// An account's gap, worded as the balance check words it: short when
+  /// the account holds more than the app shows, over when it holds less.
+  static String gap(String amount, {required bool short}) =>
+      short ? '$amount short' : '$amount over';
   static String said(String amount, String when) => 'Said $amount · $when';
   static String counted(String when) => 'Counted $when';
   static String fulizaOwed(String amount) => '$amount Fuliza owed';
@@ -33,9 +37,15 @@ abstract final class BalanceText {
       '$accounts − $fund = $total.';
   static const onHandRuleNoFund =
       'On hand on Home is your day-to-day money. Savings are not counted.';
-  static String summary(int matching, int needALook) => [
-    '$matching ${matching == 1 ? 'matches its' : 'match their'} messages',
+
+  /// Every account counted once: those that match their messages, those
+  /// with a gap, and those with no messages to check against, such as
+  /// cash and savings.
+  static String summary(int matching, int needALook, int noMessages) => [
+    '$matching ${matching == 1 ? 'matches' : 'match'}',
     if (needALook > 0) '$needALook ${needALook == 1 ? 'needs' : 'need'} a look',
+    if (noMessages > 0)
+      '$noMessages ${noMessages == 1 ? 'has' : 'have'} no messages',
   ].join(' · ');
   static String profileRow(int accounts, int needALook) => [
     '$accounts ${accounts == 1 ? 'account' : 'accounts'}',

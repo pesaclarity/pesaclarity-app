@@ -143,12 +143,12 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
                   ListTile(
                     leading: CircleAvatar(
                       radius: 12,
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
+                      backgroundColor: PesaColors.of(context).border,
+                      foregroundColor: theme.colorScheme.onSurface,
                       child: Text(
                         '${i + 1}',
                         style: theme.textTheme.labelMedium!.copyWith(
-                          color: theme.colorScheme.onPrimary,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ),

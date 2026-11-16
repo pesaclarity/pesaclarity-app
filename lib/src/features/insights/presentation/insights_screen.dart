@@ -467,7 +467,7 @@ class _HealthCard extends ConsumerWidget {
                     value: '${pillarPoints(index, pillar)} of 25',
                     fraction: index.pillarCentipoints(pillar) / 2500,
                     color: pillar == index.weakestPillar
-                        ? theme.colorScheme.primary
+                        ? colors.link
                         : colors.textMuted,
                   ),
                 ),
@@ -477,7 +477,7 @@ class _HealthCard extends ConsumerWidget {
               const SizedBox(height: 16),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.brandSoft,
+                  color: colors.selected,
                   borderRadius: BorderRadius.circular(Layout.panelRadius),
                 ),
                 child: Padding(

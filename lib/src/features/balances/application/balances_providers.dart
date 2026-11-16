@@ -87,6 +87,16 @@ class BalancesOverview {
   int get matchingCount =>
       accounts.where((a) => a.check.status == BalanceStatus.matches).length;
 
+  /// Accounts no message reports a balance for, such as cash and savings,
+  /// so there is nothing to check them against.
+  int get noMessagesCount => accounts
+      .where(
+        (a) =>
+            a.check.status == BalanceStatus.countAgain ||
+            a.check.status == BalanceStatus.notReported,
+      )
+      .length;
+
   /// What the day-to-day accounts are worth, in the base currency: savings
   /// are left out, as On hand leaves them out.
   int totalMinor(String base) => accounts

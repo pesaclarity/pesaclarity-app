@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/links.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
 import '../application/sms_capture_providers.dart';
 import 'explain_text.dart';
@@ -254,12 +255,12 @@ class _Steps extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
+                  backgroundColor: PesaColors.of(context).border,
+                  foregroundColor: theme.colorScheme.onSurface,
                   child: Text(
                     '${i + 1}',
                     style: theme.textTheme.labelMedium!.copyWith(
-                      color: theme.colorScheme.onPrimary,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ),

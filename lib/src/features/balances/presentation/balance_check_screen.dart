@@ -238,7 +238,10 @@ class _Body extends ConsumerWidget {
                 for (final a in right)
                   ListTile(
                     leading: AccountLetter(a.account.name),
-                    title: Text(a.account.name),
+                    title: Text(
+                      a.account.name,
+                      style: theme.textTheme.titleMedium,
+                    ),
                     subtitle: const Text(BalanceText.everyMessageAgrees),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

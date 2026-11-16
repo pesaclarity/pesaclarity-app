@@ -59,7 +59,7 @@ class DebtRow extends StatelessWidget {
               value: paidFraction,
               minHeight: 8,
               borderRadius: BorderRadius.circular(4),
-              color: theme.colorScheme.primary,
+              color: colors.link,
               backgroundColor: colors.border,
               semanticsLabel: '${(paidFraction * 100).floor()}% paid',
             ),

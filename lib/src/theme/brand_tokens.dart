@@ -19,10 +19,11 @@ abstract final class BrandTokens {
   static const successText = Color(0xFF047857);
   static const warning = Color(0xFFB45309);
   static const danger = Color(0xFFC8102E);
-  static const onBrand = Color(0xFFFFFFFF);
 
-  /// The label and caption on a red card: white, softened (88%).
-  static const onBrandSoft = Color(0xE0FFFFFF);
+  /// The worse of two warnings, such as a struggling health score beside a
+  /// coping one in [warning]: a deeper orange, kept clear of brand red.
+  static const warningStrong = Color(0xFFC2410C);
+  static const onBrand = Color(0xFFFFFFFF);
 
   /// Only for marking the parts of a message: who, the balance, the fee.
   static const markBlue = Color(0xFF1D4ED8);
@@ -63,6 +64,7 @@ abstract final class BrandTokens {
   static const darkSuccess = Color(0xFF34D399);
   static const darkSuccessText = Color(0xFF6EE7B7);
   static const darkWarning = Color(0xFFFBBF24);
+  static const darkWarningStrong = Color(0xFFFB923C);
   static const darkDanger = Color(0xFFFF6B7A);
   static const darkMarkBlue = Color(0xFF60A5FA);
   static const darkMarkPurple = Color(0xFFA78BFA);
