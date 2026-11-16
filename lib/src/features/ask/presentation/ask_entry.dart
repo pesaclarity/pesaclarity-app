@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/ask_settings.dart';
@@ -72,6 +74,9 @@ class AskBar extends StatelessWidget {
   final String label;
   final String route;
 
+  /// The bar's height, as drawn.
+  static const height = 48.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -85,19 +90,13 @@ class AskBar extends StatelessWidget {
         color: colors.floating,
         elevation: colors.floatingElevation,
         shadowColor: colors.shadow,
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: Color.alphaBlend(
-              theme.colorScheme.primary.withValues(alpha: 0.25),
-              colors.brandSoft,
-            ),
-          ),
-        ),
+        // The neutral edge every floating part has: red is for actions.
+        shape: StadiumBorder(side: BorderSide(color: colors.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push(route),
           child: SizedBox(
-            height: 48,
+            height: height,
             child: Row(
               children: [
                 const SizedBox(width: 14),
@@ -141,24 +140,31 @@ class AskBar extends StatelessWidget {
   }
 }
 
-/// [child], a scrolling screen, with the Ask bar over its foot. The bar
-/// slides away as the person scrolls down and comes back at the top.
+/// A scrolling screen, from [builder], with the Ask bar over its foot. The
+/// bar slides away as the person scrolls down and comes back at the top.
 /// Without [label], it asks about the open space.
+///
+/// [builder] gets the space to leave at the end of its list: the bar's
+/// measured height plus its margin while the bar shows, so the last card
+/// scrolls fully above it; [Layout.tabBottom] otherwise.
 class AskBarScope extends ConsumerStatefulWidget {
   const AskBarScope({
-    required this.child,
+    required this.builder,
     this.label,
     this.route = AppRoutes.ask,
     this.enabled = true,
     super.key,
   });
 
-  final Widget child;
+  final Widget Function(BuildContext context, double bottomPadding) builder;
   final String? label;
   final String route;
 
   /// Off, the bar does not show, as on Activity without filters.
   final bool enabled;
+
+  /// Space around the bar: a soft fade above it, a little below.
+  static const margin = EdgeInsets.fromLTRB(16, 32, 16, 8);
 
   @override
   ConsumerState<AskBarScope> createState() => _AskBarScopeState();
@@ -166,6 +172,9 @@ class AskBarScope extends ConsumerStatefulWidget {
 
 class _AskBarScopeState extends ConsumerState<AskBarScope> {
   bool _away = false;
+
+  /// The bar's height as last laid out; its drawn height until then.
+  double _barHeight = AskBar.height;
 
   bool _onScroll(ScrollNotification n) {
     if (n.depth != 0) return false;
@@ -175,6 +184,12 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
       ref.read(askBarAwayProvider.notifier).set(away);
     }
     return false;
+  }
+
+  void _measured(Size size) {
+    if (size.height != _barHeight && mounted) {
+      setState(() => _barHeight = size.height);
+    }
   }
 
   @override
@@ -187,11 +202,14 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
             ? AskStrings.hint
             : AskStrings.hintFor(space.name));
     final background = Theme.of(context).scaffoldBackgroundColor;
+    final bottomPadding = shown
+        ? _barHeight + AskBarScope.margin.vertical
+        : Layout.tabBottom;
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
-          child: widget.child,
+          child: widget.builder(context, bottomPadding),
         ),
         if (shown)
           Positioned(
@@ -217,8 +235,11 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
-                      child: AskBar(label: label, route: widget.route),
+                      padding: AskBarScope.margin,
+                      child: _SizeReporter(
+                        onSize: _measured,
+                        child: AskBar(label: label, route: widget.route),
+                      ),
                     ),
                   ),
                 ),
@@ -227,6 +248,40 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
           ),
       ],
     );
+  }
+}
+
+/// Tells [onSize] the size [child] is laid out at, after each layout that
+/// changes it.
+class _SizeReporter extends SingleChildRenderObjectWidget {
+  const _SizeReporter({required this.onSize, required super.child});
+
+  final ValueChanged<Size> onSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSizeReporter(onSize);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSizeReporter renderObject,
+  ) => renderObject.onSize = onSize;
+}
+
+class _RenderSizeReporter extends RenderProxyBox {
+  _RenderSizeReporter(this.onSize);
+
+  ValueChanged<Size> onSize;
+  Size? _last;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size == _last) return;
+    _last = size;
+    final reported = size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onSize(reported));
   }
 }
 

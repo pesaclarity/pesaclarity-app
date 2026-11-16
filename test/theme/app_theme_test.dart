@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
@@ -51,6 +53,71 @@ void main() {
       expect(colors.floatingShadow, isEmpty);
       expect(theme.bottomSheetTheme.backgroundColor, colors.floating);
       expect(theme.bottomSheetTheme.modalElevation, 0);
+    });
+  });
+
+  group('red in dark is red, never pink', () {
+    final theme = AppTheme.dark;
+    final colors = theme.extension<PesaColors>()!;
+
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    // The hue of a colour, in degrees.
+    double hue(Color c) => HSLColor.fromColor(c).hue;
+
+    test('danger is brand red, for fills and large figures', () {
+      expect(colors.danger, const Color(0xFFC8102E));
+      expect(colors.danger, theme.colorScheme.primary);
+      // 3:1 for a large figure on a card and on the page.
+      expect(contrast(colors.danger, BrandTokens.darkSurface), greaterThan(3));
+      expect(
+        contrast(colors.danger, BrandTokens.darkBackground),
+        greaterThan(3),
+      );
+      // White on the red fill.
+      expect(
+        contrast(BrandTokens.darkOnBrand, colors.danger),
+        greaterThan(4.5),
+      );
+    });
+
+    test('small danger text is brand red brightened, the same hue', () {
+      final text = theme.colorScheme.error;
+      expect(text, const Color(0xFFFF3C5B));
+      expect(hue(text), closeTo(hue(BrandTokens.brand), 0.5));
+      expect(HSLColor.fromColor(text).saturation, 1);
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkField,
+        BrandTokens.darkFloating,
+      ]) {
+        expect(contrast(text, surface), greaterThanOrEqualTo(4.5));
+      }
+      // The pink it replaces.
+      expect(text, isNot(const Color(0xFFFF6B7A)));
+    });
+
+    test('tints behind red are neutral, not pink', () {
+      for (final tint in [colors.brandSoft, colors.selected]) {
+        final hsl = HSLColor.fromColor(tint);
+        // Not rose: no more red than green and blue together suggest.
+        expect(hsl.saturation, lessThan(0.06), reason: '$tint');
+        expect(tint.b, lessThanOrEqualTo(tint.g), reason: '$tint');
+      }
+      expect(colors.brandSoft, const Color(0xFF2F2D2C));
+      expect(colors.selected, const Color(0xFF383534));
+    });
+
+    test('light keeps its reds', () {
+      final light = AppTheme.light;
+      expect(light.colorScheme.error, const Color(0xFFC8102E));
+      expect(light.extension<PesaColors>()!.danger, const Color(0xFFC8102E));
+      expect(light.extension<PesaColors>()!.brandSoft, const Color(0xFFFDECEE));
     });
   });
 

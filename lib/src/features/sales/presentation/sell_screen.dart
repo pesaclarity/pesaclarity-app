@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
@@ -8,6 +9,7 @@ import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/tabs_repository.dart';
 import '../../../domain/stock/measure.dart';
 import '../../../domain/stock/stock.dart';
+import '../../../routing/app_routes.dart';
 import '../../../routing/app_shell.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
@@ -52,13 +54,35 @@ class SellScreen extends ConsumerWidget {
       ),
       AsyncData() || AsyncError() => const AmountPadScreen(),
       _ => Scaffold(
-        appBar: AppBar(
-          title: Text(tab == null ? 'Sell' : 'Add to ${tab!.name}'),
-        ),
+        appBar: SellAppBar(tab == null ? 'Sell' : 'Add to ${tab!.name}'),
         body: const LoadingView(),
       ),
     };
   }
+}
+
+/// The app bar of Sell and its number pad, as on every pushed screen: a
+/// back arrow and the title in the theme's title style. Opened first, as
+/// from a link, the arrow goes Home.
+class SellAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const SellAppBar(this.title, {this.actions, super.key});
+
+  final String title;
+  final List<Widget>? actions;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) => AppBar(
+    leading: Navigator.of(context).canPop()
+        ? null
+        : BackButton(
+            onPressed: () => GoRouter.maybeOf(context)?.go(AppRoutes.home),
+          ),
+    title: Text(title),
+    actions: actions,
+  );
 }
 
 /// A typed amount and what it was for, from [AmountPadScreen] in pick mode.
@@ -138,14 +162,12 @@ class _AmountPadScreenState extends State<AmountPadScreen> {
     final amount = formatMoney(Money(_minor));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.pick
-              ? _what
-              : widget.billed
-              ? 'Billed'
-              : 'Sell',
-        ),
+      appBar: SellAppBar(
+        widget.pick
+            ? _what
+            : widget.billed
+            ? 'Billed'
+            : 'Sell',
       ),
       body: SafeArea(
         bottom: false,
@@ -493,8 +515,8 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
 
     final tab = widget.tab;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tab == null ? 'Sell' : 'Add to ${tab.name}'),
+      appBar: SellAppBar(
+        tab == null ? 'Sell' : 'Add to ${tab.name}',
         actions: [
           if (tab == null && widget.openTabs > 0) ...[
             PillButton(

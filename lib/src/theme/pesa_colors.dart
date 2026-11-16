@@ -15,6 +15,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     required this.successText,
     required this.warning,
     required this.warningStrong,
+    required this.danger,
     required this.markBlue,
     required this.markPurple,
     required this.markTeal,
@@ -33,6 +34,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     successText: BrandTokens.successText,
     warning: BrandTokens.warning,
     warningStrong: BrandTokens.warningStrong,
+    danger: BrandTokens.danger,
     markBlue: BrandTokens.markBlue,
     markPurple: BrandTokens.markPurple,
     markTeal: BrandTokens.markTeal,
@@ -58,6 +60,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     successText: BrandTokens.darkSuccessText,
     warning: BrandTokens.darkWarning,
     warningStrong: BrandTokens.darkWarningStrong,
+    danger: BrandTokens.darkDanger,
     markBlue: BrandTokens.darkMarkBlue,
     markPurple: BrandTokens.darkMarkPurple,
     markTeal: BrandTokens.darkMarkTeal,
@@ -85,6 +88,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
 
   /// The worse of two warnings, such as a struggling health score.
   final Color warningStrong;
+
+  /// Below zero in a large figure, such as a lead card's or a tile's, and
+  /// a destructive button's fill: brand red in light and dark. Small text
+  /// takes the colour scheme's `error`, which dark brightens to read.
+  final Color danger;
 
   /// Only for marking the parts of a message, each its own colour.
   final Color markBlue;
@@ -136,6 +144,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     Color? successText,
     Color? warning,
     Color? warningStrong,
+    Color? danger,
     Color? markBlue,
     Color? markPurple,
     Color? markTeal,
@@ -152,6 +161,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
     successText: successText ?? this.successText,
     warning: warning ?? this.warning,
     warningStrong: warningStrong ?? this.warningStrong,
+    danger: danger ?? this.danger,
     markBlue: markBlue ?? this.markBlue,
     markPurple: markPurple ?? this.markPurple,
     markTeal: markTeal ?? this.markTeal,
@@ -173,6 +183,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
       successText: Color.lerp(successText, other.successText, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       warningStrong: Color.lerp(warningStrong, other.warningStrong, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
       markBlue: Color.lerp(markBlue, other.markBlue, t)!,
       markPurple: Color.lerp(markPurple, other.markPurple, t)!,
       markTeal: Color.lerp(markTeal, other.markTeal, t)!,

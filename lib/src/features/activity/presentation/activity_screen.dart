@@ -152,8 +152,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             enabled: askFilter != null,
             label: askFilter?.$1,
             route: askFilter?.$2 ?? AppRoutes.ask,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+            builder: (context, bottomPadding) => ListView(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
               children: [
                 if (_chosen.isEmpty)
                   const TabHeader(

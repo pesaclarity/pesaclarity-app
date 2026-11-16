@@ -34,6 +34,7 @@ void main() {
       'successText': BrandTokens.successText,
       'warning': BrandTokens.warning,
       'danger': BrandTokens.danger,
+      'dangerText': BrandTokens.dangerText,
       'markBlue': BrandTokens.markBlue,
       'markPurple': BrandTokens.markPurple,
       'markTeal': BrandTokens.markTeal,
@@ -62,6 +63,7 @@ void main() {
       'successText': BrandTokens.darkSuccessText,
       'warning': BrandTokens.darkWarning,
       'danger': BrandTokens.darkDanger,
+      'dangerText': BrandTokens.darkDangerText,
       'markBlue': BrandTokens.darkMarkBlue,
       'markPurple': BrandTokens.darkMarkPurple,
       'markTeal': BrandTokens.darkMarkTeal,
@@ -82,7 +84,8 @@ void main() {
     expect(colors.border, token('dark', 'border'));
     expect(colors.warning, token('dark', 'warning'));
     expect(colors.markPurple, token('dark', 'markPurple'));
-    expect(theme.colorScheme.error, token('dark', 'danger'));
+    expect(colors.danger, token('dark', 'danger'));
+    expect(theme.colorScheme.error, token('dark', 'dangerText'));
     expect(theme.colorScheme.onPrimary, token('dark', 'onBrand'));
   });
 

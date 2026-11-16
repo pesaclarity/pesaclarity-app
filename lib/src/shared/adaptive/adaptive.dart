@@ -35,10 +35,11 @@ class DialogAction extends StatelessWidget {
       return FilledButton(
         onPressed: onPressed,
         style: destructive
+            // A red fill takes white text, in light and dark.
             ? (style ?? const ButtonStyle()).merge(
                 FilledButton.styleFrom(
-                  backgroundColor: error,
-                  foregroundColor: scheme.onError,
+                  backgroundColor: PesaColors.of(context).danger,
+                  foregroundColor: scheme.onPrimary,
                 ),
               )
             : style,

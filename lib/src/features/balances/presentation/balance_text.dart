@@ -15,8 +15,9 @@ abstract final class BalanceText {
   static const checkAll = 'Check all balances';
   static const addAccount = 'Add an account';
   static const matches = 'Matches';
-  static const countAgain = 'Count again';
-  static const notReported = 'Not reported';
+
+  /// Cash and savings: nothing reports them, so there is nothing to match.
+  static const noMessages = 'No messages';
 
   /// An account's gap, worded as the balance check words it: short when
   /// the account holds more than the app shows, over when it holds less.

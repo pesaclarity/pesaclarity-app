@@ -20,6 +20,10 @@ abstract final class BrandTokens {
   static const warning = Color(0xFFB45309);
   static const danger = Color(0xFFC8102E);
 
+  /// Danger in small text, such as a destructive button's label or a
+  /// field's error. The same red as [danger] in light.
+  static const dangerText = Color(0xFFC8102E);
+
   /// The worse of two warnings, such as a struggling health score beside a
   /// coping one in [warning]: a deeper orange, kept clear of brand red.
   static const warningStrong = Color(0xFFC2410C);
@@ -60,16 +64,25 @@ abstract final class BrandTokens {
   static const darkBrand = Color(0xFFC8102E);
   static const darkOnBrand = Color(0xFFFFFFFF);
   static const darkBrandLink = Color(0xFFE3D9DB);
-  static const darkBrandSoft = Color(0xFF33272A);
+
+  /// A soft neutral tint, never pink.
+  static const darkBrandSoft = Color(0xFF2F2D2C);
   static const darkSuccess = Color(0xFF34D399);
   static const darkSuccessText = Color(0xFF6EE7B7);
   static const darkWarning = Color(0xFFFBBF24);
   static const darkWarningStrong = Color(0xFFFB923C);
-  static const darkDanger = Color(0xFFFF6B7A);
+
+  /// Danger in dark is brand red too, for fills and large figures (3.0:1
+  /// on a card, 3.2:1 on the page).
+  static const darkDanger = Color(0xFFC8102E);
+
+  /// The same hue as brand red, brightened only as far as small text needs:
+  /// 4.5:1 on a sheet, 5.1:1 on a card, 5.5:1 on the page.
+  static const darkDangerText = Color(0xFFFF3C5B);
   static const darkMarkBlue = Color(0xFF60A5FA);
   static const darkMarkPurple = Color(0xFFA78BFA);
   static const darkMarkTeal = Color(0xFF2DD4BF);
-  static const darkSelected = Color(0xFF3A2F32);
+  static const darkSelected = Color(0xFF383534);
   static const darkShadow = Color(0x00000000);
 
   static const darkHcText = Color(0xFFF5EEF0);

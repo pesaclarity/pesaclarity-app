@@ -1,8 +1,12 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pesaclarity/src/data/database/app_database.dart';
+import 'package:pesaclarity/src/data/database/app_database.dart' hide Tag;
+import 'package:pesaclarity/src/features/ask/presentation/ask_entry.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
+import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../../helpers/test_app.dart';
 import 'balances_harness.dart';
@@ -64,11 +68,81 @@ void main() {
       find.text('1 matches · 1 needs a look · 2 have no messages'),
       findsOneWidget,
     );
-    expect(find.text('Count again'), findsOneWidget);
+    // Cash and the SACCO report no balance: the same neutral chip the
+    // summary counts, and no other word for it.
+    expect(find.text('No messages'), findsNWidgets(2));
+    for (final id in [ids.cash, ids.sacco]) {
+      final tag = find.descendant(
+        of: find.byKey(Key('balance-account-$id')),
+        matching: find.byType(Tag),
+      );
+      expect(tester.widget<Tag>(tag).text, 'No messages');
+      expect(tester.widget<Tag>(tag).tone, Tone.info);
+    }
+    expect(find.text('Count again'), findsNothing);
+    expect(find.text('Not reported'), findsNothing);
     expect(find.textContaining('1,300 Fuliza owed'), findsOneWidget);
     // The total leaves savings out, as On hand does: -1,300 + 50 + 100.
     expect(find.text('-KES 1,150'), findsOneWidget);
     expect(find.text('KES 12,350'), findsNothing);
+  });
+
+  testAppWidgets('Balances: counting cash is still a tap away', (tester) async {
+    await pumpBalances(tester, db, AppRoutes.balances);
+    await tester.tap(find.byKey(Key('balance-account-${ids.cash}')));
+    await settle(tester);
+    expect(find.byKey(const Key('account-set-balance')), findsOneWidget);
+  });
+
+  testAppWidgets('Home: On hand below zero takes the danger colour', (
+    tester,
+  ) async {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      await pumpBalances(tester, db, AppRoutes.home, theme: theme);
+      final colors = theme.extension<PesaColors>()!;
+      final onHand = find.byKey(const Key('home-on-hand'));
+      final figure = tester.widget<Text>(
+        find.descendant(of: onHand, matching: find.text('-1,150')),
+      );
+      // The same token as the lead card's below-zero figure, with no fill.
+      expect(figure.style!.color, colors.danger);
+      expect(
+        tester.widget<Text>(find.text('KES 0')).style!.color,
+        colors.danger,
+      );
+      final card = tester.widget<Card>(
+        find.descendant(of: onHand, matching: find.byType(Card)),
+      );
+      expect(card.color, isNull, reason: 'the plain theme card');
+      // Runway is a length of time, not a figure below zero.
+      expect(
+        tester.widget<Text>(find.text('Today')).style!.color,
+        theme.colorScheme.onSurface,
+      );
+    }
+  });
+
+  testAppWidgets('Home: the last card scrolls fully above the Ask bar', (
+    tester,
+  ) async {
+    await pumpBalances(
+      tester,
+      db,
+      AppRoutes.home,
+      size: const Size(1000, 1800),
+    );
+    final bar = find.byKey(const Key('ask-bar'));
+    final barHeight = tester.getSize(bar).height;
+    await tester.drag(find.byType(ListView).first, const Offset(0, -4000));
+    await settle(tester);
+    final barTop =
+        tester.getBottomLeft(find.byType(AskBarScope)).dy -
+        AskBarScope.margin.bottom -
+        barHeight;
+    expect(
+      tester.getBottomLeft(find.byKey(const Key('home-coming-up'))).dy,
+      lessThanOrEqualTo(barTop),
+    );
   });
 
   testAppWidgets('Set the balance records a correction that can be undone', (

@@ -181,8 +181,9 @@ class BalanceBadge extends StatelessWidget {
         ),
         tone: Tone.warning,
       ),
-      BalanceStatus.countAgain => const Tag(BalanceText.countAgain),
-      BalanceStatus.notReported => const Tag(BalanceText.notReported),
+      // As the summary counts them: "2 have no messages".
+      BalanceStatus.countAgain ||
+      BalanceStatus.notReported => const Tag(BalanceText.noMessages),
     };
   }
 }

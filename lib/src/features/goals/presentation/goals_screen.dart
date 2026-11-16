@@ -76,8 +76,9 @@ class GoalsScreen extends ConsumerWidget {
   List<Widget> _goals(BuildContext context, GoalsOverview overview) {
     final open = overview.debts.open;
     return [
-      // With no debts, the Debts section below offers to add one.
-      if (overview.debts.count > 0) _DebtFreeCard(overview),
+      // Led by its card, as every tab is; with no debts yet, the card says
+      // what will show, as the empty Debts screen does.
+      _DebtFreeCard(overview),
       SectionTitle(
         'Debts',
         action: Semantics(
@@ -138,9 +139,11 @@ class _DebtFreeCard extends StatelessWidget {
     final String caption;
     final hasDebts = debts.count > 0;
     if (!hasDebts) {
-      label = 'Debts';
-      figure = 'Add a debt';
-      caption = 'See the month you will be debt-free.';
+      label = 'Debt-free by';
+      figure = null;
+      caption =
+          'Add loans, cards, Fuliza or money from family to see the month '
+          'you will be debt-free.';
     } else if (debts.remainingMinor == 0) {
       label = 'Debts';
       figure = 'Debt-free';

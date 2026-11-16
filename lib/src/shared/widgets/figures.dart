@@ -14,6 +14,7 @@ class FigureTile extends StatelessWidget {
     required this.value,
     this.note,
     this.onTap,
+    this.belowZero = false,
     super.key,
   });
 
@@ -21,6 +22,10 @@ class FigureTile extends StatelessWidget {
 
   /// Already formatted, and masked while amounts are hidden.
   final String value;
+
+  /// Whether [value] is below zero: it then takes the danger colour, as a
+  /// lead card's figure does.
+  final bool belowZero;
 
   /// A short line under the figure.
   final String? note;
@@ -56,7 +61,7 @@ class FigureTile extends StatelessWidget {
                     Text(
                       value,
                       style: AppTypography.tileFigure(
-                        theme.colorScheme.onSurface,
+                        belowZero ? colors.danger : theme.colorScheme.onSurface,
                       ),
                     ),
                     if (note != null) ...[

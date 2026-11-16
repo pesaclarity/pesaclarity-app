@@ -6,6 +6,8 @@ import 'package:pesaclarity/src/data/repositories/debts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/goals_repository.dart';
 import 'package:pesaclarity/src/domain/debts/debt.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
+import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
+import 'package:pesaclarity/src/shared/widgets/sections.dart';
 
 import '../helpers/goals_harness.dart';
 import '../helpers/test_app.dart';
@@ -135,6 +137,31 @@ void main() {
     await settle(tester);
     expect(find.text('Enter a name, such as School fees.'), findsOneWidget);
     expect(find.text('Enter an amount above 0.'), findsOneWidget);
+  });
+
+  testAppWidgets('with nothing yet, Goals leads with the empty card', (
+    tester,
+  ) async {
+    await pumpGoals(tester, db: openTestDatabase());
+
+    // As the empty Debts screen does: a lead card saying what will show,
+    // right under the title, with no figure and no eye.
+    final card = find.byType(HeroFigureCard);
+    expect(card, findsOneWidget);
+    final hero = tester.widget<HeroFigureCard>(card);
+    expect(hero.label, 'Debt-free by');
+    expect(hero.figure, isNull);
+    expect(hero.caption, contains('to see the month you will be debt-free'));
+    expect(
+      tester.getTopLeft(card).dy,
+      tester.getBottomLeft(find.byType(TabHeader)).dy,
+      reason: 'only the title gap between the title and the card',
+    );
+    expect(find.text('Add a debt'), findsOneWidget);
+    expect(
+      find.text('Goals show here, such as an emergency fund or a new laptop.'),
+      findsOneWidget,
+    );
   });
 
   testAppWidgets('debts open the Debts screen', (tester) async {

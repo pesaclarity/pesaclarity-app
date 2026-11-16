@@ -112,8 +112,8 @@ class HomeScreen extends ConsumerWidget {
         bottom: false,
         child: AmountsHiddenScope(
           child: AskBarScope(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+            builder: (context, bottomPadding) => ListView(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
               children: [
                 _Header(today: today),
                 const SizedBox(height: 20),
@@ -192,6 +192,7 @@ class HomeScreen extends ConsumerWidget {
                           key: const Key('home-on-hand'),
                           label: 'On hand',
                           value: _plain(context, untilNext.onHandMinor),
+                          belowZero: untilNext.onHandMinor < 0,
                           onTap: () => showOnHandSheet(context),
                         )
                       else if (safeToSpend == null)
@@ -207,6 +208,7 @@ class HomeScreen extends ConsumerWidget {
                             context,
                             safeToSpend.leftThisMonthMinor,
                           ),
+                          belowZero: safeToSpend.leftThisMonthMinor < 0,
                           onTap: () => openActivity(
                             thisMonth.copyWith(type: ActivityType.dayToDay),
                           ),
@@ -669,6 +671,7 @@ class _ComingUp extends StatelessWidget {
           ),
         ),
         Card(
+          key: const Key('home-coming-up'),
           child: shown.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(Layout.cardPadding),
@@ -1015,11 +1018,12 @@ class _SalesTodayCard extends ConsumerWidget {
     final day = sales?.day;
     // Nothing sold yet today: say what will show instead of a nought.
     if (day == null || day.byWay.isEmpty) {
+      // No amount yet, so no eye to hide one.
       return const HeroFigureCard(
         key: Key('sales-today'),
         label: 'Sales today',
         caption: 'Sales show here as you sell.',
-        showEye: true,
+        showEye: false,
       );
     }
     final ways = [

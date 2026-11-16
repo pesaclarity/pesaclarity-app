@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
@@ -14,6 +15,7 @@ import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/books/application/books_providers.dart';
 import 'package:pesaclarity/src/features/sales/application/sales_providers.dart';
 import 'package:pesaclarity/src/features/sales/presentation/sell_screen.dart';
+import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
@@ -201,6 +203,55 @@ void main() {
       await tester.tap(find.byKey(Key(choice)));
       await tester.pumpAndSettle();
     }
+
+    testAppWidgets('has the back arrow and title of every pushed screen', (
+      tester,
+    ) async {
+      await pump(tester);
+      final theme = AppTheme.light;
+      expect(find.byType(BackButton), findsOneWidget);
+      final title = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Sell'),
+      );
+      expect(title, findsOneWidget);
+      final style = DefaultTextStyle.of(tester.element(title)).style;
+      expect(style.fontSize, theme.textTheme.titleLarge!.fontSize);
+      expect(style.fontFamily, theme.textTheme.titleLarge!.fontFamily);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Open'), findsOneWidget);
+    });
+
+    testAppWidgets('opened first, as from a link, the arrow goes Home', (
+      tester,
+    ) async {
+      final router = GoRouter(
+        initialLocation: AppRoutes.sell,
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (_, _) => const Scaffold(body: Text('Home screen')),
+          ),
+          GoRoute(path: AppRoutes.sell, builder: (_, _) => const SellScreen()),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides(),
+          child: MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await settleFrames(tester);
+      expect(find.byType(BackButton), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Home screen'), findsOneWidget);
+    });
 
     testAppWidgets('typing an amount and paying cash saves the sale', (
       tester,

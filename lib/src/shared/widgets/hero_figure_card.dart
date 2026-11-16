@@ -58,9 +58,7 @@ class HeroFigureCard extends StatelessWidget {
         (figure != null && containsAmount(figure)) ||
         (caption != null && containsAmount(caption!));
     final eye = showEye ?? hasAmount;
-    final figureColor = belowZero
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurface;
+    final figureColor = belowZero ? colors.danger : theme.colorScheme.onSurface;
 
     return Card(
       child: InkWell(

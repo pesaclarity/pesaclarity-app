@@ -18,6 +18,7 @@ import 'package:pesaclarity/src/features/ask/presentation/ask_settings_screen.da
 import 'package:pesaclarity/src/features/insights/presentation/insights_screen.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../../domain/fixtures.dart';
 import '../../helpers/test_app.dart';
@@ -209,7 +210,7 @@ void main() {
       db,
       location: '/home',
       home: AskBarScope(
-        child: ListView(
+        builder: (context, _) => ListView(
           children: [
             const AskHomeButton(),
             for (var i = 0; i < 60; i++) ListTile(title: Text('Row $i')),
@@ -232,6 +233,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('ask-bar')), findsNothing);
     expect(find.byKey(const Key('home-ask')), findsNothing);
+  });
+
+  testAppWidgets('the list ends clear of the Ask bar, with a neutral edge', (
+    tester,
+  ) async {
+    double? given;
+    await pumpAsk(
+      tester,
+      db,
+      location: '/home',
+      home: AskBarScope(
+        builder: (context, bottomPadding) {
+          given = bottomPadding;
+          return ListView(
+            padding: EdgeInsets.only(bottom: bottomPadding),
+            children: [
+              for (var i = 0; i < 6; i++)
+                SizedBox(
+                  key: Key('card-$i'),
+                  height: 180,
+                  child: Text('Card $i'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+    final bar = find.byKey(const Key('ask-bar'));
+    // The bar's measured height plus its margin.
+    expect(given, tester.getSize(bar).height + AskBarScope.margin.vertical);
+    // Scrolled to the end, the last card sits fully above the bar.
+    await tester.drag(find.byType(ListView), const Offset(0, -2000));
+    await tester.pumpAndSettle();
+    final barTop =
+        tester.getBottomLeft(find.byType(AskBarScope)).dy -
+        AskBarScope.margin.bottom -
+        tester.getSize(bar).height;
+    expect(
+      tester.getBottomLeft(find.byKey(const Key('card-5'))).dy,
+      lessThanOrEqualTo(barTop),
+    );
+
+    final material = tester.widget<Material>(bar);
+    final side = (material.shape! as StadiumBorder).side;
+    final colors = PesaColors.of(tester.element(bar));
+    expect(side.color, colors.border);
+    expect(material.color, colors.floating);
   });
 
   test('Activity filters read as an Ask bar', () {

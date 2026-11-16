@@ -102,7 +102,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
           ),
         ),
         const SizedBox(height: 12),
-        _PillField(
+        _BoxField(
           controller: _email,
           hint: 'name@example.com',
           keyboardType: TextInputType.emailAddress,
@@ -150,7 +150,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
           ),
         ),
         const SizedBox(height: 12),
-        _PillField(
+        _BoxField(
           controller: _code,
           hint: '6-digit code',
           keyboardType: TextInputType.number,
@@ -184,8 +184,8 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
   }
 }
 
-class _PillField extends StatelessWidget {
-  const _PillField({
+class _BoxField extends StatelessWidget {
+  const _BoxField({
     required this.controller,
     required this.hint,
     required this.keyboardType,
@@ -208,7 +208,8 @@ class _PillField extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     OutlineInputBorder border(Color color) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
+      // The theme's field corner, as every other text field has.
+      borderRadius: BorderRadius.circular(BrandTokens.fieldRadius),
       borderSide: BorderSide(color: color),
     );
 
