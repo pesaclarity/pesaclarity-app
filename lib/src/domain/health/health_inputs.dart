@@ -1,5 +1,7 @@
 import '../../core/money/money.dart';
+import '../books/journal_balances.dart';
 import '../enums.dart';
+import '../insights/leakage.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../ledger/ledger_totals.dart';
@@ -43,6 +45,10 @@ class HealthInputs {
   ///   with no plan, the actual spending, fees, tax and debt payments.
   /// - Overdraft days are days with at least one Fuliza draw.
   /// - Leakages are spending with a payee leak type, plus every fee.
+  ///
+  /// With the space's [journal], fees count Fuliza charges as the journal has
+  /// them (access fees, daily charges, and charges only the balances show),
+  /// the same as Insights, so leakage here equals Insights' leakage total.
   /// - Plan adherence covers expense categories with a planned amount; one is
   ///   within budget when its actual is no more than planned.
   factory HealthInputs.forMonth({
@@ -51,6 +57,7 @@ class HealthInputs {
     int savingsBalanceMinor = 0,
     CalendarDate? asOf,
     String? currency,
+    JournalBalances? journal,
   }) {
     currency ??= BaseCurrency.code;
     final month = plan.month;
@@ -65,6 +72,21 @@ class HealthInputs {
     final review = MonthReview.of(plan, inMonth, currency: currency);
     final judgedTo = asOf ?? month.lastDay;
 
+    // Fees from the journal when there is one, so Fuliza charges match
+    // Insights; otherwise the ledger's own fee totals.
+    final LeakageBreakdown? breakdown = journal == null
+        ? null
+        : LeakageBreakdown.of(
+            entries,
+            from: month.startInstant,
+            to: month.endInstant,
+            currency: currency,
+            journal: journal,
+          );
+    final feesMinor = breakdown == null
+        ? totals.feesMinor
+        : breakdown.feesMinor + breakdown.fulizaMinor;
+
     final bills = _billsOnTime(plan, inMonth, judgedTo, currency);
 
     final byType = plan.plannedByType;
@@ -75,7 +97,7 @@ class HealthInputs {
     if (essentials == 0) {
       essentials =
           totals.spendingMinor +
-          totals.feesMinor +
+          feesMinor +
           totals.taxMinor +
           totals.debtRepaymentMinor;
     }
@@ -85,10 +107,12 @@ class HealthInputs {
         if (e.kind == TransactionKind.fulizaDraw) e.date,
     }.length;
 
-    var leakage = totals.feesMinor;
-    for (final e in inMonth) {
-      if (e.leakType != LeakType.none && roleOf(e) == LedgerRole.spending) {
-        leakage += e.amountMinor;
+    var leakage = breakdown?.totalMinor ?? totals.feesMinor;
+    if (breakdown == null) {
+      for (final e in inMonth) {
+        if (e.leakType != LeakType.none && roleOf(e) == LedgerRole.spending) {
+          leakage += e.amountMinor;
+        }
       }
     }
 
@@ -106,7 +130,7 @@ class HealthInputs {
     return HealthInputs(
       month: month,
       incomeMinor: totals.incomeMinor,
-      spendingMinor: totals.spendingMinor + totals.feesMinor,
+      spendingMinor: totals.spendingMinor + feesMinor,
       billsDue: bills.due,
       billsPaidOnTime: bills.onTime,
       essentialsMinor: essentials,

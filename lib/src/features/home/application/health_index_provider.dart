@@ -55,6 +55,7 @@ final healthIndexProvider = FutureProvider<HealthOnHome?>((ref) async {
           at: plan.month.endInstant,
           where: (a) => a.isSavings,
         ),
+        journal: journal,
       ),
     );
   }
