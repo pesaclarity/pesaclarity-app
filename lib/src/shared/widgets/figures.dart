@@ -171,7 +171,9 @@ class FigureTile extends StatelessWidget {
 
 /// Tiles side by side, the same height, [Layout.cardGap] apart. When a
 /// tile's figure would not fit whole at that width, as with a long balance
-/// or large text, the tiles go one to a row at full width instead.
+/// or large text, three or more tiles go two to a row, an odd last one at
+/// full width; only when two to a row does not fit either do they go one
+/// to a row at full width.
 class FigureRow extends StatelessWidget {
   const FigureRow({required this.children, super.key});
 
@@ -194,6 +196,33 @@ class FigureRow extends StatelessWidget {
             textDirection: Directionality.of(context),
             children: children,
           );
+        }
+        final half = (constraints.maxWidth - Layout.cardGap) / 2;
+        if (count > 2) {
+          // Two to a row; an odd last tile has the whole width to itself.
+          final paired = count - count % 2;
+          final fits = [
+            for (var i = 0; i < count; i++)
+              needs[i] <= (i < paired ? half : constraints.maxWidth),
+          ].every((fit) => fit);
+          if (fits) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < count; i += 2) ...[
+                  if (i > 0) const SizedBox(height: Layout.cardGap),
+                  if (i + 1 < count)
+                    _SameHeightRow(
+                      gap: Layout.cardGap,
+                      textDirection: Directionality.of(context),
+                      children: [children[i], children[i + 1]],
+                    )
+                  else
+                    children[i],
+                ],
+              ],
+            );
+          }
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

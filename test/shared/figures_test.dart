@@ -147,10 +147,8 @@ void main() {
     expect(first.width, second.width);
   });
 
-  testWidgets('a figure that does not fit sends the tiles one to a row', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 1200);
+  Future<List<Rect>> pumpThree(WidgetTester tester, double width) async {
+    tester.view.physicalSize = Size(width, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
@@ -173,9 +171,27 @@ void main() {
       ),
     );
     final tiles = find.byType(FigureTile);
-    final rects = [for (var i = 0; i < 3; i++) tester.getRect(tiles.at(i))];
+    return [for (var i = 0; i < 3; i++) tester.getRect(tiles.at(i))];
+  }
+
+  testWidgets('three tiles that do not fit go two to a row, the last wide', (
+    tester,
+  ) async {
+    final rects = await pumpThree(tester, 390);
+    expect(rects[0].top, rects[1].top, reason: 'the first two share a row');
+    expect(rects[0].width, rects[1].width);
+    expect(rects[0].height, rects[1].height);
+    expect(rects[0].width, lessThan(200));
+    expect(rects[2].top, greaterThan(rects[0].bottom));
+    expect(rects[2].width, 350, reason: 'the odd last tile takes the row');
+  });
+
+  testWidgets('when two to a row does not fit, the tiles go one to a row', (
+    tester,
+  ) async {
+    final rects = await pumpThree(tester, 200);
     for (final rect in rects) {
-      expect(rect.width, 350, reason: 'each tile takes the full width');
+      expect(rect.width, 160, reason: 'each tile takes the full width');
     }
     expect(rects[1].top, greaterThan(rects[0].bottom));
     expect(rects[2].top, greaterThan(rects[1].bottom));

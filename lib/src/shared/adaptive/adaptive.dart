@@ -164,18 +164,49 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
             itemKey: segmentKey,
           ),
         )
-      : SegmentedButton<T>(
-          showSelectedIcon: showSelectedIcon,
-          segments: [
-            for (final (value, label) in segments)
-              ButtonSegment(
-                value: value,
-                label: Text(label, key: segmentKey?.call(value)),
-              ),
-          ],
-          selected: {selected},
-          onSelectionChanged: (values) => onChanged(values.single),
+      : LayoutBuilder(
+          builder: (context, constraints) => SegmentedButton<T>(
+            // Side by side while every word of every label fits its half;
+            // otherwise one above the other, so no word breaks.
+            direction: _fitsSideBySide(context, constraints.maxWidth)
+                ? Axis.horizontal
+                : Axis.vertical,
+            showSelectedIcon: showSelectedIcon,
+            segments: [
+              for (final (value, label) in segments)
+                ButtonSegment(
+                  value: value,
+                  label: Text(label, key: segmentKey?.call(value)),
+                ),
+            ],
+            selected: {selected},
+            onSelectionChanged: (values) => onChanged(values.single),
+          ),
         );
+
+  /// Room a segment takes beyond its label: its padding, its border and,
+  /// when chosen, the tick.
+  static const _segmentChrome = 40.0;
+  static const _tick = 26.0;
+
+  bool _fitsSideBySide(BuildContext context, double width) {
+    if (!width.isFinite) return true;
+    final style = Theme.of(context).textTheme.labelLarge!;
+    final scaler = MediaQuery.textScalerOf(context);
+    final each = width / segments.length;
+    final extra = _segmentChrome + (showSelectedIcon ? _tick : 0);
+    for (final (_, label) in segments) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+      )..layout();
+      final word = painter.minIntrinsicWidth;
+      painter.dispose();
+      if (word + extra > each) return false;
+    }
+    return true;
+  }
 }
 
 /// Rows in a card with dividers, with an optional [header] above it and
