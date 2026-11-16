@@ -56,6 +56,16 @@ void main() {
     ('KCB account balance', AskIntent.balance, {SlotKind.account: 'kcb'}),
     ('How much money do I have?', AskIntent.balance, {}),
     (
+      'How much have I paid in transaction charges this month?',
+      AskIntent.fees,
+      {SlotKind.period: 'this month'},
+    ),
+    (
+      'Fuliza charges last month',
+      AskIntent.fees,
+      {SlotKind.period: 'last month'},
+    ),
+    (
       'How many times did I pay Naivas in October?',
       AskIntent.countPayments,
       {SlotKind.payee: 'naivas', SlotKind.period: 'in october'},

@@ -24,6 +24,7 @@ enum AskIntent {
   profit,
   lowStock('low_stock'),
   whoOwesMe('who_owes_me'),
+  fees,
   refine,
   hi,
   thanks,

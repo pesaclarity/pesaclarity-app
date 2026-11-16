@@ -40,6 +40,7 @@ enum ReplyKind {
   loss,
   lowStock,
   noLowStock,
+  fees,
   notFound,
   clarify,
   cant,

@@ -8,6 +8,7 @@ import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/ask_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/goals_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/stock_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ask/data_source.dart';
@@ -15,11 +16,13 @@ import '../../../domain/ask/matcher.dart';
 import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/understanding.dart';
 import '../../../domain/books/business_report.dart';
+import '../../../domain/insights/leakage.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../balances/application/balances_providers.dart';
 import '../../business_insights/application/business_report_providers.dart';
+import '../../currency/application/currency_controller.dart';
 import '../../home/application/safe_to_spend_provider.dart';
 import '../../home/application/upcoming_bills_provider.dart';
 import '../../lending/application/lending_providers.dart';
@@ -196,6 +199,25 @@ class AppAskDataSource implements AskDataSource {
       ).future,
     );
     return pnl.profitMinor;
+  }
+
+  @override
+  Future<int> fees(AskPeriod period) async {
+    // Two months before, so Fuliza repayments find their draws, as Insights.
+    final history = await entries(
+      period.fromInstant.subtract(const Duration(days: 62)),
+      period.toInstant,
+    );
+    final leakage = LeakageBreakdown.of(
+      history,
+      from: period.fromInstant,
+      to: period.toInstant,
+      // readJournal, read once rather than watched.
+      journal: await _ref
+          .read(journalRepositoryProvider)
+          .read(converter: _ref.read(currencyConverterProvider)),
+    );
+    return leakage.feesMinor + leakage.fulizaMinor;
   }
 
   @override

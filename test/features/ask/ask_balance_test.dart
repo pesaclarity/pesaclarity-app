@@ -6,6 +6,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/ask/context.dart';
 import 'package:pesaclarity/src/features/ask/application/ask_providers.dart';
 import 'package:pesaclarity/src/features/balances/application/balances_providers.dart';
+import 'package:pesaclarity/src/features/insights/application/insights_providers.dart';
 
 import '../../domain/fixtures.dart';
 import '../../helpers/test_app.dart';
@@ -62,6 +63,23 @@ void main() {
     expect(turn.answer.figureMinor, overview.totalMinor('KES'));
     expect(turn.answer.totalRows, 4);
   });
+
+  test(
+    "this month's charges are Insights', Fuliza's from the journal",
+    () async {
+      final engine = await c.read(askEngineProvider.future);
+      final turn = await engine.ask(
+        'How much did I pay in charges this month?',
+        context: AskContext.empty,
+        now: scenarioNow,
+      );
+      final leakage = (await c.read(insightsSummaryProvider.future))
+          .current
+          .leakage;
+      expect(leakage.fulizaMinor, greaterThan(0));
+      expect(turn.answer.figureMinor, leakage.feesMinor + leakage.fulizaMinor);
+    },
+  );
 
   test('every balance Ask lists matches the Balances screen', () async {
     final lines = await c.read(askDataSourceProvider).balances();

@@ -205,6 +205,7 @@ class AskEngine {
       AskIntent.topItems => _topItems(q),
       AskIntent.profit => _profit(q),
       AskIntent.lowStock => _lowStock(q),
+      AskIntent.fees => _fees(q),
       _ => Future.value(_plain(ReplyKind.cant, now, seed)),
     };
   }
@@ -841,6 +842,19 @@ class AskEngine {
     );
   }
 
+  Future<AskAnswer> _fees(_Query q) async {
+    final period = q.period(AskPeriod.thisMonth(q.today));
+    final fees = await source.fees(period);
+    return _answer(
+      q,
+      fees == 0 ? ReplyKind.nothing : ReplyKind.fees,
+      {'period': period.phrase(q.today)},
+      headline: 'Charges · ${period.label(q.today)}',
+      figure: fees,
+      link: AskLink.insights,
+    );
+  }
+
   Future<AskAnswer> _lowStock(_Query q) async {
     final items = await source.lowStock();
     if (items.isEmpty) return _answer(q, ReplyKind.noLowStock, const {});
@@ -1200,6 +1214,7 @@ String conversationTitle(AskContext context, CalendarDate today) {
     AskIntent.topItems => withWhen('What sold most'),
     AskIntent.profit => withWhen('Profit'),
     AskIntent.lowStock => 'Low stock',
+    AskIntent.fees => withWhen('Charges'),
     _ => payee != null ? 'Money sent to $payee' : 'New conversation',
   };
   return text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';

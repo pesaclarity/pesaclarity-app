@@ -83,6 +83,10 @@ abstract interface class AskDataSource {
   /// Profit in [period], or null when the space keeps no books.
   Future<int?> profit(AskPeriod period);
 
+  /// Charges paid in [period], as Insights counts them: transaction fees
+  /// and Fuliza charges, from the journal.
+  Future<int> fees(AskPeriod period);
+
   /// Items running low, with what is left as [AskLine.count] in thousandths.
   Future<List<AskLine>> lowStock();
 }

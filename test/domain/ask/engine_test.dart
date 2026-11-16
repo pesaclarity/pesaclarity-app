@@ -117,6 +117,9 @@ class _Source implements AskDataSource {
 
   @override
   Future<List<AskLine>> lowStock() async => const [];
+
+  @override
+  Future<int> fees(AskPeriod period) async => kes(120);
 }
 
 void main() {
@@ -279,6 +282,10 @@ void main() {
     final bills = await ask('What bills are coming up?');
     expect(text(bills), contains('Kenya Power'));
     expect((await ask("What's my balance?")).figureMinor, kes(5000));
+    final fees = await ask('How much did I pay in charges last month?');
+    expect(fees.kind, ReplyKind.fees);
+    expect(fees.figureMinor, kes(120));
+    expect(fees.headline, 'Charges · October 2026');
   });
 
   test('business: what sold most, profit, who owes me', () async {

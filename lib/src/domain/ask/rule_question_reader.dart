@@ -44,6 +44,13 @@ class RuleQuestionReader implements QuestionReader {
     ),
     (
       RegExp(
+        r'\bfees?\b|\bcharges?\b|\btransaction costs?\b|\bcharged\b|'
+        r'\bada za\b|\bmakato\b',
+      ),
+      AskIntent.fees,
+    ),
+    (
+      RegExp(
         r'\bsafe to spend\b|\bcan i (?:still )?spend\b|\bhow much can i\b|'
         r'\bleft (?:to spend|for today)\b|\bdaily limit\b|\bnaweza kutumia\b',
       ),
