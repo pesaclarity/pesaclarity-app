@@ -16,7 +16,10 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.pesaclarity.app"
-    compileSdk = flutter.compileSdkVersion
+    // 37 for flutter_local_notifications 23 and androidx.core 1.19, which
+    // require it. Compiling against 37 changes no runtime behaviour:
+    // targetSdk still follows Flutter.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
