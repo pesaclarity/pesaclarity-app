@@ -23,6 +23,11 @@ const replyPlaceholders = {
   'number',
   // The biggest sorted category's amount, beside what is not sorted yet.
   'top_amount',
+  // Beside money in: what came in but is not counted as money in.
+  'own_amount',
+  'unnamed_amount',
+  // What an answer is about, such as "your debts".
+  'what',
 };
 
 /// Placeholders whose facts are money in minor units.
@@ -32,6 +37,8 @@ const moneyPlaceholders = {
   'prev_amount',
   'target',
   'top_amount',
+  'own_amount',
+  'unnamed_amount',
 };
 
 final _placeholder = RegExp(r'\{([a-z_]+)\}');
@@ -323,6 +330,23 @@ class TemplateReplyWriter implements ReplyWriter {
     ReplyKind.noLowStock: [
       'Nothing is running low.',
       'Stock looks good: nothing is low.',
+    ],
+    ReplyKind.nothingIn: ['Nothing came in {period}.'],
+    ReplyKind.noPaymentsTo: ["I couldn't find payments to {payee} {period}."],
+    ReplyKind.nothingFrom: ["I couldn't find money from {payee} {period}."],
+    ReplyKind.noAccount: ["I couldn't find an account called {account}."],
+    ReplyKind.noSalesOf: ["I couldn't find sales of {item} {period}."],
+    ReplyKind.notAmong: ["I couldn't find {name} among {what}."],
+    ReplyKind.notNarrowed: [
+      "I couldn't find {what} for {name} alone, so I haven't given you the "
+          'total for everything.',
+    ],
+    ReplyKind.onlyNow: [
+      'I can only tell you about {what} as things stand now, not {period}.',
+    ],
+    ReplyKind.cantBySize: [
+      "I can't pick out payments by their size yet, so I haven't given you "
+          'a figure for all of them.',
     ],
     ReplyKind.notFound: [
       'I could not find {category} in this space. Try another name.',

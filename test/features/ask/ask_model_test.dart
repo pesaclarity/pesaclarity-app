@@ -122,12 +122,96 @@ void main() {
         expect(u.span(SlotKind.payee)?.text, name, reason: q);
       }
       // Other questions are still the model's.
-      expect(
-        reader.read('How much did I send to John?').intent,
-        AskIntent.spent,
-      );
+      expect(reader.read('Where does my money go?').intent, AskIntent.spent);
     },
   );
+
+  test(
+    'a name the model leaves untagged is read by the rules, intent too',
+    () async {
+      final m = await manifest();
+      final rules = RuleQuestionReader(today: () => CalendarDate(2026, 11, 16));
+      // As the bundled model reads these: no payee tagged, and the intent
+      // often wrong ("how often" out of scope, "how much did I pay"
+      // subscriptions).
+      for (final (q, modelIntent, intent) in [
+        (
+          'How many times did I pay Example Grocers this month?',
+          'count_payments',
+          AskIntent.countPayments,
+        ),
+        (
+          'how often do I pay Example Grocers',
+          'out_of_scope',
+          AskIntent.countPayments,
+        ),
+        (
+          'number of payments to Example Grocers',
+          'count_payments',
+          AskIntent.countPayments,
+        ),
+        (
+          'times I paid Example Grocers this month',
+          'help',
+          AskIntent.countPayments,
+        ),
+        (
+          'How much did I pay Example Grocers this month?',
+          'subscriptions',
+          AskIntent.spent,
+        ),
+        ('how much to Example Grocers', 'help', AskIntent.spent),
+      ]) {
+        final reader = await loadAskReader(
+          readAsset: asset,
+          openRuntime: (_) =>
+              _LabelRuntime(m, intent: modelIntent, tags: const {}),
+          fallback: rules,
+        );
+        final u = reader.read(q);
+        expect(u.intent, intent, reason: q);
+        expect(u.span(SlotKind.payee)?.text, 'example grocers', reason: q);
+      }
+    },
+  );
+
+  test('money in phrasings are money in, whatever the model says', () async {
+    final m = await manifest();
+    final reader = await loadAskReader(
+      readAsset: asset,
+      openRuntime: (_) => _LabelRuntime(m, intent: 'spent', tags: const {}),
+      fallback: RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+    );
+    for (final q in [
+      'How much came in this month?',
+      'money in this month',
+      'how much did I receive',
+      'income this month',
+      'how much did I get',
+    ]) {
+      expect(reader.read(q).intent, AskIntent.received, reason: q);
+    }
+    // Spending stays spending, salary or not.
+    expect(
+      reader.read('How much did I spend from my salary?').intent,
+      AskIntent.spent,
+    );
+  });
+
+  test('a name the model tags keeps the model\'s reading', () async {
+    final m = await manifest();
+    const q = 'How much did I send to John?';
+    final john = tokenise(q).indexWhere((t) => t.text == 'John');
+    final reader = await loadAskReader(
+      readAsset: asset,
+      openRuntime: (_) =>
+          _LabelRuntime(m, intent: 'spent', tags: {john: 'payee'}),
+      fallback: RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+    );
+    final u = reader.read(q);
+    expect(u.intent, AskIntent.spent);
+    expect(u.span(SlotKind.payee)?.text, 'John');
+  });
 }
 
 /// Answers in the manifest's own label order, as the exported model does.

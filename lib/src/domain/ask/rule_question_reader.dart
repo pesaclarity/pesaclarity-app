@@ -139,7 +139,10 @@ class RuleQuestionReader implements QuestionReader {
       AskIntent.biggestPayment,
     ),
     (
-      RegExp(r'\bhow many\b|\bhow often\b|\bmara ngapi\b|\bnumber of\b'),
+      RegExp(
+        r'\bhow many\b|\bhow often\b|\bmara ngapi\b|\bnumber of\b|'
+        r"\btimes (?:i|i've|i have|did i|have i) (?:pa(?:y|id)|sen[dt])\b",
+      ),
       AskIntent.countPayments,
     ),
     (
@@ -168,7 +171,8 @@ class RuleQuestionReader implements QuestionReader {
     ),
     (
       RegExp(
-        r'\breceived?\b|\bcame in\b|\bcome in\b|\bgot paid\b|\bearn(?:ed)?\b|'
+        r'\breceived?\b|\bcame in\b|\bcome in\b|\b(?:got|get) paid\b|'
+        r'\bearn(?:ed)?\b|\bhow much (?:did|have|do) i (?:get|got)\b|'
         r'\bincome\b|\bnimepokea\b|\bmoney in\b|\bpaid in\b|\bsalary\b|\bmshahara\b',
       ),
       AskIntent.received,
@@ -203,6 +207,23 @@ class RuleQuestionReader implements QuestionReader {
   static bool readsMoneyInFrom(String question) => _moneyInFrom.hasMatch(
     question.toLowerCase().replaceAll(RegExp(r"[^a-z0-9' &.-]"), ' '),
   );
+
+  /// Spending words, which make a question about money out whatever else
+  /// it says ("spend on salary").
+  static final _spendWords = RegExp(
+    r'\bspen[dt]\b|\bspending\b|\bbought\b|\bcost\b|\bexpenses?\b',
+  );
+
+  /// Whether the rules' reading [read] of [question] should stand even
+  /// when a trained reader is bundled: money in from someone ("did KCB send
+  /// me"), counts ("how often do I pay X") and money in ("how much came
+  /// in"). The rules read these reliably; the bundled model reads "how
+  /// often do I pay X" as out of scope and tags no payee in most of them.
+  static bool decides(String question, Understanding read) {
+    if (readsMoneyInFrom(question)) return true;
+    return read.intent == AskIntent.countPayments ||
+        read.intent == AskIntent.received;
+  }
 
   static final _refineStart = RegExp(
     r'^(?:and|but|what about|how about|only|just|na|then|also|ok and|same for)\b',
@@ -306,6 +327,12 @@ class RuleQuestionReader implements QuestionReader {
     'between',
     'before',
     'after',
+    'most',
+    'least',
+    'more',
+    'less',
+    'often',
+    'number',
   };
 
   static final _entityAfter = <(RegExp, SlotKind)>[
@@ -392,6 +419,10 @@ class RuleQuestionReader implements QuestionReader {
         confidence = 0.85;
         break;
       }
+    }
+    // "Spend from my salary" is spending, though it names money in.
+    if (intent == AskIntent.received && _spendWords.hasMatch(clean)) {
+      intent = AskIntent.spent;
     }
     // Small talk only when it is all the question says.
     if (intent.isSmallTalk && clean.split(' ').length > 4) {

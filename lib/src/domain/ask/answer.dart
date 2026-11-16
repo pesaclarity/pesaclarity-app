@@ -65,6 +65,28 @@ enum ReplyKind {
   lowStock,
   noLowStock,
   fees,
+
+  /// Nothing came in, said as that rather than "no payments like this".
+  nothingIn,
+
+  /// A name the question gave that the records do not have, or have
+  /// nothing for in the period: said, never answered with a wider total.
+  noPaymentsTo,
+  nothingFrom,
+  noAccount,
+  noSalesOf,
+
+  /// A list (debts, bills) with nothing of the name asked.
+  notAmong,
+
+  /// The question names something this answer cannot be narrowed by.
+  notNarrowed,
+
+  /// A period for an answer that is only as things stand now.
+  onlyNow,
+
+  /// "Payments over 1,000": payments cannot be picked out by size.
+  cantBySize,
   notFound,
   clarify,
   cant,
@@ -286,6 +308,26 @@ class AskAnswer {
     template: template,
     asOf: asOf,
     facts: facts,
+    headline: headline,
+    figureMinor: figureMinor,
+    figureText: figureText,
+    rows: rows,
+    totalRows: totalRows,
+    chart: chart,
+    choices: choices,
+    clarifyWord: clarifyWord,
+    askPeriod: askPeriod,
+    suggestions: suggestions,
+    context: context,
+    link: link,
+  );
+
+  /// This answer with [sentence] after its own, and [more] facts for it.
+  AskAnswer withNote(String sentence, Map<String, Object> more) => AskAnswer(
+    kind: kind,
+    template: template.isEmpty ? sentence : '$template $sentence',
+    asOf: asOf,
+    facts: {...facts, ...more},
     headline: headline,
     figureMinor: figureMinor,
     figureText: figureText,

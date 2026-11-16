@@ -595,6 +595,232 @@ void main() {
     });
   });
 
+  group('money in, as Home and Insights count it', () {
+    Future<AskAnswer> ask(String q) async =>
+        (await engine.ask(q, context: AskContext.empty, now: now)).answer;
+
+    const phrasings = [
+      'How much came in this month?',
+      'money in this month',
+      'How much did I receive this month?',
+      'income this month',
+      'How much did I get this month?',
+    ];
+
+    test(
+      'every phrasing is money in, own transfers left out and said so',
+      () async {
+        source.all.addAll(_kcbToMpesa(eat(2026, 11, 6), 3920));
+        for (final q in phrasings) {
+          final a = await ask(q);
+          expect(a.context.intent, AskIntent.received, reason: q);
+          expect(a.figureMinor, kes(2500), reason: q);
+          expect(
+            text(a),
+            endsWith(
+              "The 3920 that moved between your own accounts isn't counted "
+              'as money in.',
+            ),
+            reason: q,
+          );
+        }
+      },
+    );
+
+    test('money waiting for a name is not income until it is named', () async {
+      source.all.add(
+        LedgerEntry(
+          id: _id++,
+          accountId: 1,
+          occurredAt: eat(2026, 11, 11),
+          amountMinor: kes(700),
+          direction: TransactionDirection.inflow,
+          kind: TransactionKind.received,
+          // Acme again, this time with nothing to say it was income.
+          counterpartyName: 'Acme',
+        ),
+      );
+      final a = await ask('How much came in this month?');
+      expect(a.figureMinor, kes(2500));
+      expect(text(a), contains("The 700 from people you haven't named yet"));
+      // Asked about by name, all they sent is counted.
+      final from = await ask('How much did Acme send me?');
+      expect(from.figureMinor, kes(3200));
+    });
+
+    test('with none, it says nothing came in', () async {
+      source.all.removeWhere((e) => e.isInflow);
+      source.all.addAll(_kcbToMpesa(eat(2026, 11, 6), 3920));
+      for (final q in phrasings) {
+        final a = await ask(q);
+        expect(a.kind, ReplyKind.nothingIn, reason: q);
+        expect(a.figureMinor, 0, reason: q);
+        expect(
+          text(a),
+          'Nothing came in this month. The 3920 that moved between your own '
+          "accounts isn't counted as money in.",
+          reason: q,
+        );
+      }
+      source.all.removeWhere((e) => e.isInflow);
+      expect(
+        text(await ask('How much came in this month?')),
+        'Nothing came in this month.',
+      );
+    });
+  });
+
+  group('a name the answer cannot use is said, never a wider total', () {
+    Future<AskAnswer> ask(String q) async =>
+        (await engine.ask(q, context: AskContext.empty, now: now)).answer;
+
+    // One question per intent that takes a name or a period, each naming
+    // something the records do not have or the answer cannot narrow by.
+    final cases = <(String, AskIntent, ReplyKind, String)>[
+      (
+        'How much did I spend at Example Nowhere this month?',
+        AskIntent.spent,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'How much did I spend on food at Example Nowhere?',
+        AskIntent.spent,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'How much did I send to Example Nowhere?',
+        AskIntent.sentTo,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'How much did I receive from Example Nowhere?',
+        AskIntent.receivedFrom,
+        ReplyKind.nothingFrom,
+        "I couldn't find money from Example Nowhere this month.",
+      ),
+      (
+        'How many times did I pay Example Nowhere this month?',
+        AskIntent.countPayments,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'What was my biggest payment to Example Nowhere?',
+        AskIntent.biggestPayment,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'Who did I pay the most for zebras?',
+        AskIntent.topPayees,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Zebras this month.",
+      ),
+      (
+        'Where did my money go at Example Nowhere?',
+        AskIntent.topCategories,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this month.",
+      ),
+      (
+        'How has my spending at Example Nowhere changed?',
+        AskIntent.trend,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere this year.",
+      ),
+      (
+        'Compare my spending at Example Nowhere with last month',
+        AskIntent.compare,
+        ReplyKind.noPaymentsTo,
+        "I couldn't find payments to Example Nowhere last month.",
+      ),
+      (
+        'income sources from Example Nowhere',
+        AskIntent.incomeSources,
+        ReplyKind.nothingFrom,
+        "I couldn't find money from Example Nowhere this month.",
+      ),
+      (
+        "What's my Equity balance?",
+        AskIntent.balance,
+        ReplyKind.noAccount,
+        "I couldn't find an account called Equity.",
+      ),
+      (
+        'How much do I owe to Example Lender?',
+        AskIntent.debts,
+        ReplyKind.notAmong,
+        "I couldn't find Example Lender among your debts.",
+      ),
+      (
+        'What bills are due for Example Water?',
+        AskIntent.billsDue,
+        ReplyKind.notAmong,
+        "I couldn't find Example Water among your bills.",
+      ),
+      (
+        'What bills were due last month?',
+        AskIntent.billsDue,
+        ReplyKind.onlyNow,
+        'I can only tell you about your bills as things stand now, not '
+            'last month.',
+      ),
+      (
+        'How much did I pay in charges on KCB this month?',
+        AskIntent.fees,
+        ReplyKind.notNarrowed,
+        "I couldn't find charges for KCB alone, so I haven't given you the "
+            'total for everything.',
+      ),
+      (
+        'What was safe to spend last week?',
+        AskIntent.safeToSpend,
+        ReplyKind.onlyNow,
+        'I can only tell you about safe to spend as things stand now, not '
+            'last week.',
+      ),
+      (
+        'Sales of zebras this week',
+        AskIntent.sales,
+        ReplyKind.noSalesOf,
+        "I couldn't find sales of Zebras this week.",
+      ),
+      (
+        'How many payments over 1000 this month?',
+        AskIntent.countPayments,
+        ReplyKind.cantBySize,
+        "I can't pick out payments by their size yet, so I haven't given you "
+            'a figure for all of them.',
+      ),
+    ];
+    for (final (q, intent, kind, says) in cases) {
+      test('${intent.label}: $q', () async {
+        final turn = await engine.ask(q, context: AskContext.empty, now: now);
+        expect(turn.context.intent, intent, reason: q);
+        expect(turn.answer.kind, kind, reason: q);
+        expect(turn.answer.figureMinor, isNull, reason: q);
+        expect(turn.answer.rows, isEmpty, reason: q);
+        expect(text(turn.answer), says);
+      });
+    }
+
+    test('a name the answer can use still narrows it', () async {
+      final bank = await ask('How much do I owe to Test Bank?');
+      expect(bank.kind, ReplyKind.debts);
+      expect(bank.figureMinor, kes(30000));
+      final bills = await ask('What bills are due this month?');
+      expect(bills.kind, ReplyKind.bills);
+      expect(bills.rows.single.title, 'Kenya Power');
+      final naivas = await ask('How many times did I pay Naivas last month?');
+      expect(naivas.kind, ReplyKind.count);
+      expect(naivas.figureText, 'Twice');
+      expect(naivas.facts['amount'], kes(5920));
+    });
+  });
+
   test('small talk needs no lookup', () async {
     final a = (await engine.ask(
       'hi',
