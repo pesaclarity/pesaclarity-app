@@ -26,7 +26,7 @@ dependencies:
   ujumbe:
     git:
       url: https://github.com/pesaclarity/ujumbe-parsers.git
-      ref: ddc8d2a5ed386bf54c1a084536103324871b94de
+      ref: 01dd248be74d84c33213c5e24977781c650c2301
   printing: ^5.15.1
   http: ^1.6.0
   flutter_local_notifications: ^22.3.3
