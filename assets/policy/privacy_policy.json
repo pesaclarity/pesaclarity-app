@@ -1,7 +1,16 @@
 {
-  "version": "1.8",
-  "updated": "2026-11-10",
+  "version": "2.0",
+  "updated": "2026-11-16",
   "changes": [
+    {
+      "version": "2.0",
+      "date": "2026-11-16",
+      "items": [
+        "Ask answers questions about your money on your phone, with small models that ship inside the app. Nothing you ask is sent anywhere, and Ask has no federated learning.",
+        "Ask's conversations are kept in the space's encrypted database for as long as you choose, and you can delete them.",
+        "In the F-Droid build you can give a gift by M-Pesa through CitaPay. CitaPay and M-Pesa see the payment; the app sends CitaPay nothing."
+      ]
+    },
     {
       "version": "1.8",
       "date": "2026-11-10",
