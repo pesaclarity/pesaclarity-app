@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/printing/slip.dart';
+import '../../../theme/pdf_palette.dart';
 import '../data/counter_printer.dart';
 
 /// The counter printer the business prints on, its paper and whether a
@@ -134,7 +135,8 @@ class SlipPrinter {
 
 final slipPrinterProvider = Provider<SlipPrinter>(SlipPrinter.new);
 
-/// [slip] as a narrow PDF, for printing it on any printer.
+/// [slip] as a narrow PDF, for printing it on any printer: black and
+/// white, as a till printer prints it.
 Future<Uint8List> slipPdf(Slip slip, {int columns = 40}) async {
   final doc = pw.Document();
   final lines = slip.render(columns);
@@ -147,7 +149,11 @@ Future<Uint8List> slipPdf(Slip slip, {int columns = 40}) async {
           for (final line in lines)
             pw.Text(
               line,
-              style: pw.TextStyle(font: pw.Font.courier(), fontSize: 8),
+              style: pw.TextStyle(
+                font: pw.Font.courier(),
+                fontSize: 8,
+                color: PdfPalette.mono.text,
+              ),
             ),
         ],
       ),

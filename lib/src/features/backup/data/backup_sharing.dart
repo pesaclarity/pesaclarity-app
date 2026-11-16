@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/backup/backup.dart';
+import '../../../theme/pdf_palette.dart';
 
 /// Hands files and text to other apps through the Android share sheet.
 abstract interface class FileSharer {
@@ -83,6 +84,7 @@ Future<Uint8List> recoveryKeyPdf(RecoveryKey key, DateTime createdAt) {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(48),
+        theme: PdfPalette.light.theme(fontSize: 12),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -99,7 +101,7 @@ Future<Uint8List> recoveryKeyPdf(RecoveryKey key, DateTime createdAt) {
             pw.Container(
               padding: const pw.EdgeInsets.all(20),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey600),
+                border: pw.Border.all(color: PdfPalette.light.muted),
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
               child: pw.Column(
