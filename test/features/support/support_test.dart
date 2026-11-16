@@ -80,11 +80,12 @@ List<Override> _overrides(
   AppDatabase db, {
   AppFlavor flavor = AppFlavor.foss,
   _Opener? opener,
+  ({String url, String payees, String costs}) defines = _defines,
 }) => [
   appDatabaseProvider.overrideWithValue(db),
   clockProvider.overrideWithValue(() => _now),
   appFlavorProvider.overrideWithValue(flavor),
-  supportDefinesProvider.overrideWithValue(_defines),
+  supportDefinesProvider.overrideWithValue(defines),
   if (opener != null) supportOpenerProvider.overrideWithValue(opener),
 ];
 
@@ -240,6 +241,45 @@ void main() {
     await _home(tester, _overrides(db));
     await tester.pumpAndSettle();
     expect(find.text('Thank you'), findsNothing);
+  });
+
+  testAppWidgets("CitaPay's page gets the amount in cents", (tester) async {
+    final db = openTestDatabase();
+    final opener = _Opener();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _overrides(
+          db,
+          opener: opener,
+          defines: (
+            url:
+                'https://pay.citatech.cloud/pay/@pesaclarity'
+                '?amount={amount_cents}',
+            payees: '',
+            costs: '',
+          ),
+        ),
+        child: MaterialApp(theme: AppTheme.light, home: const SupportScreen()),
+      ),
+    );
+    await settleFrames(tester);
+
+    // 200 shillings is 20000 cents: CitaPay shows KES 200.
+    expect(find.text('Give 200 with M-Pesa'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('support-give')));
+    await tester.pump();
+    expect(
+      opener.opened.last.toString(),
+      'https://pay.citatech.cloud/pay/@pesaclarity?amount=20000',
+    );
+
+    await tester.tap(find.byKey(const Key('support-amount')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('support-amount-50')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('support-give')));
+    await tester.pump();
+    expect(opener.opened.last.toString(), endsWith('?amount=5000'));
   });
 
   testAppWidgets('Support gives the chosen amount by M-Pesa', (tester) async {

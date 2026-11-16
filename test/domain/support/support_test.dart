@@ -28,6 +28,60 @@ void main() {
       expect(config.costs, isNull, reason: 'only https');
     });
 
+    test('{amount_cents} carries the amount in cents, as CitaPay reads it', () {
+      final config = SupportConfig.parse(
+        url:
+            'https://pay.citatech.cloud/pay/@pesaclarity?amount={amount_cents}',
+        payees: '',
+        costs: '',
+      )!;
+      expect(config.takesAmount, isTrue);
+      // CitaPay shows round(amount / 100) shillings: 20000 is KES 200.
+      expect(
+        config.link(200).toString(),
+        'https://pay.citatech.cloud/pay/@pesaclarity?amount=20000',
+      );
+      expect(
+        config.link(50).toString(),
+        'https://pay.citatech.cloud/pay/@pesaclarity?amount=5000',
+      );
+      expect(
+        config.link().toString(),
+        'https://pay.citatech.cloud/pay/@pesaclarity?amount=',
+      );
+      expect(config.knowsGifts, isFalse);
+    });
+
+    test('a page may take both placeholders', () {
+      final config = SupportConfig.parse(
+        url: 'https://pay.example.org/give?kes={amount}&cents={amount_cents}',
+        payees: '',
+        costs: '',
+      )!;
+      expect(config.takesAmount, isTrue);
+      expect(
+        config.link(500).toString(),
+        'https://pay.example.org/give?kes=500&cents=50000',
+      );
+    });
+
+    test('{amount_cents} is checked like {amount}', () {
+      expect(
+        SupportConfig.parse(
+          url: 'http://pay.example.org/pay?amount={amount_cents}',
+          payees: '',
+          costs: '',
+        ),
+        isNull,
+        reason: 'only https',
+      );
+      expect(
+        SupportConfig.parse(url: '{amount_cents}', payees: '', costs: ''),
+        isNull,
+        reason: 'no host',
+      );
+    });
+
     test('a page without {amount} opens as it is', () {
       final config = SupportConfig.parse(
         url: 'https://pay.example.org/pay/@test',

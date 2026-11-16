@@ -3,8 +3,9 @@
 library;
 
 /// Where gifts go, set at build time with
-/// `--dart-define=PESACLARITY_SUPPORT_URL=https://...`. `{amount}` in it
-/// stands for the amount in shillings, when the page can take one.
+/// `--dart-define=PESACLARITY_SUPPORT_URL=https://...`. When the page can
+/// take an amount, `{amount}` in it stands for the shillings and
+/// `{amount_cents}` for the shillings times 100 (CitaPay's `?amount=`).
 const supportUrlDefine = String.fromEnvironment('PESACLARITY_SUPPORT_URL');
 
 /// The names or numbers a gift's M-Pesa message shows as the payee,
@@ -33,7 +34,8 @@ class SupportConfig {
     this.costs,
   });
 
-  /// The giving page's https address, perhaps with `{amount}`.
+  /// The giving page's https address, perhaps with `{amount}` or
+  /// `{amount_cents}`.
   final String template;
 
   /// Payee names and numbers, lower case.
@@ -50,9 +52,7 @@ class SupportConfig {
     required String costs,
   }) {
     final template = url.trim();
-    if (!_isHttps(Uri.tryParse(template.replaceAll('{amount}', '1')))) {
-      return null;
-    }
+    if (!_isHttps(Uri.tryParse(_fill(template, 1)))) return null;
     final costsUri = Uri.tryParse(costs.trim());
     return SupportConfig(
       template: template,
@@ -65,22 +65,33 @@ class SupportConfig {
   }
 
   /// Whether the page can be opened with an amount already chosen.
-  bool get takesAmount => template.contains('{amount}');
+  bool get takesAmount =>
+      template.contains(_shillings) || template.contains(_cents);
 
   /// Whether the app can recognise a gift's M-Pesa message.
   bool get knowsGifts => payees.isNotEmpty;
 
   /// The page to open for [shillings]. The address carries the amount and
   /// nothing about the person.
-  Uri link([int? shillings]) => Uri.parse(
-    template.replaceAll('{amount}', shillings == null ? '' : '$shillings'),
-  );
+  Uri link([int? shillings]) => Uri.parse(_fill(template, shillings));
 
   /// Whether a payment to [name] or [number] is a gift to Pesa Clarity.
   bool isGiftTo({String? name, String? number}) =>
       (name != null && payees.contains(name.trim().toLowerCase())) ||
       (number != null && payees.contains(number.trim().toLowerCase()));
 }
+
+/// The amount in shillings, such as `200`.
+const _shillings = '{amount}';
+
+/// The amount in cents, such as `20000` for 200 shillings.
+const _cents = '{amount_cents}';
+
+/// [template] with both placeholders filled from [shillings], or emptied
+/// when there is no amount.
+String _fill(String template, int? shillings) => template
+    .replaceAll(_cents, shillings == null ? '' : '${shillings * 100}')
+    .replaceAll(_shillings, shillings == null ? '' : '$shillings');
 
 bool _isHttps(Uri? uri) =>
     uri != null && uri.isScheme('https') && uri.host.isNotEmpty;
