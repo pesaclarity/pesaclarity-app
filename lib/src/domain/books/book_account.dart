@@ -79,7 +79,20 @@ enum BookAccountKind {
 
   /// Differences between the records and a balance the bank or M-Pesa
   /// reported, such as from a missing message.
-  balanceDifferences(BookAccountClass.equity);
+  balanceDifferences(BookAccountClass.equity),
+
+  /// The journal's suspense account: money whose meaning is not known yet,
+  /// such as money in from someone not named, or the part of a reported
+  /// balance the records do not explain.
+  notYetSorted(BookAccountClass.liability),
+
+  /// Fuliza owed on one M-Pesa account: [BookAccount.id] is the M-Pesa
+  /// account's id. Draws and their fees credit it; repayments debit it.
+  fulizaOwed(BookAccountClass.liability),
+
+  /// Balance corrections the person recorded, such as setting a balance
+  /// or saying Fuliza is paid.
+  balanceCorrections(BookAccountClass.equity);
 
   const BookAccountKind(this.accountClass);
 
@@ -87,7 +100,10 @@ enum BookAccountKind {
 
   /// Whether accounts of this kind carry an id.
   bool get hasId =>
-      this == money || this == incomeCategory || this == spendingCategory;
+      this == money ||
+      this == incomeCategory ||
+      this == spendingCategory ||
+      this == fulizaOwed;
 }
 
 /// One account in a space's books.
@@ -109,6 +125,21 @@ class BookAccount {
 
   /// One of the fixed accounts.
   const BookAccount.fixed(BookAccountKind kind) : this._(kind, null);
+
+  /// Fuliza owed on M-Pesa account [accountId].
+  const BookAccount.fulizaOwed(int accountId)
+    : this._(BookAccountKind.fulizaOwed, accountId);
+
+  /// The account a stored [key] names (see [key]); null when it names none.
+  static BookAccount? parse(String key) {
+    final colon = key.indexOf(':');
+    final kind = BookAccountKind.values
+        .asNameMap()[colon < 0 ? key : key.substring(0, colon)];
+    if (kind == null) return null;
+    if (!kind.hasId) return colon < 0 ? BookAccount.fixed(kind) : null;
+    final id = colon < 0 ? null : int.tryParse(key.substring(colon + 1));
+    return id == null ? null : BookAccount._(kind, id);
+  }
 
   static const uncategorisedIncome = BookAccount.fixed(
     BookAccountKind.uncategorisedIncome,
@@ -136,6 +167,13 @@ class BookAccount {
   static const balanceDifferences = BookAccount.fixed(
     BookAccountKind.balanceDifferences,
   );
+  static const notYetSorted = BookAccount.fixed(BookAccountKind.notYetSorted);
+
+  /// Money on its way between accounts: the journal's clearing account.
+  static const moneyInTransit = ownTransfers;
+  static const balanceCorrections = BookAccount.fixed(
+    BookAccountKind.balanceCorrections,
+  );
 
   final BookAccountKind kind;
 
@@ -143,6 +181,11 @@ class BookAccount {
   final int? id;
 
   BookAccountClass get accountClass => kind.accountClass;
+
+  /// How the journal stores this account: the kind's name, then `:` and the
+  /// id for kinds that have one, such as `money:3`. Kind names are stored,
+  /// so they are never renamed.
+  String get key => id == null ? kind.name : '${kind.name}:$id';
 
   /// Whether a debit raises this account's balance (assets and expenses).
   bool get debitNormal =>

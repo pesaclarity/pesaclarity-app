@@ -80,6 +80,7 @@ class WalletWalk {
     this._fundedBy,
     this._adjust,
     this.checkpoints,
+    this._repaidBy,
   );
 
   /// Walks [account]'s entries in [all].
@@ -156,7 +157,15 @@ class WalletWalk {
     }
 
     final adjust = <int, int>{};
-    final walk = WalletWalk._(account, own, funded, fundedBy, adjust, {});
+    final walk = WalletWalk._(
+      account,
+      own,
+      funded,
+      fundedBy,
+      adjust,
+      {},
+      repaidBy,
+    );
     final tolerance = claimToleranceMinor(account.currency);
     final book = FulizaBook();
     final done = <int>{};
@@ -247,6 +256,7 @@ class WalletWalk {
         walk.checkpoints[e.id] = claimed;
         known = true;
       }
+      walk._owedAfter[e.id] = book.owedMinor;
     }
     walk.fuliza = book.result();
     return walk;
@@ -268,6 +278,23 @@ class WalletWalk {
 
   /// The wallet balance after each checkpoint, by entry id.
   final Map<int, int> checkpoints;
+
+  /// Fuliza repayment messages counted with the money in they came from,
+  /// by the money in's id.
+  final Map<int, LedgerEntry> _repaidBy;
+
+  final _owedAfter = <int, int>{};
+
+  /// Whether Fuliza draw [e] funded the payment just before it, so it adds
+  /// nothing to the wallet itself (see [fundedBy]).
+  bool isFunded(LedgerEntry e) => _funded.contains(e.id);
+
+  /// The Fuliza repayment message counted with money in [e], if any.
+  LedgerEntry? repaidWith(LedgerEntry e) => _repaidBy[e.id];
+
+  /// Fuliza owed once [e] is counted: zero for accounts that cannot owe
+  /// Fuliza, and for entries the walk did not count.
+  int owedAfter(LedgerEntry e) => _owedAfter[e.id] ?? 0;
 
   /// The Fuliza debt after the entries; nothing for other accounts.
   late final FulizaDebt fuliza;

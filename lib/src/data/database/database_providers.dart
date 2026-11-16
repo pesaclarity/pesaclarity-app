@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/spaces/space.dart';
+import '../repositories/journal_repository.dart';
 import 'app_database.dart';
 import 'connection.dart';
 import 'database_key_store.dart';
@@ -108,9 +109,17 @@ final personalDatabaseProvider = Provider<AppDatabase>((ref) {
     ref.watch(databaseKeyStoreProvider),
     beforeOpen: lock.waitUntilFree,
   );
-  ref.onDispose(() => unawaited(lock.close(db)));
+  _keepJournal(ref, db, lock);
   return db;
 });
+
+/// Keeps [db]'s journal posted while it is open, then closes it.
+void _keepJournal(Ref ref, AppDatabase db, DatabaseFileLock lock) {
+  final keeper = JournalKeeper(db)..start();
+  ref.onDispose(
+    () => unawaited(keeper.stop().whenComplete(() => lock.close(db))),
+  );
+}
 
 /// The open space's database. Override in tests with an in-memory database.
 ///
@@ -125,7 +134,7 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
     beforeOpen: lock.waitUntilFree,
     spaceId: spaceId,
   );
-  ref.onDispose(() => unawaited(lock.close(db)));
+  _keepJournal(ref, db, lock);
   return db;
 });
 

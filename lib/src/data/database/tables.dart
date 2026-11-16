@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/books/books.dart';
 import '../../domain/enums.dart';
 import '../../domain/people/reminder_text.dart';
 
@@ -288,6 +289,54 @@ class DeclinedTransfers extends Table {
 
   @override
   Set<Column> get primaryKey => {outflowId, inflowId};
+}
+
+/// One entry of the space's double-entry journal (decision 0018): one money
+/// event, from one source document. Entries are never edited or deleted: a
+/// change posts an entry that [reverses] the old one, then a new entry.
+@TableIndex(name: 'journal_entries_source', columns: {#sourceKind, #sourceId})
+@TableIndex(name: 'journal_entries_reverses', columns: {#reverses})
+@DataClassName('JournalEntryRow')
+class JournalEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// When the money moved. A reversal carries the date of the entry it
+  /// reverses, so the two cancel out in every period.
+  DateTimeColumn get occurredAt => dateTime()();
+
+  /// What the entry was made from, and its id: a transaction, an account's
+  /// opening, or the transaction whose reported balance it follows.
+  TextColumn get sourceKind => textEnum<JournalSource>()();
+  IntColumn get sourceId => integer()();
+  TextColumn get memo => text().nullable()();
+
+  /// The entry this one cancels, for a reversal.
+  IntColumn get reverses =>
+      integer().nullable().references(JournalEntries, #id)();
+
+  /// When the entry was posted.
+  DateTimeColumn get recordedAt => dateTime()();
+}
+
+/// One line of a journal entry. An entry's postings sum to zero in each
+/// currency.
+@TableIndex(name: 'postings_entry', columns: {#entryId})
+@TableIndex(name: 'postings_account', columns: {#account})
+class Postings extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get entryId => integer().references(JournalEntries, #id)();
+
+  /// The account, by its key (see `BookAccount.key`), such as `money:3` or
+  /// `notYetSorted`.
+  TextColumn get account => text()();
+
+  /// Signed: a debit is positive, a credit negative.
+  IntColumn get amountMinor => integer()();
+  TextColumn get currency => text().withLength(min: 3, max: 3)();
+
+  /// The rate the person got for the transaction behind it, in millionths,
+  /// as on the transaction. Null uses the rates of its day.
+  IntColumn get rateMicros => integer().nullable()();
 }
 
 class TransactionTags extends Table {

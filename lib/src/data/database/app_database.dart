@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../domain/books/books.dart';
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
 import '../../domain/people/reminder_text.dart';
 import '../../domain/spaces/space.dart';
 import '../../domain/spaces/space_categories.dart';
+import '../repositories/journal_repository.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
@@ -61,13 +63,15 @@ part 'app_database.g.dart';
     InvoiceLines,
     EtimsCosts,
     RateSnapshots,
+    JournalEntries,
+    Postings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 34;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -277,6 +281,25 @@ class AppDatabase extends _$AppDatabase {
           '(SELECT message_hash FROM review_items)',
         );
       }
+      // The double-entry journal (decision 0018), built from the records.
+      if (from < 34) {
+        for (final TableInfo<Table, Object?> table in [
+          journalEntries,
+          postings,
+        ]) {
+          if (!await _exists('table', table.actualTableName)) {
+            await m.createTable(table);
+          }
+        }
+        for (final index in [
+          journalEntriesSource,
+          journalEntriesReverses,
+          postingsEntry,
+          postingsAccount,
+        ]) {
+          await _createIndexIfMissing(m, index);
+        }
+      }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(
@@ -289,6 +312,10 @@ class AppDatabase extends _$AppDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      // The journal added in version 34 starts from every existing record.
+      if (details.hadUpgrade && (details.versionBefore ?? 0) < 34) {
+        await JournalRepository.backfill(this);
+      }
     },
   );
 

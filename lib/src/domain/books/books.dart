@@ -60,6 +60,7 @@ class JournalEntry {
     required this.at,
     required this.currency,
     required Iterable<JournalLine> lines,
+    this.memo,
   }) : lines = List.unmodifiable(lines.where((l) => l.amountMinor != 0));
 
   final JournalSource source;
@@ -67,6 +68,9 @@ class JournalEntry {
   final DateTime at;
   final String currency;
   final List<JournalLine> lines;
+
+  /// Why the entry was made, when its source does not say.
+  final String? memo;
 
   bool get isBalanced => lines.fold(0, (sum, l) => sum + l.amountMinor) == 0;
 
