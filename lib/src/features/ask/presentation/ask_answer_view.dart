@@ -37,7 +37,8 @@ class QuestionBubble extends StatelessWidget {
         margin: const EdgeInsets.only(left: 48, bottom: Layout.cardGap),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
+          // A neutral tint, as a selected chip.
+          color: PesaColors.of(context).selected,
           borderRadius: BorderRadius.circular(Layout.panelRadius),
         ),
         child: Text(
@@ -483,9 +484,7 @@ class SuggestionChips extends StatelessWidget {
           ActionChip(
             avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
             label: Text(s),
-            backgroundColor: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
+            backgroundColor: PesaColors.of(context).field,
             side: BorderSide.none,
             onPressed: () => onTap(s),
           ),

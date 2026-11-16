@@ -82,13 +82,8 @@ class _AskConversationsScreenState
       floatingActionButton: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          // The soft shadow of floating parts, none in dark.
+          boxShadow: PesaColors.of(context).floatingShadow,
         ),
         child: FilledButton.icon(
           key: const Key('ask-new-conversation'),

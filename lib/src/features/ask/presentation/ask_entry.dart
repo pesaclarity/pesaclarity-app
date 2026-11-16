@@ -82,9 +82,9 @@ class AskBar extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         key: const Key('ask-bar'),
-        color: theme.brightness == Brightness.dark
-            ? theme.colorScheme.surfaceContainerHigh
-            : theme.colorScheme.surface,
+        color: colors.floating,
+        elevation: colors.floatingElevation,
+        shadowColor: colors.shadow,
         shape: StadiumBorder(
           side: BorderSide(
             color: Color.alphaBlend(
@@ -122,7 +122,7 @@ class AskBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   alignment: Alignment.center,
                   decoration: ShapeDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
+                    color: colors.selected,
                     shape: const StadiumBorder(),
                   ),
                   child: Text(

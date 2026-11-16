@@ -368,18 +368,10 @@ class _Starters extends StatelessWidget {
     return DecoratedBox(
       key: const Key('ask-starters'),
       decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? theme.colorScheme.surfaceContainerHigh
-            : theme.colorScheme.surface,
+        color: colors.floating,
         borderRadius: BorderRadius.circular(Layout.panelRadius),
         border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: colors.floatingShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
@@ -487,13 +479,12 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
+          color: colors.field,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: colors.border),
         ),
