@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
@@ -13,6 +14,7 @@ import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
+import '../../helpers/app_fonts.dart';
 import '../../helpers/test_app.dart';
 
 Future<void> _seed(AppDatabase db) async {
@@ -74,8 +76,13 @@ Future<void> _seed(AppDatabase db) async {
   );
 }
 
-Future<void> _pump(WidgetTester tester, AppDatabase db) async {
-  tester.view.physicalSize = const Size(800, 2000);
+Future<void> _pump(
+  WidgetTester tester,
+  AppDatabase db, {
+  Size size = const Size(800, 2000),
+  double textScale = 1,
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -86,7 +93,11 @@ Future<void> _pump(WidgetTester tester, AppDatabase db) async {
       ],
       child: MaterialApp(
         theme: AppTheme.light,
-        builder: (context, child) => AmountsHiddenScope(child: child!),
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+          minScaleFactor: textScale,
+          maxScaleFactor: textScale,
+          child: AmountsHiddenScope(child: child!),
+        ),
         home: const MoneyScreen(),
       ),
     ),
@@ -135,6 +146,68 @@ void main() {
     expect(find.text('40,000'), findsNothing);
     expect(find.text('+1,150'), findsNothing);
     expect(find.text(maskedDigits), findsNWidgets(3));
+  });
+
+  group('with the app fonts', () {
+    setUpAll(loadAppFonts);
+    for (final width in [320.0, 390.0]) {
+      testAppWidgets('long balances stay whole on one line at '
+          '${width.toInt()} dp and 2x text', (tester) async {
+        final db = openTestDatabase();
+        await tester.runAsync(() async {
+          for (final (name, type, opening) in [
+            ('Cash', AccountType.cash, 2433050),
+            ('M-Pesa', AccountType.mpesa, 10286500),
+            ('Equity', AccountType.bank, 120000),
+          ]) {
+            await db
+                .into(db.accounts)
+                .insert(
+                  AccountsCompanion.insert(
+                    name: name,
+                    type: type,
+                    openingDate: eat(2026, 11, 1, 0),
+                    openingBalanceMinor: Value(opening),
+                  ),
+                );
+          }
+        });
+        await _pump(tester, db, size: Size(width, 2400), textScale: 2);
+
+        // The tab's title row is too wide at 2x on a narrow phone, a separate
+        // matter from the amounts: take its overflow report and check each
+        // figure lies inside its own tile instead.
+        tester.takeException();
+        for (final figure in ['24,330.50', '102,865', '1,200']) {
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find.text(figure),
+          );
+          final boxes = paragraph.getBoxesForSelection(
+            TextSelection(baseOffset: 0, extentOffset: figure.length),
+          );
+          expect(
+            boxes.map((b) => b.top).toSet(),
+            hasLength(1),
+            reason: '$figure is on one line',
+          );
+          expect(
+            boxes.last.right,
+            lessThanOrEqualTo(paragraph.size.width + 0.5),
+            reason: '$figure is not cut',
+          );
+          final tile = tester.getRect(
+            find.ancestor(of: find.text(figure), matching: find.byType(Card)),
+          );
+          final rect = tester.getRect(find.text(figure));
+          expect(
+            tile.contains(rect.topLeft) &&
+                tile.contains(rect.bottomRight - const Offset(0.01, 0.01)),
+            isTrue,
+            reason: '$figure lies inside its tile',
+          );
+        }
+      });
+    }
   });
 
   test('a business gets its own tabs in the same bar', () {

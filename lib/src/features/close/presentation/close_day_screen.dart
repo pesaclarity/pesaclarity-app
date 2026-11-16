@@ -20,6 +20,7 @@ import '../../../domain/time/business_day.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
@@ -218,19 +219,14 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                 Card(
                   child: Column(
                     children: [
-                      ListTile(
-                        title: const Text('Should be in the drawer'),
-                        subtitle: Text(
-                          'Start ${_plain(cash.startMinor)} + in '
-                          '${_plain(cash.inMinor)} − out '
-                          '${_plain(cash.outMinor)}',
-                        ),
-                        trailing: Text(
-                          _plain(cash.expectedMinor),
-                          style: AppTypography.rowAmount(
-                            theme.colorScheme.onSurface,
-                          ),
-                        ),
+                      LabelValueRow(
+                        key: const Key('close-expected'),
+                        label: 'Should be in the drawer',
+                        detail:
+                            'Start ${_plain(cash.startMinor)} + in '
+                            '${_plain(cash.inMinor)} − out '
+                            '${_plain(cash.outMinor)}',
+                        value: _plain(cash.expectedMinor),
                       ),
                       const Divider(height: 1),
                       Padding(
@@ -352,21 +348,18 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                 if (sales != null) ...[
                   const SizedBox(height: 16),
                   Card(
-                    child: ListTile(
-                      title: const Text('Total sales today'),
-                      subtitle: sales.byWay.isEmpty
+                    child: LabelValueRow(
+                      key: const Key('close-sales'),
+                      label: 'Total sales today',
+                      detail: sales.byWay.isEmpty
                           ? null
-                          : Text(
-                              [
-                                for (final MapEntry(:key, :value)
-                                    in sales.byWay.entries)
-                                  '${methodLabel(key)} ${_plain(value)}',
-                              ].join(' · '),
-                            ),
-                      trailing: Text(
-                        _plain(sales.totalMinor),
-                        style: AppTypography.rowAmount(colors.successText),
-                      ),
+                          : [
+                              for (final MapEntry(:key, :value)
+                                  in sales.byWay.entries)
+                                '${methodLabel(key)} ${_plain(value)}',
+                            ].join(' · '),
+                      value: _plain(sales.totalMinor),
+                      valueColor: colors.successText,
                     ),
                   ),
                 ],

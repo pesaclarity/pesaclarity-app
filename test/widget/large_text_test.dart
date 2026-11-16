@@ -7,9 +7,9 @@ import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/test_app.dart';
 
-/// Large text from the phone's settings: cards grow and money wraps, with
-/// nothing overflowing. An overflow reports a Flutter error, which fails
-/// the test.
+/// Large text from the phone's settings: cards grow and money moves to a
+/// line of its own, never split, with nothing overflowing. An overflow
+/// reports a Flutter error, which fails the test.
 void main() {
   for (final scale in [1.3, 2.0]) {
     testAppWidgets('Home fits at ${scale}x text', (tester) async {
@@ -76,11 +76,15 @@ void main() {
       expect(tester.takeException(), isNull);
       // Money is shown whole, never shrunk or cut.
       expect(find.text('KES 12,345,678,901'), findsOneWidget);
+      // Too long to sit two to a row whole, so each tile takes a row.
       final tiles = find.byType(FigureTile);
       expect(
-        tester.getSize(tiles.first).height,
-        tester.getSize(tiles.last).height,
-        reason: 'tiles side by side are the same height',
+        tester.getRect(tiles.last).top,
+        greaterThan(tester.getRect(tiles.first).bottom),
+      );
+      expect(
+        tester.getSize(tiles.first).width,
+        tester.getSize(tiles.last).width,
       );
     });
   }

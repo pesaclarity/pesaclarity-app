@@ -6,6 +6,7 @@ import '../../theme/brand_tokens.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 import 'amounts_hidden.dart';
+import 'figures.dart';
 
 /// The card that leads a screen with its one primary number: a calm
 /// surface card, its figure in the theme's display type. Every lead card is
@@ -66,51 +67,87 @@ class HeroFigureCard extends StatelessWidget {
         // The card starts at its minimum height and grows with its text.
         child: Stack(
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: Layout.heroMinHeight,
-                minWidth: double.infinity,
-              ),
-              child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(
-                  Layout.heroPadding,
-                  Layout.heroPadding,
-                  eye ? Layout.heroEyeSpace : Layout.heroPadding,
-                  Layout.heroPadding,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      label,
-                      style: textTheme.labelLarge!.copyWith(
-                        color: colors.textMuted,
-                      ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final shown = figure == null
+                    ? null
+                    : maskAmountsIf(hidden, figure);
+                final figureStyle = AppTypography.leadFigure(figureColor);
+                // The eye keeps its corner clear. A figure too wide to
+                // sit beside it takes the card's full width on a line
+                // below the eye, rather than splitting.
+                final underEye =
+                    eye &&
+                    shown != null &&
+                    FigureText.numberWidth(context, shown, figureStyle) >
+                        constraints.maxWidth -
+                            Layout.heroPadding -
+                            Layout.heroEyeSpace;
+                final besideEye = eye && !underEye;
+                final labelText = Text(
+                  label,
+                  style: textTheme.labelLarge!.copyWith(
+                    color: colors.textMuted,
+                  ),
+                );
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: Layout.heroMinHeight,
+                    minWidth: double.infinity,
+                  ),
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      Layout.heroPadding,
+                      Layout.heroPadding,
+                      besideEye ? Layout.heroEyeSpace : Layout.heroPadding,
+                      Layout.heroPadding,
                     ),
-                    if (figure != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        maskAmountsIf(hidden, figure),
-                        style: AppTypography.leadFigure(figureColor),
-                      ),
-                    ],
-                    if (caption != null) ...[
-                      SizedBox(height: figure == null ? 6 : 8),
-                      Text(
-                        maskAmountsIf(hidden, caption!.replaceAll('\n', ' · ')),
-                        style: textTheme.bodyMedium!.copyWith(
-                          color: colors.textMuted,
-                        ),
-                      ),
-                    ],
-                    if (footer != null) ...[
-                      const SizedBox(height: 12),
-                      footer!,
-                    ],
-                  ],
-                ),
-              ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (underEye)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight:
+                                  Layout.heroEyeInset +
+                                  Layout.minTouch -
+                                  Layout.heroPadding,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                end: Layout.heroEyeSpace - Layout.heroPadding,
+                              ),
+                              child: labelText,
+                            ),
+                          )
+                        else
+                          labelText,
+                        if (shown != null) ...[
+                          const SizedBox(height: 4),
+                          FigureText(shown, style: figureStyle),
+                        ],
+                        if (caption != null) ...[
+                          SizedBox(height: figure == null ? 6 : 8),
+                          Text(
+                            maskAmountsIf(
+                              hidden,
+                              caption!.replaceAll('\n', ' · '),
+                            ),
+                            style: textTheme.bodyMedium!.copyWith(
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ],
+                        if (footer != null) ...[
+                          const SizedBox(height: 12),
+                          footer!,
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
             if (eye)
               PositionedDirectional(
