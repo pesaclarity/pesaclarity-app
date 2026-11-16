@@ -89,11 +89,11 @@ class GoalsScreen extends ConsumerWidget {
           ),
         ),
       ),
+      // See debts above is the one way in, so an empty list only says what
+      // will show, as Saving for does.
       if (open.isEmpty)
-        _LinkCard(
-          title: 'Add a debt',
-          subtitle: 'Loans, cards, Fuliza and family loans.',
-          onTap: () => context.go(AppRoutes.debts),
+        const EmptyNote(
+          'Debts show here, such as loans, cards, Fuliza and family loans.',
         )
       else
         _DebtsCard(

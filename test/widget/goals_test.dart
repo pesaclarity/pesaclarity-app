@@ -84,7 +84,13 @@ void main() {
     final db = openTestDatabase();
     await pumpGoals(tester, db: db);
 
-    expect(find.text('Add a debt'), findsWidgets);
+    expect(
+      find.text(
+        'Debts show here, such as loans, cards, Fuliza and family loans.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Add a debt'), findsNothing);
     expect(find.text('Debt-free'), findsNothing);
     await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
@@ -157,7 +163,8 @@ void main() {
       tester.getBottomLeft(find.byType(TabHeader)).dy,
       reason: 'only the title gap between the title and the card',
     );
-    expect(find.text('Add a debt'), findsOneWidget);
+    expect(find.text('Add a debt'), findsNothing);
+    expect(find.text('See debts'), findsOneWidget);
     expect(
       find.text('Goals show here, such as an emergency fund or a new laptop.'),
       findsOneWidget,
