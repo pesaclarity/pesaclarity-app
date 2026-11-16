@@ -38,6 +38,7 @@ import '../../hours/presentation/log_hours_sheet.dart';
 import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
+import '../../insights/presentation/health_colors.dart';
 import '../../review/application/review_providers.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
@@ -558,6 +559,14 @@ class _HealthIndexCard extends StatelessWidget {
       headline = 'Same as the month before';
     }
     final action = index.bestAction;
+    final figure = AppTypography.tileFigure(theme.colorScheme.onSurface);
+    // The ring holds three digits at the type scale's tile size and grows
+    // with the text size, rather than shrinking the score to fit.
+    final ring = math.max(
+      _healthRingMin,
+      MediaQuery.textScalerOf(context).scale(figure.fontSize!) * 2 +
+          2 * (_healthRingStroke + 6),
+    );
 
     return Card(
       child: InkWell(
@@ -567,30 +576,21 @@ class _HealthIndexCard extends StatelessWidget {
           child: Row(
             children: [
               SizedBox.square(
-                dimension: 56,
+                dimension: ring,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     SizedBox.expand(
                       child: CircularProgressIndicator(
                         value: math.min(index.score, 100) / 100,
-                        strokeWidth: 6,
-                        color: theme.colorScheme.primary,
-                        backgroundColor: colors.brandSoft,
+                        strokeWidth: _healthRingStroke,
+                        // The band's colour on a neutral track: brand red
+                        // is kept for actions.
+                        color: healthBandColor(context, index.band),
+                        backgroundColor: colors.border,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          '${index.score}',
-                          style: AppTypography.tileFigure(
-                            theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ),
+                    Text('${index.score}', style: figure),
                   ],
                 ),
               ),
@@ -629,6 +629,9 @@ class _HealthIndexCard extends StatelessWidget {
     );
   }
 }
+
+const _healthRingMin = 64.0;
+const _healthRingStroke = 6.0;
 
 String _points(int n) => n == 1 ? '1 point' : '$n points';
 
