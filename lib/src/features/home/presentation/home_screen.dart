@@ -40,7 +40,6 @@ import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
 import '../../insights/presentation/health_colors.dart';
-import '../../review/application/review_providers.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
@@ -56,6 +55,7 @@ import '../application/health_index_provider.dart';
 import '../application/safe_to_spend_provider.dart';
 import '../application/upcoming_bills_provider.dart';
 import 'add_menu.dart';
+import 'not_yet_sorted_card.dart';
 
 /// Bills shown under Coming up before "See all".
 const _billsShown = 3;
@@ -141,7 +141,7 @@ class HomeScreen extends ConsumerWidget {
                   if (space.kind == SpaceKind.business)
                     const BusinessSetupCard(),
                   const SharedLineCard(),
-                  const _ReviewCard(),
+                  const NotYetSortedCard(),
                   const _WhatWasThisCard(),
                   if (sources.irregular) const _WeekCard(),
                   _ComingUp(bills: bills, today: today),
@@ -181,7 +181,7 @@ class HomeScreen extends ConsumerWidget {
                   SupportHomeCard(
                     moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
                   ),
-                  const _ReviewCard(),
+                  const NotYetSortedCard(),
                   const _WhatWasThisCard(),
                   if (untilNext != null) _MoneyInCard(untilNext, today: today),
                   if (untilNext != null && sources.irregular) const _WeekCard(),
@@ -726,33 +726,6 @@ class _BillRow extends StatelessWidget {
       trailing: Text(
         _plain(context, bill.amountMinor),
         style: AppTypography.rowAmount(theme.colorScheme.onSurface),
-      ),
-    );
-  }
-}
-
-/// "3 messages to check", while the review inbox holds any.
-class _ReviewCard extends ConsumerWidget {
-  const _ReviewCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(pendingReviewProvider).value?.length ?? 0;
-    if (count == 0) return const SizedBox.shrink();
-    final colors = PesaColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: ListTile(
-          key: const Key('home-review'),
-          leading: Icon(Icons.circle, size: 10, color: colors.warning),
-          minLeadingWidth: 10,
-          title: Text(
-            count == 1 ? '1 message to check' : '$count messages to check',
-          ),
-          trailing: Icon(Icons.chevron_right, color: colors.textMuted),
-          onTap: () => context.push(AppRoutes.review),
-        ),
       ),
     );
   }
