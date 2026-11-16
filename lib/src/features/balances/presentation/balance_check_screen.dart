@@ -195,10 +195,7 @@ class _Body extends ConsumerWidget {
           style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
         ),
         if (leaks.isNotEmpty) ...[
-          const SectionLabel(
-            'WHERE IT WENT',
-            padding: EdgeInsets.fromLTRB(4, 20, 4, 6),
-          ),
+          const SectionLabel('WHERE IT WENT'),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -230,15 +227,11 @@ class _Body extends ConsumerWidget {
         for (final (account, gap) in gaps) ...[
           SectionLabel(
             gapHeading(context, gap, account.account.name).toUpperCase(),
-            padding: const EdgeInsets.fromLTRB(4, 20, 4, 6),
           ),
           _GapCard(gap: gap, balance: account, accountName: name, today: today),
         ],
         if (right.isNotEmpty) ...[
-          const SectionLabel(
-            'ALREADY RIGHT',
-            padding: EdgeInsets.fromLTRB(4, 20, 4, 6),
-          ),
+          const SectionLabel('ALREADY RIGHT'),
           Card(
             child: Column(
               children: [
@@ -453,10 +446,7 @@ class GapSheet extends ConsumerWidget {
         ),
         if (!leaks.isEmpty) WhereItWentLine(leaks, currency: currency),
         if (leads.isNotEmpty) ...[
-          const SectionLabel(
-            BalanceText.likelyTheMissingOne,
-            padding: EdgeInsets.fromLTRB(4, 16, 4, 6),
-          ),
+          const SectionLabel(BalanceText.likelyTheMissingOne),
           _LeadCard(
             lead: leads.first,
             gap: gap,
@@ -466,10 +456,7 @@ class GapSheet extends ConsumerWidget {
             primary: true,
           ),
           if (leads.length > 1) ...[
-            const SectionLabel(
-              BalanceText.otherLeads,
-              padding: EdgeInsets.fromLTRB(4, 16, 4, 6),
-            ),
+            const SectionLabel(BalanceText.otherLeads),
             for (final lead in leads.skip(1))
               _LeadCard(
                 lead: lead,
@@ -481,10 +468,7 @@ class GapSheet extends ConsumerWidget {
           ],
         ],
         if (picture.waiting.isNotEmpty) ...[
-          const SectionLabel(
-            BalanceText.waitingToCheck,
-            padding: EdgeInsets.fromLTRB(4, 16, 4, 6),
-          ),
+          const SectionLabel(BalanceText.waitingToCheck),
           Card(
             child: Column(
               children: [
@@ -508,10 +492,7 @@ class GapSheet extends ConsumerWidget {
           ),
         ],
         if (picture.around.isNotEmpty) ...[
-          SectionLabel(
-            BalanceText.everythingOn(name.toUpperCase()),
-            padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-          ),
+          SectionLabel(BalanceText.everythingOn(name.toUpperCase())),
           Card(
             child: Column(
               children: [

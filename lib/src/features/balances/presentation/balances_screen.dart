@@ -163,13 +163,15 @@ class AccountLetter extends StatelessWidget {
       height: 40,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: colors.brandSoft,
+        // Neutral, as an Activity row's initials are: brand red is kept
+        // for actions.
+        color: colors.border,
         borderRadius: BorderRadius.circular(Layout.tagRadius),
       ),
       child: Text(
         letter,
         style: theme.textTheme.titleMedium!.copyWith(
-          color: theme.colorScheme.primary,
+          color: theme.colorScheme.onSurface,
         ),
       ),
     );
