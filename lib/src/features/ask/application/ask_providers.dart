@@ -10,6 +10,7 @@ import '../../../domain/ask/data_source.dart';
 import '../../../domain/ask/engine.dart';
 import '../../../domain/ask/matcher.dart';
 import '../../../domain/ask/model_question_reader.dart';
+import '../../../domain/ask/model_reply_writer.dart';
 import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/reply_writer.dart';
 import '../../../domain/ask/rule_question_reader.dart';
@@ -67,11 +68,32 @@ final questionReaderProvider = FutureProvider<QuestionReader>((ref) async {
   return reader;
 });
 
-/// Writes reply sentences. A trained writer (`ask-writer.tflite`) goes here
-/// wrapped in [CheckedReplyWriter], once its spec is settled.
+/// The template sentences: every reply has one, and it stays whenever the
+/// trained writer cannot word a reply.
 final replyWriterProvider = Provider<ReplyWriter>(
   (ref) => const TemplateReplyWriter(),
 );
+
+/// Opens `ask-writer.tflite`. Override with null for a build without
+/// TFLite, or with a fake in tests.
+final askWriterRuntimeOpenerProvider = Provider<AskWriterRuntimeOpener?>(
+  (ref) =>
+      (bytes, manifest) => TfliteWriterRuntime.open(
+        bytes,
+        length: manifest.length,
+        vocab: manifest.vocab.length,
+      ),
+);
+
+/// The trained reply writer when bundled and usable, else null.
+final modelReplyWriterProvider = FutureProvider<ModelReplyWriter?>((ref) async {
+  final writer = await loadAskWriter(
+    readAsset: ref.watch(askAssetReaderProvider),
+    openRuntime: ref.watch(askWriterRuntimeOpenerProvider),
+  );
+  if (writer != null) ref.onDispose(writer.close);
+  return writer;
+});
 
 /// What Ask reads, from the open space only.
 final askDataSourceProvider = Provider<AskDataSource>((ref) {
@@ -81,10 +103,12 @@ final askDataSourceProvider = Provider<AskDataSource>((ref) {
 
 final askEngineProvider = FutureProvider<AskEngine>((ref) async {
   final reader = await ref.watch(questionReaderProvider.future);
+  final wording = await ref.watch(modelReplyWriterProvider.future);
   return AskEngine(
     source: ref.watch(askDataSourceProvider),
     reader: reader,
     writer: ref.watch(replyWriterProvider),
+    wording: wording,
     spaceKind: ref.watch(activeSpaceProvider).kind,
   );
 });

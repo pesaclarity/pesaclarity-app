@@ -7,6 +7,7 @@ import 'answer.dart';
 import 'context.dart';
 import 'data_source.dart';
 import 'matcher.dart';
+import 'model_reply_writer.dart';
 import 'periods.dart';
 import 'reply_writer.dart';
 import 'understanding.dart';
@@ -23,6 +24,9 @@ class AskTurn {
 /// Rows shown under an answer before "See all".
 const askRowsShown = 3;
 
+/// Names a reply lists at most; with more, the writer is not asked to list.
+const _listMax = 5;
+
 /// Turns questions into lookups on one space's records and the lookups
 /// into answers. Reads only through [source], so it never sees another
 /// space.
@@ -31,12 +35,19 @@ class AskEngine {
     required this.source,
     required this.reader,
     this.writer = const TemplateReplyWriter(),
+    this.wording,
     this.spaceKind = SpaceKind.personal,
   });
 
   final AskDataSource source;
   final QuestionReader reader;
+
+  /// The template sentences, always there.
   final ReplyWriter writer;
+
+  /// The trained writer, when it loaded. It words a reply from the same
+  /// facts; when it cannot, [writer]'s sentence stays.
+  final ModelReplyWriter? wording;
   final SpaceKind spaceKind;
 
   bool get _sells =>
@@ -72,7 +83,7 @@ class AskEngine {
       return AskTurn(
         understanding,
         context,
-        _plain(_plainKind(intent), now, seed),
+        await _plain(_plainKind(intent), now, seed),
       );
     }
     if (intent == AskIntent.refine &&
@@ -206,7 +217,7 @@ class AskEngine {
       AskIntent.profit => _profit(q),
       AskIntent.lowStock => _lowStock(q),
       AskIntent.fees => _fees(q),
-      _ => Future.value(_plain(ReplyKind.cant, now, seed)),
+      _ => _plain(ReplyKind.cant, now, seed),
     };
   }
 
@@ -220,20 +231,43 @@ class AskEngine {
     _ => ReplyKind.cant,
   };
 
-  AskAnswer _plain(ReplyKind kind, DateTime now, int seed) => AskAnswer(
-    kind: kind,
-    template: writer.write(kind, const {}, seed: seed),
-    asOf: now,
-    suggestions: kind == ReplyKind.cant
-        ? (_sells
-              ? const ['Profit this week', 'Who owes me?', 'Low stock']
-              : const [
-                  'How much do I save a month?',
-                  'What is safe to spend?',
-                  'How much do I owe?',
-                ])
-        : starters.take(3).toList(),
+  Future<AskAnswer> _plain(ReplyKind kind, DateTime now, int seed) => _word(
+    AskAnswer(
+      kind: kind,
+      template: writer.write(kind, const {}, seed: seed),
+      asOf: now,
+      suggestions: kind == ReplyKind.cant
+          ? (_sells
+                ? const ['Profit this week', 'Who owes me?', 'Low stock']
+                : const [
+                    'How much do I save a month?',
+                    'What is safe to spend?',
+                    'How much do I owe?',
+                  ])
+          : starters.take(3).toList(),
+    ),
+    switch (kind) {
+      ReplyKind.hi => const WriterFacts('hi'),
+      ReplyKind.thanks => const WriterFacts('thanks'),
+      ReplyKind.bye => const WriterFacts('bye'),
+      ReplyKind.help => const WriterFacts('help'),
+      ReplyKind.cant => const WriterFacts('out_of_scope'),
+      _ => null,
+    },
+    seed,
   );
+
+  /// [answer] worded by the trained writer from [words], when it can.
+  Future<AskAnswer> _word(
+    AskAnswer answer,
+    WriterFacts? words,
+    int seed,
+  ) async {
+    final model = wording;
+    if (model == null || words == null) return answer;
+    final template = await model.word(words, answer.facts, seed: seed);
+    return template == null ? answer : answer.withTemplate(template);
+  }
 
   Future<AskAnswer> _clarify(
     String word,
@@ -289,11 +323,13 @@ class AskEngine {
     final before = _filter(all, q.context, flow, prev);
     final amount = _sum(now);
     final headline = _headline(q.context, period, q.today, flow);
+    final named = _named(q.context);
     if (now.isEmpty) {
       return _answer(
         q,
         ReplyKind.nothing,
-        {'period': period.phrase(q.today)},
+        {'period': period.phrase(q.today), ...named},
+        words: _nodata(named),
         headline: headline,
         figure: 0,
         suggestions: _followUps(q, period),
@@ -311,16 +347,22 @@ class AskEngine {
       q,
       share != null ? ReplyKind.share : kind,
       {
+        ...named,
         'count': _payments(now.length),
+        'number': '${now.length}',
+        'amount': amount,
         'period': period.phrase(q.today),
         if (kind != ReplyKind.total) 'change': change.abs(),
         if (kind != ReplyKind.total)
           'prev_period': _prevPhrase(period, q.today),
+        if (kind != ReplyKind.total) 'prev_amount': _sum(before),
         if (share != null) ...{
           'percent': _percentWord(share.partPercent),
           'category': q.context.entities[SlotKind.category]!.name.toLowerCase(),
         },
       },
+      // A payee's share of a category has no writer kind; its chart says it.
+      words: share != null ? null : _totalWords(flow, kind, named, now.length),
       headline: headline,
       figure: amount,
       rows: share == null ? byWho.take(askRowsShown).toList() : const [],
@@ -366,14 +408,27 @@ class AskEngine {
       flow,
       period,
     );
+    final named = _named(q.context);
     return _answer(
       q,
       entries.isEmpty ? ReplyKind.nothing : ReplyKind.count,
       {
+        ...named,
         'count': _times(entries.length),
+        'number': '${entries.length}',
         'period': period.phrase(q.today),
         'amount': _sum(entries),
       },
+      words: entries.isEmpty
+          ? _nodata(named)
+          // "You paid Naivas 3 times": money out only.
+          : flow == _Flow.received
+          ? null
+          : WriterFacts(
+              'count_payments',
+              flags: {if (entries.length == 1) 'count=one'},
+              given: {'count', 'period', 'amount', ...named.keys},
+            ),
       headline: _headline(q.context, period, q.today, flow),
       figureText: _times(entries.length, capital: true),
       rows: _byPayee(entries).take(askRowsShown).toList(),
@@ -392,16 +447,42 @@ class AskEngine {
       flow,
       period,
     )..sort((a, b) => b.amountMinor.compareTo(a.amountMinor));
+    final named = _named(q.context);
     if (entries.isEmpty) {
-      return _answer(q, ReplyKind.nothing, {
-        'period': period.phrase(q.today),
-      }, headline: _headline(q.context, period, q.today, flow));
+      return _answer(
+        q,
+        ReplyKind.nothing,
+        {'period': period.phrase(q.today), ...named},
+        words: _nodata(named),
+        headline: _headline(q.context, period, q.today, flow),
+      );
     }
     final top = entries.first;
+    final date = _day(top.date, q.today);
     return _answer(
       q,
       ReplyKind.biggest,
-      {'payee': _payeeName(top), 'date': _day(top.date, q.today)},
+      {
+        ...named,
+        'payee': _payeeName(top),
+        'date': date,
+        'amount': top.amountMinor,
+        'period': period.phrase(q.today),
+      },
+      // "Your biggest payment was ... to Naivas": money out only.
+      words: flow == _Flow.received
+          ? null
+          : WriterFacts(
+              'biggest_payment',
+              given: {
+                'amount',
+                'payee',
+                'period',
+                if (named.containsKey('category')) 'category',
+                // "on 14 Nov", not "on today".
+                if (_startsWithDigit(date)) 'date',
+              },
+            ),
       headline: _headline(q.context, period, q.today, flow),
       figure: top.amountMinor,
       rows: [
@@ -429,12 +510,24 @@ class AskEngine {
     );
     final rows = _byPayee(entries);
     if (rows.isEmpty) {
-      return _answer(q, ReplyKind.nothing, {'period': period.phrase(q.today)});
+      return _answer(q, ReplyKind.nothing, {
+        'period': period.phrase(q.today),
+      }, words: _nodata(const {}));
     }
+    final top = rows.take(askRowsShown).toList();
     return _answer(
       q,
       ReplyKind.topPayees,
-      {'payee': rows.first.title, 'period': period.phrase(q.today)},
+      {
+        'payee': rows.first.title,
+        'period': period.phrase(q.today),
+        'list': _joinNames([for (final r in top) r.title]),
+      },
+      words: WriterFacts(
+        flow == _Flow.received ? 'income_sources' : 'top_payees',
+        flags: {if (top.length == 1) 'count=one'},
+        given: const {'list', 'payee', 'period'},
+      ),
       headline: _headline(q.context, period, q.today, flow),
       figure: rows.first.amountMinor,
       rows: rows.take(askRowsShown + 2).toList(),
@@ -454,12 +547,24 @@ class AskEngine {
     );
     final rows = _byCategory(entries, await _names(SlotKind.category));
     if (rows.isEmpty) {
-      return _answer(q, ReplyKind.nothing, {'period': period.phrase(q.today)});
+      return _answer(q, ReplyKind.nothing, {
+        'period': period.phrase(q.today),
+      }, words: _nodata(const {}));
     }
+    final top = rows.take(askRowsShown).toList();
     return _answer(
       q,
       ReplyKind.topCategories,
-      {'category': rows.first.title, 'period': period.phrase(q.today)},
+      {
+        'category': rows.first.title,
+        'period': period.phrase(q.today),
+        'list': _joinNames([for (final r in top) r.title]),
+      },
+      words: WriterFacts(
+        'top_categories',
+        flags: {if (top.length == 1) 'count=one'},
+        given: const {'list', 'category', 'period'},
+      ),
       headline: 'Spending · ${period.label(q.today)}',
       figure: _sum(entries),
       rows: rows.take(askRowsShown + 2).toList(),
@@ -496,10 +601,13 @@ class AskEngine {
         q,
         ReplyKind.nothing,
         {'period': period.phrase(q.today)},
+        words: _nodata(const {}),
         headline: headline,
         figure: 0,
       );
     }
+    // The trend's sentence names its peak months, which the writer's trend
+    // kind does not take: it keeps its template.
     return _answer(
       q,
       ReplyKind.trend,
@@ -531,13 +639,13 @@ class AskEngine {
 
   Future<AskAnswer> _compare(_Query q) async {
     final period = q.period(AskPeriod.thisMonth(q.today));
-    final named = q.context.period != null;
+    final namedPeriod = q.context.period != null;
     // "Compare with last year": the period named is the one to compare
     // against, measured against the one after it.
-    final current = named && !period.contains(q.today)
+    final current = namedPeriod && !period.contains(q.today)
         ? _next(period, q.today)
         : period;
-    final prev = named && !period.contains(q.today)
+    final prev = namedPeriod && !period.contains(q.today)
         ? period
         : period.previous();
     final flow = _flowOf(q.context);
@@ -548,10 +656,39 @@ class AskEngine {
     final kind = change.abs() * 20 <= _sum(before)
         ? ReplyKind.compareSame
         : (change > 0 ? ReplyKind.compareUp : ReplyKind.compareDown);
+    final named = _named(q.context);
     return _answer(
       q,
       kind,
-      {'change': change.abs(), 'prev_period': _prevPhrase(current, q.today)},
+      {
+        ...named,
+        'change': change.abs(),
+        'prev_period': _prevPhrase(current, q.today),
+        'amount': _sum(now),
+        'prev_amount': _sum(before),
+        'period': current.phrase(q.today),
+      },
+      // "You spent ... more than ...": money out only.
+      words: flow == _Flow.received
+          ? null
+          : WriterFacts(
+              'compare',
+              flags: {
+                switch (kind) {
+                  ReplyKind.compareUp => 'cmp=more',
+                  ReplyKind.compareDown => 'cmp=less',
+                  _ => 'cmp=same',
+                },
+              },
+              given: {
+                'amount',
+                'prev_amount',
+                'period',
+                'prev_period',
+                if (kind != ReplyKind.compareSame) 'change',
+                ...named.keys,
+              },
+            ),
       headline: _headline(q.context, current, q.today, flow),
       figure: _sum(now),
       rows: [
@@ -573,12 +710,24 @@ class AskEngine {
     );
     final rows = _byPayee(entries);
     if (rows.isEmpty) {
-      return _answer(q, ReplyKind.nothing, {'period': period.phrase(q.today)});
+      return _answer(q, ReplyKind.nothing, {
+        'period': period.phrase(q.today),
+      }, words: _nodata(const {}));
     }
+    final top = rows.take(askRowsShown).toList();
     return _answer(
       q,
       ReplyKind.incomeSources,
-      {'payee': rows.first.title, 'period': period.phrase(q.today)},
+      {
+        'payee': rows.first.title,
+        'period': period.phrase(q.today),
+        'list': _joinNames([for (final r in top) r.title]),
+      },
+      words: WriterFacts(
+        'income_sources',
+        flags: {if (top.length == 1) 'count=one'},
+        given: const {'list', 'payee', 'period'},
+      ),
       headline: 'Money in · ${period.label(q.today)}',
       figure: _sum(entries),
       rows: rows.take(askRowsShown + 2).toList(),
@@ -596,7 +745,13 @@ class AskEngine {
       return _answer(
         q,
         ReplyKind.safeOver,
-        {'change': safe.overMinor},
+        // The writer's amount for state=over is how far past the plan.
+        {'change': safe.overMinor, 'amount': safe.overMinor, 'period': 'today'},
+        words: const WriterFacts(
+          'safe_to_spend',
+          flags: {'state=over'},
+          given: {'amount', 'period'},
+        ),
         headline: 'Safe to spend · Today',
         figure: 0,
       );
@@ -604,7 +759,12 @@ class AskEngine {
     return _answer(
       q,
       ReplyKind.safeToSpend,
-      const {},
+      {'amount': safe.leftTodayMinor, 'period': 'today'},
+      words: const WriterFacts(
+        'safe_to_spend',
+        flags: {'state=ok'},
+        given: {'amount', 'period'},
+      ),
       headline: 'Safe to spend · Today',
       figure: safe.leftTodayMinor,
       suggestions: const ['How much did I spend today?', 'Bills coming up'],
@@ -621,6 +781,7 @@ class AskEngine {
     String? Function(AskLine l)? detail,
     Map<String, Object> Function(List<AskLine> lines)? extra,
     int Function(List<AskLine> lines)? total,
+    WriterFacts? Function(List<AskLine> lines)? words,
     AskLink? link,
     List<String> suggestions = const [],
   }) async {
@@ -630,7 +791,17 @@ class AskEngine {
     return _answer(
       q,
       some,
-      {'count': count(lines.length), ...?extra?.call(lines)},
+      {
+        'count': count(lines.length),
+        'number': '${lines.length}',
+        'amount': figure,
+        // Every name, so a reply that lists them leaves none out.
+        if (lines.length <= _listMax)
+          'list': _joinNames([for (final l in lines) l.name]),
+        if (lines.length == 1) 'payee': lines.single.name,
+        ...?extra?.call(lines),
+      },
+      words: words?.call(lines),
       headline: headline,
       figure: figure,
       rows: [
@@ -661,6 +832,18 @@ class AskEngine {
             ? 'no date yet'
             : _day(lines.first.date!, q.today),
       },
+      words: (lines) => WriterFacts(
+        'bills_due',
+        flags: {if (lines.length == 1) 'count=one'},
+        given: {
+          'list',
+          'count',
+          // The first bill is the next due, so its date is "the next one".
+          if (lines.first.date != null &&
+              _startsWithDigit(_day(lines.first.date!, q.today)))
+            'date',
+        },
+      ),
       link: AskLink.bills,
       suggestions: const ['What is safe to spend?'],
     );
@@ -673,6 +856,11 @@ class AskEngine {
     none: ReplyKind.noSubscriptions,
     headline: 'Subscriptions · a month',
     count: (n) => _plural(n, 'subscription'),
+    words: (lines) => WriterFacts(
+      'subscriptions',
+      flags: {if (lines.length == 1) 'count=one'},
+      given: const {'list', 'count', 'amount'},
+    ),
   );
 
   Future<AskAnswer> _debts(_Query q) async => _lines(
@@ -682,6 +870,7 @@ class AskEngine {
     none: ReplyKind.noDebts,
     headline: 'Debts · left to pay',
     count: (n) => _plural(n, 'debt'),
+    words: (lines) => _owedWords('debts', lines),
     link: AskLink.debts,
     suggestions: const ['Bills coming up', 'Who owes me?'],
   );
@@ -693,6 +882,7 @@ class AskEngine {
     none: ReplyKind.nobodyOwes,
     headline: 'Money lent · still to come back',
     count: (n) => _plural(n, 'person', 'people'),
+    words: (lines) => _owedWords('lent', lines),
     detail: (l) =>
         l.date == null ? 'No date set' : 'Due ${_day(l.date!, q.today)}',
     link: AskLink.goals,
@@ -708,6 +898,12 @@ class AskEngine {
       none: ReplyKind.nobodyOwes,
       headline: 'Owed to you',
       count: (n) => _plural(n, 'person', 'people'),
+      // Largest first, so the list starts with who owes most.
+      words: (lines) => WriterFacts(
+        'who_owes_me',
+        flags: {if (lines.length == 1) 'count=one'},
+        given: const {'list', 'amount', 'count'},
+      ),
     );
   }
 
@@ -728,6 +924,13 @@ class AskEngine {
       headline: 'Balance · now',
       count: (n) => _plural(n, 'account'),
       detail: (l) => l.savings ? 'Savings' : null,
+      extra: (lines) => {
+        if (account != null && lines.length == 1) 'account': lines.single.name,
+      },
+      words: (lines) => WriterFacts(
+        'balance',
+        given: {'amount', if (account != null && lines.length == 1) 'account'},
+      ),
       // As the Balances total: savings are left out unless asked about.
       total: account != null || lines.every((l) => l.savings)
           ? null
@@ -744,6 +947,22 @@ class AskEngine {
     none: ReplyKind.noGoals,
     headline: 'Goals · saved so far',
     count: (n) => _plural(n, 'goal'),
+    extra: (lines) => {
+      if (lines.length == 1) 'goal': lines.single.name,
+      if (lines.length == 1 && (lines.single.extraMinor ?? 0) > 0)
+        'target': lines.single.extraMinor!,
+    },
+    // Only a reached goal: whether one is on track is not in the records.
+    words: (lines) =>
+        lines.length == 1 &&
+            (lines.single.extraMinor ?? 0) > 0 &&
+            lines.single.amountMinor >= lines.single.extraMinor!
+        ? const WriterFacts(
+            'goals',
+            flags: {'state=done'},
+            given: {'goal', 'amount', 'target'},
+          )
+        : null,
     detail: (l) => l.extraMinor == null || l.extraMinor! <= 0
         ? 'Saving'
         : '${_percentWord((l.amountMinor * 100 / l.extraMinor!).round())} '
@@ -763,6 +982,7 @@ class AskEngine {
         q,
         ReplyKind.nothing,
         {'period': period.phrase(q.today)},
+        words: _nodata(const {}),
         headline: 'Sales · ${period.label(q.today)}',
         figure: 0,
       );
@@ -773,8 +993,19 @@ class AskEngine {
       ReplyKind.sales,
       {
         'count': _plural(sales.count ?? 0, 'sale'),
+        'number': '${sales.count ?? 0}',
+        'amount': sales.amountMinor,
         'period': period.phrase(q.today),
       },
+      words: WriterFacts(
+        'sales',
+        given: {
+          'amount',
+          'period',
+          // "from 1 sales": the writer's sales kind has no count=one.
+          if ((sales.count ?? 0) > 1) 'count',
+        },
+      ),
       headline: 'Sales · ${period.label(q.today)}',
       figure: sales.amountMinor,
       rows: [
@@ -802,15 +1033,34 @@ class AskEngine {
       ];
     }
     if (items.isEmpty) {
-      return _answer(q, ReplyKind.nothing, {
-        'period': period.phrase(q.today),
-      }, headline: 'Sales · ${period.label(q.today)}');
+      return _answer(
+        q,
+        ReplyKind.nothing,
+        {'period': period.phrase(q.today), 'item': ?only?.name},
+        words: _nodata({'item': ?only?.name}),
+        headline: 'Sales · ${period.label(q.today)}',
+      );
     }
     final top = items.first;
+    final shown = items.take(askRowsShown).toList();
     return _answer(
       q,
       ReplyKind.topItems,
-      {'amount': top.amountMinor, 'count': _plural(top.count ?? 0, 'sale')},
+      {
+        'amount': top.amountMinor,
+        'count': _plural(top.count ?? 0, 'sale'),
+        'item': top.name,
+        'period': period.phrase(q.today),
+        'list': _joinNames([for (final l in shown) l.name]),
+      },
+      // One item asked about is its sales; else the best sellers.
+      words: only != null
+          ? const WriterFacts('sales', given: {'amount', 'item', 'period'})
+          : WriterFacts(
+              'top_items',
+              flags: {if (shown.length == 1) 'count=one'},
+              given: const {'list', 'item', 'period'},
+            ),
       headline: 'Sales · ${period.label(q.today)}',
       figureText: top.name,
       rows: [
@@ -834,7 +1084,12 @@ class AskEngine {
     return _answer(
       q,
       profit >= 0 ? ReplyKind.profit : ReplyKind.loss,
-      {'period': period.phrase(q.today)},
+      {'period': period.phrase(q.today), 'amount': profit.abs()},
+      words: WriterFacts(
+        'profit',
+        flags: {if (profit < 0) 'result=loss'},
+        given: const {'amount', 'period'},
+      ),
       headline: 'Profit · ${period.label(q.today)}',
       figure: profit.abs(),
       link: AskLink.businessInsights,
@@ -848,7 +1103,10 @@ class AskEngine {
     return _answer(
       q,
       fees == 0 ? ReplyKind.nothing : ReplyKind.fees,
-      {'period': period.phrase(q.today)},
+      {'period': period.phrase(q.today), if (fees != 0) 'amount': fees},
+      words: fees == 0
+          ? null
+          : const WriterFacts('fees', given: {'amount', 'period'}),
       headline: 'Charges · ${period.label(q.today)}',
       figure: fees,
       link: AskLink.insights,
@@ -861,7 +1119,18 @@ class AskEngine {
     return _answer(
       q,
       ReplyKind.lowStock,
-      {'count': _plural(items.length, 'item'), 'item': items.first.name},
+      {
+        'count': _plural(items.length, 'item'),
+        'number': '${items.length}',
+        'item': items.first.name,
+        if (items.length <= _listMax)
+          'list': _joinNames([for (final l in items) l.name]),
+      },
+      words: WriterFacts(
+        'low_stock',
+        flags: {if (items.length == 1) 'count=one'},
+        given: const {'list', 'item', 'count'},
+      ),
       headline: 'Stock · running low',
       figureText: items.first.name,
       rows: [
@@ -878,10 +1147,11 @@ class AskEngine {
 
   // ---- Helpers ----
 
-  AskAnswer _answer(
+  Future<AskAnswer> _answer(
     _Query q,
     ReplyKind kind,
     Map<String, Object> facts, {
+    WriterFacts? words,
     String? headline,
     int? figure,
     String? figureText,
@@ -890,21 +1160,86 @@ class AskEngine {
     AskChart? chart,
     AskLink? link,
     List<String> suggestions = const [],
-  }) => AskAnswer(
-    kind: kind,
-    template: writer.write(kind, facts.keys.toSet(), seed: q.seed),
-    facts: facts,
-    asOf: q.now,
-    headline: headline,
-    figureMinor: figure,
-    figureText: figureText,
-    rows: rows,
-    totalRows: totalRows,
-    chart: chart,
-    link: link,
-    suggestions: suggestions,
-    context: q.context,
+  }) => _word(
+    AskAnswer(
+      kind: kind,
+      template: writer.write(kind, facts.keys.toSet(), seed: q.seed),
+      facts: facts,
+      asOf: q.now,
+      headline: headline,
+      figureMinor: figure,
+      figureText: figureText,
+      rows: rows,
+      totalRows: totalRows,
+      chart: chart,
+      link: link,
+      suggestions: suggestions,
+      context: q.context,
+    ),
+    words,
+    q.seed,
   );
+
+  /// The category and payee the question names, for the writer.
+  static Map<String, Object> _named(AskContext context) => {
+    if (context.entities[SlotKind.category] case final c?)
+      'category': c.name.toLowerCase(),
+    if (context.entities[SlotKind.payee] case final p?) 'payee': p.name,
+  };
+
+  /// Nothing found for a name the question gave. With no name, the
+  /// writer's "no records" would say more than the records do: there may be
+  /// records, just none like this, so the template says that.
+  static WriterFacts? _nodata(Map<String, Object> named) => named.isEmpty
+      ? null
+      : WriterFacts(
+          'nodata',
+          given: {'period', ...named.keys},
+          anyOf: named.keys.toSet(),
+        );
+
+  static WriterFacts _totalWords(
+    _Flow flow,
+    ReplyKind kind,
+    Map<String, Object> named,
+    int payments,
+  ) {
+    final payee = named.containsKey('payee');
+    final writerKind = switch (flow) {
+      _Flow.received => payee ? 'received_from' : 'received',
+      _Flow.sent => payee ? 'sent_to' : 'spent',
+      _Flow.spent => 'spent',
+    };
+    // Only these kinds know count=one; the others would say "1 payments".
+    final countsOne = writerKind == 'sent_to' || writerKind == 'received_from';
+    final compared = kind != ReplyKind.total;
+    return WriterFacts(
+      writerKind,
+      flags: {
+        if (kind == ReplyKind.totalUp) 'cmp=more',
+        if (kind == ReplyKind.totalDown) 'cmp=less',
+        if (countsOne && payments == 1) 'count=one',
+      },
+      given: {
+        'amount',
+        'period',
+        ...named.keys,
+        if (payments > 1 || countsOne) 'count',
+        if (compared) ...{'prev_period', 'prev_amount', 'change'},
+      },
+    );
+  }
+
+  /// Debts or money lent: the total, how many, and who when only one.
+  static WriterFacts _owedWords(String kind, List<AskLine> lines) =>
+      WriterFacts(
+        kind,
+        flags: {if (lines.length == 1) 'count=one'},
+        given: {'amount', 'count', if (lines.length == 1) 'payee'},
+      );
+
+  static bool _startsWithDigit(String s) =>
+      s.isNotEmpty && s.codeUnitAt(0) >= 48 && s.codeUnitAt(0) <= 57;
 
   List<String> _followUps(_Query q, AskPeriod period, {String? only}) {
     final out = <String>[];

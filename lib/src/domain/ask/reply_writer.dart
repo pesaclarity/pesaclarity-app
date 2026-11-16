@@ -13,10 +13,18 @@ const replyPlaceholders = {
   'item',
   'account',
   'percent',
+  // Used by the trained writer (pesaclarity-ml docs/ASK.md).
+  'prev_amount',
+  'target',
+  'days',
+  'goal',
+  'name',
+  'list',
+  'number',
 };
 
 /// Placeholders whose facts are money in minor units.
-const moneyPlaceholders = {'amount', 'change'};
+const moneyPlaceholders = {'amount', 'change', 'prev_amount', 'target'};
 
 final _placeholder = RegExp(r'\{([a-z_]+)\}');
 
@@ -42,21 +50,43 @@ bool checkTemplate(String template, Set<String> provided) {
 }
 
 /// [template] with each placeholder replaced: money through [money], the
-/// rest as given.
+/// rest as given. A sentence that starts with a filled word ("last month,
+/// ...") starts with a capital.
 String fillTemplate(
   String template,
   Map<String, Object> facts, {
   required String Function(int minor) money,
-}) => template.replaceAllMapped(_placeholder, (m) {
-  final key = m.group(1)!;
-  final value = facts[key];
-  if (value == null) return '';
-  if (moneyPlaceholders.contains(key) && value is int) return money(value);
-  return '$value';
-});
+}) => capitalise(
+  template.replaceAllMapped(_placeholder, (m) {
+    final key = m.group(1)!;
+    final value = facts[key];
+    if (value == null) return '';
+    if (moneyPlaceholders.contains(key) && value is int) return money(value);
+    return '$value';
+  }),
+);
 
-/// Writes the sentence for a reply from its kind and the facts it has. The
-/// template writer works alone; a trained writer can take its place.
+/// Upper-cases the first letter of [text] and of each sentence after `.`,
+/// `!` or `?`. A sentence that starts with a digit or a sign stays as is.
+String capitalise(String text) {
+  final out = StringBuffer();
+  var capital = true;
+  for (final c in text.split('')) {
+    if (capital && c != ' ') {
+      out.write(c.toUpperCase());
+      capital = false;
+    } else {
+      out.write(c);
+      if (c == '.' || c == '!' || c == '?') capital = true;
+    }
+  }
+  return out.toString();
+}
+
+/// Writes the sentence for a reply from its kind and the facts it has. Every
+/// answer gets one; the trained writer ([ModelReplyWriter] in
+/// model_reply_writer.dart) may word it instead, and this one stays when it
+/// cannot.
 abstract interface class ReplyWriter {
   /// A template using only [facts]' placeholders. [seed] picks among
   /// sentences so replies vary.

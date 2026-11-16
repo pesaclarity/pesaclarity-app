@@ -1,0 +1,598 @@
+{
+ "source": "pesaclarity-ml src/akili/resources/ask_examples.v1.json at dfb9c24 (ask schema 1): the writer parts",
+ "ask_schema_version": 1,
+ "vocab_size": 473,
+ "fallbacks": [
+  {
+   "kind": "spent",
+   "facts": [
+    "kind=spent",
+    "cmp=less",
+    "{amount}",
+    "{category}",
+    "{period}",
+    "{prev_period}"
+   ],
+   "fact_ids": [
+    4,
+    36,
+    46,
+    53,
+    58,
+    59
+   ]
+  },
+  {
+   "kind": "received",
+   "facts": [
+    "kind=received",
+    "cmp=more",
+    "level=peak",
+    "{amount}",
+    "{period}"
+   ],
+   "fact_ids": [
+    5,
+    35,
+    38,
+    46,
+    58
+   ]
+  },
+  {
+   "kind": "sent_to",
+   "facts": [
+    "kind=sent_to",
+    "{amount}",
+    "{payee}",
+    "{period}"
+   ],
+   "fact_ids": [
+    6,
+    46,
+    54,
+    58
+   ]
+  },
+  {
+   "kind": "received_from",
+   "facts": [
+    "kind=received_from",
+    "{amount}",
+    "{payee}"
+   ],
+   "fact_ids": [
+    7,
+    46,
+    54
+   ]
+  },
+  {
+   "kind": "count_payments",
+   "facts": [
+    "kind=count_payments",
+    "count=one",
+    "{count}",
+    "{payee}"
+   ],
+   "fact_ids": [
+    8,
+    40,
+    51,
+    54
+   ]
+  },
+  {
+   "kind": "biggest_payment",
+   "facts": [
+    "kind=biggest_payment",
+    "{amount}",
+    "{payee}",
+    "{date}"
+   ],
+   "fact_ids": [
+    9,
+    46,
+    54,
+    60
+   ]
+  },
+  {
+   "kind": "top_payees",
+   "facts": [
+    "kind=top_payees",
+    "{period}",
+    "{list}"
+   ],
+   "fact_ids": [
+    10,
+    58,
+    62
+   ]
+  },
+  {
+   "kind": "top_categories",
+   "facts": [
+    "kind=top_categories",
+    "{list}"
+   ],
+   "fact_ids": [
+    11,
+    62
+   ]
+  },
+  {
+   "kind": "trend",
+   "facts": [
+    "kind=trend",
+    "cmp=more",
+    "{percent}",
+    "{category}",
+    "{period}"
+   ],
+   "fact_ids": [
+    12,
+    35,
+    50,
+    53,
+    58
+   ]
+  },
+  {
+   "kind": "compare",
+   "facts": [
+    "kind=compare",
+    "cmp=more",
+    "{amount}",
+    "{prev_amount}",
+    "{period}",
+    "{prev_period}"
+   ],
+   "fact_ids": [
+    13,
+    35,
+    46,
+    47,
+    58,
+    59
+   ]
+  },
+  {
+   "kind": "bills_due",
+   "facts": [
+    "kind=bills_due",
+    "{date}",
+    "{list}"
+   ],
+   "fact_ids": [
+    14,
+    60,
+    62
+   ]
+  },
+  {
+   "kind": "subscriptions",
+   "facts": [
+    "kind=subscriptions",
+    "{amount}",
+    "{list}"
+   ],
+   "fact_ids": [
+    15,
+    46,
+    62
+   ]
+  },
+  {
+   "kind": "debts",
+   "facts": [
+    "kind=debts",
+    "{amount}"
+   ],
+   "fact_ids": [
+    16,
+    46
+   ]
+  },
+  {
+   "kind": "lent",
+   "facts": [
+    "kind=lent",
+    "{amount}",
+    "{payee}"
+   ],
+   "fact_ids": [
+    17,
+    46,
+    54
+   ]
+  },
+  {
+   "kind": "safe_to_spend",
+   "facts": [
+    "kind=safe_to_spend",
+    "state=tight",
+    "{amount}",
+    "{days}"
+   ],
+   "fact_ids": [
+    18,
+    42,
+    46,
+    52
+   ]
+  },
+  {
+   "kind": "balance",
+   "facts": [
+    "kind=balance",
+    "level=low",
+    "{amount}",
+    "{account}"
+   ],
+   "fact_ids": [
+    19,
+    39,
+    46,
+    56
+   ]
+  },
+  {
+   "kind": "goals",
+   "facts": [
+    "kind=goals",
+    "state=ok",
+    "{amount}",
+    "{target}",
+    "{goal}"
+   ],
+   "fact_ids": [
+    20,
+    41,
+    46,
+    48,
+    57
+   ]
+  },
+  {
+   "kind": "income_sources",
+   "facts": [
+    "kind=income_sources",
+    "{list}"
+   ],
+   "fact_ids": [
+    21,
+    62
+   ]
+  },
+  {
+   "kind": "sales",
+   "facts": [
+    "kind=sales",
+    "cmp=more",
+    "{amount}",
+    "{period}",
+    "{prev_period}"
+   ],
+   "fact_ids": [
+    22,
+    35,
+    46,
+    58,
+    59
+   ]
+  },
+  {
+   "kind": "top_items",
+   "facts": [
+    "kind=top_items",
+    "{list}"
+   ],
+   "fact_ids": [
+    23,
+    62
+   ]
+  },
+  {
+   "kind": "profit",
+   "facts": [
+    "kind=profit",
+    "result=loss",
+    "{amount}",
+    "{period}"
+   ],
+   "fact_ids": [
+    24,
+    45,
+    46,
+    58
+   ]
+  },
+  {
+   "kind": "low_stock",
+   "facts": [
+    "kind=low_stock",
+    "{list}"
+   ],
+   "fact_ids": [
+    25,
+    62
+   ]
+  },
+  {
+   "kind": "who_owes_me",
+   "facts": [
+    "kind=who_owes_me",
+    "{amount}",
+    "{list}"
+   ],
+   "fact_ids": [
+    26,
+    46,
+    62
+   ]
+  },
+  {
+   "kind": "fees",
+   "facts": [
+    "kind=fees",
+    "{amount}",
+    "{period}"
+   ],
+   "fact_ids": [
+    27,
+    46,
+    58
+   ]
+  },
+  {
+   "kind": "nodata",
+   "facts": [
+    "kind=nodata",
+    "{category}",
+    "{period}"
+   ],
+   "fact_ids": [
+    28,
+    53,
+    58
+   ]
+  },
+  {
+   "kind": "clarify",
+   "facts": [
+    "kind=clarify"
+   ],
+   "fact_ids": [
+    29
+   ]
+  },
+  {
+   "kind": "out_of_scope",
+   "facts": [
+    "kind=out_of_scope"
+   ],
+   "fact_ids": [
+    30
+   ]
+  },
+  {
+   "kind": "hi",
+   "facts": [
+    "kind=hi",
+    "{name}"
+   ],
+   "fact_ids": [
+    31,
+    61
+   ]
+  },
+  {
+   "kind": "thanks",
+   "facts": [
+    "kind=thanks"
+   ],
+   "fact_ids": [
+    32
+   ]
+  },
+  {
+   "kind": "bye",
+   "facts": [
+    "kind=bye"
+   ],
+   "fact_ids": [
+    33
+   ]
+  },
+  {
+   "kind": "help",
+   "facts": [
+    "kind=help"
+   ],
+   "fact_ids": [
+    34
+   ]
+  }
+ ],
+ "checker": [
+  {
+   "template": "You spent {amount} on {category} {period}.",
+   "kind": "spent",
+   "given": [
+    "amount",
+    "category",
+    "period"
+   ],
+   "ok": true,
+   "reason": ""
+  },
+  {
+   "template": "You spent {amount}.",
+   "kind": "spent",
+   "given": [
+    "amount",
+    "category"
+   ],
+   "ok": true,
+   "reason": ""
+  },
+  {
+   "template": "You spent {amount} on {category}.",
+   "kind": "spent",
+   "given": [
+    "amount"
+   ],
+   "ok": false,
+   "reason": "not_given"
+  },
+  {
+   "template": "You spent 4,250 on food.",
+   "kind": "spent",
+   "given": [
+    "amount"
+   ],
+   "ok": false,
+   "reason": "digit"
+  },
+  {
+   "template": "You spent {amount} and {amount}.",
+   "kind": "spent",
+   "given": [
+    "amount"
+   ],
+   "ok": false,
+   "reason": "repeated"
+  },
+  {
+   "template": "You spent a lot.",
+   "kind": "spent",
+   "given": [
+    "amount"
+   ],
+   "ok": false,
+   "reason": "missing"
+  },
+  {
+   "template": "Hello {name}!",
+   "kind": "hi",
+   "given": [
+    "name"
+   ],
+   "ok": true,
+   "reason": ""
+  },
+  {
+   "template": "Hello!",
+   "kind": "hi",
+   "given": [],
+   "ok": true,
+   "reason": ""
+  },
+  {
+   "template": "kind=spent {amount}",
+   "kind": "spent",
+   "given": [
+    "amount"
+   ],
+   "ok": false,
+   "reason": "stray"
+  },
+  {
+   "template": "",
+   "kind": "thanks",
+   "given": [],
+   "ok": false,
+   "reason": "empty"
+  },
+  {
+   "template": "{payee} sent you {amount}.",
+   "kind": "received_from",
+   "given": [
+    "amount",
+    "payee"
+   ],
+   "ok": true,
+   "reason": ""
+  },
+  {
+   "template": "{goal}: {amount} saved.",
+   "kind": "goals",
+   "given": [
+    "goal",
+    "amount"
+   ],
+   "ok": true,
+   "reason": ""
+  }
+ ],
+ "detokenise": [
+  {
+   "tokens": [
+    "okay",
+    ".",
+    "you",
+    "spent",
+    "{amount}",
+    "on",
+    "{category}",
+    "{period}",
+    "."
+   ],
+   "text": "Okay. You spent {amount} on {category} {period}."
+  },
+  {
+   "tokens": [
+    "{period}",
+    ",",
+    "you",
+    "spent",
+    "{amount}",
+    "!",
+    "nice",
+    "!"
+   ],
+   "text": "{period}, you spent {amount}! Nice!"
+  },
+  {
+   "tokens": [
+    "i",
+    "could",
+    "not",
+    "find",
+    "anything",
+    ",",
+    "i",
+    "am",
+    "sorry",
+    "."
+   ],
+   "text": "I could not find anything, I am sorry."
+  },
+  {
+   "tokens": [
+    "habari",
+    "{name}",
+    "!",
+    "what",
+    "would",
+    "you",
+    "like",
+    "to",
+    "know",
+    "?"
+   ],
+   "text": "Habari {name}! What would you like to know?"
+  },
+  {
+   "tokens": [
+    "bills",
+    "due",
+    ":",
+    "{list}",
+    "."
+   ],
+   "text": "Bills due: {list}."
+  }
+ ]
+}

@@ -1,6 +1,8 @@
 // The signature runner has C bindings only in tflite_flutter 0.12.
 // ignore_for_file: implementation_imports
+import 'dart:async';
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -8,6 +10,7 @@ import 'package:tflite_flutter/src/bindings/bindings.dart';
 import 'package:tflite_flutter/src/bindings/tensorflow_lite_bindings_generated.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../../../domain/ask/model_reply_writer.dart';
 import '../../../domain/categoriser/categoriser.dart';
 import '../../../domain/categoriser/model_manifest.dart';
 import '../../../domain/categoriser/trainable.dart';
@@ -110,6 +113,96 @@ class TfliteReaderRuntime implements ReaderRuntime {
 
   @override
   void close() => _interpreter.close();
+}
+
+/// [AskWriterRuntime] on package:tflite_flutter: `[1, length]` int32 in,
+/// `[1, length, vocab]` logits out. Each reply decodes in a short-lived
+/// isolate on the same interpreter, so the UI thread never waits on it;
+/// replies decode one at a time.
+class TfliteWriterRuntime implements AskWriterRuntime {
+  TfliteWriterRuntime._(this._interpreter, this._length, this._vocab);
+
+  factory TfliteWriterRuntime.open(
+    Uint8List modelBytes, {
+    required int length,
+    required int vocab,
+    int threads = 2,
+  }) {
+    final options = InterpreterOptions()..threads = threads;
+    final Interpreter interpreter;
+    try {
+      interpreter = Interpreter.fromBuffer(modelBytes, options: options);
+    } finally {
+      options.delete();
+    }
+    try {
+      final input = interpreter.getInputTensor(0);
+      final output = interpreter.getOutputTensor(0);
+      if (input.type != TensorType.int32 ||
+          !_same(input.shape, [1, length]) ||
+          output.type != TensorType.float32 ||
+          !_same(output.shape, [1, length, vocab])) {
+        throw StateError(
+          'expected int32 [1, $length] in, float32 [1, $length, $vocab] out',
+        );
+      }
+      return TfliteWriterRuntime._(interpreter, length, vocab);
+    } on Object {
+      interpreter.close();
+      rethrow;
+    }
+  }
+
+  final Interpreter _interpreter;
+  final int _length;
+  final int _vocab;
+  Future<void> _last = Future.value();
+  bool _closed = false;
+
+  @override
+  Future<List<int>?> decode(WriterDecode request) {
+    if (request.length != _length || request.vocabSize != _vocab) {
+      throw ArgumentError('the request does not fit this model');
+    }
+    final result = _last.then((_) {
+      if (_closed) throw StateError('closed');
+      final address = _interpreter.address;
+      return Isolate.run(() => _decodeAt(address, request));
+    });
+    _last = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  @override
+  void close() {
+    _closed = true;
+    // After a decode that is still running.
+    unawaited(_last.then((_) => _interpreter.close()));
+  }
+
+  static List<int>? _decodeAt(int address, WriterDecode request) {
+    final interpreter = Interpreter.fromAddress(address, allocated: true);
+    final input = interpreter.getInputTensor(0);
+    final output = interpreter.getOutputTensor(0);
+    final vocab = request.vocabSize;
+    return decodeReply((tokens, position) {
+      input.data = tokens.buffer.asUint8List(
+        tokens.offsetInBytes,
+        tokens.lengthInBytes,
+      );
+      interpreter.invoke();
+      final bytes = output.data;
+      return Float32List.sublistView(
+        bytes,
+        position * vocab * 4,
+        (position + 1) * vocab * 4,
+      );
+    }, request);
+  }
+
+  static bool _same(List<int> a, List<int> b) =>
+      a.length == b.length &&
+      [for (var i = 0; i < a.length; i++) a[i] == b[i]].every((x) => x);
 }
 
 /// [TrainableRuntime] on the TFLite C signature runner that

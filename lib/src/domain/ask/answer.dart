@@ -256,6 +256,26 @@ class AskAnswer {
 
   CalendarDate get asOfDate => CalendarDate.local(asOf);
 
+  /// This answer worded by [template] instead, with the same facts.
+  AskAnswer withTemplate(String template) => AskAnswer(
+    kind: kind,
+    template: template,
+    asOf: asOf,
+    facts: facts,
+    headline: headline,
+    figureMinor: figureMinor,
+    figureText: figureText,
+    rows: rows,
+    totalRows: totalRows,
+    chart: chart,
+    choices: choices,
+    clarifyWord: clarifyWord,
+    askPeriod: askPeriod,
+    suggestions: suggestions,
+    context: context,
+    link: link,
+  );
+
   /// Whether it has numbers that can be worked out again.
   bool get canUpdate =>
       context.intent != null &&

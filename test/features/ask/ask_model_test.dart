@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/ask/model_question_reader.dart';
+import 'package:pesaclarity/src/domain/ask/model_reply_writer.dart';
 import 'package:pesaclarity/src/domain/ask/rule_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/understanding.dart';
 import 'package:pesaclarity/src/domain/reader/reader_tokens.dart';
@@ -11,8 +12,9 @@ import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
 import 'package:pesaclarity/src/features/categoriser/data/model_store.dart'
     show sha256Hex;
 
-/// The bundled reader, as pesaclarity-ml exports it, is one this app can
-/// use: its files match the manifest and every label is known.
+/// The bundled reader and writer, as pesaclarity-ml exports them, are ones
+/// this app can use: their files match the manifests and every label and
+/// token is known.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -38,6 +40,34 @@ void main() {
     final bytes = (await asset('$askModelFolder/${m.modelFile}'))!;
     expect(bytes.length, m.modelSizeBytes);
     expect(await sha256Hex(bytes), m.modelSha256);
+  });
+
+  test('the bundled writer fits this app', () async {
+    final m = AskWriterManifest.fromJson(
+      (jsonDecode(
+        utf8.decode((await asset('$askModelFolder/$askWriterManifestFile'))!),
+      ) as Map).cast<String, Object?>(),
+    );
+    expect(m.incompatibilities(), isEmpty);
+    final bytes = (await asset('$askModelFolder/${m.modelFile}'))!;
+    expect(bytes.length, m.modelSizeBytes);
+    expect(await sha256Hex(bytes), m.modelSha256);
+    // The vocab: special tokens, the 31 kinds, 11 flags, 17 placeholders,
+    // 5 marks, then lower-case words only. Not one digit.
+    expect(m.vocab.length, 473);
+    expect(m.vocab.take(4), ['<pad>', '<unk>', '<sep>', '<eos>']);
+    expect(m.vocab.sublist(4, 35), [
+      for (final k in writerReplyKinds) 'kind=$k',
+    ]);
+    expect(m.vocab.sublist(35, 46), writerFlags);
+    expect(m.vocab.sublist(46, 63), [
+      for (final p in writerPlaceholders) '{$p}',
+    ]);
+    expect(m.vocab.sublist(63, 68), ['.', ',', '!', '?', ':']);
+    expect(
+      m.vocab.skip(68).every((w) => RegExp(r"^[a-z']+$").hasMatch(w)),
+      isTrue,
+    );
   });
 
   test('the app opens the bundled reader and reads its labels', () async {
