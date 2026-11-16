@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/domain/ledger/ledger_totals.dart';
 import 'package:pesaclarity/src/domain/ledger/on_hand.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
+import '../../helpers/journal_reads.dart';
 import '../fixtures.dart';
 
 const mpesa = 1;
@@ -114,6 +115,7 @@ void main() {
       final onHand = OnHand.at(
         accounts,
         scenario(),
+        balances: journalOf(accounts, scenario()),
         today: today,
         rainyDayMinor: 0,
       );
@@ -326,6 +328,7 @@ void main() {
       final onHand = OnHand.at(
         accounts,
         entries,
+        balances: journalOf(accounts, entries),
         today: today,
         rainyDayMinor: 0,
       );
@@ -353,6 +356,7 @@ void main() {
       final onHand = OnHand.at(
         accounts,
         entries,
+        balances: journalOf(accounts, entries),
         today: today,
         rainyDayMinor: 0,
       );

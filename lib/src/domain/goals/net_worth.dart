@@ -1,6 +1,6 @@
 import '../../core/money/money.dart';
+import '../books/journal_balances.dart';
 import '../ledger/balances.dart';
-import '../ledger/ledger_entry.dart';
 import '../time/calendar.dart';
 
 /// What the user owns less what they owe, now and at the start of the month.
@@ -21,7 +21,7 @@ class NetWorth {
   factory NetWorth.at({
     required DateTime now,
     required Iterable<AccountOpening> accounts,
-    required Iterable<LedgerEntry> entries,
+    required JournalBalances balances,
     required int debtsOwedMinor,
     required int debtsRepaidThisMonthMinor,
     required int lentOutstandingMinor,
@@ -31,11 +31,13 @@ class NetWorth {
     currency ??= BaseCurrency.code;
     final monthStart = YearMonth.local(now).startInstant;
     bool inCurrency(AccountOpening a) => a.currency == currency;
-    final list = entries.toList();
-    final balancesNow = totalHeldAt(accounts, list, at: now, where: inCurrency);
-    final balancesThen = totalHeldAt(
+    final balancesNow = balances.totalHeldAt(
       accounts,
-      list,
+      at: now,
+      where: inCurrency,
+    );
+    final balancesThen = balances.totalHeldAt(
+      accounts,
       at: monthStart,
       where: inCurrency,
     );

@@ -6,6 +6,7 @@ import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/balances.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 
+import '../../helpers/balance_oracle.dart' as oracle;
 import '../fixtures.dart';
 
 const mpesa = 1;
@@ -339,7 +340,7 @@ void main() {
           currency: 'KES',
           at: at,
         );
-        final records = balanceAt(a, history, at: at);
+        final records = oracle.balanceAt(a, history, at: at);
         if (journalMoney != records) {
           off.add('${a.id} at $at: journal $journalMoney, records $records');
         }
@@ -350,7 +351,7 @@ void main() {
             currency: 'KES',
             at: at,
           );
-          final records = fulizaOwedAt(a, history, at: at);
+          final records = oracle.fulizaOwedAt(a, history, at: at);
           if (owed != records) {
             off.add('Fuliza ${a.id} at $at: journal $owed, records $records');
           }
@@ -398,14 +399,14 @@ void main() {
     // The draw: 1,010 owed, 1,000 to transit, 10 fee.
     expect(line(of(7), owed), -kes(1010));
     expect(line(of(7), BookAccount.moneyInTransit), kes(1000));
-    expect(line(of(7), BookAccount.fees), kes(10));
+    expect(line(of(7), BookAccount.fulizaCharges), kes(10));
     // No draw message: the 500 payment was covered, plus a 5 access fee.
     expect(line(of(8), owed), -kes(505));
-    expect(line(of(8), BookAccount.fees), kes(5));
+    expect(line(of(8), BookAccount.fulizaCharges), kes(5));
     // Salary: 1,515 owed came off it, with 15 of daily charges.
     expect(line(of(9), money), kes(18470));
     expect(line(of(9), owed), kes(1515));
-    expect(line(of(9), BookAccount.fees), kes(15));
+    expect(line(of(9), BookAccount.fulizaCharges), kes(15));
     // Money in with its own repayment message: the repayment posts with the
     // money in, as the balance shows it; the message adds nothing more.
     expect(line(of(17), owed), kes(565));

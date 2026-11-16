@@ -61,6 +61,7 @@ class JournalEntry {
     required this.currency,
     required Iterable<JournalLine> lines,
     this.memo,
+    this.accountId,
   }) : lines = List.unmodifiable(lines.where((l) => l.amountMinor != 0));
 
   final JournalSource source;
@@ -71,6 +72,10 @@ class JournalEntry {
 
   /// Why the entry was made, when its source does not say.
   final String? memo;
+
+  /// In a space's journal, the money account the entry belongs to: the
+  /// account of its transaction, or the account it opens.
+  final int? accountId;
 
   bool get isBalanced => lines.fold(0, (sum, l) => sum + l.amountMinor) == 0;
 

@@ -65,18 +65,20 @@ part 'app_database.g.dart';
     RateSnapshots,
     JournalEntries,
     Postings,
+    JournalDirty,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => 35;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      await createJournalTriggers(this);
       await seedDefaultCategories();
     },
     onUpgrade: (m, from, to) async {
@@ -300,6 +302,16 @@ class AppDatabase extends _$AppDatabase {
           await _createIndexIfMissing(m, index);
         }
       }
+      // The journal syncs one account at a time (decision 0018, stage 2).
+      if (from < 35) {
+        await _addColumnIfMissing(m, journalEntries, journalEntries.accountId);
+        await _createIndexIfMissing(m, journalEntriesAccount);
+        if (!await _exists('table', journalDirty.actualTableName)) {
+          await m.createTable(journalDirty);
+        }
+        await createJournalTriggers(this);
+        if (from == 34) await JournalRepository.tagAccounts(this);
+      }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(
@@ -312,8 +324,9 @@ class AppDatabase extends _$AppDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
-      // The journal added in version 34 starts from every existing record.
-      if (details.hadUpgrade && (details.versionBefore ?? 0) < 34) {
+      // The journal starts from every existing record, and version 35's
+      // posting rules repost what version 34 posted.
+      if (details.hadUpgrade && (details.versionBefore ?? 0) < 35) {
         await JournalRepository.backfill(this);
       }
     },

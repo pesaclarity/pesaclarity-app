@@ -556,6 +556,8 @@ class _ActivityRow extends StatelessWidget {
           noise.direction == TransactionDirection.inflow
               ? noise.totalMinor
               : -noise.totalMinor,
+          // Fuliza is borrowed money: it comes in, but it is not income.
+          borrowed: noise.group == NoiseGroup.fulizaDraws,
         ),
       ),
     };
@@ -651,9 +653,13 @@ class _ActivityRow extends StatelessWidget {
     ),
   );
 
-  Widget _amount(BuildContext context, int signedMinor) {
+  Widget _amount(
+    BuildContext context,
+    int signedMinor, {
+    bool borrowed = false,
+  }) {
     final colors = PesaColors.of(context);
-    final inflow = signedMinor > 0;
+    final inflow = signedMinor > 0 && !borrowed;
     return Text(
       _orHidden(context, _signed(signedMinor, code: code)),
       style: AppTypography.rowAmount(
@@ -671,6 +677,8 @@ class _ActivityRow extends StatelessWidget {
   }) {
     final colors = PesaColors.of(context);
     final inflow = entry.direction == TransactionDirection.inflow;
+    // Borrowed money comes in, but it is not income: never green.
+    final green = inflow && entry.kind != TransactionKind.fulizaDraw;
     final original = entry.originalCurrency;
     // Converted into the base, or left in its own currency for want of a rate.
     final ownCode =
@@ -688,7 +696,7 @@ class _ActivityRow extends StatelessWidget {
     final style = AppTypography.rowAmount(
       transfer
           ? colors.textMuted
-          : inflow
+          : green
           ? colors.successText
           : Theme.of(context).colorScheme.onSurface,
     );

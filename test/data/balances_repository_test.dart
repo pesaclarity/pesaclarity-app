@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/features/balances/application/balances_providers
 import 'package:pesaclarity/src/features/review/application/review_draft.dart';
 
 import '../domain/fixtures.dart';
+import '../helpers/journal_reads.dart';
 import '../helpers/test_app.dart';
 
 void main() {

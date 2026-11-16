@@ -296,6 +296,7 @@ class DeclinedTransfers extends Table {
 /// change posts an entry that [reverses] the old one, then a new entry.
 @TableIndex(name: 'journal_entries_source', columns: {#sourceKind, #sourceId})
 @TableIndex(name: 'journal_entries_reverses', columns: {#reverses})
+@TableIndex(name: 'journal_entries_account', columns: {#accountId})
 @DataClassName('JournalEntryRow')
 class JournalEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -316,6 +317,22 @@ class JournalEntries extends Table {
 
   /// When the entry was posted.
   DateTimeColumn get recordedAt => dateTime()();
+
+  /// The money account the entry belongs to: its transaction's account, or
+  /// the account it opens. Syncing reposts one account at a time by it.
+  IntColumn get accountId => integer().nullable()();
+}
+
+/// Money accounts whose journal entries may be out of date: database
+/// triggers add one whenever its transactions, the account itself, or a
+/// payee or category its transactions use changes. Syncing reposts these
+/// accounts only, then empties it.
+@DataClassName('JournalDirtyRow')
+class JournalDirty extends Table {
+  IntColumn get accountId => integer()();
+
+  @override
+  Set<Column> get primaryKey => {accountId};
 }
 
 /// One line of a journal entry. An entry's postings sum to zero in each

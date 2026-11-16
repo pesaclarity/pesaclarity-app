@@ -4,6 +4,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
@@ -148,6 +149,7 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
   FulizaDebt? fulizaDebt;
   AccountOpening? fulizaAccount;
   var fulizaWallet = 0;
+  final journal = await readJournal(ref);
   for (final account
       in await ref.watch(accountsRepositoryProvider).openings()) {
     if (!account.canOweFuliza) continue;
@@ -158,11 +160,13 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
           to: today.addDays(1).startInstant,
         );
     final at = today.addDays(1).startInstant;
-    final debt = fulizaDebtAt(account, history, at: at);
-    if (debt.owedMinor > 0) {
-      fulizaDebt = debt;
+    // What is owed comes from the journal; when it is due and its daily
+    // charges from Fuliza's messages.
+    final owed = journal.fulizaOwedAt(account, at: at);
+    if (owed > 0) {
+      fulizaDebt = WalletWalk.of(account, history).fuliza.withOwed(owed);
       fulizaAccount = account;
-      fulizaWallet = balanceAt(account, history, at: at);
+      fulizaWallet = journal.walletAt(account, at: at);
     }
   }
 

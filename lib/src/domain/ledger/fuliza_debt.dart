@@ -1,6 +1,7 @@
 import '../enums.dart';
 import '../time/calendar.dart';
 import 'balances.dart';
+import 'fuliza_terms.dart';
 import 'ledger_entry.dart';
 
 /// One day's Fuliza daily charge, worked out from what two Fuliza messages
@@ -63,16 +64,6 @@ class FulizaAuto {
   final int feeMinor;
 
   DateTime get occurredAt => entry.occurredAt;
-}
-
-/// Fuliza's access fee on [drawnMinor]: 1%, as its messages charge it.
-int fulizaAccessFee(int drawnMinor) => (drawnMinor + 50) ~/ 100;
-
-/// The most daily charges a repayment [days] after the debt was last known
-/// can hold on top of [owedMinor]: 1% of it a day, at least 1.00 a day.
-int fulizaChargeAllowance(int owedMinor, int days) {
-  final perDay = owedMinor ~/ 100;
-  return (days < 1 ? 1 : days) * (perDay < 100 ? 100 : perDay);
 }
 
 /// The Fuliza debt on one M-Pesa account, kept as its entries are walked
@@ -172,7 +163,7 @@ class FulizaBook {
 
   /// [e] took the wallet below zero: Fuliza covered [drawnMinor].
   void drawnFor(LedgerEntry e, int drawnMinor) {
-    final fee = fulizaAccessFee(drawnMinor);
+    final fee = fulizaTerms.accessFee(drawnMinor);
     _auto.add(
       FulizaAuto(
         kind: FulizaAutoKind.drawn,
@@ -205,7 +196,7 @@ class FulizaBook {
   /// The most daily charges a repayment on [day] can hold.
   int chargeAllowance(CalendarDate day) {
     final from = _known ?? _since ?? day;
-    return fulizaChargeAllowance(_owed, from.daysUntil(day));
+    return fulizaTerms.chargeAllowance(_owed, from.daysUntil(day));
   }
 
   FulizaDebt result() => FulizaDebt._(
@@ -219,8 +210,6 @@ class FulizaBook {
 /// The Fuliza debt on one M-Pesa account after its entries: see
 /// [FulizaBook] for how it is kept.
 class FulizaDebt {
-  FulizaDebt._(this.owedMinor, this.dueAt, this.charges, this.auto);
-
   /// Reads one M-Pesa account's [entries] (all from the same account) as
   /// if the account opened with nothing just before the first.
   factory FulizaDebt.of(Iterable<LedgerEntry> entries) {
@@ -241,9 +230,14 @@ class FulizaDebt {
       list,
     ).fuliza;
   }
+  FulizaDebt._(this.owedMinor, this.dueAt, this.charges, this.auto);
 
   /// Fuliza owed after the last entry.
   final int owedMinor;
+
+  /// This debt with [owedMinor] owed, as the journal holds it.
+  FulizaDebt withOwed(int owedMinor) =>
+      FulizaDebt._(owedMinor, owedMinor == 0 ? null : dueAt, charges, auto);
 
   /// When [owedMinor] is due, as the last message said.
   final DateTime? dueAt;

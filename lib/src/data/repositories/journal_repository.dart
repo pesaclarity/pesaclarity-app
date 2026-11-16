@@ -2,19 +2,26 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/money/exchange_rates.dart';
 import '../../domain/books/book_account.dart';
 import '../../domain/books/books.dart';
 import '../../domain/books/journal.dart';
+import '../../domain/books/journal_balances.dart';
 import '../../domain/ledger/balances.dart';
 import '../../domain/ledger/ledger_entry.dart';
+import '../../features/currency/application/currency_controller.dart';
 import '../database/app_database.dart';
+import '../database/database_providers.dart';
 import 'accounts_repository.dart';
 import 'transactions_repository.dart';
 
-/// What one [JournalRepository.sync] did.
+/// What one [JournalRepository.sync] or [JournalRepository.rebuild] did.
 class JournalSync {
   const JournalSync({required this.posted, required this.reversed});
+
+  static const none = JournalSync(posted: 0, reversed: 0);
 
   /// New entries posted, replacements included.
   final int posted;
@@ -28,34 +35,17 @@ class JournalSync {
   String toString() => 'JournalSync(posted: $posted, reversed: $reversed)';
 }
 
-/// An account whose journal balance is not what the balance code shows.
-class JournalMismatch {
-  const JournalMismatch({
-    required this.account,
-    required this.currency,
-    required this.journalMinor,
-    required this.recordsMinor,
-  });
-
-  final BookAccount account;
-  final String currency;
-  final int journalMinor;
-  final int recordsMinor;
-
-  @override
-  String toString() =>
-      'JournalMismatch($account $currency: journal $journalMinor, '
-      'records $recordsMinor)';
-}
-
 /// The open space's double-entry journal (decision 0018), kept in the
-/// space's own database. Stage 1: it is written, never read by the app.
+/// space's own database. Balances, On hand and everything that shows money
+/// held read it through [read].
 ///
-/// [sync] posts what the records say: it works out every entry with
-/// [postJournal], posts the ones not posted yet and, for any whose source
-/// changed (a recategorise, a move, an own transfer matched or unmatched) or
-/// is gone, posts a reversal and then the new entry. Nothing is edited or
-/// deleted, and running it again changes nothing.
+/// Entries are worked out with [postJournal]. [sync] reposts only the
+/// accounts the database's triggers marked as changed (see `JournalDirty`);
+/// [rebuild] reposts every account, for the upgrade and for repair. Either
+/// way an entry whose source changed (a recategorise, a move, an own
+/// transfer matched or unmatched) or is gone gets a reversal and then the
+/// new entry. Nothing is edited or deleted, and running either again
+/// changes nothing.
 class JournalRepository {
   JournalRepository(this._db, {DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
@@ -63,7 +53,8 @@ class JournalRepository {
   final AppDatabase _db;
   final DateTime Function() _clock;
 
-  /// Every record, read as balances read them but in its own currency.
+  /// The records of [accountIds], or of every account, read as balances
+  /// read them but in their own currency.
   Future<
     ({
       List<AccountOpening> accounts,
@@ -71,29 +62,50 @@ class JournalRepository {
       Map<int, BookCategory> categories,
     })
   >
-  _records() async => (
-    accounts: await DriftAccountsRepository(_db).openings(),
-    history: await DriftTransactionsRepository(_db)
-        .ledgerEntries(from: DateTime.utc(1970), to: DateTime.utc(9999)),
+  _records([Set<int>? accountIds]) async => (
+    accounts: [
+      for (final a in await DriftAccountsRepository(_db).openings())
+        if (accountIds == null || accountIds.contains(a.id)) a,
+    ],
+    history: await DriftTransactionsRepository(_db).ledgerEntries(
+      from: DateTime.utc(1970),
+      to: DateTime.utc(9999),
+      accountIds: accountIds,
+    ),
     categories: {
       for (final c in await _db.select(_db.categories).get())
         c.id: (key: c.key, type: c.type),
     },
   );
 
-  /// The entries the records call for now, not yet stored.
-  Future<List<JournalEntry>> expected() async {
-    final r = await _records();
-    return postJournal(
+  /// Reposts the accounts marked as changed since the last sync.
+  Future<JournalSync> sync() => _db.transaction(() async {
+    final dirty = {
+      for (final d in await _db.select(_db.journalDirty).get()) d.accountId,
+    };
+    if (dirty.isEmpty) return JournalSync.none;
+    final done = await _repost(dirty.contains(_rebuildAll) ? null : dirty);
+    await (_db.delete(
+      _db.journalDirty,
+    )..where((d) => d.accountId.isIn(dirty))).go();
+    return done;
+  });
+
+  /// Reposts every account, and reverses entries that belong to none.
+  Future<JournalSync> rebuild() => _db.transaction(() async {
+    final done = await _repost(null);
+    await _db.delete(_db.journalDirty).go();
+    return done;
+  });
+
+  /// Reposts [accountIds], or everything.
+  Future<JournalSync> _repost(Set<int>? accountIds) async {
+    final r = await _records(accountIds);
+    final wanted = postJournal(
       accounts: r.accounts,
       history: r.history,
       categories: r.categories,
     );
-  }
-
-  /// Brings the journal in line with the records. See [JournalRepository].
-  Future<JournalSync> sync() => _db.transaction(() async {
-    final wanted = await expected();
     final rates = {
       for (final t in await (_db.select(
         _db.transactions,
@@ -103,16 +115,15 @@ class JournalRepository {
     int? rateOf(JournalEntry e) =>
         e.source == JournalSource.transaction ? rates[e.sourceId] : null;
 
-    final live = await _live();
     final byKey = <(JournalSource, int), List<_Stored>>{};
-    for (final s in live) {
+    for (final s in await _live(accountIds)) {
       (byKey[(s.row.sourceKind, s.row.sourceId)] ??= []).add(s);
     }
     var posted = 0;
     var reversed = 0;
     final now = _clock();
     for (final e in wanted) {
-      final shape = _shape(e.at, e.memo, [
+      final shape = _shape(e.at, e.memo, e.accountId, [
         for (final l in e.lines) (l.account.key, l.amountMinor, e.currency),
       ], rateOf(e));
       final stored = byKey.remove((e.source, e.sourceId)) ?? const [];
@@ -134,35 +145,51 @@ class JournalRepository {
       reversed++;
     }
     return JournalSync(posted: posted, reversed: reversed);
-  });
+  }
 
-  /// Entries that are neither reversed nor reversals, with their postings.
-  Future<List<_Stored>> _live() async {
+  /// Entries that are neither reversed nor reversals, with their postings:
+  /// those of [accountIds], or all of them.
+  Future<List<_Stored>> _live(Set<int>? accountIds) async {
     final j = _db.journalEntries;
+    final ids = accountIds?.toList();
     final rows = await _db
         .customSelect(
           'SELECT * FROM journal_entries WHERE reverses IS NULL AND id NOT IN '
-          '(SELECT reverses FROM journal_entries WHERE reverses IS NOT NULL)',
+          '(SELECT reverses FROM journal_entries WHERE reverses IS NOT NULL)'
+          '${ids == null ? '' : ' AND account_id IN (${List.filled(ids.length, '?').join(', ')})'}',
+          variables: [for (final id in ids ?? const <int>[]) Variable(id)],
           readsFrom: {j},
         )
         .map((row) => j.map(row.data))
         .get();
     final lines = <int, List<Posting>>{};
-    for (final p in await _db.select(_db.postings).get()) {
-      (lines[p.entryId] ??= []).add(p);
+    final entryIds = [for (final r in rows) r.id];
+    // In slices, to stay under SQLite's limit on bound values.
+    for (var i = 0; i < entryIds.length; i += _slice) {
+      final slice = entryIds.sublist(
+        i,
+        i + _slice > entryIds.length ? entryIds.length : i + _slice,
+      );
+      for (final p in await (_db.select(
+        _db.postings,
+      )..where((p) => p.entryId.isIn(slice))).get()) {
+        (lines[p.entryId] ??= []).add(p);
+      }
     }
     return [
       for (final row in rows)
         _Stored(
           row,
           lines[row.id] ?? const [],
-          _shape(row.occurredAt, row.memo, [
+          _shape(row.occurredAt, row.memo, row.accountId, [
             for (final p in lines[row.id] ?? const <Posting>[])
               (p.account, p.amountMinor, p.currency),
           ], (lines[row.id] ?? const <Posting>[]).firstOrNull?.rateMicros),
         ),
     ];
   }
+
+  static const _slice = 500;
 
   Future<void> _post(JournalEntry e, int? rate, DateTime now) async {
     final id = await _db
@@ -174,6 +201,7 @@ class JournalRepository {
             sourceId: e.sourceId,
             memo: Value(e.memo),
             recordedAt: now,
+            accountId: Value(e.accountId),
           ),
         );
     for (final l in e.lines) {
@@ -202,6 +230,7 @@ class JournalRepository {
             memo: Value(s.row.memo),
             reverses: Value(s.row.id),
             recordedAt: now,
+            accountId: Value(s.row.accountId),
           ),
         );
     for (final p in s.postings) {
@@ -218,6 +247,102 @@ class JournalRepository {
           );
     }
   }
+
+  /// Every stored entry, reversals and the entries they cancel included (so
+  /// they net out), after a [sync]. With [converter], postings in another
+  /// currency count in its base, at the rate the person got for their
+  /// transaction or else the rates of the day, as transactions do; without
+  /// a rate they keep their own currency.
+  Future<List<JournalEntry>> entries({CurrencyConverter? converter}) async {
+    await sync();
+    final j = _db.journalEntries;
+    final p = _db.postings;
+    final query = _db.select(p).join([innerJoin(j, j.id.equalsExp(p.entryId))]);
+    final byEntry = <int, (JournalEntryRow, List<Posting>)>{};
+    for (final row in await query.get()) {
+      final entry = row.readTable(j);
+      (byEntry[entry.id] ??= (entry, [])).$2.add(row.readTable(p));
+    }
+    final got = converter == null
+        ? const <int, TransactionRecord>{}
+        : {
+            for (final t in await (_db.select(
+              _db.transactions,
+            )..where((t) => t.fxRateMicros.isNotNull())).get())
+              t.id: t,
+          };
+    final out = <JournalEntry>[];
+    for (final (row, postings) in byEntry.values) {
+      // An entry's postings share one currency.
+      final currency = postings.first.currency;
+      final record = row.sourceKind == JournalSource.transaction
+          ? got[row.sourceId]
+          : null;
+      int? inBase(int minor) {
+        if (converter == null || currency == converter.base) return minor;
+        return converter
+            .convert(
+              minor,
+              currency,
+              row.occurredAt,
+              gotCurrency: record?.fxRateCurrency,
+              gotRate: record?.fxRateMicros == null
+                  ? null
+                  : record!.fxRateMicros! / 1e6,
+            )
+            ?.baseMinor;
+      }
+
+      final converted = [
+        for (final l in postings)
+          if (BookAccount.parse(l.account) case final account?)
+            (account, inBase(l.amountMinor)),
+      ];
+      final allConverted = converted.every((c) => c.$2 != null);
+      final lines = allConverted
+          ? [for (final (a, m) in converted) JournalLine(a, m!)]
+          : [
+              for (final l in postings)
+                if (BookAccount.parse(l.account) case final account?)
+                  JournalLine(account, l.amountMinor),
+            ];
+      // Rounding each line on its own can leave a unit over: the largest
+      // line takes it, so the entry still balances.
+      if (allConverted && lines.length > 1) {
+        final over = lines.fold(0, (s, l) => s + l.amountMinor);
+        if (over != 0) {
+          var big = 0;
+          for (var i = 1; i < lines.length; i++) {
+            if (lines[i].amountMinor.abs() > lines[big].amountMinor.abs()) {
+              big = i;
+            }
+          }
+          lines[big] = JournalLine(
+            lines[big].account,
+            lines[big].amountMinor - over,
+          );
+        }
+      }
+      out.add(
+        JournalEntry(
+          source: row.sourceKind,
+          sourceId: row.sourceId,
+          at: row.occurredAt,
+          currency: allConverted && converter != null
+              ? converter.base
+              : currency,
+          accountId: row.accountId,
+          memo: row.memo,
+          lines: lines,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// The journal's balances, after a [sync] (see [entries]).
+  Future<JournalBalances> read({CurrencyConverter? converter}) async =>
+      JournalBalances(await entries(converter: converter));
 
   /// Each account's stored balance in each currency from entries dated
   /// before [at] (all of them without), positive in the account's normal
@@ -255,53 +380,114 @@ class JournalRepository {
     }.toList()..sort();
   }
 
-  /// Accounts whose stored journal balance just before [at] is not what
-  /// the balance code ([balanceAt], and [fulizaOwedAt] for Fuliza owed)
-  /// shows from the same records.
-  Future<List<JournalMismatch>> reconcile({required DateTime at}) async {
-    final r = await _records();
-    final stored = await balances(at: at);
-    final out = <JournalMismatch>[];
-    for (final a in r.accounts) {
-      void check(BookAccount account, int records) {
-        final journal = stored[(account, a.currency)] ?? 0;
-        if (journal != records) {
-          out.add(
-            JournalMismatch(
-              account: account,
-              currency: a.currency,
-              journalMinor: journal,
-              recordsMinor: records,
-            ),
-          );
+  /// What each account's reported balances do not explain: the gaps their
+  /// assertions left in Not yet sorted, by account id. Accounts whose
+  /// balances all reconcile are left out.
+  Future<Map<int, int>> openGaps() async {
+    final out = <int, int>{};
+    for (final e in await entries()) {
+      if (e.source != JournalSource.balanceDifference) continue;
+      final id = e.accountId;
+      if (id == null) continue;
+      for (final l in e.lines) {
+        if (l.account == BookAccount.money(id)) {
+          out[id] = (out[id] ?? 0) + l.amountMinor;
         }
       }
-
-      check(BookAccount.money(a.id), balanceAt(a, r.history, at: at));
-      if (a.canOweFuliza) {
-        check(BookAccount.fulizaOwed(a.id), fulizaOwedAt(a, r.history, at: at));
-      }
     }
+    out.removeWhere((_, gap) => gap == 0);
     return out;
   }
 
-  /// Builds the journal from the records after the upgrade that added it,
-  /// and logs any account that does not reconcile. A failure leaves the
-  /// journal to the next [sync]: nothing reads it yet, so the space still
-  /// opens.
+  /// Fills in the account of entries posted before entries carried one
+  /// (version 34): the money account they post to, or their transaction's.
+  static Future<void> tagAccounts(AppDatabase db) async {
+    await db.customStatement(
+      'UPDATE journal_entries SET account_id = source_id '
+      "WHERE account_id IS NULL AND source_kind = 'opening'",
+    );
+    await db.customStatement(
+      'UPDATE journal_entries SET account_id = (SELECT CAST(substr(p.account, '
+      '7) AS INTEGER) FROM postings p WHERE p.entry_id = journal_entries.id '
+      "AND p.account LIKE 'money:%' LIMIT 1) WHERE account_id IS NULL",
+    );
+    await db.customStatement(
+      'UPDATE journal_entries SET account_id = (SELECT t.account_id FROM '
+      'transactions t WHERE t.id = journal_entries.source_id) '
+      'WHERE account_id IS NULL',
+    );
+  }
+
+  /// Rebuilds the journal from the records after an upgrade that changed
+  /// it, and logs accounts whose reported balances do not reconcile. A
+  /// failure leaves the journal to the next [rebuild] from the app (see
+  /// [JournalKeeper]): the space still opens.
   static Future<void> backfill(AppDatabase db) async {
     try {
       final journal = JournalRepository(db);
-      await journal.sync();
-      final off = await journal.reconcile(
-        at: DateTime.now().add(const Duration(seconds: 1)),
-      );
-      if (off.isNotEmpty && kDebugMode) {
-        debugPrint('Journal accounts that do not reconcile: $off');
+      await journal.rebuild();
+      final open = await journal.openGaps();
+      if (open.isNotEmpty && kDebugMode) {
+        debugPrint('Journal accounts with balances that do not add up: $open');
       }
     } on Object catch (error) {
       if (kDebugMode) debugPrint('Building the journal failed: $error');
+      await db
+          .into(db.journalDirty)
+          .insertOnConflictUpdate(
+            const JournalDirtyCompanion(accountId: Value(_rebuildAll)),
+          );
     }
+  }
+
+  /// Marks the whole journal for a rebuild, when an account id cannot.
+  static const _rebuildAll = -1;
+}
+
+/// Adds the triggers that mark accounts for [JournalRepository.sync]: any
+/// change to an account's transactions or to the account, and any change
+/// to a payee or category, which can change what its transactions mean.
+/// Safe to run again.
+Future<void> createJournalTriggers(AppDatabase db) async {
+  // Each mark skips accounts already marked rather than relying on a
+  // conflict clause: in a trigger, the conflict handling of the statement
+  // that fired it wins, so OR IGNORE would not hold under an upsert.
+  String mark(String id) =>
+      'INSERT INTO journal_dirty (account_id) SELECT $id WHERE NOT EXISTS '
+      '(SELECT 1 FROM journal_dirty WHERE account_id = $id);';
+  String markAll(String column, String from) =>
+      'INSERT INTO journal_dirty (account_id) SELECT DISTINCT $column $from '
+      'AND $column NOT IN (SELECT account_id FROM journal_dirty);';
+  final everyAccount = markAll('id', 'FROM accounts WHERE 1');
+  final payeeAccounts = markAll(
+    'account_id',
+    'FROM transactions WHERE payee_id = OLD.id',
+  );
+  final triggers = {
+    'journal_dirty_transaction_insert':
+        'AFTER INSERT ON transactions BEGIN ${mark('NEW.account_id')} END',
+    'journal_dirty_transaction_update':
+        'AFTER UPDATE ON transactions BEGIN ${mark('OLD.account_id')} '
+        '${mark('NEW.account_id')} END',
+    'journal_dirty_transaction_delete':
+        'AFTER DELETE ON transactions BEGIN ${mark('OLD.account_id')} END',
+    'journal_dirty_account_insert':
+        'AFTER INSERT ON accounts BEGIN ${mark('NEW.id')} END',
+    'journal_dirty_account_update':
+        'AFTER UPDATE ON accounts BEGIN ${mark('OLD.id')} END',
+    'journal_dirty_account_delete':
+        'AFTER DELETE ON accounts BEGIN ${mark('OLD.id')} END',
+    'journal_dirty_category_update':
+        'AFTER UPDATE ON categories BEGIN $everyAccount END',
+    'journal_dirty_category_delete':
+        'AFTER DELETE ON categories BEGIN $everyAccount END',
+    'journal_dirty_payee_update':
+        'AFTER UPDATE ON payees BEGIN $payeeAccounts END',
+    'journal_dirty_payee_delete':
+        'AFTER DELETE ON payees BEGIN $payeeAccounts END',
+  };
+  for (final MapEntry(key: name, value: body) in triggers.entries) {
+    await db.customStatement('CREATE TRIGGER IF NOT EXISTS $name $body');
   }
 }
 
@@ -315,16 +501,17 @@ class _Stored {
 }
 
 /// A comparable form of an entry: its date to the second (as stored), memo,
-/// rate and postings in a fixed order.
+/// account, rate and postings in a fixed order.
 String _shape(
   DateTime at,
   String? memo,
+  int? accountId,
   List<(String, int, String)> lines,
   int? rate,
 ) {
   final sorted = [for (final (a, m, c) in lines) '$a=$m $c']..sort();
-  return '${at.millisecondsSinceEpoch ~/ 1000}|${memo ?? ''}|${rate ?? ''}|'
-      '${sorted.join(',')}';
+  return '${at.millisecondsSinceEpoch ~/ 1000}|${memo ?? ''}|'
+      '${accountId ?? ''}|${rate ?? ''}|${sorted.join(',')}';
 }
 
 /// Keeps a space database's journal posted as its records change: every
@@ -343,9 +530,9 @@ class JournalKeeper {
   var _stopped = false;
 
   /// Starts following changes. It never opens the database itself, which
-  /// must wait for app lock: the first change after it opens syncs
-  /// everything, including what was written while no keeper followed, such
-  /// as from another space's screens.
+  /// must wait for app lock: the first change after it opens syncs what
+  /// changed, including what was written while no keeper followed, such as
+  /// from another space's screens.
   void start() {
     _changes ??= _db
         .tableUpdates(
@@ -376,8 +563,7 @@ class JournalKeeper {
       try {
         await _journal.sync();
       } on Object catch (error) {
-        // Best effort: nothing reads the journal yet, and the next change
-        // syncs everything again.
+        // Best effort: reading the journal syncs again.
         if (kDebugMode) debugPrint('Posting the journal failed: $error');
       }
     } while (_again && !_stopped);
@@ -398,3 +584,15 @@ class JournalKeeper {
     await idle;
   }
 }
+
+final journalRepositoryProvider = Provider<JournalRepository>(
+  (ref) => JournalRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// The open space's balances, read from its journal. Providers that call
+/// it watch `ledgerChangesProvider` themselves, so they follow every change;
+/// a provider of its own would add a dependency that can change while they
+/// compute.
+Future<JournalBalances> readJournal(Ref ref) => ref
+    .watch(journalRepositoryProvider)
+    .read(converter: ref.watch(currencyConverterProvider));

@@ -1,3 +1,4 @@
+import '../books/journal_balances.dart';
 import '../time/calendar.dart';
 import 'balances.dart';
 import 'ledger_entry.dart';
@@ -12,12 +13,14 @@ class OnHand {
     required this.fulizaOwedMinor,
   });
 
-  /// What day-to-day [accounts] held at the start of [today]. A balance
-  /// set by hand today counts from the start of the day, so Home follows
-  /// the figure the person just typed.
+  /// What day-to-day [accounts] held at the start of [today], from the
+  /// journal's [balances]. A balance set by hand today (in [entries])
+  /// counts from the start of the day, so Home follows the figure the
+  /// person just typed.
   factory OnHand.at(
     Iterable<AccountOpening> accounts,
     Iterable<LedgerEntry> entries, {
+    required JournalBalances balances,
     required CalendarDate today,
     required int rainyDayMinor,
   }) {
@@ -36,8 +39,8 @@ class OnHand {
                 e.date == today,
           )
           .fold(0, (sum, e) => sum + e.signedMinor);
-      byAccount[account.id] = heldAt(account, list, at: start) + setToday;
-      owed += fulizaOwedAt(account, list, at: today.addDays(1).startInstant);
+      byAccount[account.id] = balances.heldAt(account, at: start) + setToday;
+      owed += balances.fulizaOwedAt(account, at: today.addDays(1).startInstant);
     }
     return OnHand(
       byAccount: byAccount,

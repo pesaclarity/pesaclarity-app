@@ -9,20 +9,21 @@ import 'books.dart';
 /// plus an opening entry per account and an entry wherever a reported
 /// balance moved an account by more than its records.
 ///
-/// Each money account moves exactly as the balance code reads it
-/// ([WalletWalk.change] and its checkpoints), so the journal's balance of an
-/// account equals [balanceAt], and its Fuliza owed account equals
-/// [fulizaOwedAt]. What that reading adds or takes away beyond a
+/// Each money account moves as [WalletWalk] reads its entries, and each
+/// reported balance is an assertion: where the records do not reach it, the
+/// gap posts to Not yet sorted until the person adds what is missing or
+/// confirms a correction. What the walk adds or takes away beyond a
 /// transaction's own amount posts against the account that explains it:
 ///
 /// * A Fuliza draw credits Fuliza owed with its amount and access fee; the
-///   fee and any daily charges its total shows are fees.
+///   fee and any daily charges its total shows are Fuliza charges.
 /// * A draw that funded the payment just before it ([WalletWalk.fundedBy])
 ///   reaches that payment through Money in transit: the payment's entry
 ///   takes the draw's amount from transit, the draw's entry puts it there.
-/// * A repayment debits Fuliza owed by what was owed; the rest is fees. Money
-///   in that M-Pesa kept for Fuliza, with or without a repayment message,
-///   posts the repayment in the money in's entry, as the balance shows it.
+/// * A repayment debits Fuliza owed by what was owed; the rest is Fuliza
+///   charges. Money in that M-Pesa kept for Fuliza, with or without a
+///   repayment message, posts the repayment in the money in's entry, as the
+///   balance shows it.
 /// * A payment Fuliza covered with no draw message credits Fuliza owed with
 ///   what it covered plus the access fee.
 /// * A reported balance that clears Fuliza with no repayment seen debits
@@ -112,12 +113,17 @@ List<JournalEntry> _postAccount(
       before += _plainChange(e);
     }
   }
-  // With a reported balance, balances walk back from the first one, so the
-  // account starts from that figure; the difference is not yet sorted.
+  // What each entry moves the wallet by. A draw that funded the payment
+  // just before it moves the wallet with that payment, whether or not the
+  // payment's balance was trusted: the draw is real money either way.
+  int change(LedgerEntry e) => walk.change(e) + walk.fundedBy(e);
+
+  // The first reported balance says what the account started from, so the
+  // opening is that figure, as the person would have typed it.
   var start = account.openingBalanceMinor;
   final first = own.indexWhere(walk.isCheckpoint);
   if (first >= 0) {
-    final upToFirst = own.take(first + 1).fold(0, (s, e) => s + walk.change(e));
+    final upToFirst = own.take(first + 1).fold(0, (s, e) => s + change(e));
     start = walk.checkpoints[own[first].id]! - upToFirst;
   }
   out.add(
@@ -126,16 +132,10 @@ List<JournalEntry> _postAccount(
       sourceId: account.id,
       at: account.openingDate,
       currency: account.currency,
+      accountId: account.id,
       lines: [
         JournalLine(money, start - before),
-        JournalLine(
-          BookAccount.openingBalances,
-          -(account.openingBalanceMinor - before),
-        ),
-        JournalLine(
-          BookAccount.notYetSorted,
-          -(start - account.openingBalanceMinor),
-        ),
+        JournalLine(BookAccount.openingBalances, -(start - before)),
       ],
     ),
   );
@@ -143,13 +143,10 @@ List<JournalEntry> _postAccount(
   var running = start;
   var owed = 0;
   for (final e in own) {
-    // Balances leave a draw that funded the payment before it out of
-    // [WalletWalk.change] and let the payment's reported balance carry it,
-    // so it counts only where that balance is a checkpoint.
-    final fundedBy = walk.isCheckpoint(e) ? walk.fundedBy(e) : 0;
-    final change = walk.change(e) + fundedBy;
+    final fundedBy = walk.fundedBy(e);
+    final moved = change(e);
     final owedNow = walk.owedAfter(e);
-    running += change;
+    running += moved;
     var gap = 0;
     final reported = walk.checkpoints[e.id];
     if (reported != null) {
@@ -160,7 +157,7 @@ List<JournalEntry> _postAccount(
       _postOne(
         e,
         categories: categories,
-        moneyChange: change + (e.isCorrection ? gap : 0),
+        moneyChange: moved + (e.isCorrection ? gap : 0),
         // Only M-Pesa's walk keeps Fuliza; elsewhere a draw or repayment
         // moves what is borrowed by its own amount.
         owedDelta: account.canOweFuliza ? owedNow - owed : _plainOwed(e),
@@ -179,6 +176,7 @@ List<JournalEntry> _postAccount(
           sourceId: e.id,
           at: e.occurredAt,
           currency: account.currency,
+          accountId: account.id,
           lines: [
             JournalLine(money, gap),
             JournalLine(BookAccount.notYetSorted, -gap),
@@ -227,7 +225,7 @@ JournalEntry _postOne(
         e.isCorrection
             ? BookAccount.balanceCorrections
             : fulizaWork
-            ? BookAccount.fees
+            ? BookAccount.fulizaCharges
             : BookAccount.notYetSorted,
         rest,
       ),
@@ -238,6 +236,7 @@ JournalEntry _postOne(
     sourceId: e.id,
     at: e.occurredAt,
     currency: e.currency,
+    accountId: e.accountId,
     lines: _merged(lines),
   );
 }

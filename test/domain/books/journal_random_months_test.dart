@@ -7,6 +7,8 @@ import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/balances.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 
+import '../../helpers/balance_oracle.dart' as oracle;
+
 /// A random synthetic M-Pesa month from [seed]: payments, money in, Fuliza
 /// draws (some with totals), repayments and corrections, with reported,
 /// claimed and missing balances, often minutes apart.
@@ -68,8 +70,8 @@ void main() {
   );
 
   test('on random messy months the journal balances, its M-Pesa equals the '
-      'balance code after every entry, and Fuliza owed equals it once '
-      'every record is in', () {
+      'old balance code after every entry (with funded draws counted), and '
+      'Fuliza owed equals it once every record is in', () {
     final off = <String>[];
     for (var seed = 0; seed < 200; seed++) {
       final history = randomMonth(seed, start);
@@ -89,7 +91,7 @@ void main() {
           currency: 'KES',
           at: at,
         );
-        if (money != balanceAt(mpesa, history, at: at)) {
+        if (money != oracle.balanceWithFundedDrawsAt(mpesa, history, at: at)) {
           off.add('seed $seed, wallet after ${e.id}');
         }
       }
@@ -100,7 +102,7 @@ void main() {
         currency: 'KES',
         at: end,
       );
-      if (owed != fulizaOwedAt(mpesa, history, at: end)) {
+      if (owed != oracle.fulizaOwedAt(mpesa, history, at: end)) {
         off.add('seed $seed, Fuliza owed at the end');
       }
     }

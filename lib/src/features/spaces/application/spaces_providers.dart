@@ -7,9 +7,9 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/income/income_sources.dart';
-import '../../../domain/ledger/balances.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/spaces/space_summary.dart';
 import '../../../domain/time/calendar.dart';
@@ -140,9 +140,8 @@ final spaceSummaryProvider = FutureProvider<SpaceSummary?>((ref) async {
     },
     balanceMinor: accounts.isEmpty
         ? 0
-        : totalHeldAt(
+        : (await readJournal(ref)).totalHeldAt(
             accounts,
-            entries,
             at: today.addDays(1).startInstant,
             where: (_) => true,
           ),

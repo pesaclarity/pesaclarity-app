@@ -92,7 +92,12 @@ enum BookAccountKind {
 
   /// Balance corrections the person recorded, such as setting a balance
   /// or saying Fuliza is paid.
-  balanceCorrections(BookAccountClass.equity);
+  balanceCorrections(BookAccountClass.equity),
+
+  /// What Fuliza charged: access fees, daily charges and what repayments
+  /// took beyond what was owed, whether a message said so or the balances
+  /// show it.
+  fulizaCharges(BookAccountClass.expense);
 
   const BookAccountKind(this.accountClass);
 
@@ -168,6 +173,7 @@ class BookAccount {
     BookAccountKind.balanceDifferences,
   );
   static const notYetSorted = BookAccount.fixed(BookAccountKind.notYetSorted);
+  static const fulizaCharges = BookAccount.fixed(BookAccountKind.fulizaCharges);
 
   /// Money on its way between accounts: the journal's clearing account.
   static const moneyInTransit = ownTransfers;

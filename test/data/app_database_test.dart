@@ -17,6 +17,8 @@ import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
 import 'package:pesaclarity/src/domain/ledger/own_transfers.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import '../helpers/balance_oracle.dart';
+
 void main() {
   group('SQLCipher', () {
     test('the bundled SQLite build is SQLCipher', () {
@@ -855,10 +857,86 @@ void main() {
         });
         final journal = JournalRepository(db);
         expect(await journal.unbalanced(), isEmpty);
-        expect(await journal.reconcile(at: DateTime.utc(2026, 12)), isEmpty);
+        expect(
+          await reconcileWithOracle(db, at: DateTime.utc(2026, 12)),
+          isEmpty,
+        );
         expect((await journal.sync()).changed, isFalse);
       },
     );
+
+    test('migrates a version 34 database: entries carry their account and '
+        'sync account by account', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      for (final (day, balance) in [(2, 9000), (3, 7000)]) {
+        await old
+            .into(old.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                accountId: account,
+                occurredAt: DateTime.utc(2026, 11, day),
+                amountMinor: 1000,
+                direction: TransactionDirection.outflow,
+                source: TransactionSource.sms,
+                balanceAfterMinor: Value(balance),
+              ),
+            );
+      }
+      await JournalRepository(old).rebuild();
+      final before = await old.select(old.journalEntries).get();
+      // As version 34 left it.
+      await old.customStatement('UPDATE journal_entries SET account_id = NULL');
+      for (final name in [
+        for (final r
+            in await old
+                .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'trigger'",
+                )
+                .get())
+          r.read<String>('name'),
+      ]) {
+        await old.customStatement('DROP TRIGGER $name');
+      }
+      await old.customStatement('DROP TABLE journal_dirty');
+      await old.customStatement('PRAGMA user_version = 34');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final entries = await db.select(db.journalEntries).get();
+      // Tagged in place; nothing needed reposting.
+      expect(entries, hasLength(before.length));
+      expect(entries.map((e) => e.accountId).toSet(), {account});
+      // The triggers are back: a new payment marks the account.
+      await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 11, 4),
+              amountMinor: 1000,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.sms,
+            ),
+          );
+      expect(
+        [for (final d in await db.select(db.journalDirty).get()) d.accountId],
+        [account],
+      );
+      final journal = JournalRepository(db);
+      expect((await journal.sync()).posted, 1);
+      expect((await journal.rebuild()).changed, isFalse);
+    });
 
     test('the version 34 step is safe to run twice', () async {
       final old = AppDatabase(NativeDatabase(file));

@@ -8,6 +8,7 @@ import 'package:pesaclarity/src/domain/books/book_account.dart';
 import 'package:pesaclarity/src/domain/books/books.dart';
 
 import '../domain/fixtures.dart';
+import '../helpers/balance_oracle.dart';
 import '../helpers/test_app.dart';
 
 void main() {
@@ -104,7 +105,7 @@ void main() {
     expect(await journal.unbalanced(), isEmpty);
     expect(await balanceOf(BookAccount.money(mpesa)), kes(900));
     expect(await balanceOf(BookAccount.money(kcb)), kes(5000));
-    expect(await journal.reconcile(at: eat(2026, 12, 1)), isEmpty);
+    expect(await reconcileWithOracle(db, at: eat(2026, 12, 1)), isEmpty);
   });
 
   test('recategorising reverses the entry and posts it anew', () async {
@@ -144,7 +145,7 @@ void main() {
       BookAccount.money(mpesa).key: -kes(300),
     });
     expect(await journal.unbalanced(), isEmpty);
-    expect(await journal.reconcile(at: eat(2026, 12, 1)), isEmpty);
+    expect(await reconcileWithOracle(db, at: eat(2026, 12, 1)), isEmpty);
   });
 
   test('moving a transaction to another account moves its money', () async {
@@ -156,7 +157,7 @@ void main() {
     await journal.sync();
     expect(await balanceOf(BookAccount.money(mpesa)), kes(1000));
     expect(await balanceOf(BookAccount.money(kcb)), kes(4700));
-    expect(await journal.reconcile(at: eat(2026, 12, 1)), isEmpty);
+    expect(await reconcileWithOracle(db, at: eat(2026, 12, 1)), isEmpty);
   });
 
   test('matching and unmatching an own transfer reposts both halves', () async {
@@ -237,6 +238,6 @@ void main() {
     await pumpEventQueue();
     await keeper.idle;
     expect(await entriesFor(id), hasLength(3));
-    expect(await journal.reconcile(at: eat(2026, 12, 1)), isEmpty);
+    expect(await reconcileWithOracle(db, at: eat(2026, 12, 1)), isEmpty);
   });
 }

@@ -2,10 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
-import '../../../domain/ledger/balances.dart';
 import '../../../domain/time/calendar.dart';
 
 /// This month's cash-flow forecast for day-to-day accounts (everything but
@@ -32,12 +32,8 @@ final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
       );
 
   return CashFlowForecast.project(
-    balanceMinor: totalHeldAt(
-      accounts,
-      entries,
-      at: tomorrow,
-      where: (_) => true,
-    ),
+    balanceMinor: (await readJournal(ref))
+        .totalHeldAt(accounts, at: tomorrow, where: (_) => true),
     today: today,
     plan: await ref.watch(planRepositoryProvider).monthPlan(today.yearMonth),
     entries: entries,

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/budget/safe_to_spend.dart';
@@ -60,6 +61,7 @@ Future<int?> _onHand(Ref ref, CalendarDate today) async {
   return OnHand.at(
     accounts,
     entries,
+    balances: await readJournal(ref),
     today: today,
     rainyDayMinor: fund.balanceMinor,
   ).totalMinor;

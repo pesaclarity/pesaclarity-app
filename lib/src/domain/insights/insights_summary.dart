@@ -1,4 +1,5 @@
 import '../../core/money/money.dart';
+import '../books/journal_balances.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_totals.dart';
@@ -44,6 +45,7 @@ class InsightsSummary {
     required YearMonth month,
     int trendMonths = 6,
     String? currency,
+    JournalBalances? journal,
   }) {
     currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency).toList();
@@ -52,7 +54,7 @@ class InsightsSummary {
     return InsightsSummary(
       trend: [
         for (var i = 0; i < trendMonths; i++)
-          _monthOf(all, first.addMonths(i), fuliza, currency),
+          _monthOf(all, first.addMonths(i), fuliza, currency, journal),
       ],
     );
   }
@@ -81,6 +83,7 @@ MonthInsight _monthOf(
   YearMonth month,
   FulizaLedger fuliza,
   String currency,
+  JournalBalances? journal,
 ) {
   final from = month.startInstant;
   final to = month.endInstant;
@@ -97,6 +100,7 @@ MonthInsight _monthOf(
       to: to,
       currency: currency,
       fuliza: fuliza,
+      journal: journal,
     ),
     entryCount: count,
   );

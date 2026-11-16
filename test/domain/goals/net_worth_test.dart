@@ -3,6 +3,7 @@ import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/goals/net_worth.dart';
 import 'package:pesaclarity/src/domain/ledger/balances.dart';
 
+import '../../helpers/journal_reads.dart';
 import '../fixtures.dart';
 
 void main() {
@@ -36,7 +37,7 @@ void main() {
     final worth = NetWorth.at(
       now: eat(2026, 10, 26),
       accounts: [mpesa, mmf, dollars],
-      entries: entries,
+      balances: journalOf([mpesa, mmf, dollars], entries),
       debtsOwedMinor: kes(100000),
       debtsRepaidThisMonthMinor: kes(20000),
       lentOutstandingMinor: kes(3000),
@@ -55,7 +56,10 @@ void main() {
     final worth = NetWorth.at(
       now: eat(2026, 10, 26),
       accounts: [mpesa],
-      entries: [inflow(at: eat(2026, 10, 27), amount: kes(1000))],
+      balances: journalOf(
+        [mpesa],
+        [inflow(at: eat(2026, 10, 27), amount: kes(1000))],
+      ),
       debtsOwedMinor: 0,
       debtsRepaidThisMonthMinor: 0,
       lentOutstandingMinor: 0,

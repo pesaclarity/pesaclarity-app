@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/books/cash_book.dart';
 import '../../../domain/time/calendar.dart';
@@ -27,6 +28,7 @@ final cashBookProvider = FutureProvider.family<CashBook, CalendarDate>((
   return CashBook.of(
     entries,
     accounts: accounts,
+    journal: await readJournal(ref),
     to: to,
     from: from,
     currency: BaseCurrency.code,

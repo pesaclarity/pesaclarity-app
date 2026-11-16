@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/enums.dart';
-import '../../../domain/ledger/balances.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/time/calendar.dart';
 
@@ -94,6 +94,7 @@ final openingLinesProvider = FutureProvider<List<OpeningLine>>((ref) async {
   final entries = await ref
       .watch(transactionsRepositoryProvider)
       .ledgerEntries(from: DateTime.utc(1970), to: now);
+  final journal = await readJournal(ref);
   return [
     for (final a in accounts)
       if (a.type != AccountType.cash && !a.isSavings)
@@ -101,7 +102,7 @@ final openingLinesProvider = FutureProvider<List<OpeningLine>>((ref) async {
           accountId: a.id,
           name: names[a.id] ?? 'Account',
           type: a.type,
-          suggestedMinor: balanceAt(a, entries, at: now),
+          suggestedMinor: journal.walletAt(a, at: now),
           fromMessage: entries.any(
             (e) => e.accountId == a.id && e.balanceAfterMinor != null,
           ),

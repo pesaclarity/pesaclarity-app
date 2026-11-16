@@ -1,4 +1,6 @@
 import '../../core/money/money.dart';
+import '../books/book_account.dart';
+import '../books/journal_balances.dart';
 import '../enums.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
@@ -22,12 +24,18 @@ class LeakageBreakdown {
   ///
   /// [history] should reach back before [from] so Fuliza repayments find
   /// their draws. Pass [fuliza] when it is already worked out for [history].
+  ///
+  /// With the space's [journal], Fuliza fees are its Fuliza charges: access
+  /// fees, daily charges and what repayments took beyond what was owed,
+  /// including those only the balances show. Without it they are the fee
+  /// share of repayment messages alone.
   factory LeakageBreakdown.of(
     Iterable<LedgerEntry> history, {
     required DateTime from,
     required DateTime to,
     String? currency,
     FulizaLedger? fuliza,
+    JournalBalances? journal,
   }) {
     currency ??= BaseCurrency.code;
     final all = history.where((e) => e.currency == currency);
@@ -41,12 +49,15 @@ class LeakageBreakdown {
       if (entry.occurredAt.isBefore(from) || !entry.occurredAt.isBefore(to)) {
         continue;
       }
-      fees += entry.feeMinor;
+      // A draw's access fee is a Fuliza charge in the journal.
+      if (journal == null || entry.kind != TransactionKind.fulizaDraw) {
+        fees += entry.feeMinor;
+      }
       switch (roleOf(entry)) {
         case LedgerRole.fee:
           fees += entry.amountMinor;
         case LedgerRole.debtRepayment:
-          fulizaFees += ledger.feeOf(entry);
+          if (journal == null) fulizaFees += ledger.feeOf(entry);
         case LedgerRole.spending:
           switch (entry.leakType) {
             case LeakType.none:
@@ -71,6 +82,14 @@ class LeakageBreakdown {
           break;
       }
     }
+    if (journal != null) {
+      fulizaFees = journal.flowOf(
+        BookAccount.fulizaCharges,
+        currency: currency,
+        from: from,
+        to: to,
+      );
+    }
     return LeakageBreakdown(
       lifestyleMinor: lifestyle,
       friendsMinor: friends,
@@ -87,7 +106,7 @@ class LeakageBreakdown {
   /// Transaction costs and bank or wallet charges, other than Fuliza fees.
   final int feesMinor;
 
-  /// The fee share of Fuliza repayments.
+  /// What Fuliza charged (see [LeakageBreakdown.of]).
   final int fulizaMinor;
 
   int get totalMinor =>

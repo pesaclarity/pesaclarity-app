@@ -1,14 +1,11 @@
 import '../../core/money/money.dart';
 import '../enums.dart';
 import 'fuliza_debt.dart';
+import 'fuliza_terms.dart';
 import 'ledger_entry.dart';
 
 /// Accounts that hold savings rather than day-to-day money.
 const savingsAccountTypes = {AccountType.sacco, AccountType.moneyMarket};
-
-/// A Fuliza draw this soon after a reported balance funded the payment that
-/// reported it, so that balance already holds the draw.
-const fulizaFundedWithin = Duration(minutes: 10);
 
 /// What the ledger needs to know to work out an account's balance.
 class AccountOpening {
@@ -65,10 +62,6 @@ int checkpointWallet(AccountOpening account, LedgerEntry checkpoint) {
   return stated;
 }
 
-/// How far apart a Fuliza repayment message and the incoming money it was
-/// taken from can be and still be one event.
-const fulizaRepaidWithin = Duration(minutes: 30);
-
 /// One account's entries as balances read them: what each changes the
 /// wallet by, the wallet balance at each checkpoint and, for M-Pesa, the
 /// Fuliza debt.
@@ -100,7 +93,7 @@ class WalletWalk {
   ///   money). Its repayment message, when read too, is the same event.
   /// * A payment that leaves the wallet at 0 though it took more than the
   ///   wallet held, with no Fuliza draw message: Fuliza covered the rest,
-  ///   plus its 1% access fee.
+  ///   plus its access fee ([FulizaTerms.accessFee]).
   /// * Any reported balance above 0: M-Pesa only credits the wallet once
   ///   Fuliza is clear, so nothing is owed after it.
   factory WalletWalk.of(AccountOpening account, Iterable<LedgerEntry> all) {
@@ -113,7 +106,7 @@ class WalletWalk {
       if (e.kind == TransactionKind.fulizaDraw &&
           lastReported != null &&
           e.occurredAt.difference(lastReported.occurredAt) <=
-              fulizaFundedWithin) {
+              fulizaTerms.fundedWithin) {
         funded.add(e.id);
         fundedBy.update(
           lastReported.id,
@@ -143,7 +136,7 @@ class WalletWalk {
             continue;
           }
           final apart = i.occurredAt.difference(r.occurredAt).abs();
-          if (apart > fulizaRepaidWithin) continue;
+          if (apart > fulizaTerms.repaidWithin) continue;
           if (best == null ||
               apart < best.occurredAt.difference(r.occurredAt).abs()) {
             best = i;
@@ -185,7 +178,8 @@ class WalletWalk {
               r != null &&
               total != null &&
               !funded.contains(e.id) &&
-              e.occurredAt.difference(r.occurredAt) <= fulizaRepaidWithin &&
+              e.occurredAt.difference(r.occurredAt) <=
+                  fulizaTerms.repaidWithin &&
               total <= r.amountMinor + tolerance;
           if (!alreadyRepaid) book.draw(e);
         } else if (e.kind == TransactionKind.fulizaRepayment) {
@@ -334,7 +328,7 @@ bool _repaymentFollows(
       r.kind == TransactionKind.fulizaRepayment &&
       !repaying.containsKey(r.id) &&
       _chronological(r, e) > 0 &&
-      r.occurredAt.difference(e.occurredAt) <= fulizaRepaidWithin,
+      r.occurredAt.difference(e.occurredAt) <= fulizaTerms.repaidWithin,
 );
 
 /// Whether a Fuliza draw message came just after [e], funding it.
@@ -342,108 +336,10 @@ bool _drawFollows(LedgerEntry e, List<LedgerEntry> own) => own.any(
   (d) =>
       d.kind == TransactionKind.fulizaDraw &&
       !d.occurredAt.isBefore(e.occurredAt) &&
-      d.occurredAt.difference(e.occurredAt) <= fulizaFundedWithin,
+      d.occurredAt.difference(e.occurredAt) <= fulizaTerms.fundedWithin,
 );
-
-/// The balance of [account]'s wallet just before [at]: for M-Pesa, the
-/// money in it, before any Fuliza owed (see [heldAt]).
-///
-/// A checkpoint (see [WalletWalk.of]) wins: the latest one before [at],
-/// plus the entries after it. With none before [at], the first one after
-/// [at] is walked back. Without any, it is the opening balance plus every
-/// entry from the opening date, less transaction costs.
-int balanceAt(
-  AccountOpening account,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-}) {
-  final walk = WalletWalk.of(account, entries);
-  final own = walk.entries;
-  final change = walk.change;
-
-  final before = own.where((e) => e.occurredAt.isBefore(at)).toList();
-  final anchor = before.lastIndexWhere(walk.isCheckpoint);
-  if (anchor >= 0) {
-    return before
-        .skip(anchor + 1)
-        .fold(
-          walk.checkpoints[before[anchor].id]!,
-          (sum, e) => sum + change(e),
-        );
-  }
-  final after = own.skip(before.length).toList();
-  final next = after.indexWhere(walk.isCheckpoint);
-  if (next >= 0) {
-    return after
-        .take(next + 1)
-        .fold(walk.checkpoints[after[next].id]!, (sum, e) => sum - change(e));
-  }
-  return before.fold(account.openingBalanceMinor, (sum, e) => sum + change(e));
-}
-
-/// Fuliza owed on [account] just before [at] (see [fulizaDebtAt]).
-int fulizaOwedAt(
-  AccountOpening account,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-}) {
-  if (!account.canOweFuliza) return 0;
-  return fulizaDebtAt(account, entries, at: at).owedMinor;
-}
-
-/// The Fuliza debt on [account] just before [at], from [WalletWalk]: the
-/// latest total a Fuliza message printed, plus later draws and access
-/// fees, less later repayments, never below zero; cleared by any balance
-/// above 0 M-Pesa reports after it. A correction resets it to what the
-/// person said. Nothing for accounts that cannot owe Fuliza.
-FulizaDebt fulizaDebtAt(
-  AccountOpening account,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-}) => WalletWalk.of(account, [
-  for (final e in entries)
-    if (e.occurredAt.isBefore(at)) e,
-]).fuliza;
-
-/// What [account] is really worth just before [at]: its wallet less any
-/// Fuliza owed. This is the figure Balances and On hand show.
-int heldAt(
-  AccountOpening account,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-}) {
-  final list = entries is List<LedgerEntry> ? entries : entries.toList();
-  return balanceAt(account, list, at: at) - fulizaOwedAt(account, list, at: at);
-}
 
 int _chronological(LedgerEntry a, LedgerEntry b) {
   final byTime = a.occurredAt.compareTo(b.occurredAt);
   return byTime != 0 ? byTime : a.id.compareTo(b.id);
-}
-
-/// The combined balance just before [at] of the [accounts] that pass [where].
-int totalBalanceAt(
-  Iterable<AccountOpening> accounts,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-  required bool Function(AccountOpening account) where,
-}) {
-  final list = entries.toList();
-  return accounts
-      .where(where)
-      .fold(0, (sum, a) => sum + balanceAt(a, list, at: at));
-}
-
-/// What the [accounts] that pass [where] are really worth just before
-/// [at], Fuliza owed taken off (see [heldAt]).
-int totalHeldAt(
-  Iterable<AccountOpening> accounts,
-  Iterable<LedgerEntry> entries, {
-  required DateTime at,
-  required bool Function(AccountOpening account) where,
-}) {
-  final list = entries.toList();
-  return accounts
-      .where(where)
-      .fold(0, (sum, a) => sum + heldAt(a, list, at: at));
 }

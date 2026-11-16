@@ -10,6 +10,7 @@ import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../../domain/fixtures.dart';
 import '../../helpers/test_app.dart';
@@ -126,6 +127,23 @@ void main() {
       find.textContaining('Fuliza repaid automatically: KES 490.07'),
       findsOneWidget,
     );
+    await tester.pump(const Duration(seconds: 10));
+  });
+
+  testAppWidgets('Activity never shows a Fuliza draw green, as money in', (
+    tester,
+  ) async {
+    await tester.runAsync(() => seedFuliza(db, money: false));
+    await pumpBalances(tester, db, AppRoutes.activity);
+    final row = find.ancestor(
+      of: find.text('Fuliza draws'),
+      matching: find.byType(Row),
+    );
+    final amount = tester.widget<Text>(
+      find.descendant(of: row.first, matching: find.textContaining('+')).first,
+    );
+    final context = tester.element(find.text('Fuliza draws'));
+    expect(amount.style?.color, isNot(PesaColors.of(context).successText));
     await tester.pump(const Duration(seconds: 10));
   });
 

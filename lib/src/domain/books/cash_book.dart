@@ -4,6 +4,7 @@ import '../ledger/activity_lines.dart';
 import '../ledger/balances.dart';
 import '../ledger/ledger_entry.dart';
 import '../time/calendar.dart';
+import 'journal_balances.dart';
 
 /// Where a business keeps its money: the cash book's columns.
 enum CashColumn {
@@ -60,6 +61,7 @@ class CashBook {
   factory CashBook.of(
     Iterable<LedgerEntry> history, {
     required Iterable<AccountOpening> accounts,
+    required JournalBalances journal,
     required DateTime to,
     required CalendarDate from,
     String? currency,
@@ -74,9 +76,8 @@ class CashBook {
     final balances = <CashColumn, int>{
       for (final column in CashColumn.values)
         if (money.any((a) => cashColumnOf(a.type) == column))
-          column: totalBalanceAt(
+          column: journal.totalWalletAt(
             money,
-            all,
             at: to,
             where: (a) => cashColumnOf(a.type) == column,
           ),

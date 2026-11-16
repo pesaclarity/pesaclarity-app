@@ -62,7 +62,9 @@ void main() {
     expect(find.text('Off by 1,200'), findsOneWidget);
     expect(find.text('Count again'), findsOneWidget);
     expect(find.textContaining('1,300 Fuliza owed'), findsOneWidget);
-    expect(find.text('KES 12,350'), findsOneWidget);
+    // The total leaves savings out, as On hand does: -1,300 + 50 + 100.
+    expect(find.text('-KES 1,150'), findsOneWidget);
+    expect(find.text('KES 12,350'), findsNothing);
   });
 
   testAppWidgets('Set the balance records a correction that can be undone', (

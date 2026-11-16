@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/budget/until_next_money.dart';
@@ -204,6 +205,7 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   final onHand = OnHand.at(
     accounts,
     entries,
+    balances: await readJournal(ref),
     today: today,
     rainyDayMinor: fund.balanceMinor,
   );

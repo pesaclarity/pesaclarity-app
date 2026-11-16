@@ -4,6 +4,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/ledger/balances.dart';
@@ -86,9 +87,10 @@ class BalancesOverview {
   int get matchingCount =>
       accounts.where((a) => a.check.status == BalanceStatus.matches).length;
 
-  /// Every account's worth, in the base currency.
+  /// What the day-to-day accounts are worth, in the base currency: savings
+  /// are left out, as On hand leaves them out.
   int totalMinor(String base) => accounts
-      .where((a) => a.opening.currency == base)
+      .where((a) => a.opening.currency == base && !a.isSavings)
       .fold(0, (sum, a) => sum + a.heldMinor);
 
   AccountBalance? byId(int id) =>
@@ -110,6 +112,7 @@ final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
       .watch(transactionsRepositoryProvider)
       .ledgerEntries(from: from, to: now.add(const Duration(seconds: 1)));
   final checkFrom = now.subtract(const Duration(days: balanceCheckDays));
+  final journal = await readJournal(ref);
   final at = now.add(const Duration(seconds: 1));
 
   final list = <AccountBalance>[];
@@ -134,8 +137,8 @@ final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
       lastReported: check.lastReported,
       lastCounted: check.lastCounted,
     );
-    final wallet = balanceAt(opening, entries, at: at);
-    final owed = fulizaOwedAt(opening, entries, at: at);
+    final wallet = journal.walletAt(opening, at: at);
+    final owed = journal.fulizaOwedAt(opening, at: at);
     list.add(
       AccountBalance(
         account: row,
@@ -200,6 +203,7 @@ final onHandProvider = FutureProvider<OnHand?>((ref) async {
   return OnHand.at(
     accounts,
     entries,
+    balances: await readJournal(ref),
     today: today,
     rainyDayMinor: fund.balanceMinor,
   );

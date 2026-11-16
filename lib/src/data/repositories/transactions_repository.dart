@@ -224,19 +224,25 @@ class DriftTransactionsRepository implements TransactionsRepository {
     return query.getSingleOrNull();
   }
 
+  /// See [TransactionsRepository.ledgerEntries]; with [accountIds], only
+  /// those accounts' transactions.
   @override
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
     int? tagId,
+    Set<int>? accountIds,
   }) async {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
     final t = _db.transactions;
-    final inRange =
+    final inDates =
         t.occurredAt.isBiggerOrEqualValue(from) &
         t.occurredAt.isSmallerThanValue(to);
+    final inRange = accountIds == null
+        ? inDates
+        : inDates & t.accountId.isIn(accountIds);
     final query =
         _db.select(t).join([
             leftOuterJoin(_db.payees, _db.payees.id.equalsExp(t.payeeId)),

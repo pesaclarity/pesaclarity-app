@@ -225,7 +225,9 @@ abstract final class BalanceText {
       '$amount unaccounted for since $since';
   static String unaccountedBetween(String amount, String from, String to) =>
       '$amount is unaccounted for between $from and $to. Probably a payment '
-      'counted twice or a message we missed.';
+      'counted twice or a message we missed. Until you add what is missing '
+      'or add a correction, it is kept as not yet sorted, so the balance '
+      'still matches the message.';
   static const check = 'Check';
   static const seeTheGap = 'See the gap';
   static const belowZeroFuliza = "You're below zero once Fuliza is counted";
