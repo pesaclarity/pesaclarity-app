@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/balances.dart';
 
+import '../../helpers/journal_reads.dart';
 import '../fixtures.dart';
 
 void main() {

@@ -19,6 +19,7 @@ import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../balances/presentation/own_transfer_sheets.dart';
 import '../../currency/presentation/payment_rate_card.dart';
 import '../../documents/presentation/receipt_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
@@ -237,6 +238,8 @@ class _Body extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 20),
+        OwnMoneySection(r),
         const SizedBox(height: 20),
         TransactionTagsEditor(transactionId: r.id),
         _ShareReceipt(transactionId: r.id),

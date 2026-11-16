@@ -34,6 +34,10 @@ enum LedgerRole {
 
   /// A reversal or refund. Inflows reduce spending; outflows reduce income.
   reversal,
+
+  /// A balance correction the person recorded: it sets an account's balance
+  /// right and is never income, spending or tax.
+  correction,
 }
 
 /// Roles that never count as spending or income.
@@ -41,6 +45,7 @@ const neutralRoles = {
   LedgerRole.ownTransfer,
   LedgerRole.borrowing,
   LedgerRole.awaitingPayee,
+  LedgerRole.correction,
 };
 
 /// Applies the spec's "rules that keep the numbers honest" to one entry.
@@ -49,7 +54,9 @@ const neutralRoles = {
 /// classified by the payee's category type; a payee with no category counts
 /// as income, shown as Uncategorised.
 LedgerRole roleOf(LedgerEntry entry) {
+  if (entry.kind == TransactionKind.correction) return LedgerRole.correction;
   if (entry.transferPairId != null ||
+      entry.transferAccountId != null ||
       entry.categoryType == CategoryType.transfer) {
     return LedgerRole.ownTransfer;
   }
@@ -65,6 +72,8 @@ LedgerRole roleOf(LedgerEntry entry) {
       return entry.isInflow ? LedgerRole.reversal : LedgerRole.fee;
     case TransactionKind.reversal:
       return LedgerRole.reversal;
+    case TransactionKind.correction:
+      return LedgerRole.correction;
     case TransactionKind.sent ||
         TransactionKind.received ||
         TransactionKind.paybill ||
@@ -110,6 +119,7 @@ LedgerRole roleOf(LedgerEntry entry) {
 bool needsPayeeName(LedgerEntry entry) =>
     entry.payeeId == null &&
     entry.transferPairId == null &&
+    entry.transferAccountId == null &&
     entry.categoryType == null &&
     (entry.kind == TransactionKind.received ||
         entry.kind == TransactionKind.sent);

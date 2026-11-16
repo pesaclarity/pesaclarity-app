@@ -61,6 +61,7 @@ notes="The newest build from \`dev\`: $name, commit ${GITHUB_SHA::7}. It has not
 - \`pesaclarity-play.apk\`: the Google Play flavour, for most phones (64-bit).
 - \`pesaclarity-play-32bit.apk\`: the same, for older 32-bit phones.
 - \`pesaclarity-foss.apk\` and \`pesaclarity-foss-32bit.apk\`: the F-Droid flavour, with no Google services.
+- \`pesaclarity-ios-unsigned.ipa\`, when there: the iPhone app, unsigned. Install it with SideStore or AltStore, which sign it with your Apple ID for 7 days at a time. Sign-in is off on it.
 
 On Android, open the file and allow installs from this source when asked. If the phone says the app is not compatible, use the 32-bit file.
 

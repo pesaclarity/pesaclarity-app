@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 
+/// The space around every section header: [Layout.sectionTop] above and
+/// [Layout.sectionBottom] below. Pass another padding only for a title
+/// inside a card or sheet, where the card's own padding sets the space.
+const sectionPadding = EdgeInsets.only(
+  top: Layout.sectionTop,
+  bottom: Layout.sectionBottom,
+);
+
 /// A small capitals label over a group of rows, such as `TODAY` over the
 /// day's entries or `HISTORY` over an item's moves.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(
     this.text, {
     this.trailing,
-    this.padding = const EdgeInsets.fromLTRB(0, 20, 0, 8),
+    this.padding = sectionPadding,
     super.key,
   });
 
@@ -48,7 +56,7 @@ class SectionTitle extends StatelessWidget {
   const SectionTitle(
     this.text, {
     this.action,
-    this.padding = const EdgeInsets.fromLTRB(0, 24, 0, 8),
+    this.padding = sectionPadding,
     super.key,
   });
 

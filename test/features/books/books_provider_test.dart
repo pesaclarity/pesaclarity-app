@@ -8,11 +8,11 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/books/book_account.dart';
-import 'package:pesaclarity/src/domain/ledger/balances.dart';
 import 'package:pesaclarity/src/features/books/application/books_providers.dart';
 import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 
 import '../../domain/fixtures.dart';
+import '../../helpers/journal_reads.dart';
 import '../../helpers/test_app.dart';
 
 void main() {

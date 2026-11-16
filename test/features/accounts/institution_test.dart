@@ -9,10 +9,12 @@ void main() {
     expect(institutionCatalogue.map((i) => i.id), [
       'mpesa',
       'airtel_money',
+      'co_op_bank',
       'equity',
       'im_bank',
       'kcb',
       'loop',
+      'standard_chartered',
     ]);
     expect(
       institutionCatalogue.map((i) => i.id).toSet(),

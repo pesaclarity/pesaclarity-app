@@ -93,8 +93,8 @@ class _Avatar extends StatelessWidget {
     return ExcludeSemantics(
       child: CircleAvatar(
         radius: 28,
-        backgroundColor: signedIn ? scheme.primary : colors.brandSoft,
-        foregroundColor: signedIn ? scheme.onPrimary : scheme.primary,
+        backgroundColor: signedIn ? scheme.onSurface : colors.selected,
+        foregroundColor: signedIn ? scheme.surface : scheme.onSurface,
         child: initials == null
             ? const Icon(Icons.person_outline)
             : Text(

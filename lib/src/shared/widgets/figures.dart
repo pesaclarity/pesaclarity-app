@@ -5,7 +5,9 @@ import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 
 /// A small card with one figure under its label, such as "Stock value" or
-/// "Running low". Put two or three side by side with [FigureRow].
+/// "Running low": the label at the top, the figure at the bottom. It starts
+/// at [Layout.tileMinHeight] and grows with its text. Put two or three side
+/// by side with [FigureRow].
 class FigureTile extends StatelessWidget {
   const FigureTile({
     required this.label,
@@ -31,31 +33,40 @@ class FigureTile extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: colors.textMuted,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Layout.tileMinHeight),
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.cardPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: colors.textMuted,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  value,
-                  style: AppTypography.tileFigure(theme.colorScheme.onSurface),
-                ),
-              ),
-              if (note != null) ...[
                 const SizedBox(height: 4),
-                Text(note!, style: theme.textTheme.bodySmall),
+                // Money is never shrunk or cut to fit: a long figure wraps
+                // and the tile grows.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: AppTypography.tileFigure(
+                        theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (note != null) ...[
+                      const SizedBox(height: 4),
+                      Text(note!, style: theme.textTheme.bodySmall),
+                    ],
+                  ],
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

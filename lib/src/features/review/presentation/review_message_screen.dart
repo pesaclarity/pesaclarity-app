@@ -3,17 +3,47 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
+import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
+import '../../../domain/ledger/balances.dart';
 import '../../../domain/reader/field_values.dart';
 import '../../../domain/reader/message_reading.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
+import '../../activity/application/activity_providers.dart';
+import '../../balances/application/balances_providers.dart';
+import '../../balances/presentation/add_account_sheet.dart';
+import '../../balances/presentation/balance_text.dart';
 import '../application/review_draft.dart';
 import '../application/review_providers.dart';
+
+/// The account a transfer message most likely names: one whose name or
+/// institution it prints, else a day-to-day account with messages, else
+/// the first.
+Account likelyOtherAccount(List<Account> others, String body) {
+  String plain(String text) =>
+      text.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
+  final text = plain(body);
+  for (final a in others) {
+    final names = [a.name, ?a.institutionId].map(plain);
+    if (names.any((n) => n.length > 2 && text.contains(n))) return a;
+  }
+  return others
+          .where(
+            (a) =>
+                a.institutionId != null &&
+                !savingsAccountTypes.contains(a.type),
+          )
+          .firstOrNull ??
+      others.first;
+}
 
 /// Below this, a suggested field is marked for checking.
 const _sureEnough = 0.7;
@@ -47,10 +77,21 @@ class ReviewMessageScreen extends ConsumerStatefulWidget {
       _ReviewMessageScreenState();
 }
 
+/// What the person says a message is.
+enum _Choice { moneyOut, moneyIn, myAccounts, notice }
+
 class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
   ReviewDraft? _draft;
   var _sameWay = true;
   var _busy = false;
+
+  /// Money moved between the person's own accounts.
+  var _mine = false;
+
+  /// Whether the message's account is the one the money left.
+  bool? _messageIsFrom;
+  int? _otherAccountId;
+  int? _feeMinor;
 
   Future<void> _finish(Future<void> Function() action, String done) async {
     setState(() => _busy = true);
@@ -152,20 +193,41 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            AdaptiveSegmented<MessageKind>(
+            AdaptiveSegmented<_Choice>(
               key: const Key('review-kind'),
               showSelectedIcon: false,
               segments: [
-                (MessageKind.moneyOut, 'Money out'),
-                (MessageKind.moneyIn, 'Money in'),
+                (_Choice.moneyOut, 'Money out'),
+                (_Choice.moneyIn, 'Money in'),
+                (_Choice.myAccounts, BalanceText.myAccounts),
                 if (reading.kind == MessageKind.notTransaction)
-                  (MessageKind.notTransaction, 'Notice'),
+                  (_Choice.notice, 'Notice'),
               ],
-              selected: draft.kind,
-              onChanged: (kind) =>
-                  setState(() => _draft = draft.copyWith(kind: kind)),
+              selected: _mine
+                  ? _Choice.myAccounts
+                  : switch (draft.kind) {
+                      MessageKind.moneyOut => _Choice.moneyOut,
+                      MessageKind.moneyIn => _Choice.moneyIn,
+                      MessageKind.notTransaction => _Choice.notice,
+                    },
+              segmentKey: (choice) => Key('review-choice-${choice.name}'),
+              onChanged: (choice) => setState(() {
+                _mine = choice == _Choice.myAccounts;
+                final kind = switch (choice) {
+                  _Choice.moneyOut => MessageKind.moneyOut,
+                  _Choice.moneyIn => MessageKind.moneyIn,
+                  _Choice.notice => MessageKind.notTransaction,
+                  _Choice.myAccounts =>
+                    draft.kind == MessageKind.notTransaction
+                        ? MessageKind.moneyOut
+                        : draft.kind,
+                };
+                _draft = draft.copyWith(kind: kind);
+              }),
             ),
-            if (draft.kind != MessageKind.notTransaction) ...[
+            if (_mine)
+              ..._ownTransfer(draft, item, institution)
+            else if (draft.kind != MessageKind.notTransaction) ...[
               GroupedSection(
                 header: 'Suggested · tap to change',
                 children: _rows(draft, reading, item, institution),
@@ -184,39 +246,277 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            FilledButton(
-              key: const Key('review-add'),
-              onPressed: _busy || !draft.isComplete
-                  ? null
-                  : () => _finish(
-                      () => ref
-                          .read(reviewControllerProvider)
-                          .confirm(
-                            item,
-                            draft,
-                            reading: reading,
-                            sameWay: _sameWay,
-                          ),
-                      'Added to Activity.',
-                    ),
-              child: const Text('Add a transaction'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              key: const Key('review-dismiss'),
-              onPressed: _busy
-                  ? null
-                  : () => _finish(
-                      () => ref.read(reviewControllerProvider).dismiss(item),
-                      'Checked.',
-                    ),
-              child: const Text("It's not money"),
-            ),
+            if (!_mine) ...[
+              const SizedBox(height: 24),
+              FilledButton(
+                key: const Key('review-add'),
+                onPressed: _busy || !draft.isComplete
+                    ? null
+                    : () => _finish(
+                        () => ref
+                            .read(reviewControllerProvider)
+                            .confirm(
+                              item,
+                              draft,
+                              reading: reading,
+                              sameWay: _sameWay,
+                            ),
+                        'Added to Activity.',
+                      ),
+                child: const Text('Add a transaction'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                key: const Key('review-dismiss'),
+                onPressed: _busy
+                    ? null
+                    : () => _finish(
+                        () => ref.read(reviewControllerProvider).dismiss(item),
+                        'Checked.',
+                      ),
+                child: const Text("It's not money"),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// "My accounts": from which account to which, how much, the fee and
+  /// when, and whether the other side is already here.
+  List<Widget> _ownTransfer(
+    ReviewDraft draft,
+    ReviewItem item,
+    Institution? institution,
+  ) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final accounts = (ref.watch(activityAccountsProvider).value ?? const {})
+        .values
+        .toList();
+    final currency = draft.currency ?? institution?.pack.currency ?? 'KES';
+    int inCurrency(int hundredths) => rescaleMinor(
+      hundredths,
+      fromDigits: 2,
+      toDigits: minorUnitDigits(currency),
+    );
+    // The message's account, or a stand-in until its first message makes it.
+    const placeholder = -1;
+    final mine = accounts
+        .where((a) => a.institutionId == item.institutionId)
+        .firstOrNull;
+    final messageId = mine?.id ?? placeholder;
+    final messageName = mine?.name ?? institution?.name ?? item.sender;
+    final others = [
+      for (final a in accounts)
+        if (a.id != messageId) a,
+    ];
+    if (others.isEmpty) {
+      return [
+        const SizedBox(height: 12),
+        const Notice(BalanceText.noOtherAccount),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: () => showAddAccountSheet(context),
+          child: const Text(BalanceText.addAccount),
+        ),
+      ];
+    }
+    final messageIsFrom = _messageIsFrom ?? draft.kind != MessageKind.moneyIn;
+    final otherId = others.any((a) => a.id == _otherAccountId)
+        ? _otherAccountId!
+        : likelyOtherAccount(others, item.body ?? '').id;
+    final options = [
+      (messageId, messageName),
+      for (final a in others) (a.id, a.name),
+    ];
+    String nameOf(int id) =>
+        options.firstWhere((o) => o.$1 == id, orElse: () => (id, '')).$2;
+    final amount = draft.amountMinor == null
+        ? null
+        : inCurrency(draft.amountMinor!);
+    final fee = _feeMinor ?? inCurrency(draft.feeMinor ?? 0);
+    final when = draft.occurredAt(item.receivedAt);
+    final partner = amount == null
+        ? null
+        : ref
+              .watch(
+                transferPartnerProvider((
+                  otherAccountId: otherId,
+                  otherIsInflow: messageIsFrom,
+                  amountMinor: amount,
+                  feeMinor: fee,
+                  at: when,
+                )),
+              )
+              .value;
+    String money(int minor) =>
+        formatMoney(Money(minor, currency: currency), withCurrency: false);
+    final day = CalendarDate.local(when);
+    Widget row(String label, Widget value, {VoidCallback? onTap, Key? key}) =>
+        ListTile(
+          key: key,
+          title: Text(label),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              value,
+              if (onTap != null) const Icon(Icons.chevron_right),
+            ],
+          ),
+          onTap: onTap,
+        );
+    Widget pick(String name, int value, ValueChanged<int> onChanged) =>
+        ChoiceMenu<int>(
+          key: Key('review-own-$name'),
+          name: name,
+          options: options,
+          value: value,
+          onChanged: onChanged,
+        );
+
+    return [
+      GroupedSection(
+        children: [
+          row(
+            BalanceText.from,
+            pick(
+              'from',
+              messageIsFrom ? messageId : otherId,
+              (v) => setState(() {
+                if (v == messageId) {
+                  _messageIsFrom = true;
+                } else {
+                  _messageIsFrom = false;
+                  _otherAccountId = v;
+                }
+              }),
+            ),
+          ),
+          row(
+            BalanceText.to,
+            pick(
+              'to',
+              messageIsFrom ? otherId : messageId,
+              (v) => setState(() {
+                if (v == messageId) {
+                  _messageIsFrom = false;
+                } else {
+                  _messageIsFrom = true;
+                  _otherAccountId = v;
+                }
+              }),
+            ),
+          ),
+          row(
+            BalanceText.amount,
+            Text(amount == null ? 'Add' : money(amount)),
+            key: const Key('review-own-amount'),
+            onTap: () async {
+              final text = await _editText(
+                BalanceText.amount,
+                amount == null ? null : money(amount),
+                number: true,
+              );
+              final minor = text == null ? null : amountMinorFrom(text);
+              if (minor != null) {
+                setState(() => _draft = draft.copyWith(amountMinor: minor));
+              }
+            },
+          ),
+          if (messageIsFrom)
+            row(
+              BalanceText.fee,
+              Text(money(fee)),
+              key: const Key('review-own-fee'),
+              onTap: () async {
+                final text = await _editText(
+                  BalanceText.fee,
+                  money(fee),
+                  number: true,
+                );
+                final minor = text == null ? null : amountMinorFrom(text);
+                if (minor != null) {
+                  setState(() => _feeMinor = inCurrency(minor));
+                }
+              },
+            ),
+          row(
+            BalanceText.date,
+            Text(
+              '${dayHeading(day, today: CalendarDate.local(ref.read(clockProvider)()))} ${formatTime(when)}',
+            ),
+            onTap: () => _editDate(draft, item.receivedAt),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Card(
+        key: Key(partner == null ? 'review-own-waiting' : 'review-own-matched'),
+        child: Padding(
+          padding: const EdgeInsets.all(Layout.cardPadding),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconBadge(partner == null ? Icons.more_horiz : Icons.check),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      partner == null
+                          ? BalanceText.waitingTitle(nameOf(otherId))
+                          : BalanceText.matchedWith(nameOf(otherId)),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      partner == null
+                          ? BalanceText.waitingDetail(
+                              nameOf(otherId),
+                              nameOf(messageIsFrom ? messageId : otherId),
+                            )
+                          : BalanceText.matchedDetail(
+                              '${partner.isInflow ? 'Received' : 'Sent'} '
+                              '$currency ${money(partner.amountMinor)}',
+                              formatTime(partner.occurredAt),
+                            ),
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: colors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 24),
+      FilledButton(
+        key: const Key('review-save-transfer'),
+        onPressed: _busy || amount == null || amount <= 0
+            ? null
+            : () => _finish(
+                () => ref
+                    .read(reviewControllerProvider)
+                    .confirmOwnTransfer(
+                      item,
+                      messageIsFrom: messageIsFrom,
+                      otherAccountId: otherId,
+                      amountMinor: amount,
+                      feeMinor: fee,
+                      at: when,
+                      currency: currency,
+                      partnerId: partner?.id,
+                    ),
+                BalanceText.transferSaved,
+              ),
+        child: const Text(BalanceText.saveTransfer),
+      ),
+    ];
   }
 
   List<Widget> _rows(

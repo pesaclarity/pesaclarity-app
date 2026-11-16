@@ -21,6 +21,8 @@ class LedgerEntry {
     this.categoryIsAuto = false,
     this.needsPurpose = false,
     this.transferPairId,
+    this.transferAccountId,
+    this.source = TransactionSource.sms,
     this.payeeName,
     this.leakType = LeakType.none,
     this.tagIds = const {},
@@ -29,6 +31,9 @@ class LedgerEntry {
     this.counterpartyValue,
     this.note,
     this.balanceAfterMinor,
+    this.claimedBalanceMinor,
+    this.owedAfterMinor,
+    this.owedDueAt,
     this.originalAmountMinor,
     this.originalCurrency,
   }) : currency = currency ?? BaseCurrency.code,
@@ -41,6 +46,15 @@ class LedgerEntry {
   /// The account balance the institution reported after this entry, such as
   /// M-Pesa's "New M-PESA balance". Null when the message gave none.
   final int? balanceAfterMinor;
+
+  /// A balance the reader found or the person typed while checking the
+  /// message: used only when it agrees with the checkpoint before it.
+  final int? claimedBalanceMinor;
+
+  /// For a Fuliza draw, what the message said is owed in all after it,
+  /// daily charges included, and when it is due.
+  final int? owedAfterMinor;
+  final DateTime? owedDueAt;
   final DateTime occurredAt;
 
   /// Always positive; [direction] says which way it moved.
@@ -69,6 +83,13 @@ class LedgerEntry {
 
   /// The other half of an own-account transfer.
   final int? transferPairId;
+
+  /// The other account of an own transfer the person named, while (and
+  /// after) it waits for its other side.
+  final int? transferAccountId;
+
+  /// Where it came from: a message, a statement or typed in.
+  final TransactionSource source;
 
   /// The payee's display name, when the payee is named.
   final String? payeeName;
@@ -106,9 +127,12 @@ class LedgerEntry {
   /// Amount with sign: positive in, negative out.
   int get signedMinor => isInflow ? amountMinor : -amountMinor;
 
-  LedgerEntry copyWith({int? transferPairId}) => LedgerEntry(
+  /// Whether this is a balance correction rather than money that moved.
+  bool get isCorrection => kind == TransactionKind.correction;
+
+  LedgerEntry copyWith({int? transferPairId, int? accountId}) => LedgerEntry(
     id: id,
-    accountId: accountId,
+    accountId: accountId ?? this.accountId,
     occurredAt: occurredAt,
     amountMinor: amountMinor,
     direction: direction,
@@ -122,6 +146,8 @@ class LedgerEntry {
     categoryIsAuto: categoryIsAuto,
     needsPurpose: needsPurpose,
     transferPairId: transferPairId ?? this.transferPairId,
+    transferAccountId: transferAccountId,
+    source: source,
     payeeName: payeeName,
     leakType: leakType,
     tagIds: tagIds,
@@ -130,6 +156,9 @@ class LedgerEntry {
     counterpartyValue: counterpartyValue,
     note: note,
     balanceAfterMinor: balanceAfterMinor,
+    claimedBalanceMinor: claimedBalanceMinor,
+    owedAfterMinor: owedAfterMinor,
+    owedDueAt: owedDueAt,
     originalAmountMinor: originalAmountMinor,
     originalCurrency: originalCurrency,
   );

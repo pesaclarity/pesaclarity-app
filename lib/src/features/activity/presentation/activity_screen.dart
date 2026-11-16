@@ -11,6 +11,7 @@ import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
+import '../../../domain/ledger/fuliza_debt.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
 import '../../../domain/payees/payee_identifier.dart';
@@ -30,6 +31,9 @@ import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
 import '../../ask/presentation/ask_entry.dart';
 import '../../ask/presentation/ask_strings.dart';
+import '../../balances/application/balances_providers.dart';
+import '../../balances/presentation/balance_text.dart';
+import '../../balances/presentation/own_transfer_sheets.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/application/currency_controller.dart';
@@ -112,6 +116,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final categories = ref.watch(activityCategoriesProvider).value ?? const {};
     final suggester = ref.watch(categorySuggesterProvider);
+    final fulizaAuto = ref.watch(fulizaAutoProvider).value ?? const {};
     final base = ref.watch(baseCurrencyProvider);
     final others = _otherCurrencies(entries, base);
     // With more than one currency, every amount shows its code.
@@ -222,6 +227,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                               confirmCategory(ref, e, s.categoryId, s),
                           base: base,
                           code: code,
+                          fulizaAuto: fulizaAuto,
                         ),
                       ),
                   ],
@@ -336,13 +342,10 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A long amount with its code shrinks to fit rather than wrapping.
-    Widget figure(String text, Color color, AlignmentGeometry alignment) =>
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: alignment,
-          child: Text(text, style: AppTypography.tileFigure(color)),
-        );
+    // A long amount with its code wraps and the card grows; money is
+    // never shrunk to fit.
+    Widget figure(String text, Color color, TextAlign align) =>
+        Text(text, textAlign: align, style: AppTypography.tileFigure(color));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
@@ -366,7 +369,7 @@ class _WeekCard extends StatelessWidget {
                                 ),
                         ),
                         theme.colorScheme.onSurface,
-                        AlignmentDirectional.centerStart,
+                        TextAlign.start,
                       ),
                     ],
                   ),
@@ -385,7 +388,7 @@ class _WeekCard extends StatelessWidget {
                               )
                             : '0',
                         colors.successText,
-                        AlignmentDirectional.centerEnd,
+                        TextAlign.end,
                       ),
                     ],
                   ),
@@ -423,9 +426,13 @@ class _ActivityRow extends StatelessWidget {
     required this.onAccept,
     required this.base,
     this.code,
+    this.fulizaAuto = const {},
   });
 
   final ActivityLine line;
+
+  /// Fuliza worked out from M-Pesa's balances, by entry id.
+  final Map<int, FulizaAuto> fulizaAuto;
 
   /// The base currency, which totals are counted in.
   final String base;
@@ -445,7 +452,41 @@ class _ActivityRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final muted = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
+    final row = _line(context, theme, colors, muted);
+    final auto = line is EntryLine
+        ? fulizaAuto[(line as EntryLine).entry.id]
+        : null;
+    if (auto == null) return row;
+    String money(int minor) => _orHidden(
+      context,
+      formatMoney(Money(minor, currency: auto.entry.currency)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row,
+        Padding(
+          key: Key('activity-fuliza-auto-${auto.entry.id}'),
+          padding: const EdgeInsetsDirectional.only(start: 54, bottom: 8),
+          child: Text(
+            BalanceText.fulizaAutoLine(
+              auto,
+              money(auto.amountMinor),
+              auto.feeMinor == 0 ? '' : money(auto.feeMinor),
+            ),
+            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _line(
+    BuildContext context,
+    ThemeData theme,
+    PesaColors colors,
+    TextStyle muted,
+  ) {
     return switch (line) {
       EntryLine(:final entry) when _canName(entry) => _row(
         context,
@@ -466,6 +507,18 @@ class _ActivityRow extends StatelessWidget {
           moneyIn: entry.isInflow,
         ),
       ),
+      EntryLine(:final entry) when entry.isCorrection => _row(
+        context,
+        avatar: _Avatar.icon(Icons.tune, colors: colors),
+        title: kindLabel(entry.kind),
+        subtitle: DetailLine(
+          'Not income or spending',
+          _account(entry.accountId),
+          style: muted,
+        ),
+        amount: _entryAmount(context, entry),
+        onTap: () => showTransactionSheet(context, entry.id),
+      ),
       EntryLine(:final entry) when needsCategory(entry) => _uncategorised(
         context,
         entry,
@@ -482,16 +535,18 @@ class _ActivityRow extends StatelessWidget {
         amount: _entryAmount(context, entry),
         onTap: () => showTransactionSheet(context, entry.id),
       ),
-      OwnTransferLine(:final outflow, :final inflow, :final shown) => _row(
+      OwnTransferLine(:final shown) && final transfer => _row(
         context,
-        avatar: _Avatar.icon(Icons.north_east, colors: colors),
-        title: outflow != null && inflow != null
-            ? '${_account(outflow.accountId)} → ${_account(inflow.accountId)}'
-            : outflow != null
-            ? 'From ${_account(outflow.accountId)}'
-            : 'To ${_account(inflow!.accountId)}',
-        subtitle: Text('Own transfer · not spending', style: muted),
+        avatar: _Avatar.icon(Icons.swap_horiz, colors: colors),
+        title: transferTitle(transfer, accounts),
+        subtitle: Text(
+          transferSubtitle(context, transfer, accounts),
+          style: muted,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         amount: _entryAmount(context, shown, transfer: true),
+        onTap: () => showOwnTransferSheet(context, transfer),
       ),
       DailyNoiseLine() && final noise => _row(
         context,
@@ -507,6 +562,8 @@ class _ActivityRow extends StatelessWidget {
           noise.direction == TransactionDirection.inflow
               ? noise.totalMinor
               : -noise.totalMinor,
+          // Fuliza is borrowed money: it comes in, but it is not income.
+          borrowed: noise.group == NoiseGroup.fulizaDraws,
         ),
       ),
     };
@@ -602,9 +659,13 @@ class _ActivityRow extends StatelessWidget {
     ),
   );
 
-  Widget _amount(BuildContext context, int signedMinor) {
+  Widget _amount(
+    BuildContext context,
+    int signedMinor, {
+    bool borrowed = false,
+  }) {
     final colors = PesaColors.of(context);
-    final inflow = signedMinor > 0;
+    final inflow = signedMinor > 0 && !borrowed;
     return Text(
       _orHidden(context, _signed(signedMinor, code: code)),
       style: AppTypography.rowAmount(
@@ -622,6 +683,8 @@ class _ActivityRow extends StatelessWidget {
   }) {
     final colors = PesaColors.of(context);
     final inflow = entry.direction == TransactionDirection.inflow;
+    // Borrowed money comes in, but it is not income: never green.
+    final green = inflow && entry.kind != TransactionKind.fulizaDraw;
     final original = entry.originalCurrency;
     // Converted into the base, or left in its own currency for want of a rate.
     final ownCode =
@@ -639,7 +702,7 @@ class _ActivityRow extends StatelessWidget {
     final style = AppTypography.rowAmount(
       transfer
           ? colors.textMuted
-          : inflow
+          : green
           ? colors.successText
           : Theme.of(context).colorScheme.onSurface,
     );

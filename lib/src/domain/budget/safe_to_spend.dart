@@ -29,6 +29,7 @@ class SafeToSpend {
     required this.weekendDaysLeft,
     required this.weekdayLimitMinor,
     required this.weekendLimitMinor,
+    this.onHandMinor,
   });
 
   /// Works out today's limits.
@@ -42,6 +43,7 @@ class SafeToSpend {
     required CalendarDate today,
     int weekendWeightPercent = evenWeekendWeightPercent,
     String? currency,
+    int? onHandMinor,
   }) {
     currency ??= BaseCurrency.code;
     if (weekendWeightPercent <= 0) {
@@ -92,6 +94,7 @@ class SafeToSpend {
       weekendDaysLeft: weekendDays,
       weekdayLimitMinor: weekdayLimit,
       weekendLimitMinor: weekendLimit,
+      onHandMinor: onHandMinor,
     );
   }
 
@@ -108,12 +111,20 @@ class SafeToSpend {
   final int weekdayLimitMinor;
   final int weekendLimitMinor;
 
+  /// Day-to-day money on hand, Fuliza owed taken off, when known. At or
+  /// below zero nothing is safe to spend, whatever the budget has left.
+  final int? onHandMinor;
+
+  /// Whether the accounts hold nothing to spend.
+  bool get nothingOnHand => onHandMinor != null && onHandMinor! <= 0;
+
   /// Today's limit: the weekend limit on Saturday and Sunday.
   int get todayLimitMinor =>
       today.isWeekend ? weekendLimitMinor : weekdayLimitMinor;
 
   /// Safe to spend for the rest of today; never negative.
   int get leftTodayMinor {
+    if (nothingOnHand) return 0;
     final left = todayLimitMinor - spentTodayMinor;
     return left > 0 ? left : 0;
   }

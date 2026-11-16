@@ -641,10 +641,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
               ),
             ),
             if (_attached.isNotEmpty) ...[
-              const SectionLabel(
-                'Attached',
-                padding: EdgeInsets.fromLTRB(0, 8, 0, 8),
-              ),
+              const SectionLabel('Attached'),
               Card(
                 child: Column(
                   children: [
@@ -853,7 +850,7 @@ class _WithholdingSheetState extends State<_WithholdingSheet> {
                       borderRadius: BorderRadius.circular(Layout.panelRadius),
                       side: BorderSide(
                         color: _value == value
-                            ? theme.colorScheme.primary
+                            ? theme.colorScheme.onSurface
                             : colors.border,
                         width: _value == value ? 2 : 1,
                       ),

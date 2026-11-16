@@ -8,9 +8,9 @@ import 'package:flutter/painting.dart';
 /// it. When the brand tokens change, copy the new file and update these.
 abstract final class BrandTokens {
   static const brand = Color(0xFFC8102E);
-  static const brandLink = Color(0xFFB81D2F);
+  static const brandLink = Color(0xFF1C1215);
   static const brandSoft = Color(0xFFFDECEE);
-  static const background = Color(0xFFFBF8F8);
+  static const background = Color(0xFFF6F1EE);
   static const surface = Color(0xFFFFFFFF);
   static const border = Color(0xFFEFE6E7);
   static const text = Color(0xFF1C1215);
@@ -21,20 +21,45 @@ abstract final class BrandTokens {
   static const danger = Color(0xFFC8102E);
   static const onBrand = Color(0xFFFFFFFF);
 
+  /// The label and caption on a red card: white, softened (88%).
+  static const onBrandSoft = Color(0xE0FFFFFF);
+
   /// Only for marking the parts of a message: who, the balance, the fee.
   static const markBlue = Color(0xFF1D4ED8);
   static const markPurple = Color(0xFF6D28D9);
   static const markTeal = Color(0xFF0F766E);
 
-  static const darkBackground = Color(0xFF1A1214);
-  static const darkSurface = Color(0xFF251B1E);
-  static const darkBorder = Color(0xFF3D2E32);
-  static const darkText = Color(0xFFEDE4E6);
-  static const darkTextMuted = Color(0xFFB3A5A9);
-  static const darkBrand = Color(0xFFFF6B7A);
-  static const darkOnBrand = Color(0xFF1A1214);
-  static const darkBrandLink = Color(0xFFFF8592);
-  static const darkBrandSoft = Color(0xFF3A1D23);
+  /// A selected chip or menu choice: a neutral tint, so red stays for the
+  /// lead card and the main action.
+  static const selected = Color(0xFFECE4E1);
+
+  /// Soft shadow under floating parts (the tab bar, sheets, menus) in light
+  /// only; dark uses a lighter surface instead.
+  static const shadow = Color(0x141C1215);
+
+  /// Stronger text and edges for the phone's high-contrast setting.
+  static const hcText = Color(0xFF120A0D);
+  static const hcTextMuted = Color(0xFF4F4246);
+  static const hcBorder = Color(0xFFCDBFC2);
+
+  /// Dark surfaces climb a gentle ladder of warm near-blacks: page, card,
+  /// chip or field, then floating parts (tab bar, sheets, menus).
+  static const darkBackground = Color(0xFF140E10);
+  static const darkSurface = Color(0xFF1E1618);
+  static const darkField = Color(0xFF241B1E);
+  static const darkFloating = Color(0xFF2A2124);
+  static const darkBorder = Color(0xFF352B2E);
+
+  /// Moderate rather than maximal contrast (both pass 4.5:1), easier on
+  /// eyes with astigmatism or light sensitivity.
+  static const darkText = Color(0xFFE3D9DB);
+  static const darkTextMuted = Color(0xFFA3969A);
+
+  /// The same red as light, with white text on it.
+  static const darkBrand = Color(0xFFC8102E);
+  static const darkOnBrand = Color(0xFFFFFFFF);
+  static const darkBrandLink = Color(0xFFE3D9DB);
+  static const darkBrandSoft = Color(0xFF33272A);
   static const darkSuccess = Color(0xFF34D399);
   static const darkSuccessText = Color(0xFF6EE7B7);
   static const darkWarning = Color(0xFFFBBF24);
@@ -42,8 +67,14 @@ abstract final class BrandTokens {
   static const darkMarkBlue = Color(0xFF60A5FA);
   static const darkMarkPurple = Color(0xFFA78BFA);
   static const darkMarkTeal = Color(0xFF2DD4BF);
+  static const darkSelected = Color(0xFF3A2F32);
+  static const darkShadow = Color(0x00000000);
 
-  static const cardRadius = 24.0;
+  static const darkHcText = Color(0xFFF5EEF0);
+  static const darkHcTextMuted = Color(0xFFCFC3C6);
+  static const darkHcBorder = Color(0xFF5A4A4F);
+
+  static const cardRadius = 20.0;
 
   /// Corner of a boxed text field.
   static const fieldRadius = 12.0;

@@ -30,6 +30,9 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../ask/presentation/ask_entry.dart';
+import '../../balances/presentation/balance_text.dart';
+import '../../balances/presentation/balance_warning.dart';
+import '../../balances/presentation/on_hand_sheet.dart';
 import '../../business_insights/application/business_report_providers.dart';
 import '../../hours/application/hours_providers.dart';
 import '../../hours/presentation/log_hours_sheet.dart';
@@ -140,7 +143,6 @@ class HomeScreen extends ConsumerWidget {
                   const _ReviewCard(),
                   const _WhatWasThisCard(),
                   if (sources.irregular) const _WeekCard(),
-                  const SizedBox(height: 12),
                   _ComingUp(bills: bills, today: today),
                 ] else ...[
                   if (safeToSpend == null && untilNext != null)
@@ -173,6 +175,7 @@ class HomeScreen extends ConsumerWidget {
                         thisMonth.copyWith(type: ActivityType.dayToDay),
                       ),
                     ),
+                  const BalanceWarningLine(),
                   const SizedBox(height: 12),
                   SupportHomeCard(
                     moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
@@ -188,6 +191,7 @@ class HomeScreen extends ConsumerWidget {
                           key: const Key('home-on-hand'),
                           label: 'On hand',
                           value: _plain(context, untilNext.onHandMinor),
+                          onTap: () => showOnHandSheet(context),
                         )
                       else if (safeToSpend == null)
                         const FigureTile(
@@ -234,7 +238,6 @@ class HomeScreen extends ConsumerWidget {
                       onTap: () => context.go(AppRoutes.insights),
                     ),
                   ],
-                  const SizedBox(height: 24),
                   _ComingUp(bills: bills, today: today),
                 ],
               ],
@@ -309,7 +312,7 @@ class _Header extends ConsumerWidget {
                 // A business calls its first tab Today.
                 child: Text(
                   space.kind == SpaceKind.business ? 'Today' : 'Home',
-                  style: theme.textTheme.headlineMedium,
+                  style: theme.textTheme.headlineLarge,
                 ),
               ),
             ],
@@ -347,7 +350,9 @@ class _SafeToSpendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = result.today;
     final String detail;
-    if (result.isBudgetUsedUp) {
+    if (result.nothingOnHand) {
+      detail = BalanceText.belowZero;
+    } else if (result.isBudgetUsedUp) {
       detail = 'This month\'s day-to-day budget is used up';
     } else if (result.overTodayMinor > 0) {
       detail = '${_plain(context, result.overTodayMinor)} over today\'s limit';
@@ -401,7 +406,13 @@ class _UntilNextMoneyCard extends StatelessWidget {
     final next = result.nextMoney;
     final lasts = result.lastsUntil;
     final String when;
-    if (result.overTodayMinor > 0) {
+    if (result.belowZero) {
+      when = result.fulizaOwedMinor > 0
+          ? BalanceText.belowZeroFuliza
+          : BalanceText.belowZero;
+    } else if (result.nothingSafe) {
+      when = BalanceText.billsTakeIt;
+    } else if (result.overTodayMinor > 0) {
       when = "${_plain(context, result.overTodayMinor)} over today's amount";
     } else if (result.fromUsualDay) {
       when = result.today.isWeekend
@@ -644,10 +655,8 @@ class _ComingUp extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The space above comes from the cards before it.
         SectionTitle(
           'Coming up',
-          padding: const EdgeInsets.only(bottom: 8),
           action: PillButton(
             label: 'See all',
             onPressed: () => context.go(AppRoutes.plan),

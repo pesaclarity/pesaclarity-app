@@ -185,7 +185,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: _pad,
         children: [
-          const SectionLabel('This space', padding: EdgeInsets.only(bottom: 8)),
+          const SectionLabel('This space'),
           GroupedSection(
             children: [
               ListTile(

@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../domain/books/books.dart';
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
 import '../../domain/people/reminder_text.dart';
 import '../../domain/spaces/space.dart';
 import '../../domain/spaces/space_categories.dart';
+import '../repositories/journal_repository.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
@@ -29,6 +31,7 @@ part 'app_database.g.dart';
     LoanPayments,
     Transactions,
     MovedTransactions,
+    DeclinedTransfers,
     TransactionTags,
     Recurring,
     BudgetItems,
@@ -60,6 +63,9 @@ part 'app_database.g.dart';
     InvoiceLines,
     EtimsCosts,
     RateSnapshots,
+    JournalEntries,
+    Postings,
+    JournalDirty,
     AskConversations,
     AskMessages,
     AskShortcuts,
@@ -69,12 +75,13 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      await createJournalTriggers(this);
       await seedDefaultCategories();
     },
     onUpgrade: (m, from, to) async {
@@ -253,7 +260,63 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(tabs);
         await m.createTable(tabLines);
       }
-      if (from < 33) await _addAsk(m);
+      // Own transfers waiting for their other side, and pairs unmatched.
+      if (from < 33) {
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.transferAccountId,
+        );
+        if (!await _exists('table', declinedTransfers.actualTableName)) {
+          await m.createTable(declinedTransfers);
+        }
+        // Balances saved from "Check this message" were the reader's guess
+        // or typed by hand: they become claims, not checkpoints.
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.claimedBalanceMinor,
+        );
+        await _addColumnIfMissing(m, transactions, transactions.owedAfterMinor);
+        await _addColumnIfMissing(m, transactions, transactions.owedDueAt);
+        await customStatement(
+          'UPDATE transactions SET claimed_balance_minor = '
+          'balance_after_minor, balance_after_minor = NULL '
+          'WHERE balance_after_minor IS NOT NULL AND message_hash IN '
+          '(SELECT message_hash FROM review_items)',
+        );
+      }
+      // The double-entry journal (decision 0018), built from the records.
+      if (from < 34) {
+        for (final TableInfo<Table, Object?> table in [
+          journalEntries,
+          postings,
+        ]) {
+          if (!await _exists('table', table.actualTableName)) {
+            await m.createTable(table);
+          }
+        }
+        for (final index in [
+          journalEntriesSource,
+          journalEntriesReverses,
+          postingsEntry,
+          postingsAccount,
+        ]) {
+          await _createIndexIfMissing(m, index);
+        }
+      }
+      // The journal syncs one account at a time (decision 0018, stage 2).
+      if (from < 35) {
+        await _addColumnIfMissing(m, journalEntries, journalEntries.accountId);
+        await _createIndexIfMissing(m, journalEntriesAccount);
+        if (!await _exists('table', journalDirty.actualTableName)) {
+          await m.createTable(journalDirty);
+        }
+        await createJournalTriggers(this);
+        if (from == 34) await JournalRepository.tagAccounts(this);
+      }
+      // Ask's conversations and shortcuts, kept on this phone only.
+      if (from < 36) await _addAsk(m);
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(
@@ -266,6 +329,11 @@ class AppDatabase extends _$AppDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      // The journal starts from every existing record, and version 35's
+      // posting rules repost what version 34 posted.
+      if (details.hadUpgrade && (details.versionBefore ?? 0) < 35) {
+        await JournalRepository.backfill(this);
+      }
     },
   );
 

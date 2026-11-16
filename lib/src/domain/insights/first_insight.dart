@@ -1,4 +1,5 @@
 import '../../core/money/money.dart';
+import '../books/journal_balances.dart';
 import '../enums.dart';
 import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
@@ -26,6 +27,7 @@ class FirstInsight {
     required DateTime from,
     required DateTime to,
     String? currency,
+    JournalBalances? journal,
   }) {
     currency ??= BaseCurrency.code;
     final all = entries.where((e) => e.currency == currency).toList();
@@ -48,6 +50,7 @@ class FirstInsight {
         to: to,
         currency: currency,
         fuliza: fuliza,
+        journal: journal,
       ),
       fulizaDays: drawDays.length,
     );

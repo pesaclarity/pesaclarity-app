@@ -1,12 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/domain/books/journal_balances.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/health/health_index.dart';
 import 'package:pesaclarity/src/domain/health/health_inputs.dart';
+import 'package:pesaclarity/src/domain/insights/leakage.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/plan/month_plan.dart';
 import 'package:pesaclarity/src/domain/plan/plan_inputs.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
+import '../books/journal_test.dart' as messy;
 import '../fixtures.dart';
 
 const salary = 1;
@@ -206,5 +209,38 @@ void main() {
       );
       expect(inputs.incomeMinor, 0);
     });
+  });
+
+  test('with the journal, leakage and fees match Insights', () {
+    final history = messy.messyMonth();
+    final journal = JournalBalances.ofRecords(
+      messy.accounts,
+      history,
+      categories: messy.categories,
+    );
+    final november = YearMonth(2026, 11);
+    final plan = MonthPlan.build(
+      month: november,
+      recurring: const [],
+      items: const [],
+      categories: categories,
+    );
+    final insights = LeakageBreakdown.of(
+      history,
+      from: november.startInstant,
+      to: november.endInstant,
+      journal: journal,
+    );
+    final withJournal = HealthInputs.forMonth(
+      plan: plan,
+      history: history,
+      journal: journal,
+    );
+    final messagesOnly = HealthInputs.forMonth(plan: plan, history: history);
+    expect(withJournal.leakageMinor, insights.totalMinor);
+    // The Fuliza charges only the balances show (5 and 15) now count, in
+    // leakage and in spending.
+    expect(withJournal.leakageMinor - messagesOnly.leakageMinor, kes(5 + 15));
+    expect(withJournal.spendingMinor - messagesOnly.spendingMinor, kes(5 + 15));
   });
 }

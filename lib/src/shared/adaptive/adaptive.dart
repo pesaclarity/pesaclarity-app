@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 import '../widgets/choice_menu.dart';
 
@@ -200,8 +201,13 @@ class GroupedSection extends StatelessWidget {
       children: [
         if (header != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 16, 6),
-            child: Text(header!, style: note),
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              4,
+              Layout.sectionTop,
+              16,
+              Layout.sectionBottom,
+            ),
+            child: Semantics(header: true, child: Text(header!, style: note)),
           ),
         Card(
           child: Column(

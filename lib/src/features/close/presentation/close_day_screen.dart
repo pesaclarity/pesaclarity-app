@@ -7,6 +7,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/day_closes_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/close/day_close.dart';
 import '../../../domain/ledger/ledger_entry.dart';
@@ -49,7 +50,13 @@ final todayCashProvider = FutureProvider<DayCash>((ref) async {
   final entries = await ref
       .watch(transactionsRepositoryProvider)
       .ledgerEntries(from: DateTime.utc(1970), to: business.endOf(today));
-  return dayCash(cash, entries, day: today, business: business);
+  return dayCash(
+    cash,
+    entries,
+    balances: await readJournal(ref),
+    day: today,
+    business: business,
+  );
 });
 
 /// Money in today with no record yet.

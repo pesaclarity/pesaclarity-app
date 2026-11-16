@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/brand_tokens.dart';
+import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 
 /// One choice of more than two, as a drop-down: a pill showing the current
@@ -45,20 +45,12 @@ class ChoiceMenu<T> extends StatelessWidget {
         .map((o) => o.$2)
         .firstOrNull;
     final text = current ?? '';
-    final fill = highlight ? scheme.primary : scheme.surface;
-    final ink = highlight ? scheme.onPrimary : scheme.onSurface;
+    // A choice that narrows the list is picked out with a neutral tint and
+    // a text-coloured edge, not red.
+    final fill = highlight ? colors.selected : colors.field;
+    final ink = scheme.onSurface;
     return MenuAnchor(
       alignmentOffset: const Offset(0, 4),
-      style: MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(scheme.surface),
-        elevation: const WidgetStatePropertyAll(4),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colors.border),
-          ),
-        ),
-      ),
       menuChildren: [
         for (final (option, label) in options)
           MenuItemButton(
@@ -66,7 +58,7 @@ class ChoiceMenu<T> extends StatelessWidget {
             leadingIcon: Icon(
               Icons.check,
               size: 18,
-              color: option == value ? scheme.primary : Colors.transparent,
+              color: option == value ? scheme.onSurface : Colors.transparent,
             ),
             onPressed: () => onChanged(option),
             child: Text(label),
@@ -79,15 +71,13 @@ class ChoiceMenu<T> extends StatelessWidget {
         child: Material(
           color: fill,
           shape: StadiumBorder(
-            side: BorderSide(color: highlight ? fill : colors.border),
+            side: BorderSide(color: highlight ? ink : colors.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => menu.isOpen ? menu.close() : menu.open(),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: BrandTokens.touchTarget,
-              ),
+              constraints: const BoxConstraints(minHeight: Layout.minTouch),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
                 child: Row(

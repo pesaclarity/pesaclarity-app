@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/budget/until_next_money.dart';
@@ -11,9 +12,9 @@ import '../../../domain/income/income_pattern.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
 import '../../../domain/income/week_by_week.dart';
-import '../../../domain/ledger/balances.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
+import '../../../domain/ledger/on_hand.dart';
 import '../../../domain/time/calendar.dart';
 
 /// How money usually comes to the person, as they answered at setup.
@@ -200,6 +201,14 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   final spentToday = entries
       .where((e) => e.date == today)
       .fold(0, (sum, e) => sum + paceSpendOf(e, scheduledIds));
+  // Fuliza owed comes off M-Pesa; savings accounts are not counted.
+  final onHand = OnHand.at(
+    accounts,
+    entries,
+    balances: await readJournal(ref),
+    today: today,
+    rainyDayMinor: fund.balanceMinor,
+  );
   final pace = SpendingPace.fromHistory(
     entries,
     today: today,
@@ -211,14 +220,8 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
     today: today,
     basis: basis,
     // Money in the rainy day fund stays in the accounts but is not for spending.
-    onHandAtStartMinor:
-        totalBalanceAt(
-          accounts,
-          entries,
-          at: today.startInstant,
-          where: (_) => true,
-        ) -
-        fund.balanceMinor,
+    onHandAtStartMinor: onHand.totalMinor,
+    fulizaOwedMinor: onHand.fulizaOwedMinor,
     billsMinor: bills.fold(0, (sum, b) => sum + b.amountMinor),
     bills: bills,
     spentTodayMinor: spentToday,
