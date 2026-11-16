@@ -8,6 +8,7 @@ import '../../../shared/widgets/app_sheet.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_report.dart';
 import '../application/month_labels.dart';
+import 'health_colors.dart';
 
 /// Points as shown to a person: whole numbers, or one decimal.
 String pointsLabel(int centipoints) {
@@ -76,7 +77,14 @@ class HealthPillarSheet extends StatelessWidget {
             child: LinearProgressIndicator(
               value: s.centipoints / indicatorMaxCentipoints,
               minHeight: 8,
-              color: theme.colorScheme.primary,
+              // Coloured as a score at this share of full marks would
+              // be, on a neutral track.
+              color: healthBandColor(
+                context,
+                HealthBand.of(
+                  (s.centipoints * 100 / indicatorMaxCentipoints).round(),
+                ),
+              ),
               backgroundColor: colors.border,
             ),
           ),

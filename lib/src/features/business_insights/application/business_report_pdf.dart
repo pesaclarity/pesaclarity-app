@@ -11,7 +11,7 @@ import '../../../domain/books/report_setup.dart';
 import '../../../domain/documents/document_settings.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/pdf_palette.dart';
 import 'report_content.dart';
 
 /// Turns a business report into PDF bytes; widget tests swap in a stand-in.
@@ -20,24 +20,17 @@ final businessReportRendererProvider =
       (ref) => renderBusinessReport,
     );
 
-/// The grey a formal report uses in place of the brand's red tint.
-const _formalSoft = PdfColor.fromInt(0xFFEFEFEF);
-
 /// [doc] as an A4 PDF in the style it asks for: the business on top, then
 /// each part as a table or chart, with the page number at the foot of each
 /// page.
 Future<Uint8List> renderBusinessReport(ReportDocument doc) {
   final style = doc.style;
-  final formal = style.colour == ReportColour.formal;
-  final text = PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final brand = formal
-      ? PdfColors.grey900
-      : PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final soft = formal
-      ? _formalSoft
-      : PdfColor.fromInt(BrandTokens.brandSoft.toARGB32());
+  // Red or grey and black, as the style asks.
+  final palette = PdfPalette.report(style.colour);
+  final text = palette.text;
+  final accent = palette.accent;
+  final muted = palette.muted;
+  final line = palette.line;
 
   String money(int minor) {
     final plain = formatMoney(Money(minor.abs()), withCurrency: false);
@@ -99,12 +92,12 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                 : const pw.FlexColumnWidth(),
         },
         border: pw.TableBorder(
-          horizontalInside: pw.BorderSide(color: border, width: 0.5),
+          horizontalInside: pw.BorderSide(color: line, width: 0.5),
         ),
         children: [
           if (hasHeader)
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: soft),
+              decoration: pw.BoxDecoration(color: palette.headerFill),
               children: [
                 for (final (i, c) in t.columns.indexed)
                   text0(c, i, header: true),
@@ -158,7 +151,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                 height: 4,
                 margin: const pw.EdgeInsets.only(top: 4, right: 8),
                 decoration: pw.BoxDecoration(
-                  color: brand,
+                  color: muted,
                   shape: pw.BoxShape.circle,
                 ),
               ),
@@ -206,7 +199,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                                 p.valueMinor.abs() /
                                 top,
                             height: 8,
-                            color: brand,
+                            color: palette.bar,
                           ),
                         ],
                       ),
@@ -249,7 +242,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                       ),
                       pw.Container(
                         height: up * p.valueMinor.clamp(0, top) / top,
-                        color: brand,
+                        color: palette.bar,
                       ),
                       pw.Container(
                         height: down * (-p.valueMinor).clamp(0, top) / top,
@@ -265,7 +258,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
               ),
           ],
         ),
-        pw.Container(height: 0.5, color: border),
+        pw.Container(height: 0.5, color: line),
         pw.SizedBox(height: 2),
         pw.Row(
           children: [
@@ -315,7 +308,6 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
             .substring(doc.business.length)
             .replaceFirst(RegExp(r'^\s*·\s*'), '')
       : doc.coverLine;
-  final theme = pw.ThemeData.base();
   final made = periodText(ReportPeriod(doc.made, doc.made.addDays(1), ''));
   final pdf = pw.Document(
     title: _latin1(doc.title),
@@ -333,13 +325,13 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
           height: 32,
           alignment: pw.Alignment.center,
           decoration: pw.BoxDecoration(
-            color: PdfColors.white,
+            color: palette.onAccent,
             borderRadius: pw.BorderRadius.circular(6),
           ),
           child: pw.Text(
             _latin1(DocumentSettings.initials(doc.business)),
             style: pw.TextStyle(
-              color: brand,
+              color: accent,
               fontSize: 12,
               fontWeight: pw.FontWeight.bold,
             ),
@@ -362,16 +354,16 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
             children: [
               pw.Text(
                 _latin1(doc.business),
-                style: const pw.TextStyle(
+                style: pw.TextStyle(
                   fontSize: 20,
                   fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
+                  color: palette.onAccent,
                 ),
               ),
               if (details.isNotEmpty)
                 pw.Text(
                   _latin1(details),
-                  style: const pw.TextStyle(color: PdfColors.white),
+                  style: pw.TextStyle(color: palette.onAccent),
                 ),
             ],
           ),
@@ -384,12 +376,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
       pageTheme: pw.PageTheme(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(36, 0, 36, 28),
-        theme: theme.copyWith(
-          defaultTextStyle: theme.defaultTextStyle.copyWith(
-            color: text,
-            fontSize: 10,
-          ),
-        ),
+        theme: palette.theme(),
         // The full band runs edge to edge across the top of the first page.
         buildBackground: band
             ? (context) => context.pageNumber == 1
@@ -397,7 +384,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                       ignoreMargins: true,
                       child: pw.Column(
                         children: [
-                          pw.Container(height: bandHeight, color: brand),
+                          pw.Container(height: bandHeight, color: accent),
                         ],
                       ),
                     )
@@ -409,13 +396,13 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
           : pw.Column(
               children: [
                 if (style.cover != ReportCoverStyle.plain)
-                  pw.Container(height: 4, color: brand),
+                  pw.Container(height: 4, color: accent),
                 pw.SizedBox(height: context.pageNumber == 1 ? 28 : 16),
               ],
             ),
       footer: (context) => pw.Column(
         children: [
-          pw.Divider(color: border),
+          pw.Divider(color: line),
           pw.Row(
             children: [
               pw.Expanded(
@@ -446,7 +433,7 @@ Future<Uint8List> renderBusinessReport(ReportDocument doc) {
                   style: pw.TextStyle(
                     fontSize: 20,
                     fontWeight: pw.FontWeight.bold,
-                    color: style.cover == ReportCoverStyle.plain ? text : brand,
+                    color: text,
                   ),
                 ),
               ),

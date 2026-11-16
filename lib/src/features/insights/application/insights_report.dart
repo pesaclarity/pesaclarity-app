@@ -11,7 +11,7 @@ import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/leakage.dart';
 import '../../../domain/tags/tag_totals.dart';
 import '../../../domain/time/calendar.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/pdf_palette.dart';
 import 'month_labels.dart';
 
 /// A tag and what was spent under it this month.
@@ -57,11 +57,10 @@ final reportRendererProvider =
 
 /// Renders [report] as a one-page A4 PDF.
 Future<Uint8List> renderInsightsReport(InsightsReport report) {
-  final brand = PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final text = PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final soft = PdfColor.fromInt(BrandTokens.brandSoft.toARGB32());
+  final palette = PdfPalette.light;
+  final text = palette.text;
+  final muted = palette.muted;
+  final line = palette.line;
 
   final summary = report.summary;
   final current = summary.current;
@@ -83,7 +82,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
     child: pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: border),
+        border: pw.Border.all(color: line),
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
@@ -100,7 +99,10 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
           ),
           if (note != null) ...[
             pw.SizedBox(height: 2),
-            pw.Text(note, style: pw.TextStyle(fontSize: 9, color: brand)),
+            pw.Text(
+              note,
+              style: pw.TextStyle(fontSize: 9, color: palette.warning),
+            ),
           ],
         ],
       ),
@@ -126,7 +128,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
               pw.Container(
                 height: 6,
                 decoration: pw.BoxDecoration(
-                  color: border,
+                  color: palette.barTrack,
                   borderRadius: pw.BorderRadius.circular(3),
                 ),
               ),
@@ -138,7 +140,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
                       child: pw.Container(
                         height: 6,
                         decoration: pw.BoxDecoration(
-                          color: color ?? brand,
+                          color: color ?? palette.bar,
                           borderRadius: pw.BorderRadius.circular(3),
                         ),
                       ),
@@ -189,7 +191,6 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
   double fractionOf(int value, int largest) =>
       value <= 0 || largest <= 0 ? 0 : value / largest;
 
-  final theme = pw.ThemeData.base();
   final doc = pw.Document(
     title: report.title,
     creator: 'Pesa Clarity',
@@ -199,12 +200,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
     pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(36),
-      theme: theme.copyWith(
-        defaultTextStyle: theme.defaultTextStyle.copyWith(
-          color: text,
-          fontSize: 10,
-        ),
-      ),
+      theme: palette.theme(),
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -213,7 +209,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
             style: pw.TextStyle(
               fontSize: 20,
               fontWeight: pw.FontWeight.bold,
-              color: brand,
+              color: text,
             ),
           ),
           pw.SizedBox(height: 4),
@@ -241,7 +237,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
             width: double.infinity,
             padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
-              color: soft,
+              color: palette.panel,
               borderRadius: pw.BorderRadius.circular(8),
             ),
             child: pw.Text(
@@ -266,7 +262,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
               '${shortMonthName(m.month)} ${m.month.year}',
               kes(m.spendingMinor),
               fractionOf(m.spendingMinor, largestMonth),
-              color: m == current ? brand : muted,
+              color: m == current ? palette.bar : muted,
             ),
           heading(
             health == null
@@ -314,7 +310,7 @@ Future<Uint8List> renderInsightsReport(InsightsReport report) {
                 fractionOf(t.spendingMinor, largestTag),
               ),
           pw.Spacer(),
-          pw.Divider(color: border),
+          pw.Divider(color: line),
           pw.Text(
             'Made on this phone by Pesa Clarity on ${longDate(today)}. '
             'Leakages are spending on payees marked lifestyle, friends or '

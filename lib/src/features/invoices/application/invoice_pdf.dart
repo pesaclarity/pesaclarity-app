@@ -15,7 +15,7 @@ import '../../../domain/hours/hours.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/pdf_palette.dart';
 
 /// Everything an invoice's PDF shows.
 class InvoiceDoc {
@@ -82,18 +82,18 @@ Future<Uint8List> renderInvoicePdf(
   bool withInvoice = true,
   bool withTimesheet = true,
 }) {
-  final brand = PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final text = PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final soft = PdfColor.fromInt(BrandTokens.brandSoft.toARGB32());
-  final success = PdfColor.fromInt(BrandTokens.success.toARGB32());
+  final palette = PdfPalette.light;
+  final accent = palette.accent;
+  final text = palette.text;
+  final muted = palette.muted;
+  final line = palette.line;
+  final headerFill = palette.headerFill;
+  final success = palette.success;
   final i = doc.invoice;
   final s = doc.settings;
   final t = i.totals;
   String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
   String money(int minor) => minor < 0 ? '- ${plain(-minor)}' : plain(minor);
-  final theme = pw.ThemeData.base();
   final pdf = pw.Document(
     title: _latin1('Invoice ${i.number}'),
     author: _latin1(doc.business),
@@ -103,7 +103,7 @@ Future<Uint8List> renderInvoicePdf(
 
   pw.Widget footer(pw.Context context) => pw.Column(
     children: [
-      pw.Divider(color: border),
+      pw.Divider(color: line),
       pw.Row(
         children: [
           pw.Expanded(
@@ -123,7 +123,7 @@ Future<Uint8List> renderInvoicePdf(
 
   pw.Widget strip(pw.Context context) => pw.Column(
     children: [
-      pw.Container(height: 4, color: brand),
+      pw.Container(height: 4, color: accent),
       pw.SizedBox(height: 24),
     ],
   );
@@ -140,10 +140,10 @@ Future<Uint8List> renderInvoicePdf(
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
                 'INVOICE',
-                style: const pw.TextStyle(
+                style: pw.TextStyle(
                   fontSize: 22,
                   fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
+                  color: palette.onAccent,
                 ),
               ),
             ),
@@ -155,7 +155,7 @@ Future<Uint8List> renderInvoicePdf(
       : pw.FullPage(
           ignoreMargins: true,
           child: pw.Column(
-            children: [pw.Container(height: bandHeight, color: brand)],
+            children: [pw.Container(height: bandHeight, color: accent)],
           ),
         );
 
@@ -166,13 +166,13 @@ Future<Uint8List> renderInvoicePdf(
           height: 40,
           alignment: pw.Alignment.center,
           decoration: pw.BoxDecoration(
-            color: brand,
+            color: accent,
             borderRadius: pw.BorderRadius.circular(8),
           ),
           child: pw.Text(
             _latin1(DocumentSettings.initials(doc.business)),
-            style: const pw.TextStyle(
-              color: PdfColors.white,
+            style: pw.TextStyle(
+              color: palette.onAccent,
               fontSize: 14,
               fontWeight: pw.FontWeight.bold,
             ),
@@ -237,12 +237,7 @@ Future<Uint8List> renderInvoicePdf(
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 28),
-          theme: theme.copyWith(
-            defaultTextStyle: theme.defaultTextStyle.copyWith(
-              color: text,
-              fontSize: 10,
-            ),
-          ),
+          theme: palette.theme(),
           buildBackground: band ? bandBackground : null,
         ),
         header: band ? bandTop : strip,
@@ -289,7 +284,7 @@ Future<Uint8List> renderInvoicePdf(
                           style: pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,
-                            color: brand,
+                            color: text,
                           ),
                         ),
                       pw.Text(_latin1(i.number)),
@@ -347,7 +342,7 @@ Future<Uint8List> renderInvoicePdf(
           ),
           pw.SizedBox(height: 16),
           pw.Container(
-            color: soft,
+            color: headerFill,
             padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             child: pw.Row(
               children: [
@@ -384,7 +379,7 @@ Future<Uint8List> renderInvoicePdf(
           if (costs.isNotEmpty) ...[
             pw.SizedBox(height: 8),
             pw.Container(
-              color: soft,
+              color: headerFill,
               padding: const pw.EdgeInsets.symmetric(
                 horizontal: 6,
                 vertical: 4,
@@ -412,7 +407,7 @@ Future<Uint8List> renderInvoicePdf(
                 width: 240,
                 child: pw.Column(
                   children: [
-                    pw.Divider(color: border),
+                    pw.Divider(color: line),
                     row('Fees', plain(t.feesShownMinor)),
                     if (t.costsMinor > 0) row('Costs', plain(t.costsMinor)),
                     if (t.discountMinor > 0)
@@ -430,7 +425,7 @@ Future<Uint8List> renderInvoicePdf(
                       'To pay',
                       '${i.currency} ${plain(t.toPayMinor)}',
                       bold: true,
-                      color: brand,
+                      color: text,
                     ),
                   ],
                 ),
@@ -442,7 +437,7 @@ Future<Uint8List> renderInvoicePdf(
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: border),
+                border: pw.Border.all(color: line),
                 borderRadius: pw.BorderRadius.circular(8),
               ),
               child: pw.Row(
@@ -506,7 +501,7 @@ Future<Uint8List> renderInvoicePdf(
                     alignment: pw.Alignment.center,
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(
-                        color: border,
+                        color: line,
                         style: pw.BorderStyle.dashed,
                       ),
                       borderRadius: pw.BorderRadius.circular(6),
@@ -535,9 +530,9 @@ Future<Uint8List> renderInvoicePdf(
     pw.TableRow cells(
       List<String> c, {
       bool bold = false,
-      PdfColor? fill,
+      bool head = false,
     }) => pw.TableRow(
-      decoration: fill == null ? null : pw.BoxDecoration(color: fill),
+      decoration: head ? pw.BoxDecoration(color: headerFill) : null,
       children: [
         for (final (n, v) in c.indexed)
           pw.Padding(
@@ -546,8 +541,8 @@ Future<Uint8List> renderInvoicePdf(
               _latin1(v),
               textAlign: n >= 3 ? pw.TextAlign.right : pw.TextAlign.left,
               style: pw.TextStyle(
-                fontSize: fill == null ? 9 : 8,
-                color: fill == null ? text : muted,
+                fontSize: head ? 8 : 9,
+                color: head ? muted : text,
                 fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
               ),
             ),
@@ -559,12 +554,7 @@ Future<Uint8List> renderInvoicePdf(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 28),
-        theme: theme.copyWith(
-          defaultTextStyle: theme.defaultTextStyle.copyWith(
-            color: text,
-            fontSize: 10,
-          ),
-        ),
+        theme: palette.theme(),
         header: strip,
         footer: footer,
         build: (context) => [
@@ -573,7 +563,7 @@ Future<Uint8List> renderInvoicePdf(
             style: pw.TextStyle(
               fontSize: 18,
               fontWeight: pw.FontWeight.bold,
-              color: brand,
+              color: text,
             ),
           ),
           pw.Text(
@@ -594,7 +584,7 @@ Future<Uint8List> renderInvoicePdf(
               4: pw.FlexColumnWidth(1.1),
             },
             border: pw.TableBorder(
-              horizontalInside: pw.BorderSide(color: border, width: 0.5),
+              horizontalInside: pw.BorderSide(color: line, width: 0.5),
             ),
             children: [
               cells([
@@ -603,7 +593,7 @@ Future<Uint8List> renderInvoicePdf(
                 'Project',
                 'Hours',
                 i.currency,
-              ], fill: soft),
+              ], head: true),
               for (final d in order) ...[
                 for (final (n, e) in days[d]!.indexed)
                   cells([
@@ -634,7 +624,7 @@ Future<Uint8List> renderInvoicePdf(
               2: pw.FlexColumnWidth(1.1),
             },
             border: pw.TableBorder(
-              horizontalInside: pw.BorderSide(color: border, width: 0.5),
+              horizontalInside: pw.BorderSide(color: line, width: 0.5),
             ),
             children: [
               for (final p in projects)

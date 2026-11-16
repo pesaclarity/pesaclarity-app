@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../../theme/brand_tokens.dart';
+import '../../theme/pdf_palette.dart';
 import '../money/money.dart';
 import '../money/money_format.dart';
 import 'export_table.dart';
@@ -18,10 +18,8 @@ Future<Uint8List> encodePdf(
   required DateTime createdAt,
   String? subtitle,
 }) {
-  final brand = PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final soft = PdfColor.fromInt(BrandTokens.brandSoft.toARGB32());
+  final palette = PdfPalette.light;
+  final muted = palette.muted;
 
   final doc = pw.Document(
     title: workbook.title,
@@ -33,6 +31,7 @@ Future<Uint8List> encodePdf(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
         margin: const pw.EdgeInsets.all(28),
+        theme: palette.theme(),
         footer: (context) => pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -54,7 +53,7 @@ Future<Uint8List> encodePdf(
               style: pw.TextStyle(
                 fontSize: 20,
                 fontWeight: pw.FontWeight.bold,
-                color: brand,
+                color: palette.text,
               ),
             ),
             if (subtitle != null)
@@ -84,7 +83,7 @@ Future<Uint8List> encodePdf(
               style: pw.TextStyle(fontSize: 10, color: muted),
             )
           else
-            _table(table, border: border, headerFill: soft),
+            _table(table, palette),
         ],
       ),
     );
@@ -92,11 +91,7 @@ Future<Uint8List> encodePdf(
   return doc.save();
 }
 
-pw.Widget _table(
-  ExportTable table, {
-  required PdfColor border,
-  required PdfColor headerFill,
-}) {
+pw.Widget _table(ExportTable table, PdfPalette palette) {
   final numeric = {
     for (var c = 0; c < table.columns.length; c++)
       if (table.rows.any((r) => r[c] is Money || r[c] is int)) c,
@@ -107,10 +102,10 @@ pw.Widget _table(
       for (final row in table.rows) [for (final cell in row) _text(cell)],
     ],
     border: pw.TableBorder(
-      horizontalInside: pw.BorderSide(color: border, width: 0.5),
-      bottom: pw.BorderSide(color: border, width: 0.5),
+      horizontalInside: pw.BorderSide(color: palette.line, width: 0.5),
+      bottom: pw.BorderSide(color: palette.line, width: 0.5),
     ),
-    headerDecoration: pw.BoxDecoration(color: headerFill),
+    headerDecoration: pw.BoxDecoration(color: palette.headerFill),
     headerStyle: const pw.TextStyle(
       fontSize: 8,
       fontWeight: pw.FontWeight.bold,

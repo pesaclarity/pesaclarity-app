@@ -29,6 +29,7 @@ import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../ask/presentation/ask_entry.dart';
 import '../../balances/presentation/balance_text.dart';
 import '../../balances/presentation/balance_warning.dart';
 import '../../balances/presentation/on_hand_sheet.dart';
@@ -38,6 +39,7 @@ import '../../hours/presentation/log_hours_sheet.dart';
 import '../../income/application/income_providers.dart';
 import '../../income/presentation/make_it_last_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
+import '../../insights/presentation/health_colors.dart';
 import '../../review/application/review_providers.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
@@ -109,132 +111,138 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: AmountsHiddenScope(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-            children: [
-              _Header(today: today),
-              const SizedBox(height: 20),
-              if (space.kind != SpaceKind.personal) ...[
-                if (sellsProducts) ...[
-                  const _SalesTodayCard(),
-                  const SizedBox(height: 12),
-                  const _QuickButtons(services: false),
-                  const SizedBox(height: 12),
-                  const WaitingPaymentsCard(),
-                ],
-                _SpaceSummaryCard(
-                  _summaryFor(ref, isBusiness: isBusiness, today: today),
-                  kind: space.kind,
-                  compact: sellsProducts,
-                  onTap: () => openActivity(thisMonth),
-                ),
-                const SizedBox(height: 12),
-                if (isBusiness && !sellsProducts) ...[
-                  const _QuickButtons(services: true),
-                  const SizedBox(height: 12),
-                  const _HoursCards(),
-                  const WaitingPaymentsCard(),
-                ],
-                if (space.kind == SpaceKind.business) const BusinessSetupCard(),
-                const SharedLineCard(),
-                const _ReviewCard(),
-                const _WhatWasThisCard(),
-                if (sources.irregular) const _WeekCard(),
-                _ComingUp(bills: bills, today: today),
-              ] else ...[
-                if (safeToSpend == null && untilNext != null)
-                  _UntilNextMoneyCard(
-                    untilNext,
-                    rainyDayMinor:
-                        ref.watch(rainyDayFundProvider).value?.balanceMinor ??
-                        0,
-                    onTap: () => openActivity(
-                      ActivityFilter(
-                        type: ActivityType.spending,
-                        from: today,
-                        to: today,
-                      ),
-                    ),
-                  )
-                else if (safeToSpend == null)
-                  const HeroFigureCard(
-                    label: 'Safe to spend today',
-                    caption:
-                        'Shows once your messages have been read and Plan has '
-                        'a day-to-day budget.',
-                    showEye: true,
-                  )
-                else
-                  _SafeToSpendCard(
-                    safeToSpend,
-                    nextIncome: forecast?.nextIncome,
-                    onTap: () => openActivity(
-                      thisMonth.copyWith(type: ActivityType.dayToDay),
-                    ),
+          child: AskBarScope(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+              children: [
+                _Header(today: today),
+                const SizedBox(height: 20),
+                if (space.kind != SpaceKind.personal) ...[
+                  if (sellsProducts) ...[
+                    const _SalesTodayCard(),
+                    const SizedBox(height: 12),
+                    const _QuickButtons(services: false),
+                    const SizedBox(height: 12),
+                    const WaitingPaymentsCard(),
+                  ],
+                  _SpaceSummaryCard(
+                    _summaryFor(ref, isBusiness: isBusiness, today: today),
+                    kind: space.kind,
+                    compact: sellsProducts,
+                    onTap: () => openActivity(thisMonth),
                   ),
-                const BalanceWarningLine(),
-                const SizedBox(height: 12),
-                SupportHomeCard(
-                  moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
-                ),
-                const _ReviewCard(),
-                const _WhatWasThisCard(),
-                if (untilNext != null) _MoneyInCard(untilNext, today: today),
-                if (untilNext != null && sources.irregular) const _WeekCard(),
-                FigureRow(
-                  children: [
-                    if (untilNext != null)
-                      FigureTile(
-                        key: const Key('home-on-hand'),
-                        label: 'On hand',
-                        value: _plain(context, untilNext.onHandMinor),
-                        onTap: () => showOnHandSheet(context),
-                      )
-                    else if (safeToSpend == null)
-                      const FigureTile(
-                        label: 'Left this month',
-                        value: 'Soon',
-                        note: 'Shows once Plan has a budget',
-                      )
-                    else
-                      FigureTile(
-                        label: 'Left this month',
-                        value: _plain(context, safeToSpend.leftThisMonthMinor),
-                        onTap: () => openActivity(
-                          thisMonth.copyWith(type: ActivityType.dayToDay),
+                  const SizedBox(height: 12),
+                  if (isBusiness && !sellsProducts) ...[
+                    const _QuickButtons(services: true),
+                    const SizedBox(height: 12),
+                    const _HoursCards(),
+                    const WaitingPaymentsCard(),
+                  ],
+                  if (space.kind == SpaceKind.business)
+                    const BusinessSetupCard(),
+                  const SharedLineCard(),
+                  const _ReviewCard(),
+                  const _WhatWasThisCard(),
+                  if (sources.irregular) const _WeekCard(),
+                  _ComingUp(bills: bills, today: today),
+                ] else ...[
+                  if (safeToSpend == null && untilNext != null)
+                    _UntilNextMoneyCard(
+                      untilNext,
+                      rainyDayMinor:
+                          ref.watch(rainyDayFundProvider).value?.balanceMinor ??
+                          0,
+                      onTap: () => openActivity(
+                        ActivityFilter(
+                          type: ActivityType.spending,
+                          from: today,
+                          to: today,
                         ),
                       ),
-                    if (_runwayLabel(forecast) case final runway?)
-                      FigureTile(
-                        label: 'Runway at this pace',
-                        value: runway,
-                        onTap: () => openActivity(paceWindow),
-                      )
-                    else
-                      const FigureTile(
-                        label: 'Runway at this pace',
-                        value: 'Soon',
-                        note: 'Shows after two weeks of records',
+                    )
+                  else if (safeToSpend == null)
+                    const HeroFigureCard(
+                      label: 'Safe to spend today',
+                      caption:
+                          'Shows once your messages have been read and Plan has '
+                          'a day-to-day budget.',
+                      showEye: true,
+                    )
+                  else
+                    _SafeToSpendCard(
+                      safeToSpend,
+                      nextIncome: forecast?.nextIncome,
+                      onTap: () => openActivity(
+                        thisMonth.copyWith(type: ActivityType.dayToDay),
                       ),
+                    ),
+                  const BalanceWarningLine(),
+                  const SizedBox(height: 12),
+                  SupportHomeCard(
+                    moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
+                  ),
+                  const _ReviewCard(),
+                  const _WhatWasThisCard(),
+                  if (untilNext != null) _MoneyInCard(untilNext, today: today),
+                  if (untilNext != null && sources.irregular) const _WeekCard(),
+                  FigureRow(
+                    children: [
+                      if (untilNext != null)
+                        FigureTile(
+                          key: const Key('home-on-hand'),
+                          label: 'On hand',
+                          value: _plain(context, untilNext.onHandMinor),
+                          onTap: () => showOnHandSheet(context),
+                        )
+                      else if (safeToSpend == null)
+                        const FigureTile(
+                          label: 'Left this month',
+                          value: 'Soon',
+                          note: 'Shows once Plan has a budget',
+                        )
+                      else
+                        FigureTile(
+                          label: 'Left this month',
+                          value: _plain(
+                            context,
+                            safeToSpend.leftThisMonthMinor,
+                          ),
+                          onTap: () => openActivity(
+                            thisMonth.copyWith(type: ActivityType.dayToDay),
+                          ),
+                        ),
+                      if (_runwayLabel(forecast) case final runway?)
+                        FigureTile(
+                          label: 'Runway at this pace',
+                          value: runway,
+                          onTap: () => openActivity(paceWindow),
+                        )
+                      else
+                        const FigureTile(
+                          label: 'Runway at this pace',
+                          value: 'Soon',
+                          note: 'Shows after two weeks of records',
+                        ),
+                    ],
+                  ),
+                  if (forecast != null) ...[
+                    const SizedBox(height: 12),
+                    _ForecastCard(
+                      forecast,
+                      onTap: () => openActivity(paceWindow),
+                    ),
                   ],
-                ),
-                if (forecast != null) ...[
-                  const SizedBox(height: 12),
-                  _ForecastCard(
-                    forecast,
-                    onTap: () => openActivity(paceWindow),
-                  ),
+                  if (health != null) ...[
+                    const SizedBox(height: 12),
+                    _HealthIndexCard(
+                      health,
+                      onTap: () => context.go(AppRoutes.insights),
+                    ),
+                  ],
+                  _ComingUp(bills: bills, today: today),
                 ],
-                if (health != null) ...[
-                  const SizedBox(height: 12),
-                  _HealthIndexCard(
-                    health,
-                    onTap: () => context.go(AppRoutes.insights),
-                  ),
-                ],
-                _ComingUp(bills: bills, today: today),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -311,6 +319,7 @@ class _Header extends ConsumerWidget {
             ],
           ),
         ),
+        const AskHomeButton(),
         // An outlined circle: red stays for the + and the lead card.
         Semantics(
           identifier: SemanticIds.homeProfile,
@@ -558,6 +567,14 @@ class _HealthIndexCard extends StatelessWidget {
       headline = 'Same as the month before';
     }
     final action = index.bestAction;
+    final figure = AppTypography.tileFigure(theme.colorScheme.onSurface);
+    // The ring holds three digits at the type scale's tile size and grows
+    // with the text size, rather than shrinking the score to fit.
+    final ring = math.max(
+      _healthRingMin,
+      MediaQuery.textScalerOf(context).scale(figure.fontSize!) * 2 +
+          2 * (_healthRingStroke + 6),
+    );
 
     return Card(
       child: InkWell(
@@ -567,30 +584,21 @@ class _HealthIndexCard extends StatelessWidget {
           child: Row(
             children: [
               SizedBox.square(
-                dimension: 56,
+                dimension: ring,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     SizedBox.expand(
                       child: CircularProgressIndicator(
                         value: math.min(index.score, 100) / 100,
-                        strokeWidth: 6,
-                        color: theme.colorScheme.primary,
-                        backgroundColor: colors.brandSoft,
+                        strokeWidth: _healthRingStroke,
+                        // The band's colour on a neutral track: brand red
+                        // is kept for actions.
+                        color: healthBandColor(context, index.band),
+                        backgroundColor: colors.border,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          '${index.score}',
-                          style: AppTypography.tileFigure(
-                            theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ),
+                    Text('${index.score}', style: figure),
                   ],
                 ),
               ),
@@ -629,6 +637,9 @@ class _HealthIndexCard extends StatelessWidget {
     );
   }
 }
+
+const _healthRingMin = 64.0;
+const _healthRingStroke = 6.0;
 
 String _points(int n) => n == 1 ? '1 point' : '$n points';
 
