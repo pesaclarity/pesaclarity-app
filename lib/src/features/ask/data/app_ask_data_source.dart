@@ -149,7 +149,12 @@ class AppAskDataSource implements AskDataSource {
   Future<List<AskLine>> balances() async => [
     for (final a in (await _ref.read(balancesOverviewProvider.future)).accounts)
       if (a.opening.currency == BaseCurrency.code)
-        AskLine(a.account.name, a.heldMinor, savings: a.isSavings),
+        AskLine(
+          a.account.name,
+          a.heldMinor,
+          savings: a.isSavings,
+          fulizaOwedMinor: a.fulizaOwedMinor,
+        ),
   ];
 
   @override

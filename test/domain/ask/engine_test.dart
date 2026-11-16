@@ -48,11 +48,40 @@ LedgerEntry _in(DateTime at, int shillings, {String? name}) => LedgerEntry(
   counterpartyName: name,
 );
 
+/// KCB sending M-Pesa [shillings]: the two halves of one own transfer.
+List<LedgerEntry> _kcbToMpesa(DateTime at, int shillings) {
+  final out = _id++;
+  final into = _id++;
+  return [
+    LedgerEntry(
+      id: out,
+      accountId: 2,
+      occurredAt: at,
+      amountMinor: kes(shillings),
+      direction: TransactionDirection.outflow,
+      kind: TransactionKind.bank,
+      transferPairId: into,
+    ),
+    LedgerEntry(
+      id: into,
+      accountId: 1,
+      occurredAt: at,
+      amountMinor: kes(shillings),
+      direction: TransactionDirection.inflow,
+      kind: TransactionKind.received,
+      counterpartyName: 'KCB',
+      transferPairId: out,
+    ),
+  ];
+}
+
 class _Source implements AskDataSource {
-  _Source(this.all, {this.items = const []});
+  _Source(this.all, {this.items = const [], List<AskLine>? accounts})
+    : accounts = accounts ?? [AskLine('M-Pesa', kes(5000))];
 
   final List<LedgerEntry> all;
   final List<AskLine> items;
+  List<AskLine> accounts;
   final learned = <AskShortcut>[];
 
   @override
@@ -63,7 +92,11 @@ class _Source implements AskDataSource {
     AskEntity(SlotKind.payee, 'p:2', 'Mama Mboga'),
     AskEntity(SlotKind.payee, 'p:3', 'John Kamau'),
     AskEntity(SlotKind.payee, 'p:4', 'John Otieno'),
+    // A name printed on a message, not a payee yet.
+    AskEntity(SlotKind.payee, 'n:acme', 'Acme'),
     AskEntity(SlotKind.item, 'i:1', 'Tomatoes'),
+    AskEntity(SlotKind.account, 'a:1', 'M-Pesa'),
+    AskEntity(SlotKind.account, 'a:2', 'KCB'),
   ];
 
   @override
@@ -103,7 +136,7 @@ class _Source implements AskDataSource {
   Future<List<AskLine>> goals() async => const [];
 
   @override
-  Future<List<AskLine>> balances() async => [AskLine('M-Pesa', kes(5000))];
+  Future<List<AskLine>> balances() async => accounts;
 
   @override
   Future<AskLine> sales(AskPeriod period) async =>
@@ -331,6 +364,235 @@ void main() {
       now: now,
     );
     expect(conversationTitle(john.context, today), 'Money sent to John Kamau');
+  });
+
+  group('balances at or below zero', () {
+    Future<String> balance(List<AskLine> accounts, String q) async {
+      source.accounts = accounts;
+      final a = (await engine.ask(
+        q,
+        context: AskContext.empty,
+        now: now,
+      )).answer;
+      final t = text(a);
+      // Never a minus sign in the words.
+      expect(t.contains(RegExp('-[0-9]')), isFalse, reason: t);
+      expect(checkTemplate(a.template, a.facts.keys.toSet()), isTrue);
+      return t;
+    }
+
+    test('an account at zero has nothing left', () async {
+      expect(
+        await balance([
+          const AskLine('M-Pesa', 0),
+        ], "What's my M-Pesa balance?"),
+        'You have nothing left on M-Pesa.',
+      );
+    });
+
+    test('below zero with no Fuliza says only below zero', () async {
+      expect(
+        await balance([AskLine('KCB', kes(-2000))], 'KCB balance'),
+        'KCB is 2000 below zero.',
+      );
+    });
+
+    test('Fuliza is named only when the account owes it', () async {
+      // Wallet at 0, 1,300 owed: what it owes Fuliza.
+      expect(
+        await balance([
+          AskLine('M-Pesa', kes(-1300), fulizaOwedMinor: kes(1300)),
+        ], "What's my M-Pesa balance?"),
+        "M-Pesa is 1300 below zero: that's what you owe Fuliza.",
+      );
+      // Wallet at 200, 1,500 owed.
+      expect(
+        await balance([
+          AskLine('M-Pesa', kes(-1300), fulizaOwedMinor: kes(1500)),
+        ], "What's my M-Pesa balance?"),
+        'M-Pesa is 1300 below zero once Fuliza is counted.',
+      );
+    });
+
+    test('the total below zero or at zero', () async {
+      expect(
+        await balance([
+          AskLine('M-Pesa', kes(-1300), fulizaOwedMinor: kes(1300)),
+          AskLine('Cash', kes(150)),
+        ], 'How much money do I have?'),
+        "You're 1150 below zero once Fuliza is counted.",
+      );
+      expect(
+        await balance([
+          AskLine('KCB', kes(-700)),
+          AskLine('Cash', kes(200)),
+          // Savings are left out of the total, as on Balances.
+          AskLine('Sacco', kes(9000), savings: true),
+        ], 'How much money do I have?'),
+        "You're 500 below zero across 3 accounts.",
+      );
+      expect(
+        await balance([
+          AskLine('KCB', kes(-200)),
+          AskLine('Cash', kes(200)),
+        ], 'How much money do I have?'),
+        'You have nothing left across 2 accounts.',
+      );
+    });
+
+    test('above zero is worded as before', () async {
+      final a = (await engine.ask(
+        "What's my balance?",
+        context: AskContext.empty,
+        now: now,
+      )).answer;
+      expect(a.kind, ReplyKind.balance);
+      expect(a.facts['amount'], kes(5000));
+    });
+  });
+
+  group('comparing with an empty period', () {
+    Future<AskAnswer> ask(String q) async =>
+        (await engine.ask(q, context: AskContext.empty, now: now)).answer;
+
+    test('nothing before: "and nothing in October"', () async {
+      final a = await ask(
+        'How much did I pay John Otieno this month compared to last month?',
+      );
+      expect(a.kind, ReplyKind.spentFromNothing);
+      expect(text(a), 'You spent 800 this month and nothing in October.');
+      expect(a.figureMinor, kes(800));
+    });
+
+    test('nothing now: "nothing this month, and 600 in October"', () async {
+      final a = await ask(
+        'Did I spend more on transport this month than last month?',
+      );
+      expect(a.kind, ReplyKind.spentToNothing);
+      expect(text(a), 'You spent nothing this month, and 600 in October.');
+      expect(a.figureMinor, 0);
+    });
+
+    test('never "the 0 of"', () async {
+      for (final q in [
+        'How much did I pay John Otieno this month compared to last month?',
+        'Did I spend more on transport this month than last month?',
+        'Compare transport with last month',
+      ]) {
+        final t = text(await ask(q));
+        expect(t, isNot(contains(' 0 ')), reason: t);
+        expect(t, isNot(contains('the 0')), reason: t);
+      }
+    });
+  });
+
+  group('spending not sorted yet', () {
+    AskEngine over(List<LedgerEntry> entries) => AskEngine(
+      source: _Source(entries),
+      reader: RuleQuestionReader(today: () => today),
+    );
+
+    Future<AskAnswer> where(AskEngine e) async => (await e.ask(
+      'Where does my money go?',
+      context: AskContext.empty,
+      now: now,
+    )).answer;
+
+    test('most of it: says how much, names the biggest sorted', () async {
+      final a = await where(
+        over([
+          _out(eat(2026, 11, 3), 5000, name: 'Example Landlord'),
+          _out(eat(2026, 11, 4), 2000, category: 1, name: 'Naivas'),
+          _out(eat(2026, 11, 5), 500, category: 2, name: 'Matatu'),
+        ]),
+      );
+      expect(a.kind, ReplyKind.unsortedMost);
+      expect(
+        text(a),
+        "Most of your spending this month, 5000, isn't sorted yet. Of what "
+        'is sorted, Food is the biggest at 2000.',
+      );
+      expect(a.figureMinor, kes(7500));
+      // The way to sort them: Insights, whose "Not sorted yet" opens them.
+      expect(a.link, AskLink.insights);
+    });
+
+    test('the biggest part, but not most', () async {
+      final a = await where(
+        over([
+          _out(eat(2026, 11, 3), 3000, name: 'Example Landlord'),
+          _out(eat(2026, 11, 4), 2000, category: 1, name: 'Naivas'),
+          _out(eat(2026, 11, 5), 1500, category: 2, name: 'Matatu'),
+        ]),
+      );
+      expect(a.kind, ReplyKind.unsortedTop);
+      expect(
+        text(a),
+        "3000 of your spending this month isn't sorted yet, more than any "
+        'one category. Of what is sorted, Food is the biggest at 2000.',
+      );
+    });
+
+    test('none of it sorted', () async {
+      final a = await where(
+        over([_out(eat(2026, 11, 3), 3000, name: 'Example Landlord')]),
+      );
+      expect(a.kind, ReplyKind.unsortedAll);
+      expect(text(a), startsWith('None of your spending this month, 3000,'));
+    });
+
+    test('never named as a category, nor listed as one', () async {
+      final a = await where(engine);
+      expect(a.kind, ReplyKind.topCategories);
+      expect(a.facts['category'], 'Food');
+      expect(a.facts['list'], 'Food');
+    });
+  });
+
+  group('money in from someone', () {
+    Future<AskAnswer> ask(String q) async =>
+        (await engine.ask(q, context: AskContext.empty, now: now)).answer;
+
+    test('a payee who sent money: what came in from them', () async {
+      for (final q in [
+        'How much did Acme send me?',
+        'How much has Acme sent me this month?',
+        'What did Acme pay me this month?',
+        'How much did I receive from Acme?',
+        'Money I got from Acme',
+      ]) {
+        final a = await ask(q);
+        expect(a.figureMinor, kes(2500), reason: q);
+        expect(a.headline, 'Acme · November 2026', reason: q);
+        expect(a.context.intent, AskIntent.receivedFrom, reason: q);
+      }
+    });
+
+    test('an own account: what it moved into the others, said so', () async {
+      source.all.addAll(_kcbToMpesa(eat(2026, 11, 6), 3920));
+      for (final q in [
+        'How much did KCB send me?',
+        'How much has KCB sent me?',
+        'How much did I receive from KCB?',
+      ]) {
+        final a = await ask(q);
+        expect(a.kind, ReplyKind.ownTransfers, reason: q);
+        expect(a.figureMinor, kes(3920), reason: q);
+        expect(
+          text(a),
+          'KCB sent 3920 to your other accounts this month. That is your own '
+          'money moving, so it is not counted as money in.',
+        );
+        expect(a.rows.single.title, 'M-Pesa');
+      }
+    });
+
+    test('an own account that moved nothing says so', () async {
+      final a = await ask('How much did KCB send me last month?');
+      expect(a.kind, ReplyKind.noOwnTransfers);
+      expect(a.figureMinor, 0);
+      expect(text(a), startsWith('KCB sent nothing to your other accounts'));
+    });
   });
 
   test('small talk needs no lookup', () async {

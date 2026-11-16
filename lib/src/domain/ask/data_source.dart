@@ -12,6 +12,7 @@ class AskLine {
     this.date,
     this.extraMinor,
     this.savings = false,
+    this.fulizaOwedMinor = 0,
   });
 
   final String name;
@@ -28,6 +29,9 @@ class AskLine {
 
   /// A savings account, which the Balances total leaves out.
   final bool savings;
+
+  /// Fuliza owed on this account, already taken off [amountMinor].
+  final int fulizaOwedMinor;
 }
 
 /// Safe to spend as Home works it out.

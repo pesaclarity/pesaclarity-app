@@ -94,19 +94,71 @@ void main() {
       )).answer;
     }
 
-    test("the M-Pesa balance, worded, is exactly the journal's", () async {
-      final answer = await ask("what's my M-Pesa balance");
+    test(
+      "the M-Pesa balance is exactly the journal's, below zero in words",
+      () async {
+        final answer = await ask("what's my M-Pesa balance");
+        final overview = await c.read(balancesOverviewProvider.future);
+        final mpesa = overview.byId(ids.mpesa)!;
+        expect(answer.figureMinor, kes(-1300));
+        expect(answer.figureMinor, mpesa.heldMinor);
+        // The sentence shows the amount without a sign and says "below zero".
+        expect(answer.facts['amount'], -mpesa.heldMinor);
+        // The writer has no words for below zero, so the template says it.
+        expect(answer.kind, ReplyKind.accountOwesFuliza);
+        expect(isTemplate(answer), isTrue, reason: answer.template);
+        final text = filled(answer);
+        expect(text, "M-Pesa is 1,300 below zero: that's what you owe Fuliza.");
+        expect(RegExp('1,300').allMatches(text), hasLength(1), reason: text);
+        // No other number in it, and no minus sign.
+        expect(text.replaceAll('1,300', '').contains(RegExp('[0-9]')), isFalse);
+        expect(text.contains(RegExp(r'[-\u2212]\s*[0-9]')), isFalse);
+      },
+    );
+
+    test('the total below zero says so, Fuliza named', () async {
+      final answer = await ask('How much money do I have?');
       final overview = await c.read(balancesOverviewProvider.future);
-      expect(answer.figureMinor, kes(-1300));
-      expect(answer.facts['amount'], overview.byId(ids.mpesa)!.heldMinor);
-      // Worded by the writer, not a template sentence.
-      expect(isTemplate(answer), isFalse, reason: answer.template);
-      final text = filled(answer);
-      expect(RegExp('-1,300').allMatches(text), hasLength(1), reason: text);
-      // No other number in it.
-      expect(text.replaceAll('-1,300', '').contains(RegExp('[0-9]')), isFalse);
-      expect(text, contains('M-Pesa'));
+      expect(answer.figureMinor, overview.totalMinor('KES'));
+      expect(filled(answer), "You're 1,150 below zero once Fuliza is counted.");
     });
+
+    test('no writer reply starts with a filler opener', () async {
+      for (final question in _questions) {
+        for (final ending in _endings) {
+          final text = filled(await ask('$question$ending'));
+          expect(
+            RegExp(
+              '^(?:${fillerOpeners.map(RegExp.escape).join('|')})[.,!:]',
+              caseSensitive: false,
+            ).hasMatch(text),
+            isFalse,
+            reason: text,
+          );
+          expect(text, isNot(contains('the 0 of')));
+          expect(text, isNot(contains(': 0.')));
+          expect(
+            text.toLowerCase(),
+            isNot(contains('category this month was not sorted')),
+          );
+        }
+      }
+    });
+
+    test(
+      '"How much did KCB send me?" is money moved from KCB, not spending',
+      () async {
+        final answer = await ask('How much did KCB send me?');
+        expect(answer.kind, ReplyKind.ownTransfers);
+        expect(answer.figureMinor, kes(3920));
+        expect(
+          filled(answer),
+          'KCB sent 3,920 to your other accounts this month. That is your own '
+          'money moving, so it is not counted as money in.',
+        );
+        expect(answer.rows.single.title, 'M-Pesa');
+      },
+    );
 
     test(
       'every reply keeps the figures, names and dates it was given',
@@ -267,7 +319,7 @@ void main() {
     for (final MapEntry(:key, :value) in cases.entries) {
       test('Ask uses its templates when $key', () async {
         final answer = await balance(value);
-        expect(answer.kind, ReplyKind.balance);
+        expect(answer.kind, ReplyKind.accountOwesFuliza);
         expect(answer.figureMinor, kes(-1300));
         expect(isTemplate(answer), isTrue, reason: answer.template);
       });

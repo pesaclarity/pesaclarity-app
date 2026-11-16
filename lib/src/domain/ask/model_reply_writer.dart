@@ -477,6 +477,48 @@ String writerReplyProblem(
   return check;
 }
 
+/// Openers that say nothing ("Here it is.", "Looking at it,"), taken off
+/// the start of a decoded reply. Lower case, as the writer's words are.
+const fillerOpeners = [
+  'here it is',
+  'here you go',
+  'here you are',
+  "here's what i found",
+  'looking at it',
+  'looking at this',
+  'looking at your records',
+  'let me see',
+  "let's see",
+  'let me check',
+  'one moment',
+  'okay',
+  'ok',
+  'alright',
+  'all right',
+  'sure',
+];
+
+final _opener = RegExp(
+  '^(?:${fillerOpeners.map(RegExp.escape).join('|')})\\s*[.,!:]\\s*',
+  caseSensitive: false,
+);
+
+/// [reply] without the [fillerOpeners] it starts with, one after another
+/// ("One moment, okay. ..."), and with a capital again. An opener counts
+/// only when a mark follows it, so "Sure enough, it rose." stays.
+String stripOpeners(String reply) {
+  var text = reply.trimLeft();
+  for (
+    var m = _opener.firstMatch(text);
+    m != null;
+    m = _opener.firstMatch(text)
+  ) {
+    text = text.substring(m.end);
+  }
+  if (text.isEmpty || text.startsWith('{')) return text;
+  return text[0].toUpperCase() + text.substring(1);
+}
+
 final _replyToken = RegExp(r"^([a-z']+|[.,!?:]|\{[a-z_]+\})$");
 final _plainText = RegExp(r"^[A-Za-z' .,!?:{}_]+$");
 
@@ -602,7 +644,7 @@ class ModelReplyWriter {
     if (writerReplyProblem(tokens, facts, required: required).isNotEmpty) {
       return null;
     }
-    final template = detokenise(tokens!).replaceAllMapped(
+    final template = stripOpeners(detokenise(tokens!)).replaceAllMapped(
       _placeholderInText,
       (m) => '{${appFactFor(m.group(1)!)}}',
     );

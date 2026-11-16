@@ -21,10 +21,18 @@ const replyPlaceholders = {
   'name',
   'list',
   'number',
+  // The biggest sorted category's amount, beside what is not sorted yet.
+  'top_amount',
 };
 
 /// Placeholders whose facts are money in minor units.
-const moneyPlaceholders = {'amount', 'change', 'prev_amount', 'target'};
+const moneyPlaceholders = {
+  'amount',
+  'change',
+  'prev_amount',
+  'target',
+  'top_amount',
+};
 
 final _placeholder = RegExp(r'\{([a-z_]+)\}');
 
@@ -162,6 +170,19 @@ class TemplateReplyWriter implements ReplyWriter {
       '{category} took the most {period}.',
       'Most went on {category} {period}.',
     ],
+    ReplyKind.unsortedMost: [
+      "Most of your spending {period}, {amount}, isn't sorted yet. Of what "
+          'is sorted, {category} is the biggest at {top_amount}.',
+    ],
+    ReplyKind.unsortedTop: [
+      "{amount} of your spending {period} isn't sorted yet, more than any "
+          'one category. Of what is sorted, {category} is the biggest at '
+          '{top_amount}.',
+    ],
+    ReplyKind.unsortedAll: [
+      'None of your spending {period}, {amount}, is sorted yet. Once it '
+          'is, I can tell you where it goes.',
+    ],
     ReplyKind.trend: [
       'Highest in {date}. {period} so far: {change}.',
       'The top month was {date}. {period} so far: {change}.',
@@ -178,6 +199,12 @@ class TemplateReplyWriter implements ReplyWriter {
     ReplyKind.compareSame: [
       'About the same as {prev_period}.',
       'Much like {prev_period}.',
+    ],
+    ReplyKind.spentFromNothing: [
+      'You spent {amount} {period} and nothing in {prev_period}.',
+    ],
+    ReplyKind.spentToNothing: [
+      'You spent nothing {period}, and {prev_amount} in {prev_period}.',
     ],
     ReplyKind.share: [
       '{count}, close to {percent} of your {category} spending.',
@@ -200,6 +227,19 @@ class TemplateReplyWriter implements ReplyWriter {
       'Across {count}, as your records show.',
       'What your {count} hold, from your records.',
     ],
+    ReplyKind.accountBelow: ['{account} is {amount} below zero.'],
+    ReplyKind.accountBelowFuliza: [
+      '{account} is {amount} below zero once Fuliza is counted.',
+    ],
+    ReplyKind.accountOwesFuliza: [
+      "{account} is {amount} below zero: that's what you owe Fuliza.",
+    ],
+    ReplyKind.accountEmpty: ['You have nothing left on {account}.'],
+    ReplyKind.totalBelow: ["You're {amount} below zero across {count}."],
+    ReplyKind.totalBelowFuliza: [
+      "You're {amount} below zero once Fuliza is counted.",
+    ],
+    ReplyKind.totalEmpty: ['You have nothing left across {count}.'],
     ReplyKind.debts: [
       'Left to pay across {count}.',
       'Still to pay, across {count}.',
@@ -247,6 +287,14 @@ class TemplateReplyWriter implements ReplyWriter {
     ReplyKind.incomeSources: [
       'Most came from {payee} {period}.',
       '{payee} paid in the most {period}.',
+    ],
+    ReplyKind.ownTransfers: [
+      '{account} sent {amount} to your other accounts {period}. That is your '
+          'own money moving, so it is not counted as money in.',
+    ],
+    ReplyKind.noOwnTransfers: [
+      '{account} sent nothing to your other accounts {period}, and money '
+          'between your own accounts is not counted as money in.',
     ],
     ReplyKind.sales: [
       'From {count} {period}.',

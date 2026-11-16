@@ -13,15 +13,35 @@ enum ReplyKind {
   biggest,
   topPayees,
   topCategories,
+
+  /// The top "category" is spending not sorted yet: say so, and name the
+  /// biggest real category.
+  unsortedMost,
+  unsortedTop,
+  unsortedAll,
   trend,
   compareUp,
   compareDown,
   compareSame,
+
+  /// Spending against a period with none, or none against some: "nothing
+  /// in October", never "the 0 of October".
+  spentFromNothing,
+  spentToNothing,
   share,
   safeToSpend,
   safeOver,
   noBudget,
   balance,
+
+  /// A balance at or below zero, said in words with the amount positive.
+  accountBelow,
+  accountBelowFuliza,
+  accountOwesFuliza,
+  accountEmpty,
+  totalBelow,
+  totalBelowFuliza,
+  totalEmpty,
   debts,
   noDebts,
   lent,
@@ -34,6 +54,10 @@ enum ReplyKind {
   goals,
   noGoals,
   incomeSources,
+
+  /// Money one of the person's own accounts moved into their others.
+  ownTransfers,
+  noOwnTransfers,
   sales,
   topItems,
   profit,

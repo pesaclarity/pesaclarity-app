@@ -290,6 +290,62 @@ void main() {
     });
   });
 
+  group('filler openers', () {
+    final writer = ModelReplyWriter(_Script.never(), manifest);
+    const fees = WriterFacts('fees', given: {'amount', 'period'});
+    final values = <String, Object>{'amount': 4287, 'period': 'this month'};
+
+    String? template(String reply) =>
+        writer.checkedTemplate(words(reply), fees, values);
+
+    test('come off the start of a reply, which starts with a capital', () {
+      expect(
+        template('here it is . you paid {amount} in charges {period} .'),
+        'You paid {amount} in charges {period}.',
+      );
+      expect(
+        template('looking at it , you paid {amount} in charges {period} .'),
+        'You paid {amount} in charges {period}.',
+      );
+      expect(
+        template('here you go ! {amount} went on charges {period} .'),
+        '{amount} went on charges {period}.',
+      );
+      // One after another.
+      expect(
+        template('one moment , okay . you paid {amount} {period} .'),
+        'You paid {amount} {period}.',
+      );
+    });
+
+    test('are matched whatever the case, and only at the start', () {
+      expect(stripOpeners('HERE IT IS. You paid 5.'), 'You paid 5.');
+      expect(stripOpeners('Here You Go: done.'), 'Done.');
+      expect(
+        stripOpeners('You paid {amount}. Here it is.'),
+        'You paid {amount}. Here it is.',
+      );
+      // A word that only starts like one, or one with no mark after it.
+      expect(stripOpeners('Okayish week.'), 'Okayish week.');
+      expect(stripOpeners('Sure enough, it rose.'), 'Sure enough, it rose.');
+    });
+
+    test('a reply that is only filler is no reply', () {
+      expect(template('here it is .'), isNull);
+    });
+
+    test('no template sentence starts with one', () {
+      final opener = RegExp(
+        '^(?:${fillerOpeners.map(RegExp.escape).join('|')})[.,!:]',
+        caseSensitive: false,
+      );
+      for (final t in TemplateReplyWriter.templates.values.expand((t) => t)) {
+        expect(opener.hasMatch(t), isFalse, reason: t);
+        expect(stripOpeners(t), t);
+      }
+    });
+  });
+
   test('the bundled lists match what this app writes', () {
     expect(manifest.incompatibilities(), isEmpty);
     expect(replyPlaceholders, containsAll({'prev_amount', 'list', 'number'}));

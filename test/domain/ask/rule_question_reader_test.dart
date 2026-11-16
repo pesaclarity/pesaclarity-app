@@ -93,6 +93,47 @@ void main() {
       AskIntent.receivedFrom,
       {SlotKind.payee: 'acme', SlotKind.period: 'in 2025'},
     ),
+    // Money in from someone or an own account, however it is put.
+    (
+      'How much did KCB send me?',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'kcb'},
+    ),
+    (
+      'How much has John Kamau sent me this month?',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'john kamau', SlotKind.period: 'this month'},
+    ),
+    (
+      'Did Acme pay me last month?',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'acme'},
+    ),
+    (
+      'What has Example Sacco paid me?',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'example sacco'},
+    ),
+    (
+      'How much did I receive from Acme?',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'acme'},
+    ),
+    (
+      'How much I got from Mama Mboga',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'mama mboga'},
+    ),
+    (
+      'Money received from KCB',
+      AskIntent.receivedFrom,
+      {SlotKind.payee: 'kcb'},
+    ),
+    (
+      'How much did I send to John?',
+      AskIntent.sentTo,
+      {SlotKind.payee: 'john'},
+    ),
     ('Sales today', AskIntent.sales, {SlotKind.period: 'today'}),
     ('How many tomatoes sold this month?', AskIntent.sales, {}),
     (
@@ -162,6 +203,24 @@ void main() {
       }
     });
   }
+
+  test('money in from someone is the rules\' to read', () {
+    for (final q in [
+      'How much did KCB send me?',
+      'KCB sent me how much',
+      'received from Acme',
+      'what I got from Acme',
+    ]) {
+      expect(RuleQuestionReader.readsMoneyInFrom(q), isTrue, reason: q);
+    }
+    for (final q in [
+      'How much did I send to John?',
+      "What's my M-Pesa balance?",
+      'How much did I spend this month?',
+    ]) {
+      expect(RuleQuestionReader.readsMoneyInFrom(q), isFalse, reason: q);
+    }
+  });
 
   test('round-trips as JSON', () {
     final u = reader.read('How much did I spend on food last month?');

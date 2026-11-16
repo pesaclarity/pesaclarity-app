@@ -3,14 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/domain/ask/answer.dart';
 import 'package:pesaclarity/src/domain/ask/context.dart';
+import 'package:pesaclarity/src/domain/ask/reply_writer.dart';
 import 'package:pesaclarity/src/features/ask/application/ask_providers.dart';
 import 'package:pesaclarity/src/features/balances/application/balances_providers.dart';
 import 'package:pesaclarity/src/features/insights/application/insights_providers.dart';
+import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 
 import '../../domain/fixtures.dart';
 import '../../helpers/test_app.dart';
 import '../balances/balances_harness.dart';
+
+String _filled(AskAnswer a) => fillTemplate(
+  a.template,
+  a.facts,
+  money: (minor) => moneyOrHidden(minor, hidden: false, withCurrency: false),
+);
 
 void main() {
   late AppDatabase db;
@@ -47,6 +56,12 @@ void main() {
       // -1,300, and so does Ask.
       expect(mpesa.heldMinor, kes(-1300));
       expect(turn.answer.figureMinor, mpesa.heldMinor);
+      // In words: the amount without a sign, "below zero", and Fuliza,
+      // which is what M-Pesa owes. 1,300 once and no other number.
+      final text = _filled(turn.answer);
+      expect(text, "M-Pesa is 1,300 below zero: that's what you owe Fuliza.");
+      expect(RegExp('1,300').allMatches(text), hasLength(1));
+      expect(text.replaceAll('1,300', '').contains(RegExp('[0-9]')), isFalse);
     },
   );
 
@@ -62,6 +77,10 @@ void main() {
     expect(overview.totalMinor('KES'), kes(-1150));
     expect(turn.answer.figureMinor, overview.totalMinor('KES'));
     expect(turn.answer.totalRows, 4);
+    expect(
+      _filled(turn.answer),
+      "You're 1,150 below zero once Fuliza is counted.",
+    );
   });
 
   test(

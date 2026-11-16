@@ -98,6 +98,36 @@ void main() {
     expect(u.spans.single.kind, SlotKind.account);
     expect(u.spans.single.text, 'm-pesa');
   });
+
+  test(
+    'the rules decide money in from someone, whatever the model says',
+    () async {
+      final m = await manifest();
+      final rules = RuleQuestionReader(today: () => CalendarDate(2026, 11, 16));
+      // A model that reads everything as spending, sure of it.
+      final reader = await loadAskReader(
+        readAsset: asset,
+        openRuntime: (_) => _LabelRuntime(m, intent: 'spent', tags: const {}),
+        fallback: rules,
+      );
+      expect(reader, isA<ModelQuestionReader>());
+      for (final (q, name) in [
+        ('How much did KCB send me?', 'kcb'),
+        ('What has Example Grocers paid me?', 'example grocers'),
+        ('How much did I receive from Acme?', 'acme'),
+        ('Money I got from Acme', 'acme'),
+      ]) {
+        final u = reader.read(q);
+        expect(u.intent, AskIntent.receivedFrom, reason: q);
+        expect(u.span(SlotKind.payee)?.text, name, reason: q);
+      }
+      // Other questions are still the model's.
+      expect(
+        reader.read('How much did I send to John?').intent,
+        AskIntent.spent,
+      );
+    },
+  );
 }
 
 /// Answers in the manifest's own label order, as the exported model does.

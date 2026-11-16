@@ -157,19 +157,14 @@ class RuleQuestionReader implements QuestionReader {
       ),
       AskIntent.compare,
     ),
+    // Before "sent": "KCB sent me" is money in.
+    (_moneyInFrom, AskIntent.receivedFrom),
     (
       RegExp(
         r'\bsent to\b|\bsend to\b|\bsent\b|\bnimetuma\b|\bnilituma\b|'
         r'\btransfer(?:red)? to\b|\bgave\b',
       ),
       AskIntent.sentTo,
-    ),
-    (
-      RegExp(
-        r'\breceived from\b|\bgot from\b|\bpaid me\b|\bsent me\b|'
-        r'\bnimepokea kutoka\b',
-      ),
-      AskIntent.receivedFrom,
     ),
     (
       RegExp(
@@ -187,6 +182,27 @@ class RuleQuestionReader implements QuestionReader {
       AskIntent.spent,
     ),
   ];
+
+  /// Money in from someone or one of the person's own accounts: "X sent
+  /// me", "did X send me", "received from X", "got from X".
+  static final _moneyInFrom = RegExp(
+    r'\breceived? from\b|\b(?:got|get) from\b|\bcame in from\b|'
+    r'\b(?:sent|send|sends|paid|pay|pays|gave|give|gives|transferred|'
+    r'transfer) me\b|\bnimepokea kutoka\b',
+  );
+
+  /// The name before "sent me", "paid me" and the like.
+  static final _senderBefore = RegExp(
+    r"\b([a-z0-9' &.-]+?)\s+(?:sent|send|sends|paid|pay|pays|gave|give|"
+    r'gives|transferred|transfer)\s+me\b',
+  );
+
+  /// Whether [question] is phrased as money in from someone ("did KCB send
+  /// me", "received from Acme"). The rules decide these even when a trained
+  /// reader is bundled, as they read them reliably.
+  static bool readsMoneyInFrom(String question) => _moneyInFrom.hasMatch(
+    question.toLowerCase().replaceAll(RegExp(r"[^a-z0-9' &.-]"), ' '),
+  );
 
   static final _refineStart = RegExp(
     r'^(?:and|but|what about|how about|only|just|na|then|also|ok and|same for)\b',
@@ -430,6 +446,11 @@ class RuleQuestionReader implements QuestionReader {
       if (!_notAnAccount.contains(name)) add(SlotKind.account, name);
     }
 
+    if (intent == AskIntent.receivedFrom) {
+      for (final m in _senderBefore.allMatches(clean)) {
+        add(SlotKind.payee, m.group(1)!);
+      }
+    }
     for (final (pattern, kind) in _entityAfter) {
       for (final m in pattern.allMatches(clean)) {
         var k = kind;

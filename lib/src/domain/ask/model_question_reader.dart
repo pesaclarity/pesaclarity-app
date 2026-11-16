@@ -1,4 +1,5 @@
 import '../reader/reader_tokens.dart';
+import 'rule_question_reader.dart';
 import 'understanding.dart';
 
 /// Runs `ask-reader.tflite`: the message reader's input encoding
@@ -91,6 +92,12 @@ class ModelQuestionReader implements QuestionReader {
 
   @override
   Understanding read(String question) {
+    // "How much did KCB send me?" is money in. The rules read these
+    // phrasings reliably, so they decide them, as they name accounts.
+    if (fallback is RuleQuestionReader &&
+        RuleQuestionReader.readsMoneyInFrom(question)) {
+      return fallback.read(question);
+    }
     final tokens = tokenise(question);
     final List<List<double>> slots;
     final List<double> intents;

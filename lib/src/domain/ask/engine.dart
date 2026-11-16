@@ -96,8 +96,9 @@ class AskEngine {
       );
     }
 
+    final entities = await source.entities();
     final matcher = EntityMatcher(
-      await source.entities(),
+      entities,
       shortcuts: await source.shortcuts(),
     );
     final named = <SlotKind, AskEntity>{};
@@ -106,7 +107,14 @@ class AskEngine {
       if (span.kind == SlotKind.period || span.kind == SlotKind.amount) {
         continue;
       }
-      final result = matcher.match(span.text, _kindsFor(span.kind, intent));
+      // "How much did KCB send me?": money from one of the person's own
+      // accounts, named exactly, is that account, not a payee.
+      final own = intent == AskIntent.receivedFrom
+          ? _ownAccount(entities, span.text)
+          : null;
+      final result = own != null
+          ? Matched(own)
+          : matcher.match(span.text, _kindsFor(span.kind, intent));
       switch (result) {
         case Matched(:final entity):
           named.putIfAbsent(entity.kind, () => entity);
@@ -195,6 +203,10 @@ class AskEngine {
     final q = _Query(context, today, now, seed);
     return switch (intent) {
       AskIntent.spent => _total(q, _Flow.spent),
+      AskIntent.receivedFrom
+          when context.entities.containsKey(SlotKind.account) &&
+              !context.entities.containsKey(SlotKind.payee) =>
+        _fromOwnAccount(q),
       AskIntent.received || AskIntent.receivedFrom => _total(q, _Flow.received),
       AskIntent.sentTo => _total(q, _Flow.sent),
       AskIntent.countPayments => _count(q),
@@ -371,6 +383,67 @@ class AskEngine {
       link: AskLink.activity,
       suggestions: _followUps(q, period, only: byWho.firstOrNull?.title),
     );
+  }
+
+  /// What one of the person's own accounts moved into their others. That
+  /// is never money in, so the reply says which it is.
+  Future<AskAnswer> _fromOwnAccount(_Query q) async {
+    final period = q.period(AskPeriod.thisMonth(q.today));
+    final account = q.context.entities[SlotKind.account]!;
+    final all = await source.entries(period.fromInstant, period.toInstant);
+    final moved = [
+      for (final e in all)
+        if (e.currency == BaseCurrency.code &&
+            period.contains(e.date) &&
+            e.isOutflow &&
+            roleOf(e) == LedgerRole.ownTransfer &&
+            _isKey(account.key, 'a', e.accountId))
+          e,
+    ];
+    final names = await _names(SlotKind.account);
+    final byId = {for (final e in all) e.id: e};
+    final into = <String, (int, int)>{};
+    for (final e in moved) {
+      final to = e.transferAccountId ?? byId[e.transferPairId]?.accountId;
+      final name = names[to] ?? 'Your other accounts';
+      final (sum, n) = into[name] ?? (0, 0);
+      into[name] = (sum + e.amountMinor, n + 1);
+    }
+    final rows = [
+      for (final MapEntry(:key, value: (sum, n)) in into.entries)
+        AskRow(key, detail: _plural(n, 'transfer'), amountMinor: sum),
+    ]..sort((a, b) => b.amountMinor!.compareTo(a.amountMinor!));
+    final amount = _sum(moved);
+    return _answer(
+      q,
+      moved.isEmpty ? ReplyKind.noOwnTransfers : ReplyKind.ownTransfers,
+      {
+        'account': account.name,
+        'amount': amount,
+        'period': period.phrase(q.today),
+        'count': _plural(moved.length, 'transfer'),
+      },
+      headline:
+          '${account.name} to your other accounts · '
+          '${period.label(q.today)}',
+      figure: amount,
+      rows: rows.take(askRowsShown).toList(),
+      totalRows: rows.length,
+      link: AskLink.activity,
+      suggestions: _followUps(q, period),
+    );
+  }
+
+  /// The account in [entities] whose name is exactly [text], if any.
+  static AskEntity? _ownAccount(List<AskEntity> entities, String text) {
+    final name = normaliseName(text);
+    if (name.isEmpty) return null;
+    for (final e in entities) {
+      if (e.kind == SlotKind.account && normaliseName(e.name) == name) {
+        return e;
+      }
+    }
+    return null;
   }
 
   /// The payee's part of the category, when both are asked.
@@ -551,13 +624,45 @@ class AskEngine {
         'period': period.phrase(q.today),
       }, words: _nodata(const {}));
     }
-    final top = rows.take(askRowsShown).toList();
+    final total = _sum(entries);
+    final sorted = [
+      for (final r in rows)
+        if (r.title != _notSorted) r,
+    ];
+    final unsorted = rows.first.title == _notSorted ? rows.first : null;
+    if (unsorted != null) {
+      // "Not sorted yet" is no category: say how much is waiting, and name
+      // the biggest one there is. The writer would name it as a category.
+      final top = sorted.firstOrNull;
+      return _answer(
+        q,
+        top == null
+            ? ReplyKind.unsortedAll
+            : unsorted.amountMinor! * 2 > total
+            ? ReplyKind.unsortedMost
+            : ReplyKind.unsortedTop,
+        {
+          'amount': unsorted.amountMinor!,
+          'period': period.phrase(q.today),
+          'category': ?top?.title,
+          'top_amount': ?top?.amountMinor,
+        },
+        headline: 'Spending · ${period.label(q.today)}',
+        figure: total,
+        rows: rows.take(askRowsShown + 2).toList(),
+        totalRows: rows.length,
+        link: AskLink.insights,
+        suggestions: _followUps(q, period),
+      );
+    }
+    final top = sorted.take(askRowsShown).toList();
     return _answer(
       q,
       ReplyKind.topCategories,
       {
         'category': rows.first.title,
         'period': period.phrase(q.today),
+        // Real categories only: "Not sorted yet" is not one to list.
         'list': _joinNames([for (final r in top) r.title]),
       },
       words: WriterFacts(
@@ -566,7 +671,7 @@ class AskEngine {
         given: const {'list', 'category', 'period'},
       ),
       headline: 'Spending · ${period.label(q.today)}',
-      figure: _sum(entries),
+      figure: total,
       rows: rows.take(askRowsShown + 2).toList(),
       totalRows: rows.length,
       link: AskLink.insights,
@@ -653,9 +758,16 @@ class AskEngine {
     final now = _filter(all, q.context, flow, current);
     final before = _filter(all, q.context, flow, prev);
     final change = _sum(now) - _sum(before);
-    final kind = change.abs() * 20 <= _sum(before)
-        ? ReplyKind.compareSame
-        : (change > 0 ? ReplyKind.compareUp : ReplyKind.compareDown);
+    // A period with nothing in it is "nothing in October", never "the 0 of
+    // October". The writer has no words for that, so these keep templates.
+    final kind = switch ((_sum(now), _sum(before))) {
+      (0, 0) => ReplyKind.nothing,
+      (_, 0) => ReplyKind.spentFromNothing,
+      (0, _) => ReplyKind.spentToNothing,
+      _ when change.abs() * 20 <= _sum(before) => ReplyKind.compareSame,
+      _ => change > 0 ? ReplyKind.compareUp : ReplyKind.compareDown,
+    };
+    final fromNothing = _sum(now) == 0 || _sum(before) == 0;
     final named = _named(q.context);
     return _answer(
       q,
@@ -669,7 +781,7 @@ class AskEngine {
         'period': current.phrase(q.today),
       },
       // "You spent ... more than ...": money out only.
-      words: flow == _Flow.received
+      words: flow == _Flow.received || fromNothing
           ? null
           : WriterFacts(
               'compare',
@@ -916,27 +1028,47 @@ class AskEngine {
           if (normaliseName(l.name) == normaliseName(account.name)) l,
       ];
     }
+    final one = account != null && lines.length == 1 ? lines.single : null;
+    // As the Balances total: savings are left out unless asked about.
+    final counted = account != null || lines.every((l) => l.savings)
+        ? lines
+        : [
+            for (final l in lines)
+              if (!l.savings) l,
+          ];
+    final figure = counted.fold(0, (s, l) => s + l.amountMinor);
+    final fuliza = counted.any((l) => l.fulizaOwedMinor > 0);
+    // At or below zero, the words say so and the amount shows without a
+    // sign. The writer has no words for it, so these keep their templates.
+    final kind = switch (figure) {
+      > 0 => ReplyKind.balance,
+      0 => one != null ? ReplyKind.accountEmpty : ReplyKind.totalEmpty,
+      _ when one != null && one.fulizaOwedMinor == -figure =>
+        ReplyKind.accountOwesFuliza,
+      _ when one != null && fuliza => ReplyKind.accountBelowFuliza,
+      _ when one != null => ReplyKind.accountBelow,
+      _ when fuliza => ReplyKind.totalBelowFuliza,
+      _ => ReplyKind.totalBelow,
+    };
     return _lines(
       q,
       lines,
-      some: ReplyKind.balance,
+      some: kind,
       none: ReplyKind.nothing,
       headline: 'Balance · now',
       count: (n) => _plural(n, 'account'),
       detail: (l) => l.savings ? 'Savings' : null,
       extra: (lines) => {
-        if (account != null && lines.length == 1) 'account': lines.single.name,
+        'account': ?one?.name,
+        if (figure < 0) 'amount': -figure,
       },
-      words: (lines) => WriterFacts(
-        'balance',
-        given: {'amount', if (account != null && lines.length == 1) 'account'},
-      ),
-      // As the Balances total: savings are left out unless asked about.
-      total: account != null || lines.every((l) => l.savings)
+      words: (lines) => kind != ReplyKind.balance
           ? null
-          : (lines) => lines
-                .where((l) => !l.savings)
-                .fold(0, (s, l) => s + l.amountMinor),
+          : WriterFacts(
+              'balance',
+              given: {'amount', if (one != null) 'account'},
+            ),
+      total: (_) => figure,
     );
   }
 
@@ -1290,7 +1422,7 @@ class AskEngine {
     return [
       for (final MapEntry(:key, :value) in rows)
         AskRow(
-          names[key] ?? 'Not sorted yet',
+          names[key] ?? _notSorted,
           detail: _payments(value.$2),
           amountMinor: value.$1,
         ),
@@ -1480,6 +1612,9 @@ class AskEngine {
 
 enum _Flow { spent, received, sent }
 
+/// The row for spending with no category yet, as Insights calls it.
+const _notSorted = 'Not sorted yet';
+
 class _Query {
   _Query(this.context, this.today, this.now, this.seed);
 
@@ -1517,6 +1652,7 @@ String conversationTitle(AskContext context, CalendarDate today) {
   final category = context.entities[SlotKind.category]?.name;
   final payee = context.entities[SlotKind.payee]?.name;
   final item = context.entities[SlotKind.item]?.name;
+  final account = context.entities[SlotKind.account]?.name;
   final when = context.period?.phrase(today);
   String withWhen(String s) => when == null ? s : '$s $when';
   final text = switch (intent) {
@@ -1531,6 +1667,8 @@ String conversationTitle(AskContext context, CalendarDate today) {
     AskIntent.spent when payee != null => 'Money sent to $payee',
     AskIntent.received ||
     AskIntent.receivedFrom when payee != null => 'Money from $payee',
+    AskIntent.receivedFrom when account != null =>
+      'Moved from $account to my other accounts',
     AskIntent.received => withWhen('Money in'),
     AskIntent.spent || AskIntent.trend => withWhen('Spending'),
     AskIntent.safeToSpend => 'What is safe to spend',
