@@ -50,7 +50,8 @@ class AskReaderManifest {
   final int maxTokens;
   final int hashBuckets;
 
-  /// `other`, then BIO labels such as `B-category`, `I-category`.
+  /// `other`, then one label per slot such as `category` (BIO labels such
+  /// as `B-category` are read too).
   final List<String> slotLabels;
 
   /// [AskIntent.label]s in output order.
@@ -69,11 +70,10 @@ class AskReaderManifest {
   ];
 }
 
-SlotKind? _slotOf(String label) {
-  final dash = label.indexOf('-');
-  if (dash < 0) return null;
-  return SlotKind.values.asNameMap()[label.substring(dash + 1)];
-}
+/// The slot a label tags: plain (`category`, as pesaclarity-ml exports
+/// them) or BIO (`B-category`, `I-category`). Null for `other`.
+SlotKind? _slotOf(String label) =>
+    SlotKind.values.asNameMap()[label.substring(label.indexOf('-') + 1)];
 
 /// The trained question reader. Falls back to [fallback] when unsure.
 class ModelQuestionReader implements QuestionReader {

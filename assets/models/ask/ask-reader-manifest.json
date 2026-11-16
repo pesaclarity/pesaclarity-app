@@ -1,0 +1,75 @@
+{
+  "model_file": "ask-reader.tflite",
+  "model_sha256": "10baeef032ca33a7d613e230f8087a34a1bf763d024c020d917a720c1503817d",
+  "model_size_bytes": 216872,
+  "ask_schema_version": 1,
+  "reader_schema_version": 1,
+  "max_tokens": 96,
+  "hash_buckets": 4096,
+  "input": {
+    "name": "question",
+    "dtype": "int32",
+    "shape": [
+      -1,
+      192
+    ],
+    "encoding": "the message reader's encode(), unchanged (docs/READER.md)"
+  },
+  "outputs": {
+    "intent": {
+      "shape": [
+        -1,
+        30
+      ],
+      "labels": [
+        "spent",
+        "received",
+        "sent_to",
+        "received_from",
+        "count_payments",
+        "biggest_payment",
+        "top_payees",
+        "top_categories",
+        "trend",
+        "compare",
+        "bills_due",
+        "subscriptions",
+        "debts",
+        "lent",
+        "safe_to_spend",
+        "balance",
+        "goals",
+        "income_sources",
+        "sales",
+        "top_items",
+        "profit",
+        "low_stock",
+        "who_owes_me",
+        "fees",
+        "refine",
+        "hi",
+        "thanks",
+        "bye",
+        "help",
+        "out_of_scope"
+      ]
+    },
+    "slots": {
+      "shape": [
+        -1,
+        96,
+        7
+      ],
+      "labels": [
+        "other",
+        "category",
+        "payee",
+        "period",
+        "item",
+        "account",
+        "amount"
+      ]
+    }
+  },
+  "trained_on": "synthetic questions only"
+}

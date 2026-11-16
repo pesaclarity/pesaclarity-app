@@ -245,6 +245,15 @@ Shortcuts only passes messages as they arrive; iOS gives no way to read the mess
 - **My accounts.** Profile › My accounts lists each account and its currency: from its messages for accounts that messages feed, and chosen for accounts added by hand (Cash), where a new currency applies to new amounts and the opening balance converts at the rate of its date. **Add or remove accounts** switches institutions on or off.
 - **Currency converter.** Profile › Base currency › **Currency converter** converts any amount between any two currencies at the latest rates or the person's own, and shows it in their other currencies too; it works offline with the last rates.
 
+## Ask
+
+Questions about your money, answered on the phone from the open space's own records (ADR 0017, `lib/src/features/ask`). Nothing is sent anywhere and Ask has no federated learning.
+
+- **Reader.** `assets/models/ask/ask-reader.tflite` with `ask-reader-manifest.json`, exported by pesaclarity-ml (`akili ask-reader`, at dfb9c24 on its `dev`) from synthetic questions only. The app checks the file's size and SHA-256 against the manifest and every label against what it knows, and otherwise uses `RuleQuestionReader`, which also takes over when the model is unsure. To update it, export again and copy both files here.
+- **Replies.** Sentences come from `TemplateReplyWriter`; the trained writer (`ask-writer.tflite`) is not wired in yet.
+- **Numbers.** Every figure comes from the same providers the screens use: balances from the Balances screen's (the journal, Fuliza owed taken off), charges as Insights counts them, safe to spend from Home's.
+- **Conversations** are kept in the space's encrypted database for as long as Ask settings say, and backups leave them out.
+
 ## Support
 
 Every feature is free; giving never unlocks anything (`lib/src/features/support`).

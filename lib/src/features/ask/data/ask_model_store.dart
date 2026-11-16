@@ -5,7 +5,7 @@ import '../../../domain/ask/model_question_reader.dart';
 import '../../../domain/ask/understanding.dart';
 import '../../categoriser/data/model_store.dart' show sha256Hex;
 
-/// Where Ask's models ship in the app, once pesaclarity-ml publishes them.
+/// Where Ask's models ship in the app, as pesaclarity-ml exports them.
 const askModelFolder = 'assets/models/ask';
 
 /// The question reader's manifest, beside `ask-reader.tflite`.
