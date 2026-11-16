@@ -228,15 +228,7 @@ void _expectWhole(WidgetTester tester, String value, {required Type within}) {
   final card = tester.getRect(
     find.ancestor(of: finder, matching: find.byType(within)).first,
   );
-  if (scroll.evaluate().isEmpty) {
-    final rect = tester.getRect(finder);
-    expect(
-      card.contains(rect.topLeft) &&
-          card.contains(rect.bottomRight - const Offset(0.01, 0.01)),
-      isTrue,
-      reason: '$value sits inside its card',
-    );
-  } else {
+  if (scroll.evaluate().isNotEmpty) {
     // Only where it cannot fit any line: it scrolls, whole.
     final position = tester
         .state<ScrollableState>(
@@ -249,5 +241,23 @@ void _expectWhole(WidgetTester tester, String value, {required Type within}) {
       reason: 'all of $value can be scrolled into view',
     );
     expect(tester.getRect(scroll).right, lessThanOrEqualTo(card.right));
+    expect(
+      find.ancestor(of: scroll, matching: find.byType(ShaderMask)),
+      findsOneWidget,
+      reason: 'the hidden side of $value fades, so it reads as cut short',
+    );
+  } else {
+    expect(
+      find.ancestor(of: finder, matching: find.byType(ShaderMask)),
+      findsNothing,
+      reason: 'a figure that fits has no fade',
+    );
+    final rect = tester.getRect(finder);
+    expect(
+      card.contains(rect.topLeft) &&
+          card.contains(rect.bottomRight - const Offset(0.01, 0.01)),
+      isTrue,
+      reason: '$value sits inside its card',
+    );
   }
 }

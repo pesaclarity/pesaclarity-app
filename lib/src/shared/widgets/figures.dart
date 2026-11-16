@@ -44,12 +44,77 @@ class FigureText extends StatelessWidget {
         // space before it.
         return Text(value, style: style);
       }
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Text(value, style: style, softWrap: false),
-      );
+      return _FadingScroll(child: Text(value, style: style, softWrap: false));
     },
   );
+}
+
+/// [child] scrolling sideways, its edges fading out on the side where more
+/// of it is hidden, so it reads as cut short on purpose, not as a wrong
+/// number. At each end the fade on that side goes.
+class _FadingScroll extends StatefulWidget {
+  const _FadingScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FadingScroll> createState() => _FadingScrollState();
+}
+
+class _FadingScrollState extends State<_FadingScroll> {
+  /// How far in from an edge the fade runs.
+  static const _fade = 28.0;
+
+  var _atStart = true;
+  var _atEnd = false;
+
+  bool _onMetrics(ScrollMetrics m) {
+    final atStart = m.pixels <= m.minScrollExtent;
+    final atEnd = m.pixels >= m.maxScrollExtent;
+    if (atStart != _atStart || atEnd != _atEnd) {
+      setState(() {
+        _atStart = atStart;
+        _atEnd = atEnd;
+      });
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    // Faded where more is hidden: the left edge in left-to-right text is
+    // the start.
+    final fadeLeft = rtl ? !_atEnd : !_atStart;
+    final fadeRight = rtl ? !_atStart : !_atEnd;
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (n) => _onMetrics(n.metrics),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) => _onMetrics(n.metrics),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) {
+            final edge = rect.width <= 0
+                ? 0.0
+                : (_fade / rect.width).clamp(0.0, 0.5);
+            return LinearGradient(
+              colors: [
+                fadeLeft ? Colors.transparent : Colors.black,
+                Colors.black,
+                Colors.black,
+                fadeRight ? Colors.transparent : Colors.black,
+              ],
+              stops: [0, edge, 1 - edge, 1],
+            ).createShader(rect);
+          },
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The width of [text] on one line in [style], at the phone's text size.
