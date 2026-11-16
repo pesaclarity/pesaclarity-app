@@ -174,10 +174,7 @@ void main() {
         });
         await _pump(tester, db, size: Size(width, 2400), textScale: 2);
 
-        // The tab's title row is too wide at 2x on a narrow phone, a separate
-        // matter from the amounts: take its overflow report and check each
-        // figure lies inside its own tile instead.
-        tester.takeException();
+        expect(tester.takeException(), isNull);
         for (final figure in ['24,330.50', '102,865', '1,200']) {
           final paragraph = tester.renderObject<RenderParagraph>(
             find.text(figure),
