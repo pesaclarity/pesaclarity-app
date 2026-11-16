@@ -306,6 +306,24 @@ class RuleQuestionReader implements QuestionReader {
     r'\b(?:my |the |on |in |from )?([a-z0-9-]+(?: [a-z0-9]+)?) account\b',
   );
 
+  /// "my M-Pesa balance", "the KCB balance": an account named before
+  /// "balance".
+  static final _balanceOf = RegExp(
+    r'(?:^|\s)(?:my |the |on |in )?([a-z0-9][a-z0-9-]*(?: [a-z0-9][a-z0-9-]*)?) balance\b',
+  );
+
+  /// Words before "balance" that name no account.
+  static const _notAnAccount = {
+    'total',
+    'current',
+    'whole',
+    'overall',
+    'available',
+    'actual',
+    'account',
+    'accounts',
+  };
+
   static final _amount = RegExp(
     r'\b(?:over|above|more than|bigger than|at least)\s+(?:kes\s*|ksh\s*)?([0-9][0-9,]*)',
   );
@@ -398,7 +416,12 @@ class RuleQuestionReader implements QuestionReader {
     }
 
     final account = _account.firstMatch(clean);
-    if (account != null) add(SlotKind.account, account.group(1)!);
+    if (account != null) {
+      add(SlotKind.account, account.group(1)!);
+    } else if (_balanceOf.firstMatch(clean) case final m?) {
+      final name = _trim(m.group(1)!);
+      if (!_notAnAccount.contains(name)) add(SlotKind.account, name);
+    }
 
     for (final (pattern, kind) in _entityAfter) {
       for (final m in pattern.allMatches(clean)) {

@@ -11,6 +11,7 @@ class AskLine {
     this.count,
     this.date,
     this.extraMinor,
+    this.savings = false,
   });
 
   final String name;
@@ -24,6 +25,9 @@ class AskLine {
 
   /// A second amount, such as a goal's target.
   final int? extraMinor;
+
+  /// A savings account, which the Balances total leaves out.
+  final bool savings;
 }
 
 /// Safe to spend as Home works it out.
@@ -67,7 +71,7 @@ abstract interface class AskDataSource {
   /// Each with what is saved and, as [AskLine.extraMinor], the target.
   Future<List<AskLine>> goals();
 
-  /// Each account and its balance now.
+  /// Each account and its balance now, as the Balances screen shows it.
   Future<List<AskLine>> balances();
 
   /// Sales in [period]: the total and how many, as one line.

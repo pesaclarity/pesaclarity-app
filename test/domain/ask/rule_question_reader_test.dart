@@ -46,7 +46,14 @@ void main() {
     ('Show my subscriptions', AskIntent.subscriptions, {}),
     ('How are my goals?', AskIntent.goals, {}),
     ('How much have I lent out?', AskIntent.lent, {}),
-    ("What's my M-Pesa balance?", AskIntent.balance, {}),
+    (
+      "What's my M-Pesa balance?",
+      AskIntent.balance,
+      {SlotKind.account: 'm-pesa'},
+    ),
+    ("What's my balance?", AskIntent.balance, {}),
+    ('What is my total balance?', AskIntent.balance, {}),
+    ('KCB account balance', AskIntent.balance, {SlotKind.account: 'kcb'}),
     ('How much money do I have?', AskIntent.balance, {}),
     (
       'How many times did I pay Naivas in October?',

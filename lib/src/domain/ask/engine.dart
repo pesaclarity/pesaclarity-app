@@ -617,19 +617,21 @@ class AskEngine {
     required ReplyKind none,
     required String headline,
     required String Function(int n) count,
-    String Function(AskLine l)? detail,
+    String? Function(AskLine l)? detail,
     Map<String, Object> Function(List<AskLine> lines)? extra,
+    int Function(List<AskLine> lines)? total,
     AskLink? link,
     List<String> suggestions = const [],
   }) async {
     if (lines.isEmpty) return _answer(q, none, const {}, link: link);
-    final total = lines.fold(0, (s, l) => s + l.amountMinor);
+    final figure =
+        total?.call(lines) ?? lines.fold<int>(0, (s, l) => s + l.amountMinor);
     return _answer(
       q,
       some,
       {'count': count(lines.length), ...?extra?.call(lines)},
       headline: headline,
-      figure: total,
+      figure: figure,
       rows: [
         for (final l in lines.take(askRowsShown))
           AskRow(l.name, detail: detail?.call(l), amountMinor: l.amountMinor),
@@ -724,6 +726,13 @@ class AskEngine {
       none: ReplyKind.nothing,
       headline: 'Balance · now',
       count: (n) => _plural(n, 'account'),
+      detail: (l) => l.savings ? 'Savings' : null,
+      // As the Balances total: savings are left out unless asked about.
+      total: account != null || lines.every((l) => l.savings)
+          ? null
+          : (lines) => lines
+                .where((l) => !l.savings)
+                .fold(0, (s, l) => s + l.amountMinor),
     );
   }
 

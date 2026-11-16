@@ -5,7 +5,6 @@ import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
-import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/ask_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/goals_repository.dart';
@@ -16,10 +15,10 @@ import '../../../domain/ask/matcher.dart';
 import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/understanding.dart';
 import '../../../domain/books/business_report.dart';
-import '../../../domain/ledger/balances.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
+import '../../balances/application/balances_providers.dart';
 import '../../business_insights/application/business_report_providers.dart';
 import '../../home/application/safe_to_spend_provider.dart';
 import '../../home/application/upcoming_bills_provider.dart';
@@ -30,8 +29,9 @@ import '../../subscriptions/application/subscriptions_providers.dart';
 
 /// [AskDataSource] on the open space's database. Every figure comes from
 /// the same repositories and providers the app's screens use: safe to spend
-/// from Home's provider, bills from Coming up, debts from the debt planner,
-/// profit from Business insights.
+/// from Home's provider, balances from the Balances screen's (the journal),
+/// bills from Coming up, debts from the debt planner, profit from Business
+/// insights.
 class AppAskDataSource implements AskDataSource {
   AppAskDataSource(this._ref);
 
@@ -140,24 +140,14 @@ class AppAskDataSource implements AskDataSource {
         AskLine(g.name, g.savedMinor, extraMinor: g.targetMinor),
   ];
 
+  /// Each account as the Balances screen shows it, from the same provider:
+  /// read from the journal, with Fuliza owed taken off M-Pesa.
   @override
-  Future<List<AskLine>> balances() async {
-    final accounts = await _ref.read(accountsRepositoryProvider).openings();
-    if (accounts.isEmpty) return const [];
-    final names = {
-      for (final a in await _db.select(_db.accounts).get()) a.id: a.name,
-    };
-    final start = accounts
-        .map((a) => a.openingDate)
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-    final now = _ref.read(clockProvider)();
-    final entries = await this.entries(start, now.add(const Duration(days: 1)));
-    return [
-      for (final a in accounts)
-        if (a.currency == BaseCurrency.code)
-          AskLine(names[a.id] ?? 'Account', balanceAt(a, entries, at: now)),
-    ];
-  }
+  Future<List<AskLine>> balances() async => [
+    for (final a in (await _ref.read(balancesOverviewProvider.future)).accounts)
+      if (a.opening.currency == BaseCurrency.code)
+        AskLine(a.account.name, a.heldMinor, savings: a.isSavings),
+  ];
 
   @override
   Future<AskLine> sales(AskPeriod period) async {
