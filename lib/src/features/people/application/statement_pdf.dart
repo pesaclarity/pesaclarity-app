@@ -13,7 +13,7 @@ import '../../../domain/books/business_report.dart'
 import '../../../domain/documents/document_settings.dart';
 import '../../../domain/people/people.dart';
 import '../../../domain/time/calendar.dart';
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/pdf_palette.dart';
 import '../../documents/application/document_providers.dart';
 import '../../insights/application/report_sharer.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -36,11 +36,10 @@ Future<Uint8List> renderStatementPdf({
   required CalendarDate today,
   Uint8List? logo,
 }) {
-  final brand = PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final text = PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final muted = PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final soft = PdfColor.fromInt(BrandTokens.brandSoft.toARGB32());
+  final palette = PdfPalette.light;
+  final text = palette.text;
+  final muted = palette.muted;
+  final line = palette.line;
   String plain(int minor) {
     final p = formatMoney(Money(minor.abs()), withCurrency: false);
     return minor < 0 ? '- $p' : p;
@@ -53,7 +52,6 @@ Future<Uint8List> renderStatementPdf({
     balance += l.amountMinor;
     rows.add([_date(l.date), l.label, plain(l.amountMinor), plain(balance)]);
   }
-  final theme = pw.ThemeData.base();
   final doc = pw.Document(
     title: _latin1('Statement for ${customer.name}'),
     author: _latin1(business),
@@ -76,21 +74,16 @@ Future<Uint8List> renderStatementPdf({
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 28),
-      theme: theme.copyWith(
-        defaultTextStyle: theme.defaultTextStyle.copyWith(
-          color: text,
-          fontSize: 10,
-        ),
-      ),
+      theme: palette.theme(),
       header: (context) => pw.Column(
         children: [
-          pw.Container(height: 4, color: brand),
+          pw.Container(height: 4, color: palette.accent),
           pw.SizedBox(height: 24),
         ],
       ),
       footer: (context) => pw.Column(
         children: [
-          pw.Divider(color: border),
+          pw.Divider(color: line),
           pw.Row(
             children: [
               pw.Expanded(
@@ -142,7 +135,7 @@ Future<Uint8List> renderStatementPdf({
                   style: pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
-                    color: brand,
+                    color: text,
                   ),
                 ),
                 pw.Text(
@@ -171,11 +164,11 @@ Future<Uint8List> renderStatementPdf({
             3: pw.FlexColumnWidth(1.3),
           },
           border: pw.TableBorder(
-            horizontalInside: pw.BorderSide(color: border, width: 0.5),
+            horizontalInside: pw.BorderSide(color: line, width: 0.5),
           ),
           children: [
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: soft),
+              decoration: pw.BoxDecoration(color: palette.headerFill),
               children: [
                 cell('Date', head: true),
                 cell('What', head: true),
@@ -203,7 +196,7 @@ Future<Uint8List> renderStatementPdf({
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
-                color: brand,
+                color: text,
               ),
             ),
           ],

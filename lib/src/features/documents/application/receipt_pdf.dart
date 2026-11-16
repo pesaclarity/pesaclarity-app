@@ -10,7 +10,7 @@ import '../../../domain/enums.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/format/date_labels.dart' show formatTime;
-import '../../../theme/brand_tokens.dart';
+import '../../../theme/pdf_palette.dart';
 
 /// The receipt's date and time as it prints: `5 Nov 2026 · 14:41`.
 String receiptWhen(DateTime at) =>
@@ -25,24 +25,12 @@ Future<Uint8List> renderReceiptPdf(
   Uint8List? logo,
 }) {
   // Black and white prints cleanly on a thermal till printer.
-  final mono = r.blackAndWhite;
-  final brand = mono
-      ? PdfColors.black
-      : PdfColor.fromInt(BrandTokens.brand.toARGB32());
-  final text = mono
-      ? PdfColors.black
-      : PdfColor.fromInt(BrandTokens.text.toARGB32());
-  final muted = mono
-      ? PdfColors.black
-      : PdfColor.fromInt(BrandTokens.textMuted.toARGB32());
-  final border = mono
-      ? PdfColors.black
-      : PdfColor.fromInt(BrandTokens.border.toARGB32());
-  final success = mono
-      ? PdfColors.black
-      : PdfColor.fromInt(BrandTokens.success.toARGB32());
+  final palette = PdfPalette.receipt(blackAndWhite: r.blackAndWhite);
+  final accent = palette.accent;
+  final muted = palette.muted;
+  final line = palette.line;
+  final success = palette.success;
   String plain(int minor) => formatMoney(Money(minor), withCurrency: false);
-  final theme = pw.ThemeData.base();
 
   pw.Widget dashed() => pw.Padding(
     padding: const pw.EdgeInsets.symmetric(vertical: 6),
@@ -50,7 +38,7 @@ Future<Uint8List> renderReceiptPdf(
       height: 0.6,
       decoration: pw.BoxDecoration(
         border: pw.Border(
-          top: pw.BorderSide(color: border, style: pw.BorderStyle.dashed),
+          top: pw.BorderSide(color: line, style: pw.BorderStyle.dashed),
         ),
       ),
     ),
@@ -69,16 +57,11 @@ Future<Uint8List> renderReceiptPdf(
         double.infinity,
         marginAll: 5 * PdfPageFormat.mm,
       ),
-      theme: theme.copyWith(
-        defaultTextStyle: theme.defaultTextStyle.copyWith(
-          color: text,
-          fontSize: 8,
-        ),
-      ),
+      theme: palette.theme(fontSize: 8),
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          pw.Container(height: 2, color: brand),
+          pw.Container(height: 2, color: accent),
           pw.SizedBox(height: 8),
           pw.Center(
             child: logo != null
@@ -88,13 +71,13 @@ Future<Uint8List> renderReceiptPdf(
                     height: 26,
                     alignment: pw.Alignment.center,
                     decoration: pw.BoxDecoration(
-                      color: brand,
+                      color: accent,
                       borderRadius: pw.BorderRadius.circular(6),
                     ),
                     child: pw.Text(
                       _latin1(initials),
-                      style: const pw.TextStyle(
-                        color: PdfColors.white,
+                      style: pw.TextStyle(
+                        color: palette.onAccent,
                         fontWeight: pw.FontWeight.bold,
                         fontSize: 10,
                       ),
@@ -166,10 +149,11 @@ Future<Uint8List> renderReceiptPdf(
           pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3),
             decoration: pw.BoxDecoration(
-              color: mono
-                  ? null
-                  : PdfColor(success.red, success.green, success.blue, 0.12),
-              border: mono ? pw.Border.all(width: 0.6) : null,
+              color: palette.successFill,
+              // Without a fill, as on a thermal printer, a thin outline.
+              border: palette.successFill == null
+                  ? pw.Border.all(color: line, width: 0.6)
+                  : null,
               borderRadius: pw.BorderRadius.circular(3),
             ),
             child: pw.Text(
