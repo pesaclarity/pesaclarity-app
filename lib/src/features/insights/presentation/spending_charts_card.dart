@@ -25,11 +25,14 @@ String _amount(BuildContext context, int minor) =>
 /// as hue. The last is for "Other".
 List<Color> chartSeries(BuildContext context) {
   final colors = PesaColors.of(context);
+  // Neutral first: red is the accent for actions and progress, and would
+  // read as a warning on spending.
+  final ink = Theme.of(context).colorScheme.onSurface;
   return [
-    colors.link,
+    ink,
     colors.warning,
     colors.success,
-    colors.link.withValues(alpha: .45),
+    ink.withValues(alpha: .45),
     colors.textMuted,
     colors.border,
   ];

@@ -46,7 +46,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
 
   /// [light] for the phone's high-contrast setting.
   static final lightHighContrast = light.copyWith(
-    link: BrandTokens.hcText,
+    link: BrandTokens.brandLink,
     border: BrandTokens.hcBorder,
     textMuted: BrandTokens.hcTextMuted,
   );
@@ -73,7 +73,7 @@ class PesaColors extends ThemeExtension<PesaColors> {
 
   /// [dark] for the phone's high-contrast setting.
   static final darkHighContrast = dark.copyWith(
-    link: BrandTokens.darkHcText,
+    link: BrandTokens.darkBrandLink,
     border: BrandTokens.darkHcBorder,
     textMuted: BrandTokens.darkHcTextMuted,
   );

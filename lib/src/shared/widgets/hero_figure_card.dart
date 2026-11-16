@@ -183,8 +183,8 @@ class HeroProgress extends StatelessWidget {
           child: LinearProgressIndicator(
             value: value,
             minHeight: 8,
-            // The text colour on a neutral track, as other bars are.
-            color: theme.colorScheme.onSurface,
+            // The brand accent on a neutral track, as other bars are.
+            color: colors.link,
             backgroundColor: colors.border,
           ),
         ),
