@@ -102,7 +102,7 @@ class AskEngine {
       shortcuts: await source.shortcuts(),
     );
     final named = <SlotKind, AskEntity>{};
-    String? missing;
+    AskSpan? missing;
     for (final span in understanding.spans) {
       if (span.kind == SlotKind.period || span.kind == SlotKind.amount) {
         continue;
@@ -132,7 +132,20 @@ class AskEngine {
             await _clarify(span.text, candidates, merged, now, seed),
           );
         case NoMatch():
-          missing ??= span.text;
+          // Debts, bills and the like are named in their own lists, not
+          // always as payees: look for the words there.
+          if (_listsByName.contains(intent)) {
+            named.putIfAbsent(
+              span.kind,
+              () => AskEntity(
+                span.kind,
+                'q:${normaliseName(span.text)}',
+                _titleWords(span.text),
+              ),
+            );
+          } else {
+            missing ??= span;
+          }
       }
     }
 
@@ -143,28 +156,81 @@ class AskEngine {
       period: periodSpan == null ? null : parsePeriod(periodSpan.text, today),
       now: now,
     );
-    if (missing != null &&
-        named.isEmpty &&
-        _namesSomething(merged.intent ?? AskIntent.spent)) {
-      final facts = <String, Object>{'category': _title(missing)};
+    final asked = merged.intent ?? AskIntent.spent;
+    // A name the records do not have: say so, never the total for
+    // everything, whatever else the question names.
+    if (missing != null && _namesSomething(asked)) {
       return AskTurn(
         understanding,
         merged,
-        AskAnswer(
-          kind: ReplyKind.notFound,
-          template: writer.write(
-            ReplyKind.notFound,
-            facts.keys.toSet(),
-            seed: seed,
-          ),
-          facts: facts,
-          asOf: now,
-          suggestions: starters.take(3).toList(),
-        ),
+        _notFound(missing, merged, asked, today, now, seed),
+      );
+    }
+    // "Payments over 1,000": Ask cannot pick payments out by size, so it
+    // does not answer with every payment instead.
+    if (understanding.span(SlotKind.amount) != null &&
+        _bySize.contains(asked)) {
+      return AskTurn(
+        understanding,
+        merged,
+        _guard(ReplyKind.cantBySize, const {}, now, seed),
       );
     }
     return AskTurn(understanding, merged, await run(merged, now, seed: seed));
   }
+
+  /// "I couldn't find payments to X this month": [span] named something
+  /// the space has no record of.
+  AskAnswer _notFound(
+    AskSpan span,
+    AskContext context,
+    AskIntent intent,
+    CalendarDate today,
+    DateTime now,
+    int seed,
+  ) {
+    final name = _titleWords(span.text);
+    final period = (context.period ?? _defaultPeriod(intent, today)).phrase(
+      today,
+    );
+    final (kind, facts) = switch (span.kind) {
+      SlotKind.payee when _flowOf(context) == _Flow.received => (
+        ReplyKind.nothingFrom,
+        <String, Object>{'payee': name, 'period': period},
+      ),
+      SlotKind.payee => (
+        ReplyKind.noPaymentsTo,
+        <String, Object>{'payee': name, 'period': period},
+      ),
+      SlotKind.account => (
+        ReplyKind.noAccount,
+        <String, Object>{'account': name},
+      ),
+      SlotKind.item => (
+        ReplyKind.noSalesOf,
+        <String, Object>{'item': name, 'period': period},
+      ),
+      _ => (ReplyKind.notFound, <String, Object>{'category': name}),
+    };
+    return _guard(kind, facts, now, seed, context: context);
+  }
+
+  /// A reply that says what Ask could not narrow the answer to, with no
+  /// figure, so a wider total is never shown in its place.
+  AskAnswer _guard(
+    ReplyKind kind,
+    Map<String, Object> facts,
+    DateTime now,
+    int seed, {
+    AskContext context = AskContext.empty,
+  }) => AskAnswer(
+    kind: kind,
+    template: writer.write(kind, facts.keys.toSet(), seed: seed),
+    facts: facts,
+    asOf: now,
+    suggestions: starters.take(3).toList(),
+    context: context,
+  );
 
   /// Answers [clarify] with the person's [choice], or all its choices
   /// together when null, for [period] when given.
@@ -201,6 +267,9 @@ class AskEngine {
     final today = CalendarDate.local(now);
     final intent = context.intent ?? AskIntent.spent;
     final q = _Query(context, today, now, seed);
+    if (_unused(context, intent, today) case final guard?) {
+      return _guard(guard.$1, guard.$2, now, seed, context: context);
+    }
     return switch (intent) {
       AskIntent.spent => _total(q, _Flow.spent),
       AskIntent.receivedFrom
@@ -336,15 +405,19 @@ class AskEngine {
     final amount = _sum(now);
     final headline = _headline(q.context, period, q.today, flow);
     final named = _named(q.context);
+    final leftOut = _moneyInNote(q, all, period, flow);
     if (now.isEmpty) {
-      return _answer(
-        q,
-        ReplyKind.nothing,
-        {'period': period.phrase(q.today), ...named},
-        words: _nodata(named),
-        headline: headline,
-        figure: 0,
-        suggestions: _followUps(q, period),
+      return _withNote(
+        await _answer(
+          q,
+          _nothingKind(q.context, flow),
+          {'period': period.phrase(q.today), ...named},
+          words: _nodata(named),
+          headline: headline,
+          figure: 0,
+          suggestions: _followUps(q, period),
+        ),
+        leftOut,
       );
     }
     final change = amount - _sum(before);
@@ -355,7 +428,7 @@ class AskEngine {
         ? _byCategory(now, await _names(SlotKind.category))
         : _byPayee(now);
     final share = await _share(q, now, period, flow);
-    return _answer(
+    final answer = await _answer(
       q,
       share != null ? ReplyKind.share : kind,
       {
@@ -383,6 +456,40 @@ class AskEngine {
       link: AskLink.activity,
       suggestions: _followUps(q, period, only: byWho.firstOrNull?.title),
     );
+    return _withNote(answer, leftOut);
+  }
+
+  /// For money in with no sender named, what came in but is not counted.
+  (String, Map<String, Object>)? _moneyInNote(
+    _Query q,
+    List<LedgerEntry> entries,
+    AskPeriod period,
+    _Flow flow,
+  ) {
+    if (flow != _Flow.received ||
+        q.context.entities.containsKey(SlotKind.payee)) {
+      return null;
+    }
+    final account = q.context.entities[SlotKind.account]?.key;
+    return _leftOut([
+      for (final e in entries)
+        if (account == null || _isKey(account, 'a', e.accountId)) e,
+    ], period);
+  }
+
+  /// [answer] with [note]'s sentence after its own.
+  static AskAnswer _withNote(
+    AskAnswer answer,
+    (String, Map<String, Object>)? note,
+  ) => note == null ? answer : answer.withNote(note.$1, note.$2);
+
+  /// The reply for no entries: who was named, or that nothing came in.
+  static ReplyKind _nothingKind(AskContext context, _Flow flow) {
+    final payee = context.entities.containsKey(SlotKind.payee);
+    if (flow == _Flow.received) {
+      return payee ? ReplyKind.nothingFrom : ReplyKind.nothingIn;
+    }
+    return payee ? ReplyKind.noPaymentsTo : ReplyKind.nothing;
   }
 
   /// What one of the person's own accounts moved into their others. That
@@ -475,16 +582,12 @@ class AskEngine {
   Future<AskAnswer> _count(_Query q) async {
     final period = q.period(AskPeriod.thisMonth(q.today));
     final flow = _flowOf(q.context);
-    final entries = _filter(
-      await source.entries(period.fromInstant, period.toInstant),
-      q.context,
-      flow,
-      period,
-    );
+    final all = await source.entries(period.fromInstant, period.toInstant);
+    final entries = _filter(all, q.context, flow, period);
     final named = _named(q.context);
-    return _answer(
+    final answer = await _answer(
       q,
-      entries.isEmpty ? ReplyKind.nothing : ReplyKind.count,
+      entries.isEmpty ? _nothingKind(q.context, flow) : ReplyKind.count,
       {
         ...named,
         'count': _times(entries.length),
@@ -509,6 +612,7 @@ class AskEngine {
       link: AskLink.activity,
       suggestions: _followUps(q, period),
     );
+    return _withNote(answer, _moneyInNote(q, all, period, flow));
   }
 
   Future<AskAnswer> _biggest(_Query q) async {
@@ -896,7 +1000,27 @@ class AskEngine {
     WriterFacts? Function(List<AskLine> lines)? words,
     AskLink? link,
     List<String> suggestions = const [],
+    bool byName = true,
   }) async {
+    // "How much do I owe Example Bank?": only the lines with that name, and
+    // if none has it, say so rather than give every line.
+    final name = byName ? _namedIn(q.context) : null;
+    if (name != null) {
+      final key = normaliseName(name.name);
+      lines = [
+        for (final l in lines)
+          if (normaliseName(l.name).contains(key) ||
+              (normaliseName(l.name).isNotEmpty &&
+                  key.contains(normaliseName(l.name))))
+            l,
+      ];
+      if (lines.isEmpty) {
+        return _answer(q, ReplyKind.notAmong, {
+          'name': name.name,
+          'what': _whatOf(q.context.intent ?? AskIntent.spent),
+        }, link: link);
+      }
+    }
     if (lines.isEmpty) return _answer(q, none, const {}, link: link);
     final figure =
         total?.call(lines) ?? lines.fold<int>(0, (s, l) => s + l.amountMinor);
@@ -927,8 +1051,24 @@ class AskEngine {
   }
 
   Future<AskAnswer> _bills(_Query q) async {
-    final bills = [...await source.billsDue()]
+    var bills = [...await source.billsDue()]
       ..sort((a, b) => (a.date ?? q.today).compareTo(b.date ?? q.today));
+    // "Bills due this month": those due in the whole month, not the month
+    // so far, which is where an asked period stops.
+    if (q.context.period case final p?) {
+      final end = switch (p.kind) {
+        PeriodKind.day => p.from.addDays(1),
+        PeriodKind.week => p.from.addDays(7),
+        PeriodKind.month => p.from.yearMonth.next.firstDay,
+        PeriodKind.year => CalendarDate(p.from.year + 1, 1, 1),
+        _ => p.to,
+      };
+      bills = [
+        for (final b in bills)
+          if (b.date case final d? when !d.isBefore(p.from) && d.isBefore(end))
+            b,
+      ];
+    }
     return _lines(
       q,
       bills,
@@ -1050,11 +1190,18 @@ class AskEngine {
       _ when fuliza => ReplyKind.totalBelowFuliza,
       _ => ReplyKind.totalBelow,
     };
+    if (account != null && lines.isEmpty) {
+      return _answer(q, ReplyKind.notAmong, {
+        'name': account.name,
+        'what': _whatOf(AskIntent.balance),
+      });
+    }
     return _lines(
       q,
       lines,
       some: kind,
       none: ReplyKind.nothing,
+      byName: false,
       headline: 'Balance · now',
       count: (n) => _plural(n, 'account'),
       detail: (l) => l.savings ? 'Savings' : null,
@@ -1319,6 +1466,19 @@ class AskEngine {
     if (context.entities[SlotKind.payee] case final p?) 'payee': p.name,
   };
 
+  /// The one name a list answer is narrowed by, if the question gave one.
+  static AskEntity? _namedIn(AskContext context) {
+    for (final kind in [
+      SlotKind.payee,
+      SlotKind.account,
+      SlotKind.category,
+      SlotKind.item,
+    ]) {
+      if (context.entities[kind] case final e?) return e;
+    }
+    return null;
+  }
+
   /// Nothing found for a name the question gave. With no name, the
   /// writer's "no records" would say more than the records do: there may be
   /// records, just none like this, so the template says that.
@@ -1470,16 +1630,130 @@ class AskEngine {
     return {...order}.toList();
   }
 
-  static bool _namesSomething(AskIntent intent) => const {
+  /// Intents whose answer a name narrows, so a name the records do not
+  /// have is said to be missing rather than left out.
+  static bool _namesSomething(AskIntent intent) =>
+      _fromEntries.contains(intent) ||
+      const {
+        AskIntent.refine,
+        AskIntent.balance,
+        AskIntent.sales,
+        AskIntent.topItems,
+      }.contains(intent);
+
+  /// Answers worked out from ledger entries, which [_filter] narrows by
+  /// category, payee and account.
+  static const _fromEntries = {
     AskIntent.spent,
     AskIntent.received,
     AskIntent.sentTo,
     AskIntent.receivedFrom,
     AskIntent.countPayments,
+    AskIntent.biggestPayment,
+    AskIntent.topPayees,
+    AskIntent.topCategories,
     AskIntent.trend,
     AskIntent.compare,
-    AskIntent.refine,
-  }.contains(intent);
+    AskIntent.incomeSources,
+  };
+
+  /// Answers that are a list of named things, narrowed by name.
+  static const _listsByName = {
+    AskIntent.billsDue,
+    AskIntent.subscriptions,
+    AskIntent.debts,
+    AskIntent.lent,
+    AskIntent.whoOwesMe,
+    AskIntent.goals,
+    AskIntent.lowStock,
+  };
+
+  /// Answers that count or rank payments, which a size ("over 1,000")
+  /// would narrow.
+  static const _bySize = {
+    AskIntent.countPayments,
+    AskIntent.biggestPayment,
+    AskIntent.topPayees,
+    AskIntent.topCategories,
+    AskIntent.incomeSources,
+    AskIntent.trend,
+  };
+
+  /// The kinds of name [intent]'s answer is narrowed by.
+  static Set<SlotKind> _slotsUsed(AskIntent intent) {
+    if (_fromEntries.contains(intent) || intent == AskIntent.refine) {
+      return const {SlotKind.category, SlotKind.payee, SlotKind.account};
+    }
+    if (_listsByName.contains(intent)) return SlotKind.values.toSet();
+    return switch (intent) {
+      AskIntent.balance => const {SlotKind.account},
+      AskIntent.sales || AskIntent.topItems => const {SlotKind.item},
+      // Charges are a category of their own: "charges" names the topic.
+      AskIntent.fees => const {SlotKind.category},
+      _ => const {},
+    };
+  }
+
+  /// What [intent] answers about, for "I couldn't find ... for X".
+  static String _whatOf(AskIntent intent) => switch (intent) {
+    AskIntent.billsDue => 'your bills',
+    AskIntent.subscriptions => 'your subscriptions',
+    AskIntent.debts => 'your debts',
+    AskIntent.lent => 'the money you lent',
+    AskIntent.whoOwesMe => 'what you are owed',
+    AskIntent.goals => 'your goals',
+    AskIntent.lowStock => 'your stock',
+    AskIntent.balance => 'your accounts',
+    AskIntent.safeToSpend => 'safe to spend',
+    AskIntent.fees => 'charges',
+    AskIntent.profit => 'profit',
+    AskIntent.sales || AskIntent.topItems => 'sales',
+    _ => 'payments',
+  };
+
+  /// Answers that are as things stand now, whatever the period.
+  static const _nowOnly = {
+    AskIntent.balance,
+    AskIntent.debts,
+    AskIntent.lent,
+    AskIntent.whoOwesMe,
+    AskIntent.goals,
+    AskIntent.subscriptions,
+    AskIntent.lowStock,
+  };
+
+  /// A guard reply when [context] names something [intent]'s answer would
+  /// leave out: a name it is not narrowed by, or a period it cannot look
+  /// at. Null when the answer uses everything named.
+  static (ReplyKind, Map<String, Object>)? _unused(
+    AskContext context,
+    AskIntent intent,
+    CalendarDate today,
+  ) {
+    final uses = _slotsUsed(intent);
+    for (final e in context.entities.values) {
+      if (!uses.contains(e.kind)) {
+        return (
+          ReplyKind.notNarrowed,
+          {'what': _whatOf(intent), 'name': e.name},
+        );
+      }
+    }
+    final period = context.period;
+    if (period == null) return null;
+    final now = period.contains(today);
+    final isToday = period.kind == PeriodKind.day && now;
+    if ((_nowOnly.contains(intent) && !now) ||
+        (intent == AskIntent.safeToSpend && !isToday) ||
+        // Bills coming up can be narrowed to a period, not one gone by.
+        (intent == AskIntent.billsDue && !period.to.isAfter(today))) {
+      return (
+        ReplyKind.onlyNow,
+        {'what': _whatOf(intent), 'period': period.phrase(today)},
+      );
+    }
+    return null;
+  }
 
   static _Flow _flowOf(AskContext context) => switch (context.intent) {
     AskIntent.received ||
@@ -1515,7 +1789,7 @@ class AskEngine {
       for (final e in entries)
         if (e.currency == BaseCurrency.code &&
             period.contains(e.date) &&
-            _flows(e, flow) &&
+            _flows(e, flow, named: payee != null) &&
             (category == null || _isKey(category, 'c', e.categoryId)) &&
             (payee == null || _isPayee(e, payee)) &&
             (account == null || _isKey(account, 'a', e.accountId)))
@@ -1523,15 +1797,61 @@ class AskEngine {
     ];
   }
 
-  static bool _flows(LedgerEntry e, _Flow flow) {
+  /// Whether [e] moved the way [flow] asks. Money in is income as Home and
+  /// Insights count it (LedgerTotals): never own transfers, borrowing or
+  /// money waiting for its sender to be named. Money from someone [named]
+  /// counts what they sent before they were named too.
+  static bool _flows(LedgerEntry e, _Flow flow, {bool named = false}) {
     final role = roleOf(e);
     return switch (flow) {
       _Flow.spent => e.isOutflow && role == LedgerRole.spending,
       _Flow.sent => e.isOutflow && role != LedgerRole.ownTransfer,
       _Flow.received =>
         e.isInflow &&
-            (role == LedgerRole.income || role == LedgerRole.awaitingPayee),
+            (role == LedgerRole.income ||
+                (named && role == LedgerRole.awaitingPayee)),
     };
+  }
+
+  /// What came in during [period] that is not counted as money in, said
+  /// beside a money-in answer: own transfers, and money from people not
+  /// named yet.
+  static (String, Map<String, Object>)? _leftOut(
+    List<LedgerEntry> entries,
+    AskPeriod period,
+  ) {
+    var own = 0;
+    var unnamed = 0;
+    for (final e in entries) {
+      if (e.currency != BaseCurrency.code ||
+          !e.isInflow ||
+          !period.contains(e.date)) {
+        continue;
+      }
+      switch (roleOf(e)) {
+        case LedgerRole.ownTransfer:
+          own += e.amountMinor;
+        case LedgerRole.awaitingPayee:
+          unnamed += e.amountMinor;
+        default:
+          break;
+      }
+    }
+    if (own == 0 && unnamed == 0) return null;
+    return (
+      [
+        if (own > 0)
+          "The {own_amount} that moved between your own accounts isn't "
+              'counted as money in.',
+        if (unnamed > 0)
+          "The {unnamed_amount} from people you haven't named yet isn't "
+              'counted until you name them.',
+      ].join(' '),
+      {
+        'own_amount': ?(own > 0 ? own : null),
+        'unnamed_amount': ?(unnamed > 0 ? unnamed : null),
+      },
+    );
   }
 
   static bool _isKey(String keys, String prefix, int? id) =>
@@ -1602,6 +1922,12 @@ class AskEngine {
 
   static String _title(String word) =>
       word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}';
+
+  /// "example grocers" as "Example Grocers", for a name the person typed.
+  static String _titleWords(String words) => [
+    for (final w in words.trim().split(RegExp(' +')))
+      if (w.isNotEmpty) _title(w),
+  ].join(' ');
 
   static String _joinNames(List<String> names) => switch (names.length) {
     0 => '',

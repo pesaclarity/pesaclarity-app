@@ -496,6 +496,7 @@ const fillerOpeners = [
   'alright',
   'all right',
   'sure',
+  'so',
 ];
 
 final _opener = RegExp(

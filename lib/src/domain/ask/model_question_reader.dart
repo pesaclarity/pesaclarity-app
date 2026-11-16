@@ -1,4 +1,5 @@
 import '../reader/reader_tokens.dart';
+import 'matcher.dart';
 import 'rule_question_reader.dart';
 import 'understanding.dart';
 
@@ -92,11 +93,11 @@ class ModelQuestionReader implements QuestionReader {
 
   @override
   Understanding read(String question) {
-    // "How much did KCB send me?" is money in. The rules read these
-    // phrasings reliably, so they decide them, as they name accounts.
-    if (fallback is RuleQuestionReader &&
-        RuleQuestionReader.readsMoneyInFrom(question)) {
-      return fallback.read(question);
+    final rules = fallback is RuleQuestionReader
+        ? fallback.read(question)
+        : null;
+    if (rules != null && RuleQuestionReader.decides(question, rules)) {
+      return rules;
     }
     final tokens = tokenise(question);
     final List<List<double>> slots;
@@ -104,14 +105,14 @@ class ModelQuestionReader implements QuestionReader {
     try {
       (slots, intents) = _runtime.run(encodeTokens(tokens));
     } on Object {
-      return fallback.read(question);
+      return rules ?? fallback.read(question);
     }
     var best = 0;
     for (var i = 1; i < intents.length; i++) {
       if (intents[i] > intents[best]) best = i;
     }
     if (intents.isEmpty || intents[best] < minConfidence) {
-      return fallback.read(question);
+      return rules ?? fallback.read(question);
     }
     final intent =
         AskIntent.fromLabel(_manifest.intentLabels[best]) ??
@@ -150,7 +151,40 @@ class ModelQuestionReader implements QuestionReader {
       end = tokens[t].end;
     }
     close();
-    return Understanding(intent, confidence: intents[best], spans: spans);
+    final read = Understanding(intent, confidence: intents[best], spans: spans);
+    // The model was taught on a few made-up names and leaves most real
+    // ones untagged: "How many times did I pay Example Grocers?" came back
+    // with no payee, so Ask counted every payment. When the rules find a
+    // name the model did not, the model has misread the question, and its
+    // intent too, so the rules' reading stands.
+    if (rules != null && rules.intent.isLookup && _missesName(read, rules)) {
+      return rules;
+    }
+    return read;
+  }
+
+  /// Whether [rules] found a name (a payee, category, account or item)
+  /// that none of [model]'s spans covers.
+  static bool _missesName(Understanding model, Understanding rules) {
+    const names = {
+      SlotKind.payee,
+      SlotKind.category,
+      SlotKind.account,
+      SlotKind.item,
+    };
+    final tagged = [
+      for (final s in model.spans)
+        if (names.contains(s.kind)) normaliseName(s.text),
+    ];
+    for (final s in rules.spans) {
+      if (!names.contains(s.kind)) continue;
+      final name = normaliseName(s.text);
+      if (name.isEmpty) continue;
+      if (!tagged.any((t) => t.contains(name) || name.contains(t))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
