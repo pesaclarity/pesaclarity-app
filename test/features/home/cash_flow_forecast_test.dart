@@ -113,10 +113,15 @@ void main() {
         child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
       ),
     );
-    await tester.runAsync(
-      () => container.read(cashFlowForecastProvider.future),
-    );
-    await tester.pumpAndSettle();
+    // Lets the queries finish and the frames after them: Home's cards share
+    // one journal read, started in the test's zone, so it is pumped rather
+    // than awaited from outside it.
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pumpAndSettle();
+    }
 
     expect(find.text('At this pace you hit zero on the 28th.'), findsOneWidget);
     // Each upcoming payment that may not go through, with plain amounts.

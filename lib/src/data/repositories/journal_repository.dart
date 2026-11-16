@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show KeepAliveLink;
 
 import '../../core/money/exchange_rates.dart';
 import '../../domain/books/book_account.dart';
@@ -47,11 +48,30 @@ class JournalSync {
 /// new entry. Nothing is edited or deleted, and running either again
 /// changes nothing.
 class JournalRepository {
-  JournalRepository(this._db, {DateTime Function()? clock})
+  JournalRepository(this._db, {DateTime Function()? clock, this._changes})
     : _clock = clock ?? DateTime.now;
 
   final AppDatabase _db;
   final DateTime Function() _clock;
+
+  /// The ledger's changes, the same updates `ledgerChangesProvider` counts.
+  final Stream<void>? _changes;
+  StreamSubscription<void>? _counting;
+  int _generation = 0;
+
+  /// How many changes the ledger has seen since this was first asked, so
+  /// [readJournal] can share one read per change. A plain counter fed by
+  /// the database rather than provider state: touching
+  /// `ledgerChangesProvider` (or a provider that depends on the ledger)
+  /// part-way through a provider would rebuild one that is only read, not
+  /// listened to, mid-computation, and it would then wait for good.
+  int get generation {
+    _counting ??= _changes?.listen((_) => _generation++);
+    return _generation;
+  }
+
+  /// Stops counting changes.
+  void dispose() => _counting?.cancel();
 
   /// The records of [accountIds], or of every account, read as balances
   /// read them but in their own currency.
@@ -585,14 +605,58 @@ class JournalKeeper {
   }
 }
 
-final journalRepositoryProvider = Provider<JournalRepository>(
-  (ref) => JournalRepository(ref.watch(appDatabaseProvider)),
+final journalRepositoryProvider = Provider<JournalRepository>((ref) {
+  final repository = JournalRepository(
+    ref.watch(appDatabaseProvider),
+    // From the database, not from a provider: see [generation].
+    changes: ledgerTableUpdates(ref.watch(appDatabaseProvider)),
+  );
+  ref.onDispose(repository.dispose);
+  return repository;
+});
+
+/// The open space's journal balances at one ledger generation (how many
+/// changes the ledger has seen) and with one currency converter. Every
+/// provider that reads the journal at that generation shares this one read.
+///
+/// It depends on nothing that changes: a change to the ledger or to the
+/// rates makes a new key rather than invalidating this one while its readers
+/// are still computing. The newest key is kept alive, so a reader that is
+/// only read (not listened to) still gets its value; older keys are let go
+/// once the next one is read and nothing watches them.
+final journalAtGenerationProvider = FutureProvider.autoDispose
+    .family<JournalBalances, (int, CurrencyConverter)>((ref, key) {
+      final (generation, converter) = key;
+      final latest = ref.read(_latestJournalProvider);
+      final link = ref.keepAlive();
+      final newest = latest.generation;
+      if (newest == null || generation >= newest) {
+        final older = latest.link;
+        latest
+          ..link = link
+          ..generation = generation;
+        older?.close();
+      } else {
+        link.close();
+      }
+      return ref.read(journalRepositoryProvider).read(converter: converter);
+    });
+
+/// The newest journal generation read, kept alive until the next.
+class _LatestJournal {
+  KeepAliveLink? link;
+  int? generation;
+}
+
+final _latestJournalProvider = Provider<_LatestJournal>(
+  (ref) => _LatestJournal(),
 );
 
-/// The open space's balances, read from its journal. Providers that call
-/// it watch `ledgerChangesProvider` themselves, so they follow every change;
-/// a provider of its own would add a dependency that can change while they
-/// compute.
-Future<JournalBalances> readJournal(Ref ref) => ref
-    .watch(journalRepositoryProvider)
-    .read(converter: ref.watch(currencyConverterProvider));
+/// The open space's balances, read from its journal once per change to the
+/// ledger and shared by every provider that calls this. Providers that call
+/// it watch `ledgerChangesProvider` themselves, so they follow every change.
+Future<JournalBalances> readJournal(Ref ref) {
+  final generation = ref.watch(journalRepositoryProvider).generation;
+  final converter = ref.watch(currencyConverterProvider);
+  return ref.watch(journalAtGenerationProvider((generation, converter)).future);
+}

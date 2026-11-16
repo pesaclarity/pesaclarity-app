@@ -427,37 +427,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Stream<void> watchChanges() => _db.tableUpdates(
-    TableUpdateQuery.onAllTables([
-      _db.transactions,
-      _db.transactionTags,
-      _db.declinedTransfers,
-      _db.payees,
-      _db.payeeIdentifiers,
-      _db.categories,
-      _db.accounts,
-      _db.recurring,
-      _db.budgetItems,
-      _db.sales,
-      _db.salePayments,
-      _db.lentLoans,
-      _db.loanPayments,
-      _db.quickRecords,
-      _db.debts,
-      _db.debtInstalments,
-      _db.items,
-      _db.stockMoves,
-      _db.itemMeasures,
-      _db.saleLines,
-      _db.tabs,
-      _db.tabLines,
-      _db.withheldTaxes,
-      _db.hourEntries,
-      _db.invoices,
-      _db.invoiceLines,
-      _db.etimsCosts,
-    ]),
-  );
+  Stream<void> watchChanges() => ledgerTableUpdates(_db);
 
   Future<void> _setPair(int id, int partnerId) =>
       (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
@@ -555,6 +525,40 @@ final transactionsRepositoryProvider = Provider<TransactionsRepository>(
     ref.watch(appDatabaseProvider),
     converter: ref.watch(currencyConverterProvider),
   ),
+);
+
+/// Every change to the ledger's tables in [db], as `watchChanges` reports
+/// them.
+Stream<void> ledgerTableUpdates(AppDatabase db) => db.tableUpdates(
+  TableUpdateQuery.onAllTables([
+    db.transactions,
+    db.transactionTags,
+    db.declinedTransfers,
+    db.payees,
+    db.payeeIdentifiers,
+    db.categories,
+    db.accounts,
+    db.recurring,
+    db.budgetItems,
+    db.sales,
+    db.salePayments,
+    db.lentLoans,
+    db.loanPayments,
+    db.quickRecords,
+    db.debts,
+    db.debtInstalments,
+    db.items,
+    db.stockMoves,
+    db.itemMeasures,
+    db.saleLines,
+    db.tabs,
+    db.tabLines,
+    db.withheldTaxes,
+    db.hourEntries,
+    db.invoices,
+    db.invoiceLines,
+    db.etimsCosts,
+  ]),
 );
 
 /// Counts changes to the ledger, so providers that read it with one-off
