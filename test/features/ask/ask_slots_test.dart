@@ -24,14 +24,14 @@ import '../balances/balances_harness.dart';
 /// Ask answers the question asked on the synthetic scenario: a count for
 /// one payee is that payee's, and money in is what Home and Insights call
 /// income. Each question is asked with the rules alone and with a reader
-/// that reads as the bundled model does: run on these very questions with
+/// that reads as the first bundled model did: run on these very questions with
 /// TensorFlow (pesaclarity-ml dfb9c24), it tags no payee in any of them and
 /// reads "how often do I pay X" as out of scope, "times I paid X" as help
 /// and "how much did I pay X" as subscriptions.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// The bundled model's intent for each question, as it read them.
+  /// The first bundled model's intent for each question, as it read them.
   const modelIntents = {
     'How many times did I pay Example Grocers this month?': 'count_payments',
     'how often do I pay Example Grocers': 'out_of_scope',
@@ -66,7 +66,7 @@ void main() {
 
   for (final withModel in [false, true]) {
     group(
-      withModel ? 'read as the bundled model does' : 'read by the rules',
+      withModel ? 'read as the first bundled model did' : 'read by the rules',
       () {
         late AppDatabase db;
         late ProviderContainer c;
@@ -183,7 +183,7 @@ void main() {
   }
 }
 
-/// Reads as the bundled reader did on these questions: its intent, and no
+/// Reads as the first bundled reader did on these questions: its intent, and no
 /// payee or other name tagged.
 class _AsBundled implements AskReaderRuntime {
   _AsBundled(this.manifest, this.intents, this.asked);

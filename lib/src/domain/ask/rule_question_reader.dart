@@ -217,8 +217,10 @@ class RuleQuestionReader implements QuestionReader {
   /// Whether the rules' reading [read] of [question] should stand even
   /// when a trained reader is bundled: money in from someone ("did KCB send
   /// me"), counts ("how often do I pay X") and money in ("how much came
-  /// in"). The rules read these reliably; the bundled model reads "how
-  /// often do I pay X" as out of scope and tags no payee in most of them.
+  /// in"). The rules read these reliably; the first bundled model read "how
+  /// often do I pay X" as out of scope and tagged no payee in most of them.
+  /// The current one reads them well (test/features/ask/ask_reader_test.dart);
+  /// the rules stay as a safety net.
   static bool decides(String question, Understanding read) {
     if (readsMoneyInFrom(question)) return true;
     return read.intent == AskIntent.countPayments ||

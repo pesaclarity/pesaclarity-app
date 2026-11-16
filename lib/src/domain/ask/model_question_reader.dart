@@ -152,11 +152,13 @@ class ModelQuestionReader implements QuestionReader {
     }
     close();
     final read = Understanding(intent, confidence: intents[best], spans: spans);
-    // The model was taught on a few made-up names and leaves most real
+    // The first model was taught on a few made-up names and left most real
     // ones untagged: "How many times did I pay Example Grocers?" came back
-    // with no payee, so Ask counted every payment. When the rules find a
-    // name the model did not, the model has misread the question, and its
-    // intent too, so the rules' reading stands.
+    // with no payee, so Ask counted every payment. The current one is
+    // taught on thousands of invented names and tags them, but a name it
+    // misses still means it has misread the question, and its intent too:
+    // when the rules find a name the model did not, the rules' reading
+    // stands. A safety net.
     if (rules != null && rules.intent.isLookup && _missesName(read, rules)) {
       return rules;
     }

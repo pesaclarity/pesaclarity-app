@@ -40,6 +40,13 @@ void main() {
     final bytes = (await asset('$askModelFolder/${m.modelFile}'))!;
     expect(bytes.length, m.modelSizeBytes);
     expect(await sha256Hex(bytes), m.modelSha256);
+    // The reader trained on invented names (pesaclarity-ml ask-reader v2),
+    // which test/features/ask/ask_reader_test.dart replays.
+    expect(m.modelSizeBytes, 271904);
+    expect(
+      m.modelSha256,
+      'f6652fa718af71507e0cde8c6b2a635fcff69c7987aa439481d9106915740552',
+    );
   });
 
   test('the bundled writer fits this app', () async {
@@ -131,7 +138,7 @@ void main() {
     () async {
       final m = await manifest();
       final rules = RuleQuestionReader(today: () => CalendarDate(2026, 11, 16));
-      // As the bundled model reads these: no payee tagged, and the intent
+      // As the first bundled model read these: no payee tagged, and the intent
       // often wrong ("how often" out of scope, "how much did I pay"
       // subscriptions).
       for (final (q, modelIntent, intent) in [

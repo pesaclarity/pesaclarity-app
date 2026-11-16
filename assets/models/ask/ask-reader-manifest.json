@@ -1,7 +1,7 @@
 {
   "model_file": "ask-reader.tflite",
-  "model_sha256": "10baeef032ca33a7d613e230f8087a34a1bf763d024c020d917a720c1503817d",
-  "model_size_bytes": 216872,
+  "model_sha256": "f6652fa718af71507e0cde8c6b2a635fcff69c7987aa439481d9106915740552",
+  "model_size_bytes": 271904,
   "ask_schema_version": 1,
   "reader_schema_version": 1,
   "max_tokens": 96,
