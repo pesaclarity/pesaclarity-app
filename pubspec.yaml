@@ -19,7 +19,7 @@ dependencies:
   path_provider: ^2.1.6
   pdf: ^3.13.1
   share_plus: ^13.3.1
-  sqlite3: ^3.8.0
+  sqlite3: ^3.9.1
   cryptography: ^2.9.0
   # Pinned to a commit on main for reproducible builds.
   ujumbe:
