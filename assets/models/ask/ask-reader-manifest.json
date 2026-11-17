@@ -1,6 +1,6 @@
 {
   "model_file": "ask-reader.tflite",
-  "model_sha256": "f6652fa718af71507e0cde8c6b2a635fcff69c7987aa439481d9106915740552",
+  "model_sha256": "f6599bc4d9758bf7917fd974225d10552d4760327d39748784bd7864d820a4bb",
   "model_size_bytes": 271904,
   "ask_schema_version": 1,
   "reader_schema_version": 1,
@@ -71,9 +71,9 @@
       ]
     }
   },
-  "trained_on": "synthetic questions only",
   "weights_file": "ask-reader.weights",
-  "weights_sha256": "7807015bebb5f952e6185f8ffc00736b55fdd800fd598aa3eb99b8179342ef69",
-  "weights_size_bytes": 251176,
-  "weights_format_version": 1
+  "weights_sha256": "7f88fe2910e498738d7defcf976d7ae80d1785e289fc69ee4067e4d951413b2e",
+  "weights_size_bytes": 251276,
+  "weights_format_version": 1,
+  "trained_on": "synthetic questions only"
 }

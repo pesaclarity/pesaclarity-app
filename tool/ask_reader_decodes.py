@@ -38,7 +38,13 @@ def main(model: str, requests_path: str, out_path: str) -> int:
     if hashlib.sha256(model_path.read_bytes()).hexdigest() != manifest["model_sha256"]:
         print(f"{model_path} is not the model of the bundled manifest", file=sys.stderr)
         return 1
-    interpreter = tf.lite.Interpreter(model_path=str(model_path))
+    # TFLite's built-in kernels, not the XNNPACK delegate: rayo runs their int8 arithmetic.
+    # XNNPACK quantises the hybrid layers' inputs its own way, and on ask reader v3 its
+    # probabilities are up to 0.019 from the built-in kernels' (and the reference kernels').
+    builtin = tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+    interpreter = tf.lite.Interpreter(
+        model_path=str(model_path), experimental_op_resolver_type=builtin
+    )
     inp = interpreter.get_input_details()[0]
     interpreter.resize_tensor_input(inp["index"], [1, 2 * manifest["max_tokens"]])
     interpreter.allocate_tensors()
