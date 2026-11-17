@@ -1,7 +1,15 @@
 {
-  "version": "2.0",
-  "updated": "2026-11-16",
+  "version": "2.1",
+  "updated": "2026-11-17",
   "changes": [
+    {
+      "version": "2.1",
+      "date": "2026-11-17",
+      "items": [
+        "Once a day the app checks with our server for updates and notices, with or without an account. It sends only the app's version, build and platform, and our server keeps no record of it.",
+        "The app asks you to update before you carry on only when your version is known to get amounts wrong."
+      ]
+    },
     {
       "version": "2.0",
       "date": "2026-11-16",

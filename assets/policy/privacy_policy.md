@@ -3,7 +3,7 @@
 ## The short version
 
 Pesa Clarity works out your budget on your phone. Your transactions,
-messages, statements and the questions you ask about them stay on it. Our server does three narrow jobs
+messages, statements and the questions you ask about them stay on it. Our server does four narrow jobs
 and never sees a transaction.
 
 ## What stays on your phone
@@ -42,7 +42,8 @@ comes from your own records in the space you have open.
 Your account id, the email or Google account you sign in with, and when
 you signed up, in and out. One-time sign-in codes are deleted within a
 day of expiring, and sign-in records after 90 days. You can also use
-the app without an account.
+the app without an account; it then contacts our server only for the
+update check.
 
 **Encrypted backups**
 
@@ -59,11 +60,22 @@ If "improve the app" is on, your phone sends clipped, noised updates
 to the categoriser, combined with other users' before we can see them.
 Never your transactions. You can switch this off at any time.
 
+**Update check**
+
+Once a day, with or without an account, the app asks our server whether
+a newer version or a notice is waiting, such as a fix for a bank that
+changed its messages. The request carries only the app's version, which
+build it is (Play, F-Droid, iPhone or website) and the platform. It
+carries no account, device or install id. Our server keeps no record of
+the request. The answer is signed, so the app shows only notices that
+really come from us. The app asks you to update before you carry on only
+when a version is known to get amounts wrong.
+
 ## Who runs our server
 
 These services run it for us and process data only on our instructions:
 
-- Google Cloud runs the server.
+- Google Cloud runs the server. Like any web host, it keeps standard request logs, such as IP address and time, for security.
 - Neon stores sign-in data in its database.
 - Cloudflare R2 stores encrypted backups.
 - Brevo sends sign-in codes by email.
