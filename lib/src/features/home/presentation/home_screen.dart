@@ -44,6 +44,7 @@ import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../sales/presentation/waiting_payments_card.dart';
+import '../../sms/presentation/read_again_home_card.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../spaces/presentation/business_setup_card.dart';
@@ -178,6 +179,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   const BalanceWarningLine(),
                   const SizedBox(height: 12),
+                  const ReadAgainHomeCard(),
                   SupportHomeCard(
                     moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
                   ),

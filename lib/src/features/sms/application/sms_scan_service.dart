@@ -34,12 +34,19 @@ class SmsScanService {
   static final _beginning = DateTime.utc(2000);
 
   /// Scans the inbox for each of the [selected] institutions.
+  ///
+  /// With [again], every message from [from] is read again, whatever was
+  /// read before, and transactions the readers now read better are updated
+  /// (see [SmsIngestor.ingest]).
   Future<SmsIngestSummary> scan(
     List<Institution> selected, {
     DateTime? from,
     SmsScanProgress? onProgress,
+    bool again = false,
   }) {
-    final run = _previous.then((_) => _scan(selected, from, onProgress));
+    final run = _previous.then(
+      (_) => _scan(selected, from, onProgress, again: again),
+    );
     _previous = run.then((_) {}, onError: (_) {});
     return run;
   }
@@ -47,8 +54,9 @@ class SmsScanService {
   Future<SmsIngestSummary> _scan(
     List<Institution> selected,
     DateTime? from,
-    SmsScanProgress? onProgress,
-  ) async {
+    SmsScanProgress? onProgress, {
+    required bool again,
+  }) async {
     final startedAt = _clock().toUtc();
     final inboxes = [
       for (final institution in selected)
@@ -57,7 +65,9 @@ class SmsScanService {
           await _source.readInbox(
             senders: institution.senderIds.toSet(),
             since:
-                await _marks.scannedUntil(institution.id) ?? from ?? _beginning,
+                (again ? null : await _marks.scannedUntil(institution.id)) ??
+                from ??
+                _beginning,
           ),
         ),
     ];
@@ -69,7 +79,7 @@ class SmsScanService {
     for (final (institution, messages) in inboxes) {
       for (var i = 0; i < messages.length; i += batchSize) {
         final batch = messages.sublist(i, min(i + batchSize, messages.length));
-        summary += await _ingestor.ingest(batch, [institution]);
+        summary += await _ingestor.ingest(batch, [institution], again: again);
         done += batch.length;
         onProgress?.call(done, total);
       }

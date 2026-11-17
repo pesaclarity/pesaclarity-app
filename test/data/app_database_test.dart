@@ -695,6 +695,59 @@ void main() {
       expect(giving.name, 'Church, giving and fundraisers');
     });
 
+    test('migrates a version 36 database: readers on each transaction and '
+        'messages set aside', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026, 11),
+            ),
+          );
+      await old
+          .into(old.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 11, 2),
+              amountMinor: 150000,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.sms,
+              messageHash: const Value('sent'),
+            ),
+          );
+      await old.customStatement('DROP TABLE set_aside_messages');
+      await old.customStatement('DROP INDEX transactions_message');
+      await old.customStatement('ALTER TABLE transactions DROP COLUMN read_by');
+      await old.customStatement('PRAGMA user_version = 36');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final row = await db.select(db.transactions).getSingle();
+      expect(row.messageHash, 'sent');
+      expect(row.readBy, isNull);
+      expect(await db.select(db.setAsideMessages).get(), isEmpty);
+      final indexes = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
+          .map((r) => r.read<String>('name'))
+          .get();
+      expect(indexes, contains('transactions_message'));
+    });
+
+    test('the version 37 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 36');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+    });
+
     test('migrates a version 17 database: moved transactions', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE moved_transactions');

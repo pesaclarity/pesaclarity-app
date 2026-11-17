@@ -31,6 +31,7 @@ part 'app_database.g.dart';
     LoanPayments,
     Transactions,
     MovedTransactions,
+    SetAsideMessages,
     DeclinedTransfers,
     TransactionTags,
     Recurring,
@@ -75,7 +76,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -317,6 +318,15 @@ class AppDatabase extends _$AppDatabase {
       }
       // Ask's conversations and shortcuts, kept on this phone only.
       if (from < 36) await _addAsk(m);
+      // Reading messages again: which readers read each transaction, and
+      // the messages the person set aside.
+      if (from < 37) {
+        await _addColumnIfMissing(m, transactions, transactions.readBy);
+        await _createIndexIfMissing(m, transactionsMessage);
+        if (!await _exists('table', setAsideMessages.actualTableName)) {
+          await m.createTable(setAsideMessages);
+        }
+      }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(

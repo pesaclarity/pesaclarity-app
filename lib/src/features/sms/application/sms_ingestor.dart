@@ -1,9 +1,13 @@
 import 'dart:isolate';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:ujumbe/ujumbe.dart';
 
+import '../../../data/database/app_database.dart'
+    show TransactionRecord, TransactionsCompanion;
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/message_reads_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -38,6 +42,8 @@ class SmsIngestSummary {
     this.duplicates = 0,
     this.forReview = 0,
     this.ignored = 0,
+    this.updated = 0,
+    this.changes = const [],
   });
 
   /// New transactions stored.
@@ -52,11 +58,20 @@ class SmsIngestSummary {
   /// Messages from senders that are not selected, dropped unstored.
   final int ignored;
 
+  /// Transactions the readers now read better, when reading again (see
+  /// [SmsIngestor.ingest]).
+  final int updated;
+
+  /// Where the transactions added or updated while reading again are.
+  final List<ReadChange> changes;
+
   SmsIngestSummary operator +(SmsIngestSummary other) => SmsIngestSummary(
     added: added + other.added,
     duplicates: duplicates + other.duplicates,
     forReview: forReview + other.forReview,
     ignored: ignored + other.ignored,
+    updated: updated + other.updated,
+    changes: [...changes, ...other.changes],
   );
 
   @override
@@ -65,16 +80,54 @@ class SmsIngestSummary {
       other.added == added &&
       other.duplicates == duplicates &&
       other.forReview == forReview &&
-      other.ignored == ignored;
+      other.ignored == ignored &&
+      other.updated == updated;
 
   @override
-  int get hashCode => Object.hash(added, duplicates, forReview, ignored);
+  int get hashCode =>
+      Object.hash(added, duplicates, forReview, ignored, updated);
 
   @override
   String toString() =>
       'SmsIngestSummary(added: $added, duplicates: $duplicates, '
-      'forReview: $forReview, ignored: $ignored)';
+      'forReview: $forReview, ignored: $ignored, updated: $updated)';
 }
+
+/// A transaction added or updated by reading messages again: its
+/// institution, account and time.
+@immutable
+class ReadChange {
+  const ReadChange(this.institutionId, this.accountId, this.at);
+
+  final String institutionId;
+  final int accountId;
+  final DateTime at;
+}
+
+/// The readers that read [parsed], as kept on its transaction: the engine
+/// and pack versions, such as `0.3.0 mpesa@0.3.1`.
+String readByOf(ParsedTransaction parsed) =>
+    '$engineVersion ${parsed.packId}@${parsed.packVersion}';
+
+/// Whether [fresh] reads any field of [row] differently. Its account and
+/// currency are left to `MessageRecheck`.
+bool readsDifferently(TransactionRecord row, TransactionsCompanion fresh) =>
+    !row.occurredAt.isAtSameMomentAs(fresh.occurredAt.value) ||
+    row.amountMinor != fresh.amountMinor.value ||
+    row.direction != fresh.direction.value ||
+    row.kind != fresh.kind.value ||
+    row.feeMinor != fresh.feeMinor.value ||
+    row.counterpartyKind != fresh.counterpartyKind.value ||
+    row.counterpartyValue != fresh.counterpartyValue.value ||
+    row.counterpartyName != fresh.counterpartyName.value ||
+    row.receiptNo != fresh.receiptNo.value ||
+    row.dedupeKey != fresh.dedupeKey.value ||
+    row.balanceAfterMinor != fresh.balanceAfterMinor.value ||
+    row.owedAfterMinor != fresh.owedAfterMinor.value ||
+    !_sameMoment(row.owedDueAt, fresh.owedDueAt.value);
+
+bool _sameMoment(DateTime? a, DateTime? b) =>
+    a == null || b == null ? a == b : a.isAtSameMomentAs(b);
 
 /// Turns messages into ledger transactions and review items.
 ///
@@ -98,6 +151,7 @@ class SmsIngestor {
     required this._transactions,
     required this._reviewInbox,
     this._templates,
+    this._reads,
     this._parse = parseInBackground,
   });
 
@@ -108,13 +162,29 @@ class SmsIngestor {
   /// Layouts the person asked to be read the same way; a message that fits
   /// one skips the review inbox.
   final ReaderTemplatesRepository? _templates;
+
+  /// What is already known about each message; without it only dedupe keys
+  /// keep a message from being stored twice.
+  final MessageReadsRepository? _reads;
   final SmsParseBatch _parse;
 
   /// Ingests [messages], reading only those from the [selected] institutions.
+  ///
+  /// A message is stored once: one that already has a transaction, or that
+  /// the person set aside or dealt with in review, adds nothing. One left
+  /// waiting in review that the readers now read is added and leaves review.
+  ///
+  /// With [again], as when messages are read again with newer readers, a
+  /// transaction the readers now read differently is updated, unless the
+  /// person touched it (see [MessageReadsRepository.stored]): its time,
+  /// amount, direction, kind, fee, other party, receipt, and the balance or
+  /// amount owed after it. Its account, currency and everything the person
+  /// set stay.
   Future<SmsIngestSummary> ingest(
     List<SmsMessage> messages,
-    List<Institution> selected,
-  ) async {
+    List<Institution> selected, {
+    bool again = false,
+  }) async {
     if (messages.isEmpty) return const SmsIngestSummary();
     if (selected.isEmpty) return SmsIngestSummary(ignored: messages.length);
 
@@ -122,35 +192,82 @@ class SmsIngestor {
       for (final institution in selected) institution.pack,
     ], messages);
 
+    final hashes = {
+      for (final result in results)
+        if (result
+            case ParsedTransaction(:final rawHash) || Unmatched(:final rawHash))
+          rawHash,
+    };
+    final reads = _reads;
+    final known = reads == null
+        ? const <String, StoredReading>{}
+        : await reads.stored(hashes);
+    final inReview = reads == null
+        ? const <String, (int, bool)>{}
+        : await reads.reviewItems(hashes);
+    final setAside = reads == null
+        ? const <String>{}
+        : await reads.setAside(hashes);
+    // Stored before, set aside, or dealt with in review.
+    bool settled(String hash) =>
+        known.containsKey(hash) ||
+        setAside.contains(hash) ||
+        (inReview[hash]?.$2 ?? false);
+    final leavingReview = <int>[];
+    void leaveReview(String hash) {
+      final item = inReview[hash];
+      if (item != null) leavingReview.add(item.$1);
+    }
+
     final parsedByPack = <String, List<ParsedTransaction>>{};
     final readByPack = <String, List<(ReviewDraft, SmsMessage, String)>>{};
     final templates = <String, List<ReadingTemplate>>{};
     var forReview = 0;
     var ignored = 0;
+    var settledCount = 0;
+    var updated = 0;
+    final changes = <ReadChange>[];
     for (final result in results) {
       switch (result) {
-        case ParsedTransaction():
+        case ParsedTransaction(:final rawHash):
+          if (settled(rawHash)) {
+            settledCount++;
+            final row = known[rawHash];
+            if (again && row != null && reads != null) {
+              if (await _readAgain(reads, row, result)) {
+                updated++;
+                changes.add(
+                  ReadChange(result.packId, row.record.accountId, result.time),
+                );
+              }
+            }
+            continue;
+          }
+          leaveReview(rawHash);
           (parsedByPack[result.packId] ??= []).add(result);
-        case Unmatched(:final message):
-          final known = _templates == null
+        case Unmatched(:final message, :final rawHash):
+          if (known.containsKey(rawHash) || setAside.contains(rawHash)) {
+            settledCount++;
+            continue;
+          }
+          final layouts = _templates == null
               ? const <ReadingTemplate>[]
               : templates[result.packId] ??= await _templates.forInstitution(
                   result.packId,
                 );
-          final draft = _readWith(known, message.body);
+          final draft = (inReview[rawHash]?.$2 ?? false)
+              ? null
+              : _readWith(layouts, message.body);
           if (draft != null) {
-            (readByPack[result.packId] ??= []).add((
-              draft,
-              message,
-              result.rawHash,
-            ));
+            leaveReview(rawHash);
+            (readByPack[result.packId] ??= []).add((draft, message, rawHash));
             continue;
           }
           final added = await _reviewInbox.addIfNew(
             institutionId: result.packId,
             sender: message.sender,
             receivedAt: message.receivedAt,
-            messageHash: result.rawHash,
+            messageHash: rawHash,
             body: message.body,
             reason: result.reason,
           );
@@ -210,7 +327,7 @@ class SmsIngestor {
             ParsedTransaction() => transactionFromParsed(
               item,
               accountId: accountId,
-            ),
+            ).copyWith(readBy: Value(readByOf(item))),
             (
               final ReviewDraft draft,
               final SmsMessage message,
@@ -225,15 +342,47 @@ class SmsIngestor {
             _ => throw StateError('unexpected $item'),
           },
       ];
-      added += await _transactions.addNew(rows);
+      final stored = await _transactions.addNew(rows);
+      added += stored;
       parsedCount += rows.length;
+      if (again && stored > 0 && reads != null) {
+        final now = await reads.stored({
+          for (final row in rows) ?row.messageHash.value,
+        });
+        for (final row in now.values) {
+          changes.add(ReadChange(packId, accountId, row.record.occurredAt));
+        }
+      }
+    }
+    for (final id in leavingReview) {
+      await _reviewInbox.resolve(id);
     }
 
     return SmsIngestSummary(
       added: added,
-      duplicates: parsedCount - added,
+      duplicates: parsedCount - added + settledCount,
       forReview: forReview,
       ignored: ignored,
+      updated: updated,
+      changes: changes,
     );
+  }
+
+  /// Updates [stored] from [parsed] when the person has not touched it and
+  /// the readers now read it differently. Returns whether it changed.
+  Future<bool> _readAgain(
+    MessageReadsRepository reads,
+    StoredReading stored,
+    ParsedTransaction parsed,
+  ) async {
+    final row = stored.record;
+    if (stored.touched || row.currency != parsed.currency) return false;
+    final fresh = transactionFromParsed(parsed, accountId: row.accountId);
+    final readBy = readByOf(parsed);
+    if (!readsDifferently(row, fresh)) {
+      if (row.readBy != readBy) await reads.stamp(row.id, readBy);
+      return false;
+    }
+    return reads.update(row, fresh, readBy: readBy);
   }
 }
