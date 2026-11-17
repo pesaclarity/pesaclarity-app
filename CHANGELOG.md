@@ -2,6 +2,15 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from pull request titles.
 
+## [0.4.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.3.0...v0.4.0) (2026-11-17)
+
+
+### Features
+
+* read messages again with newer readers ([#267](https://github.com/pesaclarity/pesaclarity-app/issues/267)) ([8061cb0](https://github.com/pesaclarity/pesaclarity-app/commit/8061cb01b97ac294ce3d9b8a6639da251e318196))
+* run the Ask reader in pure Dart in every build ([#268](https://github.com/pesaclarity/pesaclarity-app/issues/268)) ([b3ff09c](https://github.com/pesaclarity/pesaclarity-app/commit/b3ff09c63cd55cb797057766fbe320e9b00819dd))
+* show update notices from the server, signed and pinned ([#266](https://github.com/pesaclarity/pesaclarity-app/issues/266)) ([858b569](https://github.com/pesaclarity/pesaclarity-app/commit/858b569b2b4ab775236b62fd4107a0d6bf0f87b9))
+
 ## [0.3.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.2.0...v0.3.0) (2026-11-17)
 
 
