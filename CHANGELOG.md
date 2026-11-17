@@ -2,6 +2,34 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from pull request titles.
 
+## [0.3.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.2.0...v0.3.0) (2026-11-17)
+
+
+### Features
+
+* Ask reader that catches names and money in ([#259](https://github.com/pesaclarity/pesaclarity-app/issues/259)) ([d341889](https://github.com/pesaclarity/pesaclarity-app/commit/d3418899552b2fd63c9d86907bd8eb360e79a45b))
+* Ask replies worded on the phone by the small writer ([#237](https://github.com/pesaclarity/pesaclarity-app/issues/237)) ([bec3092](https://github.com/pesaclarity/pesaclarity-app/commit/bec3092b619da413718d31fdc3774e33c79f8fa9))
+* Ask, questions about your money answered on the phone ([#234](https://github.com/pesaclarity/pesaclarity-app/issues/234)) ([2ec9e43](https://github.com/pesaclarity/pesaclarity-app/commit/2ec9e4371709fe953a686fd3ae209a9a8f0c383f))
+* calmer light and dark theme, compact cards ([#231](https://github.com/pesaclarity/pesaclarity-app/issues/231)) ([071582f](https://github.com/pesaclarity/pesaclarity-app/commit/071582f4d599bb2cd2dc6e0764fc841ffe8d1a5e))
+* give through CitaPay, with the amount in cents ([#235](https://github.com/pesaclarity/pesaclarity-app/issues/235)) ([6d24d62](https://github.com/pesaclarity/pesaclarity-app/commit/6d24d622743e2ce56a70c5b368b55aa9d168d211))
+* Home shows how much is not yet sorted ([#248](https://github.com/pesaclarity/pesaclarity-app/issues/248)) ([20e05bc](https://github.com/pesaclarity/pesaclarity-app/commit/20e05bcad22e836599b14f61c698785dc4384b5a))
+
+
+### Fixes
+
+* amounts never split across lines in tiles ([#242](https://github.com/pesaclarity/pesaclarity-app/issues/242)) ([57fb638](https://github.com/pesaclarity/pesaclarity-app/commit/57fb63822172b3f79b1c9d9e44028d31093fb16d))
+* Ask answers the question asked (payee counts, money in) ([#240](https://github.com/pesaclarity/pesaclarity-app/issues/240)) ([df2ee5a](https://github.com/pesaclarity/pesaclarity-app/commit/df2ee5af7f19010b2d0f16fcf7c3ee7242039cdd))
+* Ask replies read plainly (below zero, no filler, empty months, unsorted, money in) ([#238](https://github.com/pesaclarity/pesaclarity-app/issues/238)) ([b7cc193](https://github.com/pesaclarity/pesaclarity-app/commit/b7cc193647df3bc6f7322330ebb5cfeb35e9a521))
+* Health Index counts Fuliza charges from the journal, like Insights ([#230](https://github.com/pesaclarity/pesaclarity-app/issues/230)) ([86fcf9c](https://github.com/pesaclarity/pesaclarity-app/commit/86fcf9ca1ab367617b32349428df58169f08a8f8))
+* one way into Debts from empty Goals ([#245](https://github.com/pesaclarity/pesaclarity-app/issues/245)) ([eae38e2](https://github.com/pesaclarity/pesaclarity-app/commit/eae38e24a4a9c2ce06493008f56084e319dd05a8))
+* screen headers wrap instead of overflowing at large text ([#243](https://github.com/pesaclarity/pesaclarity-app/issues/243)) ([6f51568](https://github.com/pesaclarity/pesaclarity-app/commit/6f51568c5ede62707275cfaabdea00261f8d61dc))
+* tiles two to a row before one, and two-way switches stack instead of breaking words ([#244](https://github.com/pesaclarity/pesaclarity-app/issues/244)) ([0ddc34c](https://github.com/pesaclarity/pesaclarity-app/commit/0ddc34c21eda71484c1a3ffeaafff85d7dca20a3))
+
+
+### Performance
+
+* read the journal once per change ([#239](https://github.com/pesaclarity/pesaclarity-app/issues/239)) ([0ffe840](https://github.com/pesaclarity/pesaclarity-app/commit/0ffe8404e62d2d8021fee9c8ee3b7ba71539a3d5))
+
 ## [0.2.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.1.0...v0.2.0) (2026-11-16)
 
 
