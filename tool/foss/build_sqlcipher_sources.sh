@@ -25,11 +25,11 @@
 #        (default: tool/foss/sqlcipher in this checkout; git-ignored)
 set -euo pipefail
 
-SQLCIPHER_VERSION=4.19.0
+SQLCIPHER_VERSION=4.20.0
 SQLCIPHER_REPO=https://github.com/sqlcipher/sqlcipher.git
-SQLCIPHER_COMMIT=c4b275a47932888216bade83aff2bbc73df0ff85 # tag v4.19.0
-# SQLite 3.53.4 with SQLCipher 4.19.0.
-SQLITE3_C_SHA256=8640c653acadf665cce6331646f60b5b74a4690746f2c4a2d8f688a0570a0c0c
+SQLCIPHER_COMMIT=355d4db92d3404e71faa8088d071a71d767807f4 # tag v4.20.0
+# SQLite 3.54.1 with SQLCipher 4.20.0.
+SQLITE3_C_SHA256=8cd2347d18886fee4651153fabeeeffb7cec008700987dab1c00261febc4220f
 
 LIBTOMCRYPT_VERSION=1.18.2
 LIBTOMCRYPT_REPO=https://github.com/libtom/libtomcrypt.git
