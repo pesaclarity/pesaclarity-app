@@ -10,7 +10,7 @@ All notable changes to the app. Versions follow [semantic versioning](https://se
 * Ask reader that catches names and money in ([#259](https://github.com/pesaclarity/pesaclarity-app/issues/259)) ([d341889](https://github.com/pesaclarity/pesaclarity-app/commit/d3418899552b2fd63c9d86907bd8eb360e79a45b))
 * Ask replies worded on the phone by the small writer ([#237](https://github.com/pesaclarity/pesaclarity-app/issues/237)) ([bec3092](https://github.com/pesaclarity/pesaclarity-app/commit/bec3092b619da413718d31fdc3774e33c79f8fa9))
 * Ask, questions about your money answered on the phone ([#234](https://github.com/pesaclarity/pesaclarity-app/issues/234)) ([2ec9e43](https://github.com/pesaclarity/pesaclarity-app/commit/2ec9e4371709fe953a686fd3ae209a9a8f0c383f))
-* calmer light and dark theme, compact cards ([#231](https://github.com/pesaclarity/pesaclarity-app/issues/231)) ([071582f](https://github.com/pesaclarity/pesaclarity-app/commit/071582f4d599bb2cd2dc6e0764fc841ffe8d1a5e))
+* refined light and dark theme, red lead cards kept ([#251](https://github.com/pesaclarity/pesaclarity-app/issues/251)) ([#231](https://github.com/pesaclarity/pesaclarity-app/issues/231)) ([071582f](https://github.com/pesaclarity/pesaclarity-app/commit/071582f4d599bb2cd2dc6e0764fc841ffe8d1a5e))
 * give through CitaPay, with the amount in cents ([#235](https://github.com/pesaclarity/pesaclarity-app/issues/235)) ([6d24d62](https://github.com/pesaclarity/pesaclarity-app/commit/6d24d622743e2ce56a70c5b368b55aa9d168d211))
 * Home shows how much is not yet sorted ([#248](https://github.com/pesaclarity/pesaclarity-app/issues/248)) ([20e05bc](https://github.com/pesaclarity/pesaclarity-app/commit/20e05bcad22e836599b14f61c698785dc4384b5a))
 
