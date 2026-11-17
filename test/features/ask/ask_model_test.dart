@@ -6,6 +6,8 @@ import 'package:pesaclarity/src/domain/ask/model_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/model_reply_writer.dart';
 import 'package:pesaclarity/src/domain/ask/rule_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/understanding.dart';
+import 'package:pesaclarity/src/domain/ml/dart_ask_reader.dart';
+import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
 import 'package:pesaclarity/src/domain/reader/reader_tokens.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
@@ -37,16 +39,41 @@ void main() {
     final m = await manifest();
     expect(m.incompatibilities(), isEmpty);
     expect(m.intentLabels, containsAll(['balance', 'fees']));
-    final bytes = (await asset('$askModelFolder/${m.modelFile}'))!;
-    expect(bytes.length, m.modelSizeBytes);
-    expect(await sha256Hex(bytes), m.modelSha256);
+    final bytes = (await asset('$askModelFolder/${m.weightsFile}'))!;
+    expect(bytes.length, m.weightsSizeBytes);
+    expect(await sha256Hex(bytes), m.weightsSha256);
     // The reader trained on invented names (pesaclarity-ml ask-reader v2),
-    // which test/features/ask/ask_reader_test.dart replays.
-    expect(m.modelSizeBytes, 271904);
+    // which test/features/ask/ask_reader_test.dart runs: its weights, read
+    // out of that model's TFLite file. The app does not ship the TFLite
+    // file.
+    expect(PlainWeights.parse(bytes).sourceSha256, m.modelSha256);
     expect(
       m.modelSha256,
       'f6652fa718af71507e0cde8c6b2a635fcff69c7987aa439481d9106915740552',
     );
+    expect(await asset('$askModelFolder/${m.modelFile}'), isNull);
+  });
+
+  test('a weights file that does not match the manifest is not used', () async {
+    final rules = RuleQuestionReader(today: () => CalendarDate(2026, 11, 16));
+    Future<QuestionReader> load(Uint8List Function(Uint8List) change) =>
+        loadAskReader(
+          readAsset: (path) async {
+            final bytes = await asset(path);
+            return bytes != null && path.endsWith('.weights')
+                ? change(bytes)
+                : bytes;
+          },
+          openRuntime: DartAskReader.parse,
+          fallback: rules,
+        );
+    expect(await load((b) => b), isA<ModelQuestionReader>());
+    // One byte changed: same size, other SHA-256.
+    expect(
+      await load((b) => Uint8List.fromList(b)..[b.length - 1] ^= 1),
+      same(rules),
+    );
+    expect(await load((b) => Uint8List.sublistView(b, 1)), same(rules));
   });
 
   test('the bundled writer fits this app', () async {

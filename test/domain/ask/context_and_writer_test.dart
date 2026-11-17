@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/domain/ask/periods.dart';
 import 'package:pesaclarity/src/domain/ask/reply_writer.dart';
 import 'package:pesaclarity/src/domain/ask/rule_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/understanding.dart';
+import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
 import 'package:pesaclarity/src/domain/reader/reader_tokens.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
@@ -160,6 +161,10 @@ void main() {
       modelFile: 'ask-reader.tflite',
       modelSha256: '',
       modelSizeBytes: 0,
+      weightsFile: 'ask-reader.weights',
+      weightsSha256: '',
+      weightsSizeBytes: 0,
+      weightsFormatVersion: plainWeightsFormatVersion,
       schemaVersion: readerSchemaVersion,
       maxTokens: readerMaxTokens,
       hashBuckets: readerHashBuckets,
@@ -202,6 +207,10 @@ void main() {
         modelFile: 'x',
         modelSha256: '',
         modelSizeBytes: 0,
+        weightsFile: 'x',
+        weightsSha256: '',
+        weightsSizeBytes: 0,
+        weightsFormatVersion: plainWeightsFormatVersion,
         schemaVersion: readerSchemaVersion,
         maxTokens: readerMaxTokens,
         hashBuckets: readerHashBuckets,

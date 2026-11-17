@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Run Ask's questions through the bundled ask-reader.tflite on this computer.
+"""Record what TFLite reads for Ask's test questions, the reference the app's Dart reader must match.
 
-The app's tests cannot run TFLite on the host, so test/features/ask/ask_reader_test.dart
-replays the real model's outputs recorded here: for each question, the intent probabilities and
-the slot label probabilities of its tokens, for the exact input the app encodes.
+The app runs the ask reader in Dart from ask-reader.weights; TFLite stays the reference. For each
+question test/features/ask/ask_reader_test.dart asks, this runs the very model the weights were
+read out of, ask-reader.tflite from the pesaclarity-ml release (the app does not ship it; its
+SHA-256 must be the manifest's model_sha256), and records the intent probabilities and the slot
+label probabilities of its tokens, for the exact input the app encodes. The test then checks the
+Dart reader gives the same labels and probabilities within its tolerance.
 
   1. ASK_READER_RECORD=build/ask-reader-requests.json flutter test test/features/ask/ask_reader_test.dart
   2. uv run --project ../pesaclarity-ml python tool/ask_reader_decodes.py \\
-       build/ask-reader-requests.json test/fixtures/ask/ask_reader_decodes.json
+       path/to/ask-reader.tflite build/ask-reader-requests.json \\
+       test/fixtures/ask/ask_reader_decodes.json
   3. flutter test test/features/ask/ask_reader_test.dart
 
 Questions already in the output file are kept while the model is the same; a new model starts
@@ -25,14 +29,14 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = ROOT / "assets" / "models" / "ask"
 
 
-def main(requests_path: str, out_path: str) -> int:
+def main(model: str, requests_path: str, out_path: str) -> int:
     import numpy as np
     import tensorflow as tf
 
     manifest = json.loads((MODEL_DIR / "ask-reader-manifest.json").read_text())
-    model_path = MODEL_DIR / manifest["model_file"]
+    model_path = Path(model)
     if hashlib.sha256(model_path.read_bytes()).hexdigest() != manifest["model_sha256"]:
-        print("the bundled model does not match its manifest", file=sys.stderr)
+        print(f"{model_path} is not the model of the bundled manifest", file=sys.stderr)
         return 1
     interpreter = tf.lite.Interpreter(model_path=str(model_path))
     inp = interpreter.get_input_details()[0]
@@ -64,9 +68,9 @@ def main(requests_path: str, out_path: str) -> int:
 
     result = {
         "model_sha256": manifest["model_sha256"],
-        "note": "Real ask-reader outputs for the app's questions, recorded on a computer by "
-        "tool/ask_reader_decodes.py: intent probabilities, and slot probabilities for each "
-        "token of the question.",
+        "note": "Real ask-reader outputs for the app's questions, recorded with TFLite on a "
+        "computer by tool/ask_reader_decodes.py: intent probabilities, and slot probabilities "
+        "for each token of the question.",
         "readings": sorted(readings.values(), key=lambda r: r["question"]),
     }
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -81,7 +85,7 @@ def main(requests_path: str, out_path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
-    sys.exit(main(sys.argv[1], sys.argv[2]))
+    sys.exit(main(sys.argv[1], sys.argv[2], sys.argv[3]))

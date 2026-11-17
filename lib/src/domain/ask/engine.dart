@@ -7,6 +7,7 @@ import 'answer.dart';
 import 'context.dart';
 import 'data_source.dart';
 import 'matcher.dart';
+import 'model_question_reader.dart';
 import 'model_reply_writer.dart';
 import 'periods.dart';
 import 'reply_writer.dart';
@@ -75,7 +76,11 @@ class AskEngine {
     required DateTime now,
   }) async {
     final today = CalendarDate.local(now);
-    final understanding = reader.read(question);
+    // The trained reader runs off the UI thread; the rules take microseconds.
+    final reader = this.reader;
+    final understanding = reader is ModelQuestionReader
+        ? await reader.readInBackground(question)
+        : reader.read(question);
     final seed = question.hashCode;
     final intent = understanding.intent;
 

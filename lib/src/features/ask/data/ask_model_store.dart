@@ -9,14 +9,13 @@ import '../../categoriser/data/model_store.dart' show sha256Hex;
 /// Where Ask's models ship in the app, as pesaclarity-ml exports them.
 const askModelFolder = 'assets/models/ask';
 
-/// The question reader's manifest, beside `ask-reader.tflite`.
+/// The question reader's manifest, beside `ask-reader.weights`.
 const askReaderManifestFile = 'ask-reader-manifest.json';
 
 /// The reply writer's manifest, beside `ask-writer.tflite`.
 const askWriterManifestFile = 'ask-writer-manifest.json';
 
-/// Opens `ask-reader.tflite`. Builds without a TFLite runtime, such as
-/// F-Droid's, pass null and always use the rules.
+/// Opens `ask-reader.weights`. Null makes Ask always use its rules.
 typedef AskReaderRuntimeOpener = AskReaderRuntime Function(Uint8List bytes);
 
 /// Opens `ask-writer.tflite` for [manifest]. Null in builds without TFLite.
@@ -45,14 +44,14 @@ Future<QuestionReader> loadAskReader({
       (jsonDecode(utf8.decode(manifestBytes)) as Map).cast<String, Object?>(),
     );
     if (manifest.incompatibilities().isNotEmpty) return fallback;
-    final file = manifest.modelFile;
+    final file = manifest.weightsFile;
     if (file.contains('/') || file.contains(r'\') || file.startsWith('.')) {
       return fallback;
     }
     final bytes = await readAsset('$askModelFolder/$file');
     if (bytes == null ||
-        bytes.length != manifest.modelSizeBytes ||
-        await sha256Hex(bytes) != manifest.modelSha256) {
+        bytes.length != manifest.weightsSizeBytes ||
+        await sha256Hex(bytes) != manifest.weightsSha256) {
       return fallback;
     }
     return ModelQuestionReader(

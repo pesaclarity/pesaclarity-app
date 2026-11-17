@@ -1,5 +1,5 @@
 /// What a question asks for, as the question reader sees it. The names are
-/// the labels `ask-reader.tflite` uses, so they never change once shipped.
+/// the labels the Ask reader model uses, so they never change once shipped.
 enum AskIntent {
   spent,
   received,
