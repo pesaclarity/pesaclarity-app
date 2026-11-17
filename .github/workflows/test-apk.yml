@@ -222,7 +222,8 @@ jobs:
             --dart-define=PESACLARITY_GOOGLE_SERVER_CLIENT_ID="$GOOGLE_CLIENT_ID" \
             --dart-define=PESACLARITY_SUPPORT_URL="$SUPPORT_URL" \
             --dart-define=PESACLARITY_SUPPORT_PAYEES="$SUPPORT_PAYEES" \
-            --dart-define=PESACLARITY_SUPPORT_COSTS_URL="$SUPPORT_COSTS_URL"
+            --dart-define=PESACLARITY_SUPPORT_COSTS_URL="$SUPPORT_COSTS_URL" \
+            --dart-define=PESACLARITY_DISTRIBUTION=website
           name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR"
           out="$RUNNER_TEMP/apks"
           mkdir -p "$out"
