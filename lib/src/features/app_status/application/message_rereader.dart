@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../sms/application/read_again.dart';
+
 /// Reads the phone's messages again from a day, when a notice asks for it,
 /// such as after a bank changed its messages and some payments were missed.
 abstract interface class MessageRereader {
@@ -17,8 +19,19 @@ class NoMessageRereader implements MessageRereader {
   Future<bool> requestReread(DateTime from) async => false;
 }
 
-/// The re-reader app status hands `reread_from` to. The "Read messages
-/// again" service overrides this.
+/// Hands the request to "Read messages again" ([ReadAgainController]).
+class ReadAgainRereader implements MessageRereader {
+  const ReadAgainRereader(this._ref);
+
+  final Ref _ref;
+
+  @override
+  Future<bool> requestReread(DateTime from) => _ref
+      .read(readAgainControllerProvider.notifier)
+      .readSince(DateTime(from.year, from.month, from.day));
+}
+
+/// The re-reader app status hands `reread_from` to.
 final messageRereaderProvider = Provider<MessageRereader>(
-  (ref) => const NoMessageRereader(),
+  ReadAgainRereader.new,
 );

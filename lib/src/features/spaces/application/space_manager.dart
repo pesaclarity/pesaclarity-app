@@ -11,6 +11,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/message_reads_repository.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
 import '../../auth/application/auth_controller.dart';
@@ -23,6 +24,8 @@ import 'spaces_providers.dart';
 /// categories. Every other table is its records.
 const _keptOnClear = {
   'app_settings',
+  // Cleared records stay cleared when messages are read again.
+  'set_aside_messages',
   'accounts',
   'categories',
   'tags',
@@ -140,6 +143,10 @@ class SpaceManager {
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
         await db.transaction(() async {
+          await setAsideMessagesOf(
+            db,
+            await db.select(db.transactions).map((t) => t.id).get(),
+          );
           for (final table in db.allTables) {
             if (_keptOnClear.contains(table.actualTableName)) continue;
             await db.delete(table).go();
@@ -169,6 +176,7 @@ class SpaceManager {
             t.id,
         ];
         if (ids.isNotEmpty) {
+          await setAsideMessagesOf(db, ids);
           await (db.update(db.transactions)
                 ..where((t) => t.transferPairId.isIn(ids)))
               .write(const TransactionsCompanion(transferPairId: Value(null)));

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/message_reads_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/sms_scan_marks_repository.dart';
@@ -19,6 +20,7 @@ import '../../categoriser/application/categoriser_providers.dart';
 import '../../spaces/application/routing_providers.dart';
 import '../data/sms_source.dart';
 import 'message_recheck.dart';
+import 'read_again.dart';
 import 'scan_range_provider.dart';
 import 'sms_ingestor.dart';
 import 'sms_scan_service.dart';
@@ -35,6 +37,7 @@ final smsIngestorProvider = Provider<SmsIngestor>(
     transactions: ref.watch(transactionsRepositoryProvider),
     reviewInbox: ref.watch(reviewInboxRepositoryProvider),
     templates: ref.watch(readerTemplatesRepositoryProvider),
+    reads: ref.watch(messageReadsRepositoryProvider),
     parse: ref.watch(smsParseBatchProvider),
   ),
 );
@@ -93,6 +96,11 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   } on Object catch (error) {
     if (kDebugMode) debugPrint('Rechecking messages failed: $error');
   }
+  // Every message again, in the background, once the readers are newer
+  // than the ones that last read them all.
+  unawaited(
+    ref.read(readAgainControllerProvider.notifier).readIfNewer(selected),
+  );
   yield initial;
 
   final senders = {for (final i in selected) ...i.senderIds};
@@ -184,19 +192,30 @@ class SmsScanController extends Notifier<SmsScanState> {
     try {
       await ref.read(selectedInstitutionIdsProvider.future);
       final range = await ref.read(scanRangeProvider.future);
+      final selected = ref.read(selectedInstitutionsProvider);
+      final startedAt = ref.read(clockProvider)();
+      var total = 0;
       final summary = await ref
           .read(smsScanServiceProvider)
           .scan(
-            ref.read(selectedInstitutionsProvider),
+            selected,
             from: range
                 .firstDay(CalendarDate.local(ref.read(clockProvider)()))
                 ?.startInstant,
-            onProgress: (done, total) => state = SmsScanState(
-              SmsScanStage.scanning,
-              done: done,
-              total: total,
-            ),
+            onProgress: (done, all) {
+              total = all;
+              state = SmsScanState(
+                SmsScanStage.scanning,
+                done: done,
+                total: all,
+              );
+            },
           );
+      // The first scan reads every message: no need to read them again
+      // until the readers are newer.
+      await ref
+          .read(readAgainControllerProvider.notifier)
+          .noteFullRead(selected, at: startedAt, messages: total);
       if (summary.added > 0) {
         final suggester = ref.read(categorySuggesterProvider);
         if (suggester != null) {

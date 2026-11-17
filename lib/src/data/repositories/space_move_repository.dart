@@ -5,6 +5,7 @@ import '../../domain/spaces/space.dart';
 import '../database/app_database.dart';
 import '../database/connection.dart';
 import '../database/database_providers.dart';
+import 'message_reads_repository.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
 /// shared M-Pesa line that belongs to the business.
@@ -101,6 +102,12 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                   ),
             );
         // Moving back undoes an earlier move away.
+        final hash = tx.messageHash;
+        if (hash != null) {
+          await (target.delete(
+            target.setAsideMessages,
+          )..where((m) => m.messageHash.equals(hash))).go();
+        }
         if (key != null) {
           await (target.delete(target.movedTransactions)..where(
                 (m) => m.accountId.equals(accountId) & m.dedupeKey.equals(key),
@@ -125,6 +132,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
               ),
             );
       }
+      await setAsideMessagesOf(_source, [transactionId]);
       // An own transfer's other half stays here, now on its own.
       await (_source.update(_source.transactions)
             ..where((t) => t.transferPairId.equals(transactionId)))

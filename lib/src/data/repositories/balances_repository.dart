@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
+import 'message_reads_repository.dart';
 
 /// Corrections and fixes that keep each account's balance true. Payments
 /// themselves are never edited: a correction is its own visible entry, a
@@ -205,6 +206,7 @@ class DriftBalancesRepository implements BalancesRepository {
           'SELECT ?, tag_id FROM transaction_tags WHERE transaction_id = ?',
           [keptId, copyId],
         );
+        await setAsideMessagesOf(_db, [copyId]);
         await (_db.update(_db.transactions)
               ..where((t) => t.transferPairId.equals(copyId)))
             .write(const TransactionsCompanion(transferPairId: Value(null)));

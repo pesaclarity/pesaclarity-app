@@ -2,10 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
+import 'package:pesaclarity/src/data/repositories/sms_scan_marks_repository.dart';
+import 'package:pesaclarity/src/features/sms/application/read_again.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
+import 'package:ujumbe/ujumbe.dart' show engineVersion;
 
 import '../../helpers/fake_sms_source.dart';
 import '../../helpers/sms_samples.dart';
@@ -81,5 +85,34 @@ void main() {
     expect(results, isEmpty);
     expect(source.reads, isEmpty);
     expect(source.listenedSenders, isEmpty);
+  });
+
+  test('reads every message again in the background when the readers are '
+      'newer, and notes it for Home', () async {
+    // Read up to November by readers older than these; the sent message
+    // was missed.
+    await DriftSmsScanMarksRepository(db)
+        .markScanned('mpesa', DateTime.utc(2026, 11));
+    await DriftAppSettingsRepository(db).writeJson(
+      ReadAgainController.settingsKey,
+      const LastRead(readers: ReaderVersions('0.0.1', {'mpesa': '0.0.1'}))
+          .toJson(),
+    );
+    final source = FakeSmsSource(inbox: [mpesaSent()]);
+    addTearDown(source.close);
+    final c = container(source);
+
+    await capture(c, 1);
+    ReadAgainNotice? notice;
+    for (var i = 0; i < 50 && notice == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      c.invalidate(readAgainNoticeProvider);
+      notice = await c.read(readAgainNoticeProvider.future);
+    }
+    expect(notice!.added, 1);
+    expect(notice.institutionIds, ['mpesa']);
+    expect(await db.select(db.transactions).get(), hasLength(1));
+    final last = await c.read(lastReadProvider.future);
+    expect(last!.readers.engine, engineVersion);
   });
 }

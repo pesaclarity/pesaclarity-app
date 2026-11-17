@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../sms/presentation/read_again_card.dart';
 import '../../sms/presentation/scan_range_tile.dart';
 import '../application/my_accounts_providers.dart';
 import 'institution_list.dart';
@@ -37,6 +38,8 @@ class ChooseAccountsScreen extends ConsumerWidget {
           const InstitutionList(control: InstitutionControl.toggle),
           const SizedBox(height: 12),
           const ScanRangeTile(),
+          const SizedBox(height: 12),
+          const ReadAgainCard(),
           if (noneOn ?? false) ...[
             const SizedBox(height: 12),
             Text(

@@ -188,6 +188,7 @@ class LoanPayments extends Table {
   columns: {#accountId, #dedupeKey},
   unique: true,
 )
+@TableIndex(name: 'transactions_message', columns: {#messageHash})
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get accountId => integer().references(Accounts, #id)();
@@ -276,6 +277,11 @@ class Transactions extends Table {
 
   /// Prediction confidence score between 0.0 and 1.0.
   RealColumn get autoCategoryConfidence => real().nullable()();
+
+  /// The readers that read this from its message: the engine and pack
+  /// versions, such as `0.3.0 mpesa@0.3.1`. Null for rows from before it
+  /// was kept, and for rows not read by the bundled readers.
+  TextColumn get readBy => text().nullable()();
 }
 
 /// Own-transfer pairs the person unmatched, so pairing never makes them
@@ -530,6 +536,17 @@ class MovedTransactions extends Table {
 
   @override
   Set<Column> get primaryKey => {accountId, dedupeKey};
+}
+
+/// Messages whose transaction the person removed (a copy, or records they
+/// cleared) or moved to another space, by message hash, so reading the
+/// messages again never brings them back here.
+@DataClassName('SetAsideMessage')
+class SetAsideMessages extends Table {
+  TextColumn get messageHash => text()();
+
+  @override
+  Set<Column> get primaryKey => {messageHash};
 }
 
 /// Exchange rates as first fetched each day, so each transaction converts at
