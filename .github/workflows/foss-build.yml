@@ -102,6 +102,12 @@ jobs:
       - name: Check the foss APK has rayo and no TFLite
         run: |
           apk=build/app/outputs/flutter-apk/app-foss-release.apk
+          {
+            echo "### Native libraries in the foss APK"
+            echo '```'
+            unzip -l "$apk" 'lib/*'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
           if unzip -l "$apk" | grep -q -i -E 'libtensorflowlite|liblitert'; then
             echo "::error::The foss APK contains a TFLite/LiteRT library"
             exit 1
