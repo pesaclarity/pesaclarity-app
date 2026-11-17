@@ -144,7 +144,7 @@ Releases: see [RELEASING.md](RELEASING.md), [docs/reproducible-builds.md](docs/r
 
 ## SQLCipher
 
-The database uses `package:sqlite3` 3.x with its SQLCipher build, chosen in `pubspec.yaml` under `hooks.user_defines.sqlite3.source`. This replaces `sqlcipher_flutter_libs`, which reached end of life when `sqlite3` 3.x began bundling SQLCipher itself. The build hook downloads checksum-verified SQLCipher binaries from the `sqlite3.dart` GitHub releases; F-Droid may require building SQLCipher from source instead (the hook supports `source: source`).
+The database uses `package:sqlite3` 3.x with its SQLCipher build, chosen in `pubspec.yaml` under `hooks.user_defines.sqlite3.source`. This replaces `sqlcipher_flutter_libs`, which reached end of life when `sqlite3` 3.x began bundling SQLCipher itself. In the `play` build the hook downloads checksum-verified SQLCipher binaries (with OpenSSL) from the `sqlite3.dart` GitHub releases. The `foss` build compiles the same SQLCipher release from source with LibTomCrypt (`tool/prepare_foss.sh`, `tool/foss/build_sqlcipher_sources.sh`); the database format is the same, so backups move between the two.
 
 ## Fonts
 

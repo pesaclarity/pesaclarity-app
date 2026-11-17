@@ -13,14 +13,24 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 | No build timestamps | Set `SOURCE_DATE_EPOCH` to the release commit time: `export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)`. Avoid `DateTime.now()` or `BuildConfig` timestamps in build scripts. |
 | No dependency metadata blob | Done: `dependenciesInfo { includeInApk = false; includeInBundle = false }` in `android/app/build.gradle.kts`. |
 | Same build command | `flutter build apk --release --flavor foss --obfuscate --split-debug-info=build/symbols`, plus the same `--dart-define` values (see `RELEASING.md`). Different defines produce a different APK. |
-| No prebuilt binaries in `foss` | Run `tool/prepare_foss.sh` first. PDFium is done; SQLCipher is not yet (see below). |
+| No prebuilt binaries in `foss` | Run `tool/prepare_foss.sh` first. It removes PDFium and compiles SQLCipher from source (see below). |
 | No committed binaries | Done: no `.jar`, `.so` or `.aar` files are in the repo. The Gradle wrapper jar is not committed; Flutter supplies it. |
 
 ## Current offenders
 
-1. **SQLCipher (`package:sqlite3` build hook).** `hooks.user_defines.sqlite3.source: sqlcipher` in `pubspec.yaml` makes the hook download a prebuilt `libsqlcipher.so` from the `sqlite3` package's GitHub releases (checked against hashes in the package). F-Droid does not accept prebuilt native libraries. Fix for `foss`: compile SQLCipher from source with the hook's `source: source` option (pointing `path` at a SQLCipher amalgamation built in the F-Droid recipe, with its crypto library), or have the recipe build the library and use `source: system`. This needs testing on a device before the first F-Droid submission.
+1. **SQLCipher (`package:sqlite3` build hook).** Resolved for `foss`. In `play`, `hooks.user_defines.sqlite3.source: sqlcipher` makes the hook download a prebuilt `libsqlcipher.so` from the `sqlite3` package's GitHub releases (checked against hashes in the package); it links OpenSSL. For `foss`, `tool/prepare_foss.sh` runs `tool/foss/build_sqlcipher_sources.sh`, which takes SQLCipher 4.19.0 (the version in the prebuilt) and LibTomCrypt 1.18.2 at pinned commits, generates SQLCipher's `sqlite3.c` with its own build (`./configure --disable-tcl`, so only a host C compiler and `make`), checks the SHA-256 of `sqlite3.c` and of the LibTomCrypt files it copies, and writes them to `tool/foss/sqlcipher/` (git-ignored). It then switches the hook to `source: source` with those files and the prebuilt's compile options, with LibTomCrypt as the crypto provider in place of OpenSSL. The hook compiles them with the NDK during `flutter build`; nothing is downloaded then. Databases are the same format either way (SQLCipher 4 defaults: AES-256-CBC, HMAC-SHA512, PBKDF2-HMAC-SHA512, 4096-byte pages), so a backup made by one build restores in the other; `test/data/sqlcipher_format_test.dart` opens a database made by each. Still to do: open a `play` database with a `foss` build on a device before the first F-Droid submission.
 2. **PDFium.** Resolved: `tool/prepare_foss.sh` removes `pdfrx_engine` and `pdfium_flutter` and swaps in `tool/foss/pdf_engine.dart`, so the `foss` build has no PDF engine and hides statement import. The `Foss build` workflow runs the script and fails if `libpdfium` is in the APK.
 3. **Flutter engine.** The Flutter SDK downloads its engine artefacts. F-Droid builds Flutter apps with the SDK as a srclib; follow fdroiddata's current guidance for Flutter when writing the recipe.
+
+## F-Droid recipe
+
+The recipe's `prebuild` runs `tool/prepare_foss.sh`. For SQLCipher it needs:
+
+- `git`, a C compiler and `make` on the build server (for SQLCipher's `./configure` and `make sqlite3.c`; no Tcl or OpenSSL).
+- The sources. Either add srclibs for `sqlcipher/sqlcipher` at tag `v4.19.0` (commit `c4b275a47932888216bade83aff2bbc73df0ff85`) and `libtom/libtomcrypt` at tag `v1.18.2` (commit `7e7eb695d581782f04b24dc444cbfde86af59853`) and run `SQLCIPHER_SRC=$$sqlcipher$$ LIBTOMCRYPT_SRC=$$libtomcrypt$$ tool/prepare_foss.sh`, or allow the script to clone those tags itself. Either way it checks the commits and file hashes. Network is needed only in `prebuild`; the Gradle build compiles the generated C files and fetches nothing for SQLCipher.
+- The NDK version the app's Gradle build uses, which compiles the library.
+
+When `sqlite3` is upgraded and its prebuilt moves to a new SQLCipher, update the pins and hashes in `tool/foss/build_sqlcipher_sources.sh` to match, and the defines in `tool/prepare_foss.sh` if the `sqlite3` package's SQLCipher build changed them.
 
 ## Checking a build
 

@@ -53,6 +53,8 @@ dev_dependencies:
 
 # package:sqlite3 bundles SQLCipher through its build hook. This replaces
 # sqlcipher_flutter_libs, which reached end of life with sqlite3 3.x.
+# tool/prepare_foss.sh replaces `source: sqlcipher` (a prebuilt download) so
+# the foss build compiles SQLCipher from source; keep that line as it is.
 hooks:
   user_defines:
     sqlite3:

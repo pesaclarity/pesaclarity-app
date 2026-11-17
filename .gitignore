@@ -52,3 +52,6 @@ key.properties
 
 # Local release settings
 release.env
+
+# SQLCipher sources for the foss build (tool/foss/build_sqlcipher_sources.sh)
+/tool/foss/sqlcipher/

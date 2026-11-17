@@ -82,6 +82,21 @@ jobs:
             exit 1
           fi
 
+      # tool/prepare_foss.sh has the hook compile SQLCipher (libsqlite3.so)
+      # instead of downloading the prebuilt libsqlcipher.so.
+      - name: Check the foss APK has SQLCipher built from source
+        run: |
+          apk=build/app/outputs/flutter-apk/app-foss-release.apk
+          if unzip -l "$apk" | grep -q libsqlcipher; then
+            echo "::error::The foss APK contains the prebuilt SQLCipher"
+            exit 1
+          fi
+          unzip -p "$apk" lib/arm64-v8a/libsqlite3.so > "$RUNNER_TEMP/libsqlite3.so"
+          if ! grep -a -q 'libtomcrypt' "$RUNNER_TEMP/libsqlite3.so"; then
+            echo "::error::The foss APK's SQLite is not SQLCipher with LibTomCrypt"
+            exit 1
+          fi
+
       # Google sign-in lives in the play flavour only; F-Droid rejects Google libraries.
       - name: Check the foss APK has no Google sign-in code
         run: |
