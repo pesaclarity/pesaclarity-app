@@ -97,6 +97,20 @@ jobs:
             exit 1
           fi
 
+      # rayo runs the Ask models, compiled from source by its build hook;
+      # no prebuilt ML library (TFLite/LiteRT) may come back.
+      - name: Check the foss APK has rayo and no TFLite
+        run: |
+          apk=build/app/outputs/flutter-apk/app-foss-release.apk
+          if unzip -l "$apk" | grep -q -i -E 'libtensorflowlite|liblitert'; then
+            echo "::error::The foss APK contains a TFLite/LiteRT library"
+            exit 1
+          fi
+          if ! unzip -l "$apk" | grep -q 'lib/arm64-v8a/librayo.so'; then
+            echo "::error::The foss APK has no librayo.so"
+            exit 1
+          fi
+
       # Google sign-in lives in the play flavour only; F-Droid rejects Google libraries.
       - name: Check the foss APK has no Google sign-in code
         run: |

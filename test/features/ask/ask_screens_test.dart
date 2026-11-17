@@ -37,6 +37,9 @@ Future<ProviderContainer> pumpAsk(
       appDatabaseProvider.overrideWithValue(db),
       clockProvider.overrideWithValue(() => eat(2026, 11, 13, 10)),
       askReaderRuntimeOpenerProvider.overrideWithValue(null),
+      // The writer decodes in an isolate, which a widget test's fake clock
+      // never waits for; its replies are tested in ask_writer_test.dart.
+      askWriterRuntimeOpenerProvider.overrideWithValue(null),
     ],
   );
   addTearDown(c.dispose);

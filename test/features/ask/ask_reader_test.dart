@@ -12,16 +12,19 @@ import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
 import 'package:pesaclarity/src/domain/reader/reader_tokens.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
+import 'package:pesaclarity/src/features/ask/data/rayo_ask_runtimes.dart';
 
 /// The bundled ask reader on the phrasings the first one got wrong (#238,
 /// #240): counts and sums for one payee, "how much to X", money in, "X sent
 /// me", account balances and names the app has never seen. The model runs
-/// here as in the app, in Dart from `ask-reader.weights`, first alone and
-/// then with the rules behind it.
+/// here as in the app, on rayo from `ask-reader.weights` (its build hook
+/// compiles the C for the host), first alone and then with the rules behind
+/// it.
 ///
 /// TFLite stays the reference: tool/ask_reader_decodes.py ran the same
-/// model's `ask-reader.tflite` on these very inputs, and the Dart reader must
-/// give the same labels and probabilities within [_tolerance].
+/// model's `ask-reader.tflite` on these very inputs, and rayo and the Dart
+/// reader (the fallback where rayo cannot load) must both give the same
+/// labels and probabilities within [_tolerance].
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -56,38 +59,51 @@ void main() {
     expect(weights.sourceSha256, manifest['model_sha256']);
   });
 
-  test('the Dart reader gives TFLite\'s outputs on every recording', () async {
-    final model = DartAskReader.parse(
+  final runtimes = <String, AskReaderRuntime Function(Uint8List)>{
+    'rayo': RayoAskReader.open,
+    'the Dart reader': DartAskReader.parse,
+  };
+  for (final MapEntry(key: name, value: open) in runtimes.entries) {
+    test("$name gives TFLite's outputs on every recording", () async {
+      final model = open((await asset('$askModelFolder/ask-reader.weights'))!);
+      addTearDown(model.close);
+      var worst = 0.0;
+      for (final r in readings.values) {
+        final input = (r['input']! as List).cast<int>();
+        final (slots, intent) = model.run(input);
+        final wantIntent = _doubles(r['intent']!);
+        expect(
+          _argmax(intent),
+          _argmax(wantIntent),
+          reason: 'intent of "${r['question']}"',
+        );
+        worst = math.max(worst, _maxDiff(intent, wantIntent));
+        final wantSlots = (r['slots']! as List).map(_doubles).toList();
+        for (final (t, want) in wantSlots.indexed) {
+          expect(
+            _argmax(slots[t]),
+            _argmax(want),
+            reason: 'slot of token $t of "${r['question']}"',
+          );
+          worst = math.max(worst, _maxDiff(slots[t], want));
+        }
+      }
+      expect(readings, hasLength(greaterThanOrEqualTo(_cases.length)));
+      expect(worst, lessThan(_tolerance));
+    });
+  }
+
+  test('the app opens the reader on rayo', () async {
+    final model = openAskReader(
       (await asset('$askModelFolder/ask-reader.weights'))!,
     );
-    var worst = 0.0;
-    for (final r in readings.values) {
-      final input = (r['input']! as List).cast<int>();
-      final (slots, intent) = model.run(input);
-      final wantIntent = _doubles(r['intent']!);
-      expect(
-        _argmax(intent),
-        _argmax(wantIntent),
-        reason: 'intent of "${r['question']}"',
-      );
-      worst = math.max(worst, _maxDiff(intent, wantIntent));
-      final wantSlots = (r['slots']! as List).map(_doubles).toList();
-      for (final (t, want) in wantSlots.indexed) {
-        expect(
-          _argmax(slots[t]),
-          _argmax(want),
-          reason: 'slot of token $t of "${r['question']}"',
-        );
-        worst = math.max(worst, _maxDiff(slots[t], want));
-      }
-    }
-    expect(readings, hasLength(greaterThanOrEqualTo(_cases.length)));
-    expect(worst, lessThan(_tolerance));
+    addTearDown(model.close);
+    expect(model, isA<RayoAskReader>());
   });
 
   Future<QuestionReader> reader(QuestionReader fallback) => loadAskReader(
     readAsset: asset,
-    openRuntime: DartAskReader.parse,
+    openRuntime: openAskReader,
     fallback: fallback,
   );
 
@@ -161,8 +177,8 @@ void main() {
   });
 }
 
-/// How far the Dart reader's probabilities may be from TFLite's. The
-/// recordings round to 1e-5; the reader is about 4e-5 off, as TFLite's own
+/// How far rayo's and the Dart reader's probabilities may be from TFLite's.
+/// The recordings round to 1e-5; both are about 4e-5 off, as TFLite's own
 /// kernels (XNNPACK and the built-in ones) are from each other.
 const _tolerance = 1e-4;
 

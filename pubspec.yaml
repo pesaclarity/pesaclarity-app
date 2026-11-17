@@ -26,6 +26,13 @@ dependencies:
     git:
       url: https://github.com/pesaclarity/ujumbe-parsers.git
       ref: v0.3.0
+  # rayo (pesaclarity/rayo, AGPL-3.0) runs the Ask models; its build hook
+  # compiles its C from source for each target. Pinned to a commit on main
+  # until the v0.1.0 tag exists on GitHub; then use `ref: v0.1.0`.
+  rayo:
+    git:
+      url: https://github.com/pesaclarity/rayo.git
+      ref: a06a45ebbcf1f84e2532defe5702897f46240f23
   printing: ^5.15.1
   http: ^1.6.0
   flutter_local_notifications: ^23.0.0
@@ -40,7 +47,6 @@ dependencies:
   crypto: ^3.0.7
   local_auth: ^3.0.2
   local_auth_android: ^2.3.0
-  tflite_flutter: ^0.12.1
   ffi: ^2.2.0
   cupertino_icons: ^2.0.0
 

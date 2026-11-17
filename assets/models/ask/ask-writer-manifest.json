@@ -1020,5 +1020,9 @@
     "you",
     "your"
   ],
-  "trained_on": "synthetic replies only"
+  "trained_on": "synthetic replies only",
+  "weights_file": "ask-writer.weights",
+  "weights_sha256": "e90687dfbcd03c6ca48358a6836bfedad53050ff0842d1f3776acd61544e1dbc",
+  "weights_size_bytes": 591860,
+  "weights_format_version": 1
 }

@@ -14,6 +14,7 @@ import 'package:pesaclarity/src/domain/ask/model_reply_writer.dart';
 import 'package:pesaclarity/src/domain/ask/reply_writer.dart';
 import 'package:pesaclarity/src/features/ask/application/ask_providers.dart';
 import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
+import 'package:pesaclarity/src/features/ask/data/rayo_ask_runtimes.dart';
 import 'package:pesaclarity/src/features/balances/application/balances_providers.dart';
 import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 
@@ -22,10 +23,12 @@ import '../../helpers/test_app.dart';
 import '../balances/balances_harness.dart';
 
 /// The bundled ask writer, and Ask's replies worded by it on the synthetic
-/// scenario. The host has no TFLite, so the model's decodes of these very
-/// requests were recorded on a computer with the bundled file
-/// (tool/ask_writer_decodes.py) and are replayed here through the app's own
-/// checks. A request with no recording decodes to nothing and falls back.
+/// scenario. The model runs here as in the app, on rayo (its build hook
+/// compiles the C for the host), through the app's own checks.
+///
+/// TFLite stays the reference: tool/ask_writer_decodes.py decoded these very
+/// requests with the model's `ask-writer.tflite`, and every reply rayo
+/// writes for a recorded request must be TFLite's, token for token.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -47,8 +50,14 @@ void main() {
   final recorded = jsonDecode(
     File('test/fixtures/ask/ask_writer_decodes.json').readAsStringSync(),
   ) as Map<String, Object?>;
-  final replay = _Replay(recorded);
-  tearDownAll(replay.saveMissing);
+  final reference = _Reference(recorded);
+  tearDownAll(reference.saveMissing);
+  tearDownAll(
+    // ignore: avoid_print
+    () => print("rayo wrote TFLite's reply ${reference.same} times"),
+  );
+  AskWriterRuntime real(Uint8List bytes, AskWriterManifest manifest) =>
+      _Checked(openAskWriter(bytes, manifest), reference);
 
   String filled(AskAnswer a) => fillTemplate(
     a.template,
@@ -76,9 +85,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(db),
           clockProvider.overrideWithValue(() => scenarioNow),
           askReaderRuntimeOpenerProvider.overrideWithValue(null),
-          askWriterRuntimeOpenerProvider.overrideWithValue(
-            (bytes, manifest) => replay,
-          ),
+          askWriterRuntimeOpenerProvider.overrideWithValue(real),
         ],
       );
       addTearDown(c.dispose);
@@ -271,7 +278,7 @@ void main() {
         );
 
     final cases = <String, List<Override>>{
-      'no TFLite in this build': [
+      'there is no writer runtime': [
         askWriterRuntimeOpenerProvider.overrideWithValue(null),
       ],
       'the runtime cannot open the file': [
@@ -283,13 +290,13 @@ void main() {
         askAssetReaderProvider.overrideWithValue(
           withAsset(askWriterManifestFile, (_) => null),
         ),
-        askWriterRuntimeOpenerProvider.overrideWithValue((b, m) => replay),
+        askWriterRuntimeOpenerProvider.overrideWithValue(real),
       ],
       'the manifest is not JSON': [
         askAssetReaderProvider.overrideWithValue(
           withAsset(askWriterManifestFile, (_) => utf8.encode('{"model')),
         ),
-        askWriterRuntimeOpenerProvider.overrideWithValue((b, m) => replay),
+        askWriterRuntimeOpenerProvider.overrideWithValue(real),
       ],
       'the manifest is for another schema': [
         askAssetReaderProvider.overrideWithValue(
@@ -298,22 +305,22 @@ void main() {
             (_) => json((m) => {...m, 'ask_schema_version': 2}),
           ),
         ),
-        askWriterRuntimeOpenerProvider.overrideWithValue((b, m) => replay),
+        askWriterRuntimeOpenerProvider.overrideWithValue(real),
       ],
       'the model file is missing': [
         askAssetReaderProvider.overrideWithValue(
-          withAsset('ask-writer.tflite', (_) => null),
+          withAsset('ask-writer.weights', (_) => null),
         ),
-        askWriterRuntimeOpenerProvider.overrideWithValue((b, m) => replay),
+        askWriterRuntimeOpenerProvider.overrideWithValue(real),
       ],
       'the model file is not the one in the manifest': [
         askAssetReaderProvider.overrideWithValue(
           withAsset(
-            'ask-writer.tflite',
+            'ask-writer.weights',
             (b) => Uint8List.fromList(b)..[100] ^= 1,
           ),
         ),
-        askWriterRuntimeOpenerProvider.overrideWithValue((b, m) => replay),
+        askWriterRuntimeOpenerProvider.overrideWithValue(real),
       ],
     };
     for (final MapEntry(:key, :value) in cases.entries) {
@@ -327,16 +334,31 @@ void main() {
   });
 
   test('a reply takes well under 150 ms on the host', () async {
-    // The real model's time per reply, measured on a computer with two
-    // threads when the decodes were recorded.
-    final timing = recorded['host_timing']! as Map;
+    // The real model on rayo, from the facts to <eos>, on one core.
+    final m = await manifest();
+    final rayo = openAskWriter(
+      (await asset('$askModelFolder/${m.weightsFile}'))!,
+      m,
+    );
+    addTearDown(rayo.close);
+    final model = ModelReplyWriter(rayo, m);
+    final times = <double>[];
+    for (var i = 0; i < 20; i++) {
+      final sw = Stopwatch()..start();
+      await model.word(
+        const WriterFacts('balance', given: {'amount', 'account'}),
+        {'amount': -130000, 'account': 'M-Pesa'},
+        seed: i,
+      );
+      times.add(sw.elapsedMicroseconds / 1000);
+    }
+    times.sort();
     // ignore: avoid_print
-    print('ask writer on the host: $timing');
-    expect(timing['median_ms_per_reply'] as num, lessThan(150));
+    print('ask writer on rayo, per reply: median ${times[10]} ms');
+    expect(times[10], lessThan(150));
 
     // The app's side of a reply (masking, sampling, checks) with the
     // writer's real sizes, and logits as cheap as can be.
-    final m = await manifest();
     final writer = ModelReplyWriter(_Timed(m), m);
     final clock = Stopwatch()..start();
     for (var i = 0; i < 20; i++) {
@@ -396,9 +418,10 @@ const _questions = [
 /// The same questions again, so each is worded from more than one seed.
 const _endings = ['', '?', ' please', '!', ' pls', ' ?', '..', ' thanks?'];
 
-/// Serves decodes recorded with the real model; notes requests it lacks.
-class _Replay implements AskWriterRuntime {
-  _Replay(Map<String, Object?> recorded)
+/// TFLite's decodes of Ask's requests, recorded with the bundled model;
+/// notes requests it lacks.
+class _Reference {
+  _Reference(Map<String, Object?> recorded)
     : _decodes = {
         for (final d in recorded['decodes']! as List)
           _key(
@@ -413,15 +436,21 @@ class _Replay implements AskWriterRuntime {
   final Map<String, List<int>?> _decodes;
   final _missing = <String, WriterDecode>{};
 
+  /// Replies checked against a recording, all the same.
+  int same = 0;
+
   static String _key(List<Object?> prefix, int seed) =>
       '${prefix.join(',')}|$seed';
 
-  @override
-  Future<List<int>?> decode(WriterDecode r) async {
+  /// Fails the test when [ids] are not TFLite's decode of [r].
+  void check(WriterDecode r, List<int>? ids) {
     final key = _key(r.prefix, r.seed);
-    if (_decodes.containsKey(key)) return _decodes[key];
-    _missing[key] = r;
-    return null;
+    if (!_decodes.containsKey(key)) {
+      _missing[key] = r;
+      return;
+    }
+    expect(ids, _decodes[key], reason: 'rayo and TFLite differ on $key');
+    same++;
   }
 
   /// With `ASK_WRITER_RECORD=path`, writes the requests with no recording
@@ -448,9 +477,24 @@ class _Replay implements AskWriterRuntime {
       ]),
     );
   }
+}
+
+/// The app's writer on rayo, each reply checked against [_Reference].
+class _Checked implements AskWriterRuntime {
+  _Checked(this._real, this._reference);
+
+  final AskWriterRuntime _real;
+  final _Reference _reference;
 
   @override
-  void close() {}
+  Future<List<int>?> decode(WriterDecode r) async {
+    final ids = await _real.decode(r);
+    _reference.check(r, ids);
+    return ids;
+  }
+
+  @override
+  void close() => _real.close();
 }
 
 /// Flat logits of the writer's real size; ends the reply after the

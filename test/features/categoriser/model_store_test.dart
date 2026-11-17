@@ -76,6 +76,15 @@ void main() {
     expect(loaded.categoriser.source, SuggestionSource.model);
   });
 
+  test('refuses a model that fits when the build has no runtime', () async {
+    await install();
+    final loaded = await loadCategoriser(folder, openRuntime: null);
+    expect(loaded.status, ModelStatus.refused);
+    expect(loaded.reasons, ['this build has no runtime for the model yet']);
+    expect(loaded.categoriser.source, SuggestionSource.rules);
+    expect(loaded.trainable, isNull);
+  });
+
   test('refuses a feature schema it cannot feed without opening it', () async {
     await install(version: 2);
     final loaded = await loadCategoriser(folder, openRuntime: open);

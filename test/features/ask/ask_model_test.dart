@@ -83,9 +83,13 @@ void main() {
       ) as Map).cast<String, Object?>(),
     );
     expect(m.incompatibilities(), isEmpty);
-    final bytes = (await asset('$askModelFolder/${m.modelFile}'))!;
-    expect(bytes.length, m.modelSizeBytes);
-    expect(await sha256Hex(bytes), m.modelSha256);
+    final bytes = (await asset('$askModelFolder/${m.weightsFile}'))!;
+    expect(bytes.length, m.weightsSizeBytes);
+    expect(await sha256Hex(bytes), m.weightsSha256);
+    // The weights are those of the TFLite file the manifest names, which
+    // the app does not ship.
+    expect(PlainWeights.parse(bytes).sourceSha256, m.modelSha256);
+    expect(await asset('$askModelFolder/${m.modelFile}'), isNull);
     // The vocab: special tokens, the 31 kinds, 11 flags, 17 placeholders,
     // 5 marks, then lower-case words only. Not one digit.
     expect(m.vocab.length, 473);

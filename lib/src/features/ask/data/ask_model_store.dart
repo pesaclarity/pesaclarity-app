@@ -12,13 +12,14 @@ const askModelFolder = 'assets/models/ask';
 /// The question reader's manifest, beside `ask-reader.weights`.
 const askReaderManifestFile = 'ask-reader-manifest.json';
 
-/// The reply writer's manifest, beside `ask-writer.tflite`.
+/// The reply writer's manifest, beside `ask-writer.weights`.
 const askWriterManifestFile = 'ask-writer-manifest.json';
 
 /// Opens `ask-reader.weights`. Null makes Ask always use its rules.
 typedef AskReaderRuntimeOpener = AskReaderRuntime Function(Uint8List bytes);
 
-/// Opens `ask-writer.tflite` for [manifest]. Null in builds without TFLite.
+/// Opens `ask-writer.weights` for [manifest]. Null makes Ask word every
+/// reply with its templates.
 typedef AskWriterRuntimeOpener = AskWriterRuntime Function(
   Uint8List bytes,
   AskWriterManifest manifest,
@@ -80,14 +81,14 @@ Future<ModelReplyWriter?> loadAskWriter({
       (jsonDecode(utf8.decode(manifestBytes)) as Map).cast<String, Object?>(),
     );
     if (manifest.incompatibilities().isNotEmpty) return null;
-    final file = manifest.modelFile;
+    final file = manifest.weightsFile;
     if (file.contains('/') || file.contains(r'\') || file.startsWith('.')) {
       return null;
     }
     final bytes = await readAsset('$askModelFolder/$file');
     if (bytes == null ||
-        bytes.length != manifest.modelSizeBytes ||
-        await sha256Hex(bytes) != manifest.modelSha256) {
+        bytes.length != manifest.weightsSizeBytes ||
+        await sha256Hex(bytes) != manifest.weightsSha256) {
       return null;
     }
     return ModelReplyWriter(openRuntime(bytes, manifest), manifest);

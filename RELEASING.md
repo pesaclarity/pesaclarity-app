@@ -115,6 +115,9 @@ Not set up yet. Before the first upload:
 - [ ] Upload and release keys created in a hardware key or secrets manager, with an offline backup
 - [ ] SMS permissions declaration and Data safety form submitted and approved
 - [x] SQLCipher built from source for `foss` (`tool/foss/build_sqlcipher_sources.sh`); PDFium removed from `foss`
+- [x] No prebuilt ML library in either build: TFLite/LiteRT removed, the Ask models on rayo compiled from source (pesaclarity/docs decision 0020)
+- [ ] rayo pinned to its `v0.1.0` tag in `pubspec.yaml` once the tag exists (a commit until then)
+- [ ] Ask on rayo timed on a low-end 32-bit phone and a recent arm64 one (decision 0020, risks)
 - [ ] A `play` database opened by a `foss` build on a device
 - [ ] External penetration test against OWASP MASVS L2 passed, findings fixed
 - [ ] Performance budget met on a 2 GB phone (`docs/performance-budget.md`)

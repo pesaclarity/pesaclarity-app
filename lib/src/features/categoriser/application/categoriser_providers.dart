@@ -18,19 +18,21 @@ import '../../privacy/application/consent_controller.dart';
 import '../../privacy/data/policy_source.dart';
 import '../data/charging.dart';
 import '../data/model_store.dart';
-import '../data/tflite_flutter_runtime.dart';
 import '../data/tuned_weights_store.dart';
 
-/// Opens TFLite models. Override in tests with a fake runtime.
-final tfliteRuntimeOpenerProvider = Provider<TfliteRuntimeOpener>(
-  (ref) =>
-      (bytes, width) => TfliteFlutterRuntime.open(bytes, width: width),
+/// Opens an installed categoriser model. None ships, and the app has no
+/// runtime for one: rayo will run it once it has the categoriser's ops and
+/// the backward pass learning on the phone needs (pesaclarity/docs decision
+/// 0020). Until then this is null, an installed model is refused, and the
+/// rules categorise. Override in tests with a fake runtime.
+final tfliteRuntimeOpenerProvider = Provider<TfliteRuntimeOpener?>(
+  (ref) => null,
 );
 
-/// Opens trainable TFLite models. Override in tests with a fake runtime.
-final trainableRuntimeOpenerProvider = Provider<TrainableRuntimeOpener>(
-  (ref) =>
-      (bytes, width) => TfliteTrainableRuntime.open(bytes, width: width),
+/// Opens trainable categoriser models; null for now, as
+/// [tfliteRuntimeOpenerProvider]. Override in tests with a fake runtime.
+final trainableRuntimeOpenerProvider = Provider<TrainableRuntimeOpener?>(
+  (ref) => null,
 );
 
 /// Weights fine-tuned on this phone, kept with the open space.
@@ -124,10 +126,11 @@ final improveAppOptInProvider = Provider<bool>((ref) {
 /// until a model with a trainable copy is installed.
 final onDeviceTrainerProvider = Provider<OnDeviceTrainer?>((ref) {
   final trainable = ref.watch(loadedCategoriserProvider).value?.trainable;
-  if (trainable == null) return null;
+  final open = ref.watch(trainableRuntimeOpenerProvider);
+  if (trainable == null || open == null) return null;
   return ModelFineTuner(
     model: trainable,
-    open: ref.watch(trainableRuntimeOpenerProvider),
+    open: open,
     store: ref.watch(tunedWeightsStoreProvider),
     now: ref.watch(clockProvider),
   );

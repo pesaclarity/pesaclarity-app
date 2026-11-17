@@ -1,6 +1,7 @@
 import 'dart:math' show exp;
 import 'dart:typed_data';
 
+import '../ml/plain_weights.dart' show plainWeightsFormatVersion;
 import 'reply_writer.dart';
 
 // The ask writer from pesaclarity-ml (`akili ask-writer`), as its
@@ -148,6 +149,10 @@ class AskWriterManifest {
     required this.modelFile,
     required this.modelSha256,
     required this.modelSizeBytes,
+    required this.weightsFile,
+    required this.weightsSha256,
+    required this.weightsSizeBytes,
+    required this.weightsFormatVersion,
     required this.schemaVersion,
     required this.length,
     required this.vocabSize,
@@ -177,6 +182,10 @@ class AskWriterManifest {
       modelFile: json['model_file']! as String,
       modelSha256: json['model_sha256']! as String,
       modelSizeBytes: json['model_size_bytes']! as int,
+      weightsFile: json['weights_file']! as String,
+      weightsSha256: json['weights_sha256']! as String,
+      weightsSizeBytes: json['weights_size_bytes']! as int,
+      weightsFormatVersion: json['weights_format_version']! as int,
       schemaVersion: json['ask_schema_version']! as int,
       length: json['length']! as int,
       vocabSize: json['vocab_size']! as int,
@@ -199,9 +208,18 @@ class AskWriterManifest {
     );
   }
 
+  /// The TFLite file pesaclarity-ml exported and scored. The app does not
+  /// ship it; its hash says which model the weights are.
   final String modelFile;
   final String modelSha256;
   final int modelSizeBytes;
+
+  /// The model's plain weights with its graph (pesaclarity-ml
+  /// docs/WEIGHTS.md), read out of [modelFile]: what rayo runs.
+  final String weightsFile;
+  final String weightsSha256;
+  final int weightsSizeBytes;
+  final int weightsFormatVersion;
   final int schemaVersion;
   final int length;
   final int vocabSize;
@@ -233,6 +251,9 @@ class AskWriterManifest {
         [for (var i = 0; i < a.length; i++) i].every((i) => a[i] == b[i]);
     final ids = {for (final (i, t) in vocab.indexed) t: i};
     return [
+      if (weightsFormatVersion != plainWeightsFormatVersion)
+        'weights format $weightsFormatVersion, app reads '
+            '$plainWeightsFormatVersion',
       if (schemaVersion != askSchemaVersion)
         'ask schema $schemaVersion, app reads $askSchemaVersion',
       if (length != writerLength) 'length $length',
@@ -389,7 +410,7 @@ List<int>? decodeReply(WriterLogits logits, WriterDecode d) {
   return null;
 }
 
-/// Runs `ask-writer.tflite`.
+/// Runs the Ask writer, `ask-writer.weights`.
 abstract interface class AskWriterRuntime {
   /// Reply token ids for [request], or null when none ended in time.
   Future<List<int>?> decode(WriterDecode request);

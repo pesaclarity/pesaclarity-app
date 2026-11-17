@@ -8,13 +8,20 @@ import 'understanding.dart';
 
 /// Runs the Ask reader: the message reader's input encoding ([encodeTokens],
 /// `[2 * readerMaxTokens]` int32) in; per-token slot label probabilities and
-/// intent probabilities out. The app's is `DartAskReader`, on the model's
-/// plain weights.
+/// intent probabilities out. The app runs it on rayo, from the model's plain
+/// weights, and on `DartAskReader` where rayo's library cannot load.
 abstract interface class AskReaderRuntime {
   /// `([readerMaxTokens][slot labels], [intents])`.
   (List<List<double>>, List<double>) run(List<int> input);
 
   void close();
+}
+
+/// An [AskReaderRuntime] that runs off the calling isolate itself, on the
+/// model it already holds, instead of being copied into a new isolate.
+abstract interface class BackgroundAskReaderRuntime
+    implements AskReaderRuntime {
+  Future<(List<List<double>>, List<double>)> runInBackground(List<int> input);
 }
 
 /// `ask-reader-manifest.json` as pesaclarity-ml writes it (its docs/ASK.md
@@ -132,8 +139,9 @@ class ModelQuestionReader implements QuestionReader {
   }
 
   /// [read], with the model run in a background isolate, so its several
-  /// milliseconds (tens on a slow phone) never hold up the UI thread. The
-  /// isolate gets a copy of the runtime; nothing is loaded again.
+  /// milliseconds (tens on a slow phone) never hold up the UI thread. A
+  /// [BackgroundAskReaderRuntime] runs there on its own model; any other
+  /// runtime is copied into the isolate. Nothing is loaded again.
   Future<Understanding> readInBackground(String question) async {
     final rules = _rules(question);
     if (rules != null && RuleQuestionReader.decides(question, rules)) {
@@ -154,7 +162,9 @@ class ModelQuestionReader implements QuestionReader {
   static Future<(List<List<double>>, List<double>)> _runInIsolate(
     AskReaderRuntime runtime,
     List<int> input,
-  ) => Isolate.run(() => runtime.run(input));
+  ) => runtime is BackgroundAskReaderRuntime
+      ? runtime.runInBackground(input)
+      : Isolate.run(() => runtime.run(input));
 
   Understanding? _rules(String question) =>
       fallback is RuleQuestionReader ? fallback.read(question) : null;

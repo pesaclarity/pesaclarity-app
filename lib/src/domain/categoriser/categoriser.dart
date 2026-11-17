@@ -52,8 +52,9 @@ abstract interface class Categoriser {
   void close();
 }
 
-/// A loaded TFLite interpreter, kept behind this interface so the domain
-/// does not depend on a particular plugin.
+/// A loaded categoriser model (pesaclarity-ml exports it as TFLite), kept
+/// behind this interface so the domain does not depend on a runtime. The
+/// app has none for it yet (pesaclarity/docs decision 0020).
 abstract interface class TfliteRuntime {
   /// Number of output classes for one row.
   int get outputSize;

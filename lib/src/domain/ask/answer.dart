@@ -3,7 +3,7 @@ import 'context.dart';
 import 'matcher.dart';
 
 /// The kind of reply, which picks its sentences. The names are the labels
-/// `ask-writer.tflite` is conditioned on.
+/// the Ask writer is conditioned on.
 enum ReplyKind {
   total,
   totalUp,

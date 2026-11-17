@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Record what TFLite reads for Ask's test questions, the reference the app's Dart reader must match.
+"""Record what TFLite reads for Ask's test questions, the reference the app's readers must match.
 
-The app runs the ask reader in Dart from ask-reader.weights; TFLite stays the reference. For each
-question test/features/ask/ask_reader_test.dart asks, this runs the very model the weights were
-read out of, ask-reader.tflite from the pesaclarity-ml release (the app does not ship it; its
+The app runs the ask reader on rayo (in Dart where rayo cannot load) from ask-reader.weights;
+TFLite stays the reference. For each question test/features/ask/ask_reader_test.dart asks,
+this runs the very model the weights were read out of, ask-reader.tflite from the pesaclarity-ml release (the app does not ship it; its
 SHA-256 must be the manifest's model_sha256), and records the intent probabilities and the slot
-label probabilities of its tokens, for the exact input the app encodes. The test then checks the
-Dart reader gives the same labels and probabilities within its tolerance.
+label probabilities of its tokens, for the exact input the app encodes. The test then checks
+rayo and the Dart reader give the same labels and probabilities within its tolerance.
 
   1. ASK_READER_RECORD=build/ask-reader-requests.json flutter test test/features/ask/ask_reader_test.dart
   2. uv run --project ../pesaclarity-ml python tool/ask_reader_decodes.py \\

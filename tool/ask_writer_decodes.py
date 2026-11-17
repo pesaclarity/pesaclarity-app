@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Decode Ask's writer requests with the bundled ask-writer.tflite on this computer.
+"""Decode Ask's writer requests with TFLite on this computer: the reference rayo must match.
 
-The app's tests cannot run TFLite on the host, so test/features/ask/ask_writer_test.dart
-replays decodes recorded here with the real model, through the app's own checks. Decoding is
-the app's decodeReply (lib/src/domain/ask/model_reply_writer.dart) step for step: the same
-masking, the same xorshift32 draws and the same sampling at the manifest's temperature.
+The app runs the ask writer on rayo from ask-writer.weights; TFLite stays the reference. This
+runs the very model the weights were read out of, ask-writer.tflite from pesaclarity-ml (the
+app does not ship it; its SHA-256 must be the manifest's model_sha256), and
+test/features/ask/ask_writer_test.dart checks every reply rayo writes for a recorded request
+is the one recorded here, token for token. Decoding is the app's decodeReply
+(lib/src/domain/ask/model_reply_writer.dart) step for step: the same masking, the same
+xorshift32 draws and the same sampling at the manifest's temperature.
 
   1. ASK_WRITER_RECORD=build/ask-writer-requests.json flutter test test/features/ask/ask_writer_test.dart
   2. uv run --project ../pesaclarity-ml python tool/ask_writer_decodes.py \\
-       build/ask-writer-requests.json test/fixtures/ask/ask_writer_decodes.json
+       path/to/ask-writer.tflite build/ask-writer-requests.json \\
+       test/fixtures/ask/ask_writer_decodes.json
   3. flutter test test/features/ask/ask_writer_test.dart
 
 Requests already in the output file are kept. It also times each reply with two threads,
@@ -102,15 +106,15 @@ def key(r: dict) -> str:
     return ",".join(map(str, r["prefix"])) + "|" + str(r["seed"])
 
 
-def main(requests_path: str, out_path: str) -> int:
+def main(model: str, requests_path: str, out_path: str) -> int:
     import numpy as np
     import tensorflow as tf
 
     manifest = json.loads((MODEL_DIR / "ask-writer-manifest.json").read_text())
-    model_path = MODEL_DIR / manifest["model_file"]
+    model_path = Path(model)
     blob = model_path.read_bytes()
     if hashlib.sha256(blob).hexdigest() != manifest["model_sha256"]:
-        print("the bundled model does not match its manifest", file=sys.stderr)
+        print(f"{model_path} is not the model of the bundled manifest", file=sys.stderr)
         return 1
     interpreter = tf.lite.Interpreter(model_path=str(model_path), num_threads=2)
     interpreter.allocate_tensors()
@@ -167,7 +171,7 @@ def main(requests_path: str, out_path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
-    sys.exit(main(sys.argv[1], sys.argv[2]))
+    sys.exit(main(sys.argv[1], sys.argv[2], sys.argv[3]))

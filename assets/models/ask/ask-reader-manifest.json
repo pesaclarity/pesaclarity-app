@@ -73,7 +73,7 @@
   },
   "trained_on": "synthetic questions only",
   "weights_file": "ask-reader.weights",
-  "weights_sha256": "b57dcd26540f80fc4699f7b9178c203a537f332df9383ddb2a0c1fb36018b9ac",
-  "weights_size_bytes": 248684,
+  "weights_sha256": "7807015bebb5f952e6185f8ffc00736b55fdd800fd598aa3eb99b8179342ef69",
+  "weights_size_bytes": 251176,
   "weights_format_version": 1
 }

@@ -17,12 +17,14 @@ const readerFolderName = 'reader';
 typedef ReaderRuntimeOpener = ReaderRuntime Function(Uint8List modelBytes);
 
 /// The trained reader in [folder] when it is installed and fits this app,
-/// else the rules reader. Never throws.
+/// else the rules reader. With no [openRuntime], always the rules reader.
+/// Never throws.
 Future<MessageReader> loadReader(
   Directory folder, {
-  required ReaderRuntimeOpener openRuntime,
+  required ReaderRuntimeOpener? openRuntime,
 }) async {
   const fallback = RuleMessageReader();
+  if (openRuntime == null) return fallback;
   try {
     final manifestFile = File(p.join(folder.path, readerManifestFile));
     if (!await manifestFile.exists()) return fallback;

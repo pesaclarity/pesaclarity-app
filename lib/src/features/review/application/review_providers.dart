@@ -16,13 +16,15 @@ import '../../../domain/reader/reader_tokens.dart';
 import '../../../domain/reader/reading_template.dart';
 import '../../../domain/reader/rule_reader.dart';
 import '../../accounts/domain/institution.dart';
-import '../../categoriser/data/tflite_flutter_runtime.dart';
 import '../data/reader_store.dart';
 import 'review_draft.dart';
 
-/// Opens the reader's TFLite model. Override in tests with a fake.
-final readerRuntimeOpenerProvider = Provider<ReaderRuntimeOpener>(
-  (ref) => TfliteReaderRuntime.open,
+/// Opens an installed reader model. None ships yet, and the app has no
+/// runtime for one: rayo will run it once pesaclarity-ml exports it with a
+/// graph (pesaclarity/docs decision 0020). Until then this is null and the
+/// rules reader is used. Override in tests with a fake.
+final readerRuntimeOpenerProvider = Provider<ReaderRuntimeOpener?>(
+  (ref) => null,
 );
 
 /// Where an installed reader model is read from. No model ships with the

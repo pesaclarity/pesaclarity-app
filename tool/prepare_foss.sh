@@ -14,6 +14,9 @@
 #   database format is the same. The result links Android's liblog, so the
 #   prepared checkout builds for Android only (not `flutter test` on a host).
 #
+# rayo, which runs the Ask models, needs nothing here: its build hook always
+# compiles its C from source, in every build.
+#
 # Usage: tool/prepare_foss.sh [checkout]   (default: the current directory)
 set -euo pipefail
 

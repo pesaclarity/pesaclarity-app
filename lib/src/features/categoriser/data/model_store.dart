@@ -17,7 +17,7 @@ const modelLabelsFile = 'labels.json';
 /// Name of the model folder under the app's support directory.
 const modelFolderName = 'categoriser';
 
-/// Opens a TFLite model from its bytes, for rows [width] long.
+/// Opens a model from its bytes, for rows [width] long.
 typedef TfliteRuntimeOpener = TfliteRuntime Function(
   Uint8List modelBytes,
   int width,
@@ -59,10 +59,12 @@ class LoadedCategoriser {
 ///
 /// When the manifest lists a trainable copy that also checks out, it is
 /// returned for fine-tuning. When [tuned] weights fit it, suggestions come
-/// from the trainable copy with those weights restored.
+/// from the trainable copy with those weights restored. With no
+/// [openRuntime], an installed model that checks out is still refused: the
+/// build cannot run it.
 Future<LoadedCategoriser> loadCategoriser(
   Directory folder, {
-  required TfliteRuntimeOpener openRuntime,
+  required TfliteRuntimeOpener? openRuntime,
   TrainableRuntimeOpener? openTrainable,
   TunedWeights? tuned,
 }) async {
@@ -97,6 +99,9 @@ Future<LoadedCategoriser> loadCategoriser(
   if (problem != null) return refuse([problem]);
   if (modelBytes == null) return refuse(['model file missing']);
 
+  if (openRuntime == null) {
+    return refuse(['this build has no runtime for the model yet']);
+  }
   final trainable = await _trainableModel(folder, manifest, labels);
   final width = manifest.featureConfig.width;
   if (trainable != null &&

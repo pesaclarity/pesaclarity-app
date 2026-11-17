@@ -76,11 +76,8 @@ android {
         }
     }
 
-    // TFLite's GPU delegate is never used (the categoriser runs on the CPU),
-    // and its libraries add about 2.5 MB per chip.
     packaging {
         jniLibs {
-            excludes += "**/libtensorflowlite_gpu_jni.so"
             // APKs are downloaded, often on mobile data, so their native
             // libraries are compressed: the arm64 play APK goes from about 42 MB
             // to about 19 MB. Android unpacks them once at install. App bundles

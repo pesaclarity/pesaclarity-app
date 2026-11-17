@@ -102,6 +102,16 @@ void main() {
       expect(reader.read('Hello').kind, MessageKind.notTransaction);
     });
 
+    test('uses the rules when the build has no runtime', () async {
+      File('${folder.path}/reader.tflite').writeAsBytesSync(model);
+      File('${folder.path}/$readerManifestFile')
+          .writeAsStringSync(jsonEncode(manifest()));
+      expect(
+        await loadReader(folder, openRuntime: null),
+        isA<RuleMessageReader>(),
+      );
+    });
+
     test('refuses a model for another schema or with other bytes', () async {
       File('${folder.path}/reader.tflite').writeAsBytesSync(model);
       File('${folder.path}/$readerManifestFile')

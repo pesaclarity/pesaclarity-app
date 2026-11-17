@@ -14,19 +14,18 @@ import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/reply_writer.dart';
 import '../../../domain/ask/rule_question_reader.dart';
 import '../../../domain/ask/understanding.dart';
-import '../../../domain/ml/dart_ask_reader.dart';
 import '../../../domain/time/calendar.dart';
-import '../../categoriser/data/tflite_flutter_runtime.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../data/app_ask_data_source.dart';
 import '../data/ask_model_store.dart';
+import '../data/rayo_ask_runtimes.dart';
 import 'ask_settings.dart';
 
-/// Opens `ask-reader.weights` with the Ask reader in plain Dart, the same
-/// in every build: no native library. Override with null to use the rules
-/// only, or with a fake in tests.
+/// Opens `ask-reader.weights` on rayo, the same in every build, or in plain
+/// Dart where rayo's library cannot load. Override with null to use the
+/// rules only, or with a fake in tests.
 final askReaderRuntimeOpenerProvider = Provider<AskReaderRuntimeOpener?>(
-  (ref) => DartAskReader.parse,
+  (ref) => openAskReader,
 );
 
 /// Reads bundled model files; null when absent.
@@ -59,15 +58,10 @@ final replyWriterProvider = Provider<ReplyWriter>(
   (ref) => const TemplateReplyWriter(),
 );
 
-/// Opens `ask-writer.tflite`. Override with null for a build without
-/// TFLite, or with a fake in tests.
+/// Opens `ask-writer.weights` on rayo. Override with null to word every
+/// reply with the templates, or with a fake in tests.
 final askWriterRuntimeOpenerProvider = Provider<AskWriterRuntimeOpener?>(
-  (ref) =>
-      (bytes, manifest) => TfliteWriterRuntime.open(
-        bytes,
-        length: manifest.length,
-        vocab: manifest.vocab.length,
-      ),
+  (ref) => openAskWriter,
 );
 
 /// The trained reply writer when bundled and usable, else null.
