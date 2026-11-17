@@ -152,7 +152,7 @@ Space Grotesk (numbers and titles, tabular figures) and Inter (body text) are bu
 
 ## Parser package
 
-SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers](https://github.com/pesaclarity/ujumbe-parsers), a git dependency pinned to a commit on `main` until `v0.1.0` is tagged. The institutions in My accounts are its bundled parser packs: each pack gives the id, name and sender IDs.
+SMS parsing comes from the `ujumbe` Dart package in [pesaclarity/ujumbe-parsers](https://github.com/pesaclarity/ujumbe-parsers), a git dependency pinned to its release tag `v0.3.0`. The institutions in My accounts are its bundled parser packs: each pack gives the id, name and sender IDs.
 
 ## SMS capture
 
