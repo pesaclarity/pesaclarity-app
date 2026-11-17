@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/presentation/sign_in_panel.dart';
 import '../../privacy/presentation/policy_screen.dart';
@@ -45,7 +46,7 @@ class WelcomeScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _AppMark(),
+                            const AppMark(),
                             const SizedBox(height: 14),
                             Semantics(
                               identifier: SemanticIds.titleWelcome,
@@ -97,38 +98,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AppMark extends StatelessWidget {
-  const _AppMark();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      label: 'Pesa Clarity',
-      image: true,
-      child: ExcludeSemantics(
-        child: Container(
-          width: 64,
-          height: 64,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: scheme.primary,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            'P',
-            style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-              color: scheme.onPrimary,
-              fontWeight: FontWeight.w700,
-              fontVariations: const [FontVariation.weight(700)],
             ),
           ),
         ),

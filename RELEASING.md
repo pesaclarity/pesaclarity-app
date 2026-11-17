@@ -18,6 +18,10 @@ Release builds take these `--dart-define` values. Keep them in the release envir
 | `PESACLARITY_PINNED_HOSTS` | Our server hosts, comma-separated, such as `api.pesaclarity.org,vault.pesaclarity.org` |
 | `PESACLARITY_TRUSTED_ROOTS` | The root certificates those hosts' chains may end in, as comma-separated base64 DER. At least two: the root in use and one the provider may switch to. An invalid value makes the app refuse to connect, by design. |
 | `PESACLARITY_PLAY_CLOUD_PROJECT` | `play` only: the Google Cloud project number for Play Integrity |
+| `PESACLARITY_DISTRIBUTION` | `website` for the APKs on the website's download page, so their Update button opens that page instead of a store. Leave it unset for Play, F-Droid and iPhone builds |
+| `PESACLARITY_DOWNLOAD_URL` | Optional: the website's download page (default `https://pesaclarity.github.io/install/#download`) |
+
+**Update notices.** On opening, and at most once a day, the app asks the server's `GET /v1/app-status` for the newest version and any notices, without an account. It shows only responses signed with a key pinned in `lib/src/features/app_status/domain/pinned_keys.dart`, as the ujumbe parser packs pin theirs: compiled in, never downloaded. Until `appStatusProductionPublicKey` holds the public key from pesaclarity-backend's `uv run ngome-app-status-key`, the app asks nothing and shows no notices. To change keys, ship a release that pins both the old and the new key before the server signs with the new one. The app blocks itself ("Please update Pesa Clarity") only for a verified notice whose reason is `amounts_wrong` and whose minimum version is newer than the build.
 
 The app pins certificate authorities, not keys: Cloud Run and Cloudflare renew our certificates with new keys every few months, which would lock out every installed app if keys were pinned.
 

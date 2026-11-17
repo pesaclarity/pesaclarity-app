@@ -29,6 +29,7 @@ import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../app_status/presentation/app_notice_cards.dart';
 import '../../ask/presentation/ask_entry.dart';
 import '../../balances/presentation/balance_text.dart';
 import '../../balances/presentation/balance_warning.dart';
@@ -132,6 +133,7 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => openActivity(thisMonth),
                   ),
                   const SizedBox(height: 12),
+                  const AppNoticeCards(),
                   if (isBusiness && !sellsProducts) ...[
                     const _QuickButtons(services: true),
                     const SizedBox(height: 12),
@@ -178,6 +180,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   const BalanceWarningLine(),
                   const SizedBox(height: 12),
+                  const AppNoticeCards(),
                   SupportHomeCard(
                     moneyTight: _moneyTight(safeToSpend, untilNext, forecast),
                   ),

@@ -333,3 +333,36 @@ class DetailLine extends StatelessWidget {
     );
   }
 }
+
+/// The Pesa Clarity mark: a white P on a red rounded square.
+class AppMark extends StatelessWidget {
+  const AppMark({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'Pesa Clarity',
+      image: true,
+      child: ExcludeSemantics(
+        child: Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'P',
+            style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+              color: scheme.onPrimary,
+              fontWeight: FontWeight.w700,
+              fontVariations: const [FontVariation.weight(700)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

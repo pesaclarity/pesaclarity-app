@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'features/app_status/presentation/update_required_screen.dart';
 import 'features/categoriser/presentation/learn_when_due.dart';
 import 'features/look/application/look_providers.dart';
 import 'features/look/presentation/field_style_theme.dart';
@@ -30,7 +31,10 @@ class PesaClarityApp extends ConsumerWidget {
       routerConfig: ref.watch(appRouterProvider),
       builder: (context, child) => AmountsHiddenScope(
         child: FieldStyleTheme(
-          child: AppLockGate(child: LearnWhenDue(child: child!)),
+          // A verified "update required" notice covers everything.
+          child: UpdateRequiredGate(
+            child: AppLockGate(child: LearnWhenDue(child: child!)),
+          ),
         ),
       ),
     );

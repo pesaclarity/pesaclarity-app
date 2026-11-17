@@ -8,3 +8,12 @@ const installGuideUrl = String.fromEnvironment(
   'PESACLARITY_INSTALL_GUIDE_URL',
   defaultValue: 'https://pesaclarity.github.io/install/#xiaomi',
 );
+
+/// The app's id on Google Play and F-Droid (`applicationId`).
+const appPackageId = 'com.pesaclarity.app';
+
+/// The website's download page, where the APKs and the iPhone build are.
+const downloadPageUrl = String.fromEnvironment(
+  'PESACLARITY_DOWNLOAD_URL',
+  defaultValue: 'https://pesaclarity.github.io/install/#download',
+);
