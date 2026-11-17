@@ -9,12 +9,12 @@ import '../../../domain/ask/context.dart';
 import '../../../domain/ask/data_source.dart';
 import '../../../domain/ask/engine.dart';
 import '../../../domain/ask/matcher.dart';
-import '../../../domain/ask/model_question_reader.dart';
 import '../../../domain/ask/model_reply_writer.dart';
 import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/reply_writer.dart';
 import '../../../domain/ask/rule_question_reader.dart';
 import '../../../domain/ask/understanding.dart';
+import '../../../domain/ml/dart_ask_reader.dart';
 import '../../../domain/time/calendar.dart';
 import '../../categoriser/data/tflite_flutter_runtime.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -22,27 +22,12 @@ import '../data/app_ask_data_source.dart';
 import '../data/ask_model_store.dart';
 import 'ask_settings.dart';
 
-/// Opens `ask-reader.tflite`. Its outputs have the message reader's shapes
-/// (per-token labels, then whole-question labels), so the same TFLite
-/// runtime runs it. Override with null for a build without TFLite, or with
-/// a fake in tests.
+/// Opens `ask-reader.weights` with the Ask reader in plain Dart, the same
+/// in every build: no native library. Override with null to use the rules
+/// only, or with a fake in tests.
 final askReaderRuntimeOpenerProvider = Provider<AskReaderRuntimeOpener?>(
-  (ref) =>
-      (bytes) => _AskTfliteRuntime(TfliteReaderRuntime.open(bytes)),
+  (ref) => DartAskReader.parse,
 );
-
-class _AskTfliteRuntime implements AskReaderRuntime {
-  _AskTfliteRuntime(this._runtime);
-
-  final TfliteReaderRuntime _runtime;
-
-  @override
-  (List<List<double>>, List<double>) run(List<int> input) =>
-      _runtime.run(input);
-
-  @override
-  void close() => _runtime.close();
-}
 
 /// Reads bundled model files; null when absent.
 final askAssetReaderProvider = Provider<AssetReader>(

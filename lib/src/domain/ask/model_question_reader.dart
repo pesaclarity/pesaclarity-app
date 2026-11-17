@@ -1,11 +1,15 @@
+import 'dart:isolate';
+
+import '../ml/plain_weights.dart';
 import '../reader/reader_tokens.dart';
 import 'matcher.dart';
 import 'rule_question_reader.dart';
 import 'understanding.dart';
 
-/// Runs `ask-reader.tflite`: the message reader's input encoding
-/// ([encodeTokens], `[2 * readerMaxTokens]` int32) in; per-token slot label
-/// probabilities and intent probabilities out.
+/// Runs the Ask reader: the message reader's input encoding ([encodeTokens],
+/// `[2 * readerMaxTokens]` int32) in; per-token slot label probabilities and
+/// intent probabilities out. The app's is `DartAskReader`, on the model's
+/// plain weights.
 abstract interface class AskReaderRuntime {
   /// `([readerMaxTokens][slot labels], [intents])`.
   (List<List<double>>, List<double>) run(List<int> input);
@@ -13,14 +17,18 @@ abstract interface class AskReaderRuntime {
   void close();
 }
 
-/// `ask-reader-manifest.json` as pesaclarity-ml will write it. The fields
-/// mirror the message reader's manifest; the exact spec is not settled, so
-/// anything this app does not understand makes it fall back to the rules.
+/// `ask-reader-manifest.json` as pesaclarity-ml writes it (its docs/ASK.md
+/// and docs/WEIGHTS.md). Anything this app does not understand makes it
+/// fall back to the rules.
 class AskReaderManifest {
   const AskReaderManifest({
     required this.modelFile,
     required this.modelSha256,
     required this.modelSizeBytes,
+    required this.weightsFile,
+    required this.weightsSha256,
+    required this.weightsSizeBytes,
+    required this.weightsFormatVersion,
     required this.schemaVersion,
     required this.maxTokens,
     required this.hashBuckets,
@@ -37,6 +45,10 @@ class AskReaderManifest {
       modelFile: json['model_file']! as String,
       modelSha256: json['model_sha256']! as String,
       modelSizeBytes: json['model_size_bytes']! as int,
+      weightsFile: json['weights_file']! as String,
+      weightsSha256: json['weights_sha256']! as String,
+      weightsSizeBytes: json['weights_size_bytes']! as int,
+      weightsFormatVersion: json['weights_format_version']! as int,
       schemaVersion: json['reader_schema_version']! as int,
       maxTokens: json['max_tokens']! as int,
       hashBuckets: json['hash_buckets']! as int,
@@ -45,9 +57,18 @@ class AskReaderManifest {
     );
   }
 
+  /// The TFLite file pesaclarity-ml exported and scored. The app does not
+  /// ship it; its hash says which model the weights are.
   final String modelFile;
   final String modelSha256;
   final int modelSizeBytes;
+
+  /// The model's plain weights (pesaclarity-ml docs/WEIGHTS.md), read out
+  /// of [modelFile]: what the app runs.
+  final String weightsFile;
+  final String weightsSha256;
+  final int weightsSizeBytes;
+  final int weightsFormatVersion;
   final int schemaVersion;
   final int maxTokens;
   final int hashBuckets;
@@ -61,6 +82,9 @@ class AskReaderManifest {
 
   /// Why this model cannot be used by this app; empty when it can.
   List<String> incompatibilities() => [
+    if (weightsFormatVersion != plainWeightsFormatVersion)
+      'weights format $weightsFormatVersion, app reads '
+          '$plainWeightsFormatVersion',
     if (schemaVersion != readerSchemaVersion)
       'token schema $schemaVersion, app reads $readerSchemaVersion',
     if (maxTokens != readerMaxTokens) 'max tokens $maxTokens',
@@ -93,20 +117,57 @@ class ModelQuestionReader implements QuestionReader {
 
   @override
   Understanding read(String question) {
-    final rules = fallback is RuleQuestionReader
-        ? fallback.read(question)
-        : null;
+    final rules = _rules(question);
     if (rules != null && RuleQuestionReader.decides(question, rules)) {
       return rules;
     }
     final tokens = tokenise(question);
-    final List<List<double>> slots;
-    final List<double> intents;
+    final (List<List<double>>, List<double>) outputs;
     try {
-      (slots, intents) = _runtime.run(encodeTokens(tokens));
+      outputs = _runtime.run(encodeTokens(tokens));
     } on Object {
       return rules ?? fallback.read(question);
     }
+    return _reading(question, tokens, outputs, rules);
+  }
+
+  /// [read], with the model run in a background isolate, so its several
+  /// milliseconds (tens on a slow phone) never hold up the UI thread. The
+  /// isolate gets a copy of the runtime; nothing is loaded again.
+  Future<Understanding> readInBackground(String question) async {
+    final rules = _rules(question);
+    if (rules != null && RuleQuestionReader.decides(question, rules)) {
+      return rules;
+    }
+    final tokens = tokenise(question);
+    final (List<List<double>>, List<double>) outputs;
+    try {
+      outputs = await _runInIsolate(_runtime, encodeTokens(tokens));
+    } on Object {
+      return rules ?? fallback.read(question);
+    }
+    return _reading(question, tokens, outputs, rules);
+  }
+
+  // Not async, and static: the closure must hold the runtime and the input
+  // only, not this reader or anything else alive in an async method.
+  static Future<(List<List<double>>, List<double>)> _runInIsolate(
+    AskReaderRuntime runtime,
+    List<int> input,
+  ) => Isolate.run(() => runtime.run(input));
+
+  Understanding? _rules(String question) =>
+      fallback is RuleQuestionReader ? fallback.read(question) : null;
+
+  /// The reading from the model's [outputs] for [question]'s [tokens], with
+  /// the [rules]' reading as the safety net.
+  Understanding _reading(
+    String question,
+    List<MessageToken> tokens,
+    (List<List<double>>, List<double>) outputs,
+    Understanding? rules,
+  ) {
+    final (slots, intents) = outputs;
     var best = 0;
     for (var i = 1; i < intents.length; i++) {
       if (intents[i] > intents[best]) best = i;

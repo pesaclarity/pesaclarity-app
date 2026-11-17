@@ -1,22 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/ask/model_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/rule_question_reader.dart';
 import 'package:pesaclarity/src/domain/ask/understanding.dart';
+import 'package:pesaclarity/src/domain/ml/dart_ask_reader.dart';
+import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
 import 'package:pesaclarity/src/domain/reader/reader_tokens.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/ask/data/ask_model_store.dart';
 
 /// The bundled ask reader on the phrasings the first one got wrong (#238,
 /// #240): counts and sums for one payee, "how much to X", money in, "X sent
-/// me", account balances and names the app has never seen. The host has no
-/// TFLite, so the model's outputs for these very inputs were recorded on a
-/// computer with the bundled file (tool/ask_reader_decodes.py) and are
-/// replayed here, first with the model alone and then with the rules behind
-/// it, as the app runs it.
+/// me", account balances and names the app has never seen. The model runs
+/// here as in the app, in Dart from `ask-reader.weights`, first alone and
+/// then with the rules behind it.
+///
+/// TFLite stays the reference: tool/ask_reader_decodes.py ran the same
+/// model's `ask-reader.tflite` on these very inputs, and the Dart reader must
+/// give the same labels and probabilities within [_tolerance].
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -32,19 +37,57 @@ void main() {
   final recorded = jsonDecode(
     File('test/fixtures/ask/ask_reader_decodes.json').readAsStringSync(),
   ) as Map<String, Object?>;
-  final replay = _Replay(recorded);
-  tearDownAll(replay.saveMissing);
+  final readings = {
+    for (final r
+        in (recorded['readings']! as List).cast<Map<String, Object?>>())
+      r['question'] as String: r.cast<String, Object?>(),
+  };
+  final missing = <String>[];
+  tearDownAll(() => _saveMissing(missing));
 
-  test('the recordings are of the bundled reader', () async {
+  test('the recordings and the weights are of the bundled reader', () async {
     final manifest = (jsonDecode(
       utf8.decode((await asset('$askModelFolder/$askReaderManifestFile'))!),
     ) as Map).cast<String, Object?>();
     expect(recorded['model_sha256'], manifest['model_sha256']);
+    final weights = PlainWeights.parse(
+      (await asset('$askModelFolder/${manifest['weights_file']}'))!,
+    );
+    expect(weights.sourceSha256, manifest['model_sha256']);
+  });
+
+  test('the Dart reader gives TFLite\'s outputs on every recording', () async {
+    final model = DartAskReader.parse(
+      (await asset('$askModelFolder/ask-reader.weights'))!,
+    );
+    var worst = 0.0;
+    for (final r in readings.values) {
+      final input = (r['input']! as List).cast<int>();
+      final (slots, intent) = model.run(input);
+      final wantIntent = _doubles(r['intent']!);
+      expect(
+        _argmax(intent),
+        _argmax(wantIntent),
+        reason: 'intent of "${r['question']}"',
+      );
+      worst = math.max(worst, _maxDiff(intent, wantIntent));
+      final wantSlots = (r['slots']! as List).map(_doubles).toList();
+      for (final (t, want) in wantSlots.indexed) {
+        expect(
+          _argmax(slots[t]),
+          _argmax(want),
+          reason: 'slot of token $t of "${r['question']}"',
+        );
+        worst = math.max(worst, _maxDiff(slots[t], want));
+      }
+    }
+    expect(readings, hasLength(greaterThanOrEqualTo(_cases.length)));
+    expect(worst, lessThan(_tolerance));
   });
 
   Future<QuestionReader> reader(QuestionReader fallback) => loadAskReader(
     readAsset: asset,
-    openRuntime: (_) => replay,
+    openRuntime: DartAskReader.parse,
     fallback: fallback,
   );
 
@@ -58,13 +101,18 @@ void main() {
                 : const _Unsure(),
           );
           expect(r, isA<ModelQuestionReader>());
-          replay.current = question;
-          final u = r.read(question);
+          final input = encodeTokens(tokenise(question));
+          final recording = readings[question];
+          if (recording == null ||
+              !_same((recording['input']! as List).cast<int>(), input)) {
+            missing.add(question);
+          }
           expect(
-            replay.has(question),
-            isTrue,
-            reason: 'no recording: run tool/ask_reader_decodes.py',
+            missing,
+            isNot(contains(question)),
+            reason: 'no TFLite recording: run tool/ask_reader_decodes.py',
           );
+          final u = r.read(question);
           expect(u.intent, intent, reason: 'intent');
           if (kind != null && _modelMisses.containsKey(question)) {
             if (rules) {
@@ -98,6 +146,71 @@ void main() {
       }
     });
   }
+
+  test('off the UI thread, the reading is the same', () async {
+    final r = await reader(
+      RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+    ) as ModelQuestionReader;
+    for (final (question, _, _, _) in _cases) {
+      final here = r.read(question);
+      final there = await r.readInBackground(question);
+      expect(there.intent, here.intent, reason: question);
+      expect(there.spans, here.spans, reason: question);
+      expect(there.confidence, here.confidence, reason: question);
+    }
+  });
+}
+
+/// How far the Dart reader's probabilities may be from TFLite's. The
+/// recordings round to 1e-5; the reader is about 4e-5 off, as TFLite's own
+/// kernels (XNNPACK and the built-in ones) are from each other.
+const _tolerance = 1e-4;
+
+List<double> _doubles(Object? values) => [
+  for (final v in values! as List) (v! as num).toDouble(),
+];
+
+int _argmax(List<double> v) {
+  var best = 0;
+  for (var i = 1; i < v.length; i++) {
+    if (v[i] > v[best]) best = i;
+  }
+  return best;
+}
+
+double _maxDiff(List<double> a, List<double> b) {
+  expect(a.length, b.length);
+  var worst = 0.0;
+  for (var i = 0; i < a.length; i++) {
+    worst = math.max(worst, (a[i] - b[i]).abs());
+  }
+  return worst;
+}
+
+bool _same(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// With `ASK_READER_RECORD=path`, writes the questions with no recording
+/// for tool/ask_reader_decodes.py.
+void _saveMissing(List<String> questions) {
+  final path = Platform.environment['ASK_READER_RECORD'];
+  if (path == null) return;
+  File(path).writeAsStringSync(
+    jsonEncode([
+      for (final question in questions.toSet())
+        if (encodeTokens(tokenise(question)) case final input)
+          {
+            'question': question,
+            'input': input,
+            'tokens': input.take(readerMaxTokens).where((id) => id != 0).length,
+          },
+    ]),
+  );
 }
 
 /// (question, intent, the name's slot, the name as tagged). Every name here
@@ -229,81 +342,6 @@ class _Unsure implements QuestionReader {
   @override
   Understanding read(String question) =>
       const Understanding(AskIntent.outOfScope, confidence: 0);
-
-  @override
-  void close() {}
-}
-
-/// Replays the real model's recorded outputs, by the exact input the app
-/// encodes for the question.
-class _Replay implements AskReaderRuntime {
-  _Replay(Map<String, Object?> recorded)
-    : _readings = {
-        for (final r in recorded['readings']! as List)
-          (r as Map)['question'] as String: r.cast<String, Object?>(),
-      };
-
-  final Map<String, Map<String, Object?>> _readings;
-  final _missing = <String, List<int>>{};
-
-  /// The question being read, so a missing recording can name it.
-  String current = '';
-
-  bool has(String question) => _readings.containsKey(question);
-
-  @override
-  (List<List<double>>, List<double>) run(List<int> input) {
-    final r = _readings[current];
-    if (r == null || !_sameInput(r['input']! as List, input)) {
-      _missing[current] = input;
-      // Unsure: the app falls back.
-      return (
-        [
-          for (var t = 0; t < readerMaxTokens; t++)
-            [1.0, for (var j = 1; j < 7; j++) 0.0],
-        ],
-        List<double>.filled(30, 1 / 30),
-      );
-    }
-    final slots = [
-      for (final row in r['slots']! as List)
-        [for (final p in row as List) (p as num).toDouble()],
-    ];
-    final width = slots.isEmpty ? 7 : slots.first.length;
-    return (
-      [
-        ...slots,
-        for (var t = slots.length; t < readerMaxTokens; t++)
-          [1.0, for (var j = 1; j < width; j++) 0.0],
-      ],
-      [for (final p in r['intent']! as List) (p as num).toDouble()],
-    );
-  }
-
-  static bool _sameInput(List<Object?> a, List<int> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
-
-  /// With `ASK_READER_RECORD=path`, writes the questions with no recording
-  /// for tool/ask_reader_decodes.py.
-  void saveMissing() {
-    final path = Platform.environment['ASK_READER_RECORD'];
-    if (path == null) return;
-    File(path).writeAsStringSync(
-      jsonEncode([
-        for (final MapEntry(key: question, value: input) in _missing.entries)
-          {
-            'question': question,
-            'input': input,
-            'tokens': input.take(readerMaxTokens).where((id) => id != 0).length,
-          },
-      ]),
-    );
-  }
 
   @override
   void close() {}
