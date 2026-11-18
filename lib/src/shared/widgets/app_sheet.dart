@@ -5,23 +5,74 @@ import '../../theme/pesa_colors.dart';
 import '../accessibility.dart';
 
 /// Opens a sheet from the bottom the same way everywhere: as tall as it
-/// needs, with a handle to drag it away, clear of the phone's edges. Build
-/// it with [SheetBody].
+/// needs, with a handle to drag it away and a close button, clear of the
+/// phone's edges. Build it with [SheetBody].
 Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) => showModalBottomSheet<T>(
   context: context,
   isScrollControlled: true,
-  showDragHandle: true,
   useSafeArea: true,
   // Shows in place, without sliding up, when the phone asks for less
   // motion.
   sheetAnimationStyle: reduceMotion(context)
       ? AnimationStyle.noAnimation
       : null,
-  builder: builder,
+  builder: (context) => SheetFrame(child: builder(context)),
 );
+
+/// The top of every sheet: the drag handle in the middle and a close
+/// button at the start, so a sheet can be shut with a tap as well as a
+/// drag. [child] goes under it.
+class SheetFrame extends StatelessWidget {
+  const SheetFrame({required this.child, super.key});
+
+  final Widget child;
+
+  /// The height of the row with the handle and the close button.
+  static const topHeight = Layout.minTouch;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: topHeight,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ExcludeSemantics(
+                child: Container(
+                  width: 32,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              PositionedDirectional(
+                start: 4,
+                top: 0,
+                bottom: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Flexible(child: child),
+      ],
+    );
+  }
+}
 
 /// A sheet's content: its [title], an optional [subtitle], then
 /// [children] at full width. The main button goes last in [children]. It

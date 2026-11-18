@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/pesa_colors.dart';
+import 'app_sheet.dart';
 
 /// Lists up to this long show in full, with no search; longer ones show the
 /// most used and a search box.
@@ -97,10 +98,8 @@ Future<T?> showOptionSheet<T>(
   required String title,
   required List<(T, String)> options,
   required T? selected,
-}) => showModalBottomSheet<T>(
+}) => showAppSheet<T>(
   context: context,
-  showDragHandle: true,
-  isScrollControlled: true,
   builder: (context) {
     final theme = Theme.of(context);
     return SafeArea(

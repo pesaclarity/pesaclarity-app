@@ -4,7 +4,8 @@ import 'brand_tokens.dart';
 
 /// Text styles: Space Grotesk with tabular figures for numbers and titles,
 /// Inter for body text and labels. Both ship as bundled variable fonts.
-/// The same on Android and iPhone.
+/// The same on Android and iPhone. Body, secondary and caption text follow
+/// the iPhone sizes (17, 15 and 13), and nothing is under 11.
 abstract final class AppTypography {
   static TextTheme textTheme(Color text, Color muted) => TextTheme(
     displayLarge: _display(57, FontWeight.w600, text, height: 1.1),
@@ -14,13 +15,13 @@ abstract final class AppTypography {
     headlineMedium: _display(28, FontWeight.w600, text),
     headlineSmall: _display(24, FontWeight.w600, text),
     titleLarge: _display(22, FontWeight.w600, text),
-    titleMedium: _body(16, FontWeight.w600, text),
-    titleSmall: _body(14, FontWeight.w600, text),
-    bodyLarge: _body(16, FontWeight.w400, text),
-    bodyMedium: _body(14, FontWeight.w400, text),
-    bodySmall: _body(12, FontWeight.w400, muted),
-    labelLarge: _body(14, FontWeight.w600, text),
-    labelMedium: _body(12, FontWeight.w500, text),
+    titleMedium: _body(17, FontWeight.w600, text),
+    titleSmall: _body(15, FontWeight.w600, text),
+    bodyLarge: _body(17, FontWeight.w400, text),
+    bodyMedium: _body(15, FontWeight.w400, text),
+    bodySmall: _body(13, FontWeight.w400, muted),
+    labelLarge: _body(15, FontWeight.w600, text),
+    labelMedium: _body(13, FontWeight.w500, text),
     labelSmall: _body(11, FontWeight.w500, muted),
   );
 

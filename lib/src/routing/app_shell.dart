@@ -188,7 +188,12 @@ class AppShell extends ConsumerWidget {
     }
 
     return Scaffold(
-      body: navigationShell,
+      body: Stack(
+        children: [
+          navigationShell,
+          const Positioned(left: 0, right: 0, bottom: 0, child: TabBarFade()),
+        ],
+      ),
       // The one main action sits beside the bar, never over the list.
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
@@ -204,6 +209,35 @@ class AppShell extends ConsumerWidget {
             const SizedBox(width: 12),
             const MainAddButton(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Fades a tab's content out as it reaches the tab bar, rather than cutting
+/// it off at the bar's top edge. It takes no taps.
+class TabBarFade extends StatelessWidget {
+  const TabBarFade({super.key});
+
+  static const height = 24.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = Theme.of(context).scaffoldBackgroundColor;
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: height,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [background.withValues(alpha: 0), background],
+              ),
+            ),
+          ),
         ),
       ),
     );
