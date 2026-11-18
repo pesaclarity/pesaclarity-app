@@ -133,8 +133,17 @@ class DocumentSettingsScreen extends ConsumerWidget {
                   child: SizedBox.square(
                     dimension: 52,
                     child: logo != null && logo.isImage
-                        ? Image.memory(
-                            logo.bytes,
+                        ? Image(
+                            image: ResizeImage(
+                              MemoryImage(logo.bytes),
+                              // A phone photo decodes to tens of megabytes;
+                              // the tile is 52 points. Four times its size
+                              // keeps the shorter side sharp under cover
+                              // for any picture up to 4:1.
+                              width: _logoDecodeSize(context),
+                              height: _logoDecodeSize(context),
+                              policy: ResizeImagePolicy.fit,
+                            ),
                             fit: BoxFit.cover,
                             // A picture that will not open shows the initials.
                             errorBuilder: (_, _, _) => initialsTile,
@@ -483,3 +492,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
     ],
   );
 }
+
+/// The most pixels the logo tile decodes its picture to, on either side.
+int _logoDecodeSize(BuildContext context) =>
+    (52 * MediaQuery.devicePixelRatioOf(context) * 4).ceil();
