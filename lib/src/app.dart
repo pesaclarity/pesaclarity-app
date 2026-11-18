@@ -7,6 +7,7 @@ import 'features/look/application/look_providers.dart';
 import 'features/look/presentation/field_style_theme.dart';
 import 'features/security/presentation/lock_screen.dart';
 import 'routing/app_router.dart';
+import 'shared/accessibility.dart';
 import 'shared/widgets/amounts_hidden.dart';
 import 'theme/app_theme.dart';
 
@@ -29,11 +30,16 @@ class PesaClarityApp extends ConsumerWidget {
       highContrastDarkTheme: AppTheme.darkHighContrast,
       themeMode: themeModeFor(theme),
       routerConfig: ref.watch(appRouterProvider),
-      builder: (context, child) => AmountsHiddenScope(
-        child: FieldStyleTheme(
-          // A verified "update required" notice covers everything.
-          child: UpdateRequiredGate(
-            child: AppLockGate(child: LearnWhenDue(child: child!)),
+      builder: (context, child) => Theme(
+        // New screens show without zooming in when the phone asks for less
+        // motion.
+        data: withReducedMotion(Theme.of(context)),
+        child: AmountsHiddenScope(
+          child: FieldStyleTheme(
+            // A verified "update required" notice covers everything.
+            child: UpdateRequiredGate(
+              child: AppLockGate(child: LearnWhenDue(child: child!)),
+            ),
           ),
         ),
       ),

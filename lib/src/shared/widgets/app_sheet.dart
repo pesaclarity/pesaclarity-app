@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import '../accessibility.dart';
 
 /// Opens a sheet from the bottom the same way everywhere: as tall as it
 /// needs, with a handle to drag it away, clear of the phone's edges. Build
@@ -14,6 +15,11 @@ Future<T?> showAppSheet<T>({
   isScrollControlled: true,
   showDragHandle: true,
   useSafeArea: true,
+  // Shows in place, without sliding up, when the phone asks for less
+  // motion.
+  sheetAnimationStyle: reduceMotion(context)
+      ? AnimationStyle.noAnimation
+      : null,
   builder: builder,
 );
 

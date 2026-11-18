@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/accessibility.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -220,10 +221,16 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
               ignoring: _away,
               child: AnimatedSlide(
                 offset: _away ? const Offset(0, 1) : Offset.zero,
-                duration: const Duration(milliseconds: 200),
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 200),
+                ),
                 child: AnimatedOpacity(
                   opacity: _away ? 0 : 1,
-                  duration: const Duration(milliseconds: 200),
+                  duration: motionDuration(
+                    context,
+                    const Duration(milliseconds: 200),
+                  ),
                   child: DecoratedBox(
                     // A soft fade so the list does not clash with the bar.
                     decoration: BoxDecoration(
