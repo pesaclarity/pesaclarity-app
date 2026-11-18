@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/forecast/cash_flow_forecast.dart';
@@ -24,12 +25,11 @@ final cashFlowForecastProvider = FutureProvider<CashFlowForecast?>((ref) async {
   }
   final windowStart = today.addDays(-paceWindowDays).startInstant;
   final tomorrow = today.addDays(1).startInstant;
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(
-        from: opened.isBefore(windowStart) ? opened : windowStart,
-        to: tomorrow,
-      );
+  final entries = await readLedgerHistory(
+    ref,
+    from: opened.isBefore(windowStart) ? opened : windowStart,
+    to: tomorrow,
+  );
 
   return CashFlowForecast.project(
     balanceMinor: (await readJournal(ref))

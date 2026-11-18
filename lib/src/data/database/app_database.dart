@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../core/perf/startup_timeline.dart';
 import '../../domain/books/books.dart';
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
@@ -76,7 +77,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 37;
+  int get schemaVersion => 38;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -327,6 +328,10 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(setAsideMessages);
         }
       }
+      // Transactions by date, which most screens read them by.
+      if (from < 38) {
+        await _createIndexIfMissing(m, transactionsOccurredAt);
+      }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {
         await customStatement(
@@ -338,6 +343,8 @@ class AppDatabase extends _$AppDatabase {
       }
     },
     beforeOpen: (details) async {
+      // Opened and migrated, as far as startup is concerned.
+      StartupTimeline.mark('database open');
       await customStatement('PRAGMA foreign_keys = ON');
       // The journal starts from every existing record, and version 35's
       // posting rules repost what version 34 posted.

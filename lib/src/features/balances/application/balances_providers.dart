@@ -5,6 +5,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/ledger/balances.dart';
@@ -118,9 +119,11 @@ final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
   for (final o in openings.values) {
     if (o.openingDate.isBefore(from)) from = o.openingDate;
   }
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: now.add(const Duration(seconds: 1)));
+  final entries = await readLedgerHistory(
+    ref,
+    from: from,
+    to: now.add(const Duration(seconds: 1)),
+  );
   final checkFrom = now.subtract(const Duration(days: balanceCheckDays));
   final journal = await readJournal(ref);
   final at = now.add(const Duration(seconds: 1));
@@ -206,9 +209,11 @@ final onHandProvider = FutureProvider<OnHand?>((ref) async {
   for (final a in accounts) {
     if (a.openingDate.isBefore(from)) from = a.openingDate;
   }
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: today.addDays(1).startInstant);
+  final entries = await readLedgerHistory(
+    ref,
+    from: from,
+    to: today.addDays(1).startInstant,
+  );
   final fund = await ref.watch(rainyDayFundProvider.future);
   return OnHand.at(
     accounts,

@@ -406,6 +406,17 @@ void main() {
       () => c.read(documentsRepositoryProvider).file(DocumentFileKind.logo),
     );
     expect(logo!.name, 'logo.png');
+    // The tile decodes the picture near its own size, not the photo's.
+    final shown = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const Key('documents-logo')),
+        matching: find.byType(Image),
+      ),
+    );
+    final resized = shown.image as ResizeImage;
+    expect(resized.width, 52 * 4);
+    expect(resized.height, 52 * 4);
+    expect(resized.policy, ResizeImagePolicy.fit);
 
     await tester.tap(find.byKey(const Key('documents-offer')));
     await settleFrames(tester);

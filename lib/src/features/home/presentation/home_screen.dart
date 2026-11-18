@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/perf/startup_timeline.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/books/business_report.dart';
 import '../../../domain/budget/safe_to_spend.dart';
@@ -69,6 +70,25 @@ String _kes(BuildContext context, int minor) =>
 /// Every other amount: a plain number in the base currency.
 String _plain(BuildContext context, int minor) => shownMoney(context, minor);
 
+/// The startup phase Home marks once its cards show their numbers.
+const homeShownPhase = 'home data shown';
+
+/// Marks startup's [homeShownPhase] once Home's main cards have loaded,
+/// after the frame that shows them (see [StartupTimeline]).
+void _markShown(WidgetRef ref) {
+  if (!StartupTimeline.waitsFor(homeShownPhase)) return;
+  final loading = [
+    ref.watch(safeToSpendTodayProvider),
+    ref.watch(healthIndexProvider),
+    ref.watch(cashFlowForecastProvider),
+    ref.watch(upcomingBillsProvider),
+  ].any((value) => value.isLoading);
+  if (loading) return;
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => StartupTimeline.mark(homeShownPhase),
+  );
+}
+
 /// Home tab: how am I doing today?
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -92,6 +112,7 @@ class HomeScreen extends ConsumerWidget {
     final health = ref.watch(healthIndexProvider).value;
     final forecast = ref.watch(cashFlowForecastProvider).value;
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
+    _markShown(ref);
     final space = ref.watch(activeSpaceProvider);
     final isBusiness = space.kind == SpaceKind.business;
     // Products and both lead with today's sales; services with profit.

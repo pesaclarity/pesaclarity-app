@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/not_yet_sorted.dart';
 import '../../../domain/reader/message_reading.dart';
@@ -16,9 +17,11 @@ import '../../review/application/review_providers.dart';
 final notYetSortedProvider = FutureProvider<NotYetSorted>((ref) async {
   ref.watch(ledgerChangesProvider);
   final items = await ref.watch(pendingReviewProvider.future);
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: DateTime.utc(1970), to: DateTime.utc(3000));
+  final entries = await readLedgerHistory(
+    ref,
+    from: DateTime.utc(1970),
+    to: DateTime.utc(3000),
+  );
   // The reader only loads when there is something for it to read.
   final reader = items.isEmpty
       ? null

@@ -142,6 +142,7 @@ class JournalRepository {
     var posted = 0;
     var reversed = 0;
     final now = _clock();
+    final writes = _JournalWrites();
     for (final e in wanted) {
       final shape = _shape(e.at, e.memo, e.accountId, [
         for (final l in e.lines) (l.account.key, l.amountMinor, e.currency),
@@ -152,120 +153,105 @@ class JournalRepository {
         if (!kept && s.shape == shape) {
           kept = true;
         } else {
-          await _reverse(s, now);
+          writes.reverse(s, now);
           reversed++;
         }
       }
       if (kept) continue;
-      await _post(e, rateOf(e), now);
+      writes.post(e, rateOf(e), now);
       posted++;
     }
     for (final gone in byKey.values.expand((s) => s)) {
-      await _reverse(gone, now);
+      writes.reverse(gone, now);
       reversed++;
     }
+    await writes.flush(_db);
     return JournalSync(posted: posted, reversed: reversed);
   }
 
   /// Entries that are neither reversed nor reversals, with their postings:
   /// those of [accountIds], or all of them.
   Future<List<_Stored>> _live(Set<int>? accountIds) async {
-    final j = _db.journalEntries;
     final ids = accountIds?.toList();
-    final rows = await _db
-        .customSelect(
-          'SELECT * FROM journal_entries WHERE reverses IS NULL AND id NOT IN '
-          '(SELECT reverses FROM journal_entries WHERE reverses IS NOT NULL)'
-          '${ids == null ? '' : ' AND account_id IN (${List.filled(ids.length, '?').join(', ')})'}',
-          variables: [for (final id in ids ?? const <int>[]) Variable(id)],
-          readsFrom: {j},
-        )
-        .map((row) => j.map(row.data))
-        .get();
-    final lines = <int, List<Posting>>{};
-    final entryIds = [for (final r in rows) r.id];
-    // In slices, to stay under SQLite's limit on bound values.
-    for (var i = 0; i < entryIds.length; i += _slice) {
-      final slice = entryIds.sublist(
-        i,
-        i + _slice > entryIds.length ? entryIds.length : i + _slice,
-      );
-      for (final p in await (_db.select(
-        _db.postings,
-      )..where((p) => p.entryId.isIn(slice))).get()) {
-        (lines[p.entryId] ??= []).add(p);
-      }
-    }
+    final rows = await _withPostings(
+      'j.reverses IS NULL AND j.id NOT IN '
+      '(SELECT reverses FROM journal_entries WHERE reverses IS NOT NULL)'
+      '${ids == null ? '' : ' AND j.account_id IN (${List.filled(ids.length, '?').join(', ')})'}',
+      [for (final id in ids ?? const <int>[]) Variable(id)],
+    );
     return [
-      for (final row in rows)
+      for (final (row, lines) in rows)
         _Stored(
           row,
-          lines[row.id] ?? const [],
+          lines,
           _shape(row.occurredAt, row.memo, row.accountId, [
-            for (final p in lines[row.id] ?? const <Posting>[])
-              (p.account, p.amountMinor, p.currency),
-          ], (lines[row.id] ?? const <Posting>[]).firstOrNull?.rateMicros),
+            for (final p in lines) (p.account, p.amountMinor, p.currency),
+          ], lines.firstOrNull?.rateMicros),
         ),
     ];
   }
 
-  static const _slice = 500;
-
-  Future<void> _post(JournalEntry e, int? rate, DateTime now) async {
-    final id = await _db
-        .into(_db.journalEntries)
-        .insert(
-          JournalEntriesCompanion.insert(
-            occurredAt: e.at,
-            sourceKind: e.source,
-            sourceId: e.sourceId,
-            memo: Value(e.memo),
-            recordedAt: now,
-            accountId: Value(e.accountId),
+  /// The journal entries matching [where] (on `j`, the entries table) with
+  /// their postings, in the order they were posted.
+  ///
+  /// One query read column by column: the typed join drift builds reads
+  /// every column of both tables through a map per row, which took most of
+  /// a journal read.
+  Future<List<(JournalEntryRow, List<Posting>)>> _withPostings(
+    String? where, [
+    List<Variable<Object>> variables = const [],
+  ]) async {
+    final j = _db.journalEntries;
+    final p = _db.postings;
+    final types = _db.typeMapping;
+    final rows = await _db
+        .customSelect(
+          'SELECT j.id, j.occurred_at, j.source_kind, j.source_id, j.memo, '
+          'j.reverses, j.recorded_at, j.account_id, p.id AS posting_id, '
+          'p.account, p.amount_minor, p.currency, p.rate_micros '
+          'FROM journal_entries j LEFT JOIN postings p ON p.entry_id = j.id'
+          '${where == null ? '' : ' WHERE $where'} ORDER BY j.id, p.id',
+          variables: variables,
+          readsFrom: {j, p},
+        )
+        .get();
+    final out = <(JournalEntryRow, List<Posting>)>[];
+    final sources = <String, JournalSource>{};
+    for (final row in rows) {
+      final data = row.data;
+      final id = data['id']! as int;
+      if (out.isEmpty || out.last.$1.id != id) {
+        final kind = data['source_kind']! as String;
+        out.add((
+          JournalEntryRow(
+            id: id,
+            occurredAt: types.read(DriftSqlType.dateTime, data['occurred_at'])!,
+            sourceKind: sources[kind] ??= $JournalEntriesTable
+                .$convertersourceKind
+                .fromSql(kind),
+            sourceId: data['source_id']! as int,
+            memo: data['memo'] as String?,
+            reverses: data['reverses'] as int?,
+            recordedAt: types.read(DriftSqlType.dateTime, data['recorded_at'])!,
+            accountId: data['account_id'] as int?,
           ),
-        );
-    for (final l in e.lines) {
-      await _db
-          .into(_db.postings)
-          .insert(
-            PostingsCompanion.insert(
-              entryId: id,
-              account: l.account.key,
-              amountMinor: l.amountMinor,
-              currency: e.currency,
-              rateMicros: Value(rate),
-            ),
-          );
+          [],
+        ));
+      }
+      final postingId = data['posting_id'] as int?;
+      if (postingId == null) continue;
+      out.last.$2.add(
+        Posting(
+          id: postingId,
+          entryId: id,
+          account: data['account']! as String,
+          amountMinor: data['amount_minor']! as int,
+          currency: data['currency']! as String,
+          rateMicros: data['rate_micros'] as int?,
+        ),
+      );
     }
-  }
-
-  Future<void> _reverse(_Stored s, DateTime now) async {
-    final id = await _db
-        .into(_db.journalEntries)
-        .insert(
-          JournalEntriesCompanion.insert(
-            occurredAt: s.row.occurredAt,
-            sourceKind: s.row.sourceKind,
-            sourceId: s.row.sourceId,
-            memo: Value(s.row.memo),
-            reverses: Value(s.row.id),
-            recordedAt: now,
-            accountId: Value(s.row.accountId),
-          ),
-        );
-    for (final p in s.postings) {
-      await _db
-          .into(_db.postings)
-          .insert(
-            PostingsCompanion.insert(
-              entryId: id,
-              account: p.account,
-              amountMinor: -p.amountMinor,
-              currency: p.currency,
-              rateMicros: Value(p.rateMicros),
-            ),
-          );
-    }
+    return out;
   }
 
   /// Every stored entry, reversals and the entries they cancel included (so
@@ -275,14 +261,10 @@ class JournalRepository {
   /// a rate they keep their own currency.
   Future<List<JournalEntry>> entries({CurrencyConverter? converter}) async {
     await sync();
-    final j = _db.journalEntries;
-    final p = _db.postings;
-    final query = _db.select(p).join([innerJoin(j, j.id.equalsExp(p.entryId))]);
-    final byEntry = <int, (JournalEntryRow, List<Posting>)>{};
-    for (final row in await query.get()) {
-      final entry = row.readTable(j);
-      (byEntry[entry.id] ??= (entry, [])).$2.add(row.readTable(p));
-    }
+    final byEntry = [
+      for (final (row, postings) in await _withPostings(null))
+        if (postings.isNotEmpty) (row, postings),
+    ];
     final got = converter == null
         ? const <int, TransactionRecord>{}
         : {
@@ -292,7 +274,7 @@ class JournalRepository {
               t.id: t,
           };
     final out = <JournalEntry>[];
-    for (final (row, postings) in byEntry.values) {
+    for (final (row, postings) in byEntry) {
       // An entry's postings share one currency.
       final currency = postings.first.currency;
       final record = row.sourceKind == JournalSource.transaction
@@ -508,6 +490,84 @@ Future<void> createJournalTriggers(AppDatabase db) async {
   };
   for (final MapEntry(key: name, value: body) in triggers.entries) {
     await db.customStatement('CREATE TRIGGER IF NOT EXISTS $name $body');
+  }
+}
+
+/// The entries and postings one repost adds, written in one batch: a
+/// round trip per row took most of a large sync, more so on a phone, where
+/// the database runs in its own isolate. Rows go in the order they were
+/// added, with the ids the database would have given them one at a time.
+class _JournalWrites {
+  final _rows = <(JournalEntriesCompanion, List<PostingsCompanion>)>[];
+
+  void post(JournalEntry e, int? rate, DateTime now) => _rows.add((
+    JournalEntriesCompanion.insert(
+      occurredAt: e.at,
+      sourceKind: e.source,
+      sourceId: e.sourceId,
+      memo: Value(e.memo),
+      recordedAt: now,
+      accountId: Value(e.accountId),
+    ),
+    [
+      for (final l in e.lines)
+        _posting(l.account.key, l.amountMinor, e.currency, rate),
+    ],
+  ));
+
+  void reverse(_Stored s, DateTime now) => _rows.add((
+    JournalEntriesCompanion.insert(
+      occurredAt: s.row.occurredAt,
+      sourceKind: s.row.sourceKind,
+      sourceId: s.row.sourceId,
+      memo: Value(s.row.memo),
+      reverses: Value(s.row.id),
+      recordedAt: now,
+      accountId: Value(s.row.accountId),
+    ),
+    [
+      for (final p in s.postings)
+        _posting(p.account, -p.amountMinor, p.currency, p.rateMicros),
+    ],
+  ));
+
+  static PostingsCompanion _posting(
+    String account,
+    int amountMinor,
+    String currency,
+    int? rateMicros,
+  ) => PostingsCompanion.insert(
+    // Filled in by [flush], once the entry's id is known.
+    entryId: 0,
+    account: account,
+    amountMinor: amountMinor,
+    currency: currency,
+    rateMicros: Value(rateMicros),
+  );
+
+  /// Writes everything added, inside the caller's transaction.
+  Future<void> flush(AppDatabase db) async {
+    if (_rows.isEmpty) return;
+    // The id AUTOINCREMENT would give next: past every id ever used.
+    final next = await db
+        .customSelect(
+          'SELECT MAX(COALESCE((SELECT seq FROM sqlite_sequence '
+          "WHERE name = 'journal_entries'), 0), "
+          'COALESCE((SELECT MAX(id) FROM journal_entries), 0)) + 1 AS next',
+          readsFrom: {db.journalEntries},
+        )
+        .map((row) => row.read<int>('next'))
+        .getSingle();
+    await db.batch((b) {
+      for (final (i, (entry, postings)) in _rows.indexed) {
+        final id = next + i;
+        b.insert(db.journalEntries, entry.copyWith(id: Value(id)));
+        b.insertAll(db.postings, [
+          for (final p in postings) p.copyWith(entryId: Value(id)),
+        ]);
+      }
+    });
+    _rows.clear();
   }
 }
 

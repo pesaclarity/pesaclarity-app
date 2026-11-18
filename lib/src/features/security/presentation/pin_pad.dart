@@ -92,8 +92,8 @@ class _PinPadState extends State<PinPad> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i < _digits.length ? scheme.primary : null,
-                    border: Border.all(color: scheme.primary, width: 1.5),
+                    color: i < _digits.length ? colors.link : null,
+                    border: Border.all(color: colors.link, width: 1.5),
                   ),
                 ),
             ],

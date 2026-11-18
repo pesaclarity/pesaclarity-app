@@ -21,6 +21,7 @@ import 'package:pesaclarity/src/features/security/domain/lock_settings.dart';
 import 'package:pesaclarity/src/features/security/presentation/lock_screen.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../../helpers/fake_app_lock.dart';
 import '../../helpers/fake_sms_source.dart';
@@ -112,7 +113,8 @@ void main() {
         (boxed.inputDecorationTheme.focusedBorder! as OutlineInputBorder)
             .borderSide
             .color,
-        base.colorScheme.primary,
+        // The link red: brand red in light, brightened in dark.
+        base.extension<PesaColors>()!.link,
       );
     }
   });

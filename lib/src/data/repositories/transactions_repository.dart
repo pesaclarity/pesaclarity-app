@@ -226,6 +226,11 @@ class DriftTransactionsRepository implements TransactionsRepository {
 
   /// See [TransactionsRepository.ledgerEntries]; with [accountIds], only
   /// those accounts' transactions.
+  ///
+  /// Read column by column from one query rather than through drift's typed
+  /// join, which maps every column of both tables through a map per row:
+  /// with years of messages that mapping was most of the time Home, Insights
+  /// and the journal spent reading the ledger, all of it on the UI isolate.
   @override
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
@@ -236,34 +241,54 @@ class DriftTransactionsRepository implements TransactionsRepository {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
-    final t = _db.transactions;
-    final inDates =
-        t.occurredAt.isBiggerOrEqualValue(from) &
-        t.occurredAt.isSmallerThanValue(to);
-    final inRange = accountIds == null
-        ? inDates
-        : inDates & t.accountId.isIn(accountIds);
-    final query =
-        _db.select(t).join([
-            leftOuterJoin(_db.payees, _db.payees.id.equalsExp(t.payeeId)),
-          ])
-          ..where(tagId == null ? inRange : inRange & _hasTag(t, tagId))
-          ..orderBy([OrderingTerm.asc(t.occurredAt), OrderingTerm.asc(t.id)]);
+    final ids = accountIds?.toList();
+    final inRange = [
+      't.occurred_at >= ? AND t.occurred_at < ?',
+      if (ids != null)
+        't.account_id IN (${List.filled(ids.length, '?').join(', ')})',
+    ].join(' AND ');
+    final rangeVariables = <Variable<Object>>[
+      Variable<DateTime>(from),
+      Variable<DateTime>(to),
+      for (final id in ids ?? const <int>[]) Variable<int>(id),
+    ];
 
-    final links = _db.transactionTags;
-    final tagRows = await (_db.select(links).join([
-      innerJoin(t, t.id.equalsExp(links.transactionId)),
-    ])..where(inRange)).map((row) => row.readTable(links)).get();
     final tags = <int, Set<int>>{};
-    for (final link in tagRows) {
-      (tags[link.transactionId] ??= {}).add(link.tagId);
+    for (final row
+        in await _db
+            .customSelect(
+              'SELECT l.transaction_id, l.tag_id FROM transaction_tags l '
+              'INNER JOIN transactions t ON t.id = l.transaction_id '
+              'WHERE $inRange',
+              variables: rangeVariables,
+              readsFrom: {_db.transactionTags, _db.transactions},
+            )
+            .get()) {
+      (tags[row.data['transaction_id']! as int] ??= {}).add(
+        row.data['tag_id']! as int,
+      );
     }
 
+    final rows = await _db
+        .customSelect(
+          'SELECT t.*, p.id AS payee_row_id, p.display_name AS payee_name, '
+          'p.default_category_id AS payee_category_id, '
+          'p.leak_type AS payee_leak_type, p.ask_purpose AS payee_ask_purpose '
+          'FROM transactions t LEFT OUTER JOIN payees p ON p.id = t.payee_id '
+          'WHERE $inRange'
+          '${tagId == null ? '' : ' AND EXISTS (SELECT 1 FROM transaction_tags l '
+                    'WHERE l.transaction_id = t.id AND l.tag_id = ?)'} '
+          'ORDER BY t.occurred_at ASC, t.id ASC',
+          variables: [...rangeVariables, if (tagId != null) Variable(tagId)],
+          readsFrom: {_db.transactions, _db.payees, _db.transactionTags},
+        )
+        .get();
+    final read = _RowReader(_db);
     return [
-      for (final row in await query.get())
+      for (final row in rows)
         _toLedgerEntry(
-          row.readTable(t),
-          row.readTableOrNull(_db.payees),
+          read.transaction(row.data),
+          read.payee(row.data),
           categories,
           tags,
           _converter,
@@ -433,6 +458,101 @@ class DriftTransactionsRepository implements TransactionsRepository {
       (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
         TransactionsCompanion(transferPairId: Value(partnerId)),
       );
+}
+
+/// Builds rows read with plain SQL into drift's data classes, as drift's own
+/// mapping would, without its per-column map lookups.
+class _RowReader {
+  _RowReader(AppDatabase db) : _types = db.typeMapping;
+
+  final SqlTypes _types;
+  final _directions = <String, TransactionDirection>{};
+  final _kinds = <String, TransactionKind>{};
+  final _counterparties = <String, PayeeIdentifierKind>{};
+  final _sources = <String, TransactionSource>{};
+  final _suggestions = <String, SuggestionSource>{};
+  final _leaks = <String, LeakType>{};
+
+  DateTime? _date(Object? value) => _types.read(DriftSqlType.dateTime, value);
+
+  static T? _enum<T extends Enum>(
+    Map<String, T> seen,
+    Object? name,
+    T Function(String) parse,
+  ) => name == null ? null : seen[name as String] ??= parse(name);
+
+  TransactionRecord transaction(Map<String, Object?> d) {
+    return TransactionRecord(
+      id: d['id']! as int,
+      accountId: d['account_id']! as int,
+      occurredAt: _date(d['occurred_at'])!,
+      amountMinor: d['amount_minor']! as int,
+      direction: _enum(
+        _directions,
+        d['direction'],
+        $TransactionsTable.$converterdirection.fromSql,
+      )!,
+      kind: _enum(_kinds, d['kind'], $TransactionsTable.$converterkind.fromSql),
+      feeMinor: d['fee_minor']! as int,
+      currency: d['currency']! as String,
+      fxRateMicros: d['fx_rate_micros'] as int?,
+      fxRateCurrency: d['fx_rate_currency'] as String?,
+      payeeId: d['payee_id'] as int?,
+      counterpartyKind: _enum(
+        _counterparties,
+        d['counterparty_kind'],
+        $TransactionsTable.$convertercounterpartyKind.fromSql,
+      ),
+      counterpartyValue: d['counterparty_value'] as String?,
+      counterpartyName: d['counterparty_name'] as String?,
+      item: d['item'] as String?,
+      categoryOverrideId: d['category_override_id'] as int?,
+      goalId: d['goal_id'] as int?,
+      debtId: d['debt_id'] as int?,
+      receiptNo: d['receipt_no'] as String?,
+      source: _enum(
+        _sources,
+        d['source'],
+        $TransactionsTable.$convertersource.fromSql,
+      )!,
+      messageHash: d['message_hash'] as String?,
+      dedupeKey: d['dedupe_key'] as String?,
+      balanceAfterMinor: d['balance_after_minor'] as int?,
+      claimedBalanceMinor: d['claimed_balance_minor'] as int?,
+      owedAfterMinor: d['owed_after_minor'] as int?,
+      owedDueAt: _date(d['owed_due_at']),
+      transferPairId: d['transfer_pair_id'] as int?,
+      transferAccountId: d['transfer_account_id'] as int?,
+      autoCategoryId: d['auto_category_id'] as int?,
+      autoCategorySource: _enum(
+        _suggestions,
+        d['auto_category_source'],
+        $TransactionsTable.$converterautoCategorySource.fromSql,
+      ),
+      autoCategoryConfidence: _types.read(
+        DriftSqlType.double,
+        d['auto_category_confidence'],
+      ),
+      readBy: d['read_by'] as String?,
+    );
+  }
+
+  /// The payee joined in as `payee_*` columns, or null without one.
+  Payee? payee(Map<String, Object?> d) {
+    final id = d['payee_row_id'] as int?;
+    if (id == null) return null;
+    return Payee(
+      id: id,
+      displayName: d['payee_name']! as String,
+      defaultCategoryId: d['payee_category_id'] as int?,
+      leakType: _enum(
+        _leaks,
+        d['payee_leak_type'],
+        $PayeesTable.$converterleakType.fromSql,
+      )!,
+      askPurpose: _types.read(DriftSqlType.bool, d['payee_ask_purpose'])!,
+    );
+  }
 }
 
 /// [record] in the base currency: at the rate the person got for it, when

@@ -146,7 +146,8 @@ class _Figure extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+        // The link red keeps 3:1 on a dark card, where brand red does not.
+        side: BorderSide(color: colors.link),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),

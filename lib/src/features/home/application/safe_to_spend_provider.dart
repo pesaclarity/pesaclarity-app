@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/budget/safe_to_spend.dart';
@@ -54,9 +55,11 @@ Future<int?> _onHand(Ref ref, CalendarDate today) async {
   for (final a in accounts) {
     if (a.openingDate.isBefore(from)) from = a.openingDate;
   }
-  final entries = await ref
-      .read(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: today.addDays(1).startInstant);
+  final entries = await readLedgerHistory(
+    ref,
+    from: from,
+    to: today.addDays(1).startInstant,
+  );
   final fund = await ref.read(rainyDayFundProvider.future);
   return OnHand.at(
     accounts,
