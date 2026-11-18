@@ -32,8 +32,8 @@ void main() {
     expect(choice(tester, 'Help improve the app').value, isTrue);
     expect(choice(tester, 'Contribute to licensed models').value, isFalse);
     expect(choice(tester, 'Send crash reports').value, isFalse);
-    await scrollTo(tester, find.text('Version 2.2 · updated 18 Nov 2026'));
-    expect(find.text('Version 2.2 · updated 18 Nov 2026'), findsOneWidget);
+    await scrollTo(tester, find.text('Version 2.3 · updated 18 Nov 2026'));
+    expect(find.text('Version 2.3 · updated 18 Nov 2026'), findsOneWidget);
   });
 
   testAppWidgets('saves a choice with the policy version and time', (
@@ -53,7 +53,7 @@ void main() {
     final licensed =
         (saved!['choices']! as Map)['licensedModels'] as Map<String, Object?>;
     expect(licensed['value'], isTrue);
-    expect(licensed['policyVersion'], '2.2');
+    expect(licensed['policyVersion'], '2.3');
     expect(DateTime.tryParse(licensed['changedAt']! as String), isNotNull);
   });
 
@@ -64,8 +64,8 @@ void main() {
 
     await tapText(tester, 'Email me a copy');
     final draft = mailer.drafts.single;
-    expect(draft.subject, 'Pesa Clarity privacy policy, version 2.2');
-    expect(draft.body, startsWith('Privacy policy\nVersion 2.2'));
+    expect(draft.subject, 'Pesa Clarity privacy policy, version 2.3');
+    expect(draft.body, startsWith('Privacy policy\nVersion 2.3'));
     expect(draft.body, contains('WHAT STAYS ON YOUR PHONE'));
   });
 
@@ -128,14 +128,14 @@ void main() {
       () =>
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
-    expect(saved!['acceptedVersion'], '2.2');
+    expect(saved!['acceptedVersion'], '2.3');
     final crash =
         (saved['choices']! as Map)['crashReports'] as Map<String, Object?>;
     expect(crash['value'], isTrue);
-    expect(crash['policyVersion'], '2.2');
+    expect(crash['policyVersion'], '2.3');
   });
 
-  testAppWidgets('asks someone who agreed to 2.1 to read 2.2', (tester) async {
+  testAppWidgets('asks someone who agreed to 2.2 to read 2.3', (tester) async {
     final db = openTestDatabase();
     await tester.runAsync(
       () => db
@@ -144,8 +144,8 @@ void main() {
             AppSettingsCompanion.insert(
               key: ConsentController.recordKey,
               value:
-                  '{"acceptedVersion": "2.1", '
-                  '"acceptedAt": "2026-11-17T09:00:00.000Z", "choices": {}}',
+                  '{"acceptedVersion": "2.2", '
+                  '"acceptedAt": "2026-11-18T09:00:00.000Z", "choices": {}}',
             ),
           ),
     );
@@ -153,16 +153,14 @@ void main() {
     await finishOnboarding(tester);
 
     expect(find.text('Our privacy policy changed'), findsOneWidget);
-    expect(find.textContaining('saved theme choice'), findsOneWidget);
+    expect(find.textContaining('only as a keyed hash'), findsOneWidget);
+    expect(find.textContaining('With app lock on'), findsOneWidget);
     expect(
-      find.textContaining('Nothing about the app changed'),
+      find.textContaining('searches the site in your browser'),
       findsOneWidget,
     );
-    // What 2.1 changed was agreed to already.
-    expect(
-      find.textContaining('checks with our server for updates'),
-      findsNothing,
-    );
+    // What 2.2 changed was agreed to already.
+    expect(find.textContaining('saved theme choice'), findsNothing);
 
     await tapText(tester, 'Agree and continue');
     expect(find.text('Our privacy policy changed'), findsNothing);
@@ -170,7 +168,7 @@ void main() {
       () =>
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
-    expect(saved!['acceptedVersion'], '2.2');
+    expect(saved!['acceptedVersion'], '2.3');
   });
 
   testAppWidgets('opens the terms from Privacy', (tester) async {

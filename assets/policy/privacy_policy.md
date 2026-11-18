@@ -19,8 +19,9 @@ and never sees a transaction.
 - Receipts, invoices and reports are made on your phone. They leave it only when you share or print them, in the app or on the printer you choose. A Bluetooth receipt printer you pair gets only what you print.
 
 All of this sits in an encrypted database. The key is held by your
-phone's secure hardware and released only after you unlock the app with
-your PIN, fingerprint or Face ID.
+phone's secure hardware. With app lock on, it is released only after you
+unlock the app with your PIN, fingerprint or Face ID. Without app lock,
+it is released when the app opens.
 
 ## Ask
 
@@ -40,7 +41,8 @@ comes from your own records in the space you have open.
 **Sign-in**
 
 Your account id, the email or Google account you sign in with, and when
-you signed up, in and out. One-time sign-in codes are deleted within a
+you signed up, in and out. Our server stores your email or Google
+account only as a keyed hash, never the address itself. One-time sign-in codes are deleted within a
 day of expiring, and sign-in records after 90 days. You can also use
 the app without an account; it then contacts our server only for the
 update check.
@@ -138,7 +140,8 @@ Pesa Clarity is for people aged 18 and over.
 This site sets no cookies, runs no analytics and loads nothing from
 other servers. Fonts are served from this site. If you choose a light or
 dark theme, your browser keeps that choice on your device; it is never
-sent to us. The site's only script applies that choice. The web host may
+sent to us. The site runs two small scripts: one switches the theme, and
+one searches the site in your browser. Nothing you type is sent anywhere. The web host may
 keep standard request logs, such as IP address and time, for security.
 
 ## Changes

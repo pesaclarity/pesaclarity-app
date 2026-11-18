@@ -1,7 +1,16 @@
 {
-  "version": "2.2",
+  "version": "2.3",
   "updated": "2026-11-18",
   "changes": [
+    {
+      "version": "2.3",
+      "date": "2026-11-18",
+      "items": [
+        "Our server stores the email or Google account you sign in with only as a keyed hash, never the address itself.",
+        "With app lock on, the database key is released only after you unlock. Without app lock, it is released when the app opens.",
+        "The website runs two small scripts: one switches the theme, and one searches the site in your browser. Nothing you type is sent anywhere."
+      ]
+    },
     {
       "version": "2.2",
       "date": "2026-11-18",
