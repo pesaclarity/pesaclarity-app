@@ -51,10 +51,9 @@ const _sureEnough = 0.7;
 /// The colour that marks [field] in the message and in its row, from the
 /// app's palette.
 Color fieldColor(BuildContext context, ReaderField field) {
-  final scheme = Theme.of(context).colorScheme;
   final colors = PesaColors.of(context);
   return switch (field) {
-    ReaderField.amount => scheme.primary,
+    ReaderField.amount => colors.link,
     ReaderField.counterparty => colors.markBlue,
     ReaderField.date || ReaderField.time => colors.successText,
     ReaderField.reference => colors.warning,

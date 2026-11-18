@@ -47,8 +47,9 @@ abstract final class AppTheme {
       secondary: BrandTokens.darkHcText,
       outline: BrandTokens.darkHcTextMuted,
       outlineVariant: BrandTokens.darkHcBorder,
+      surfaceContainerLowest: BrandTokens.darkHcBackground,
     ),
-    background: BrandTokens.darkBackground,
+    background: BrandTokens.darkHcBackground,
     colors: PesaColors.darkHighContrast,
   );
 
@@ -115,7 +116,7 @@ abstract final class AppTheme {
         border: box(colors.border),
         enabledBorder: box(colors.border),
         disabledBorder: box(colors.border.withValues(alpha: 0.5)),
-        focusedBorder: box(base.colorScheme.primary, 2),
+        focusedBorder: box(colors.link, 2),
         errorBorder: box(base.colorScheme.error),
         focusedErrorBorder: box(base.colorScheme.error, 2),
       ),
@@ -263,6 +264,57 @@ abstract final class AppTheme {
         iconColor: scheme.onSurfaceVariant,
         titleTextStyle: textTheme.bodyLarge,
         subtitleTextStyle: textTheme.bodySmall,
+      ),
+      // A focused field, the text cursor, a chosen radio or box and progress
+      // take the link red: brand red in light, brightened in dark, where
+      // brand red is a fill only (2.9:1 on a card).
+      inputDecorationTheme: InputDecorationTheme(
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: colors.link, width: 2),
+        ),
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.error)
+                ? scheme.error
+                : states.contains(WidgetState.focused)
+                ? colors.link
+                : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: colors.link,
+        selectionHandleColor: colors.link,
+        selectionColor: colors.link.withValues(alpha: 0.4),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.link : null,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.link : null,
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: colors.link),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: colors.link,
+        thumbColor: colors.link,
+      ),
+      // Today's ring in the calendar; the chosen day stays a brand-red fill
+      // with white on it.
+      datePickerTheme: DatePickerThemeData(
+        todayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.onPrimary
+              : states.contains(WidgetState.disabled)
+              ? colors.link.withValues(alpha: 0.38)
+              : colors.link,
+        ),
+        todayBorder: BorderSide(color: colors.link),
       ),
       // On is calm green, so red stays for danger and the main action.
       switchTheme: SwitchThemeData(

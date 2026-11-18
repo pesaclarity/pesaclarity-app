@@ -234,7 +234,7 @@ class _BoxField extends StatelessWidget {
         ),
         border: border(colors.border),
         enabledBorder: border(colors.border),
-        focusedBorder: border(theme.colorScheme.primary),
+        focusedBorder: border(colors.link),
       ),
     );
   }

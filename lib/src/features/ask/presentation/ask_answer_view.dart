@@ -266,7 +266,7 @@ class MonthBars extends StatelessWidget {
                               (largest <= 0 ? 0 : b.valueMinor / largest),
                       decoration: BoxDecoration(
                         color: b.highlight
-                            ? theme.colorScheme.primary
+                            ? colors.link
                             : theme.colorScheme.onSurfaceVariant.withValues(
                                 alpha: 0.22,
                               ),
@@ -313,7 +313,7 @@ class ShareBar extends StatelessWidget {
                 if (percent > 0)
                   Expanded(
                     flex: percent,
-                    child: ColoredBox(color: theme.colorScheme.primary),
+                    child: ColoredBox(color: colors.link),
                   ),
                 if (percent < 100)
                   Expanded(
