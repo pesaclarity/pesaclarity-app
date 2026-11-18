@@ -16,6 +16,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,13 @@ import '../helpers/test_app.dart';
 
 /// Set by tool/screenshots.sh; without it every screenshot test is skipped.
 const generateScreenshots = bool.fromEnvironment('SCREENSHOTS');
+
+/// Set by `tool/screenshots.sh --iphone`: draw the screens as an iPhone
+/// shows them, with the home indicator's space at the foot.
+const iPhoneScreenshots = bool.fromEnvironment('SCREENSHOTS_IPHONE');
+
+/// The home indicator's space at the foot of an iPhone, in points.
+const homeIndicatorHeight = 34.0;
 
 /// Where the PNGs go.
 const screenshotsDir = String.fromEnvironment(
@@ -193,10 +201,17 @@ Future<void> _draw(
     await tester.runAsync(_loadFonts);
     tester.view.physicalSize = phoneSize;
     tester.view.devicePixelRatio = phonePixelRatio;
-    if (statusBar) {
-      const top = FakeViewPadding(top: statusBarHeight * phonePixelRatio);
-      tester.view.padding = top;
-      tester.view.viewPadding = top;
+    var top = 0.0;
+    var bottom = 0.0;
+    if (statusBar) top = statusBarHeight * phonePixelRatio;
+    if (iPhoneScreenshots) {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      bottom = homeIndicatorHeight * phonePixelRatio;
+    }
+    if (top > 0 || bottom > 0) {
+      final padding = FakeViewPadding(top: top, bottom: bottom);
+      tester.view.padding = padding;
+      tester.view.viewPadding = padding;
     }
     tester.platformDispatcher.platformBrightnessTestValue = dark
         ? Brightness.dark
@@ -213,6 +228,7 @@ Future<void> _draw(
   // Unmount, so Drift's stream queries close inside the fake clock.
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(Duration.zero);
+  debugDefaultTargetPlatformOverride = null;
 }
 
 var _scale = 1.0;

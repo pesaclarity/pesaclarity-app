@@ -7,23 +7,27 @@ import 'brand_tokens.dart';
 /// The same on Android and iPhone. Body, secondary and caption text follow
 /// the iPhone sizes (17, 15 and 13), and nothing is under 11.
 abstract final class AppTypography {
-  static TextTheme textTheme(Color text, Color muted) => TextTheme(
-    displayLarge: _display(57, FontWeight.w600, text, height: 1.1),
-    displayMedium: _display(45, FontWeight.w600, text, height: 1.1),
-    displaySmall: _display(36, FontWeight.w600, text, height: 1.15),
-    headlineLarge: _display(32, FontWeight.w600, text),
-    headlineMedium: _display(28, FontWeight.w600, text),
-    headlineSmall: _display(24, FontWeight.w600, text),
-    titleLarge: _display(22, FontWeight.w600, text),
-    titleMedium: _body(17, FontWeight.w600, text),
-    titleSmall: _body(15, FontWeight.w600, text),
-    bodyLarge: _body(17, FontWeight.w400, text),
-    bodyMedium: _body(15, FontWeight.w400, text),
-    bodySmall: _body(13, FontWeight.w400, muted),
-    labelLarge: _body(15, FontWeight.w600, text),
-    labelMedium: _body(13, FontWeight.w500, text),
-    labelSmall: _body(11, FontWeight.w500, muted),
-  );
+  /// On an [iPhone], a tab's large title is 34 bold, as iOS draws it.
+  static TextTheme textTheme(Color text, Color muted, {bool iPhone = false}) =>
+      TextTheme(
+        displayLarge: _display(57, FontWeight.w600, text, height: 1.1),
+        displayMedium: _display(45, FontWeight.w600, text, height: 1.1),
+        displaySmall: _display(36, FontWeight.w600, text, height: 1.15),
+        headlineLarge: iPhone
+            ? _display(34, FontWeight.w700, text)
+            : _display(32, FontWeight.w600, text),
+        headlineMedium: _display(28, FontWeight.w600, text),
+        headlineSmall: _display(24, FontWeight.w600, text),
+        titleLarge: _display(22, FontWeight.w600, text),
+        titleMedium: _body(17, FontWeight.w600, text),
+        titleSmall: _body(15, FontWeight.w600, text),
+        bodyLarge: _body(17, FontWeight.w400, text),
+        bodyMedium: _body(15, FontWeight.w400, text),
+        bodySmall: _body(13, FontWeight.w400, muted),
+        labelLarge: _body(15, FontWeight.w600, text),
+        labelMedium: _body(13, FontWeight.w500, text),
+        labelSmall: _body(11, FontWeight.w500, muted),
+      );
 
   /// The one number a red lead card shows.
   static const leadFigureSize = 40.0;

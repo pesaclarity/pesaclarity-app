@@ -2,7 +2,8 @@
 # Draws the marketing screenshots (test/screenshots) and writes their
 # manifest. Made-up records only; see README, Screenshots.
 #
-#   tool/screenshots.sh [out-dir]     default: build/screenshots
+#   tool/screenshots.sh [out-dir]            default: build/screenshots
+#   tool/screenshots.sh --iphone [out-dir]   as an iPhone draws them
 #
 # Writes <screen>-<light|dark>.png, 1170 x 2532 (a 390 x 844 phone at 3x),
 # and manifest.json: each screen's name, file, theme and SHA-256, plus a
@@ -10,6 +11,11 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+iphone=false
+if [ "${1:-}" = "--iphone" ]; then
+  iphone=true
+  shift
+fi
 out="${1:-build/screenshots}"
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
@@ -17,7 +23,8 @@ rm -f "$out"/*.png "$out/manifest.json"
 
 flutter test test/screenshots \
   --dart-define=SCREENSHOTS=true \
-  --dart-define=SCREENSHOTS_OUT="$out"
+  --dart-define=SCREENSHOTS_OUT="$out" \
+  --dart-define=SCREENSHOTS_IPHONE="$iphone"
 
 commit="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 python3 - "$out" "$commit" <<'PY'

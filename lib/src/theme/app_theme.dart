@@ -123,6 +123,13 @@ abstract final class AppTheme {
     );
   }
 
+  /// An iPhone field's outline: rounded, and only drawn when [side] is.
+  static OutlineInputBorder _row([BorderSide side = BorderSide.none]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(BrandTokens.fieldRadius),
+        borderSide: side,
+      );
+
   static ThemeData _build({
     required ColorScheme scheme,
     required Color background,
@@ -137,19 +144,22 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.circular(Layout.panelRadius),
       side: BorderSide(color: colors.border),
     );
+    // Read when the theme is built, so tests can override the platform.
+    final iPhone = defaultTargetPlatform == TargetPlatform.iOS;
     final textTheme = AppTypography.textTheme(
       scheme.onSurface,
       scheme.onSurfaceVariant,
+      iPhone: iPhone,
     );
     const minTouch = Size(BrandTokens.touchTarget, BrandTokens.touchTarget);
     const OutlinedBorder pill = StadiumBorder();
-    // Read when the theme is built, so tests can override the platform.
-    final iPhone = defaultTargetPlatform == TargetPlatform.iOS;
 
     return ThemeData(
       useMaterial3: true,
-      // One design on Android and iPhone (decision 0011); iPhone keeps its
-      // swipe-back page transition.
+      // One design on Android and iPhone (decision 0011). iPhone keeps its
+      // swipe-back page transition and takes the iOS conventions people
+      // expect: a 34 bold tab title, a back chevron with a centred title,
+      // and text fields drawn as filled rows.
       platform: TargetPlatform.android,
       pageTransitionsTheme: iPhone
           ? const PageTransitionsTheme(
@@ -171,12 +181,14 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
-        titleTextStyle: textTheme.titleLarge,
+        centerTitle: iPhone,
+        titleTextStyle: iPhone ? textTheme.titleMedium : textTheme.titleLarge,
       ),
-      // One back arrow on every pushed screen and sheet.
+      // One back arrow on every pushed screen and sheet: a chevron on
+      // iPhone.
       actionIconTheme: ActionIconThemeData(
-        backButtonIconBuilder: (context) => const Icon(Icons.arrow_back),
+        backButtonIconBuilder: (context) =>
+            Icon(iPhone ? Icons.arrow_back_ios_new : Icons.arrow_back),
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -269,9 +281,24 @@ abstract final class AppTheme {
       // take the link red: brand red in light, brightened in dark, where
       // brand red is a fill only (2.9:1 on a card).
       inputDecorationTheme: InputDecorationTheme(
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: colors.link, width: 2),
-        ),
+        // On iPhone a field is a filled row with no line under it.
+        filled: iPhone,
+        fillColor: iPhone ? colors.selected : null,
+        border: iPhone ? _row() : null,
+        enabledBorder: iPhone ? _row() : null,
+        disabledBorder: iPhone ? _row() : null,
+        contentPadding: iPhone
+            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 14)
+            : null,
+        focusedBorder: iPhone
+            ? _row(BorderSide(color: colors.link, width: 2))
+            : UnderlineInputBorder(
+                borderSide: BorderSide(color: colors.link, width: 2),
+              ),
+        errorBorder: iPhone ? _row(BorderSide(color: scheme.error)) : null,
+        focusedErrorBorder: iPhone
+            ? _row(BorderSide(color: scheme.error, width: 2))
+            : null,
         floatingLabelStyle: WidgetStateTextStyle.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.error)

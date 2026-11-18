@@ -17,6 +17,17 @@ void main() {
 
     expect(find.text('Safe to spend today'), findsOneWidget);
     expect(find.byType(PillNavigationBar), findsOneWidget);
+    // Content fades out above the bar rather than being cut off; on
+    // Android the bar stays solid and the title stays in the page.
+    expect(tester.getSize(find.byType(TabBarFade)).height, TabBarFade.height);
+    expect(
+      find.descendant(
+        of: find.byType(PillNavigationBar),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsNothing,
+    );
+    expect(find.byType(CollapsingTabTitle), findsNothing);
     // With no accounts or transactions yet, Home has no index or forecast.
     expect(find.text('Financial Health Index'), findsNothing);
     expect(find.textContaining('At this pace'), findsNothing);
