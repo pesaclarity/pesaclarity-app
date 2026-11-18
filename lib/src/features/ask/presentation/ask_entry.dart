@@ -306,35 +306,45 @@ class AskAboutLink extends ConsumerWidget {
     if (!ref.watch(askShownProvider)) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final m = month;
-    return InkWell(
-      key: const Key('ask-about'),
-      onTap: () => context.push(
-        AppRoutes.askAbout(
-          categoryId: categoryId,
-          month: m == null
-              ? null
-              : '${m.year}-${m.month.toString().padLeft(2, '0')}',
+    // A button of its own for screen readers, even inside a row that opens
+    // something else, and at least a finger's height to tap.
+    return Semantics(
+      container: true,
+      button: true,
+      child: InkWell(
+        key: const Key('ask-about'),
+        onTap: () => context.push(
+          AppRoutes.askAbout(
+            categoryId: categoryId,
+            month: m == null
+                ? null
+                : '${m.year}-${m.month.toString().padLeft(2, '0')}',
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 14,
-              color: PesaColors.of(context).link,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall!.copyWith(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinInteractiveDimension,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 14,
                 color: PesaColors.of(context).link,
-                fontWeight: FontWeight.w600,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: PesaColors.of(context).link,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
