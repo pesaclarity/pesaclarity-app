@@ -233,24 +233,89 @@ class ModelQuestionReader implements QuestionReader {
     if (rules != null && rules.intent.isLookup && _missesName(read, rules)) {
       return rules;
     }
-    return read;
+    return rules == null ? read : _widened(question, tokens, read, rules);
+  }
+
+  static const _names = {
+    SlotKind.payee,
+    SlotKind.category,
+    SlotKind.account,
+    SlotKind.item,
+  };
+
+  /// [model] with each name it tags only part of widened to the [rules]'
+  /// name of the same kind: "Example" in "payment to Example Nowhere", when
+  /// the rules read "example nowhere". Only where the rules' name holds the
+  /// model's on word boundaries and is the question's own words around it,
+  /// touching no other span of the model's.
+  static Understanding _widened(
+    String question,
+    List<MessageToken> tokens,
+    Understanding model,
+    Understanding rules,
+  ) {
+    var changed = false;
+    final spans = <AskSpan>[];
+    for (final s in model.spans) {
+      final wide = _widen(question, tokens, s, model.spans, rules);
+      if (wide != null) changed = true;
+      spans.add(wide ?? s);
+    }
+    if (!changed) return model;
+    return Understanding(
+      model.intent,
+      confidence: model.confidence,
+      spans: spans,
+    );
+  }
+
+  static AskSpan? _widen(
+    String question,
+    List<MessageToken> tokens,
+    AskSpan span,
+    List<AskSpan> others,
+    Understanding rules,
+  ) {
+    if (!_names.contains(span.kind)) return null;
+    final part = normaliseName(span.text);
+    if (part.isEmpty) return null;
+    final first = tokens.indexWhere((t) => t.start == span.start);
+    final last = tokens.lastIndexWhere((t) => t.end == span.end);
+    if (first < 0 || last < first) return null;
+    for (final r in rules.spans) {
+      if (r.kind != span.kind) continue;
+      final whole = normaliseName(r.text);
+      if (whole == part || !' $whole '.contains(' $part ')) continue;
+      // The question's own words around the span that read as the rules'
+      // name, if any.
+      for (var a = first; a >= 0; a--) {
+        for (var b = last; b < tokens.length; b++) {
+          final start = tokens[a].start;
+          final end = tokens[b].end;
+          final text = question.substring(start, end);
+          final words = normaliseName(text);
+          if (words.length > whole.length) break;
+          if (words != whole) continue;
+          final clashes = others.any(
+            (o) => !identical(o, span) && o.start < end && start < o.end,
+          );
+          if (clashes) return null;
+          return AskSpan(span.kind, text, start, end);
+        }
+      }
+    }
+    return null;
   }
 
   /// Whether [rules] found a name (a payee, category, account or item)
   /// that none of [model]'s spans covers.
   static bool _missesName(Understanding model, Understanding rules) {
-    const names = {
-      SlotKind.payee,
-      SlotKind.category,
-      SlotKind.account,
-      SlotKind.item,
-    };
     final tagged = [
       for (final s in model.spans)
-        if (names.contains(s.kind)) normaliseName(s.text),
+        if (_names.contains(s.kind)) normaliseName(s.text),
     ];
     for (final s in rules.spans) {
-      if (!names.contains(s.kind)) continue;
+      if (!_names.contains(s.kind)) continue;
       final name = normaliseName(s.text);
       if (name.isEmpty) continue;
       if (!tagged.any((t) => t.contains(name) || name.contains(t))) {

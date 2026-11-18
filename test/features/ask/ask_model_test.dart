@@ -250,6 +250,64 @@ void main() {
     expect(u.intent, AskIntent.spent);
     expect(u.span(SlotKind.payee)?.text, 'John');
   });
+
+  test(
+    'a name the model tags only part of is the rules\' whole name',
+    () async {
+      final m = await manifest();
+      const q = 'What was my biggest payment to Example Faraway Traders?';
+      final tokens = tokenise(q);
+      final example = tokens.indexWhere((t) => t.text == 'Example');
+      Future<Understanding> read(String label) async {
+        final reader = await loadAskReader(
+          readAsset: asset,
+          openRuntime: (_) => _LabelRuntime(
+            m,
+            intent: 'biggest_payment',
+            tags: {example: label},
+          ),
+          fallback: RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+        );
+        return reader.read(q);
+      }
+
+      // The rules read "example faraway traders": the model's "Example"
+      // widens to the question's own words for it.
+      final u = await read('payee');
+      expect(u.intent, AskIntent.biggestPayment);
+      expect(u.span(SlotKind.payee)?.text, 'Example Faraway Traders');
+      expect(u.span(SlotKind.payee)?.start, q.indexOf('Example'));
+      expect(u.span(SlotKind.payee)?.end, q.indexOf('?'));
+      // Not into a name of another kind.
+      final other = await read('category');
+      expect(other.span(SlotKind.category)?.text, 'Example');
+      expect(other.span(SlotKind.payee), isNull);
+    },
+  );
+
+  test('charges on an account keep the model\'s reading', () async {
+    final m = await manifest();
+    const q = 'How much did I pay in charges on Example Bank this month?';
+    final tokens = tokenise(q);
+    final tags = <int, String>{
+      for (final (i, t) in tokens.indexed)
+        if (t.text == 'Example' || t.text == 'Bank')
+          i: 'account'
+        else if (t.text == 'this' || t.text == 'month')
+          i: 'period',
+    };
+    final reader = await loadAskReader(
+      readAsset: asset,
+      openRuntime: (_) => _LabelRuntime(m, intent: 'fees', tags: tags),
+      fallback: RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+    );
+    final u = reader.read(q);
+    expect(u.intent, AskIntent.fees);
+    expect(u.span(SlotKind.account)?.text, 'Example Bank');
+    expect(u.span(SlotKind.period)?.text, 'this month');
+    expect(u.span(SlotKind.payee), isNull);
+    expect(u.span(SlotKind.category), isNull);
+  });
 }
 
 /// Answers in the manifest's own label order, as the exported model does.

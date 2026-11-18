@@ -131,19 +131,13 @@ void main() {
           );
           final u = r.read(question);
           expect(u.intent, intent, reason: 'intent');
-          if (kind != null && _partNames.containsKey(question)) {
-            // The model tags part of the name, and the rules let it stand.
+          if (kind != null && !rules && _partNames.containsKey(question)) {
+            // The model tags part of the name; with the rules behind it,
+            // the app takes the rules' whole name.
             expect(
               u.span(kind)?.text.toLowerCase(),
               _partNames[question]!.toLowerCase(),
               reason: 'a known miss',
-            );
-          } else if (kind != null && rules && _rulesStand.contains(question)) {
-            // The rules find a name the model does not tag, and their
-            // reading stands.
-            expect(
-              u.spans.map((s) => s.text.toLowerCase()),
-              contains(name!.toLowerCase()),
             );
           } else if (kind != null) {
             // The rules give names in lower case.
@@ -172,6 +166,18 @@ void main() {
     expect(u.intent, AskIntent.fees);
     expect(u.span(SlotKind.account)?.text, 'KCB');
     expect(u.span(SlotKind.period)?.text, 'this month');
+  });
+
+  test('with the rules behind it, fees on an account are the model\'s '
+      'reading', () async {
+    final r = await reader(
+      RuleQuestionReader(today: () => CalendarDate(2026, 11, 16)),
+    );
+    final u = r.read('How much did I pay in charges on KCB this month?');
+    expect(u.intent, AskIntent.fees);
+    expect(u.span(SlotKind.account)?.text, 'KCB');
+    expect(u.span(SlotKind.period)?.text, 'this month');
+    expect(u.span(SlotKind.payee), isNull);
   });
 
   test('off the UI thread, the reading is the same', () async {
@@ -361,17 +367,11 @@ const _cases = <(String, AskIntent, SlotKind?, String?)>[
 ];
 
 /// Names ask reader v3 tags only part of, with the part it tags. It took
-/// all of "Example Nowhere" before v3. The rules' name contains the part,
-/// so the model's reading stands.
+/// all of "Example Nowhere" before v3. The rules' name holds the part on
+/// word boundaries, so the app widens the model's span to it.
 const _partNames = <String, String>{
   'What was my biggest payment to Example Nowhere?': 'Example',
 };
-
-/// Questions where the rules find a name the model does not tag, so the
-/// app goes by the rules' reading. The model alone reads "charges on KCB
-/// this month" right since v3, but the rules take "charges" for a payee
-/// (and KCB for a category), which the model does not tag.
-const _rulesStand = {'How much did I pay in charges on KCB this month?'};
 
 /// A reader that is never sure, so the model's reading stands on its own.
 class _Unsure implements QuestionReader {

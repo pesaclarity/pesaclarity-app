@@ -335,6 +335,15 @@ class RuleQuestionReader implements QuestionReader {
     'less',
     'often',
     'number',
+    // What a fee is, never whom it was paid to: "pay in charges".
+    'fee',
+    'fees',
+    'charge',
+    'charges',
+    'charged',
+    'transaction',
+    'transactions',
+    'makato',
   };
 
   static final _entityAfter = <(RegExp, SlotKind)>[
@@ -362,6 +371,13 @@ class RuleQuestionReader implements QuestionReader {
   /// "balance".
   static final _balanceOf = RegExp(
     r'(?:^|\s)(?:my |the |on |in )?([a-z0-9][a-z0-9-]*(?: [a-z0-9][a-z0-9-]*)?) balance\b',
+  );
+
+  /// "charges on KCB", "fees on my M-Pesa": the account a charge is
+  /// taken on.
+  static final _chargedOn = RegExp(
+    r'\b(?:fees?|charges?|charged|costs?)\s+(?:on|in|from)\s+(?:my |the )?'
+    r'([a-z0-9][a-z0-9-]*(?: [a-z0-9][a-z0-9-]*)?)',
   );
 
   /// Words before "balance" that name no account.
@@ -477,6 +493,10 @@ class RuleQuestionReader implements QuestionReader {
     } else if (_balanceOf.firstMatch(clean) case final m?) {
       final name = _trim(m.group(1)!);
       if (!_notAnAccount.contains(name)) add(SlotKind.account, name);
+    } else if (intent == AskIntent.fees) {
+      if (_chargedOn.firstMatch(clean) case final m?) {
+        add(SlotKind.account, m.group(1)!);
+      }
     }
 
     if (intent == AskIntent.receivedFrom) {

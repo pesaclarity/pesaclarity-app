@@ -222,6 +222,25 @@ void main() {
     }
   });
 
+  test('a charge is never a payee, and what it is taken on is an account', () {
+    for (final (q, account) in [
+      (
+        'How much did I pay in charges on Example Bank this month?',
+        'example bank',
+      ),
+      ('fees on my Example Wallet last month', 'example wallet'),
+      ('What did I pay in transaction charges on Examplepay?', 'examplepay'),
+      ('How much did I pay in charges this month?', null),
+      ('How much was I charged in fees this week?', null),
+    ]) {
+      final u = reader.read(q);
+      expect(u.intent, AskIntent.fees, reason: q);
+      expect(u.span(SlotKind.payee), isNull, reason: '$q: ${u.spans}');
+      expect(u.span(SlotKind.category), isNull, reason: '$q: ${u.spans}');
+      expect(u.span(SlotKind.account)?.text, account, reason: q);
+    }
+  });
+
   test('round-trips as JSON', () {
     final u = reader.read('How much did I spend on food last month?');
     final back = Understanding.fromJson(u.toJson());
