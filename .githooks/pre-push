@@ -19,7 +19,8 @@ while read -r _ local_sha _ remote_sha; do
     range=("$remote_sha..$local_sha")
   fi
   while read -r sha title; do
-    [[ "$title" =~ $COMMIT_TITLE_PATTERN ]] || bad="$bad  $sha $title"$'\n'
+    [[ "$title" =~ $COMMIT_TITLE_PATTERN || "$title" =~ $REVERT_TITLE_PATTERN ]] ||
+      bad="$bad  $sha $title"$'\n'
   done < <(git log --no-merges --format='%h %s' "${range[@]}")
 done
 
