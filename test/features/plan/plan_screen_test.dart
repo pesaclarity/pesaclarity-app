@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/domain/plan/plan_groups.dart';
 import 'package:pesaclarity/src/features/plan/presentation/payday_screen.dart';
 import 'package:pesaclarity/src/features/plan/presentation/plan_screen.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
@@ -155,6 +156,32 @@ void main() {
       expect(tester.getSize(segments.at(i)).height, 10);
     }
   });
+
+  for (final (name, theme) in [
+    ('light', AppTheme.light),
+    ('dark', AppTheme.dark),
+  ]) {
+    testWidgets('gives every plan group its own colour in $name', (
+      tester,
+    ) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Builder(
+            builder: (c) {
+              context = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      final colours = {
+        for (final g in PlanGroup.values) planGroupColour(context, g),
+      };
+      expect(colours, hasLength(PlanGroup.values.length));
+    });
+  }
 
   testAppWidgets('adds a one-off to the month', (tester) async {
     final db = openTestDatabase();

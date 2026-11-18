@@ -175,13 +175,15 @@ class _PaddedCard extends StatelessWidget {
 
 /// Colours for the income bar, told apart by lightness as well as hue, so
 /// neighbouring groups stay apart (in dark, Living is a neutral grey between
-/// the red and the muted grey). The legend names each one.
-Color _groupColour(BuildContext context, PlanGroup group) {
+/// the red and the muted grey). The legend names each one. Debt and Tax
+/// reserve sit side by side, so Tax takes the amber beside Debt's red, as
+/// the spending charts do.
+Color planGroupColour(BuildContext context, PlanGroup group) {
   final scheme = Theme.of(context).colorScheme;
   final colors = PesaColors.of(context);
   return switch (group) {
     PlanGroup.debt => colors.link,
-    PlanGroup.tax => colors.link,
+    PlanGroup.tax => colors.warning,
     PlanGroup.living => colors.secondSeries,
     PlanGroup.school => scheme.onSurfaceVariant,
     PlanGroup.savings => colors.success,
@@ -252,7 +254,7 @@ class _IncomeCard extends StatelessWidget {
                       Expanded(
                         flex: _flex(g.amountMinor, scale),
                         child: ColoredBox(
-                          color: _groupColour(context, g.group),
+                          color: planGroupColour(context, g.group),
                         ),
                       ),
                       const SizedBox(width: 2),
@@ -280,7 +282,7 @@ class _IncomeCard extends StatelessWidget {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: _groupColour(context, g.group),
+                          color: planGroupColour(context, g.group),
                           shape: BoxShape.circle,
                         ),
                       ),
