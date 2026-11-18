@@ -108,6 +108,34 @@ void main() {
     expect(await reconcileWithOracle(db, at: eat(2026, 12, 1)), isEmpty);
   });
 
+  test('posts in one batch with the ids one insert at a time would give, '
+      'never reusing an id', () async {
+    final first = await transactions.add(
+      tx(mpesa, eat(2026, 11, 2), kes(300), category: groceries),
+    );
+    await journal.sync();
+    final ids = [for (final e in await db.select(db.journalEntries).get()) e.id]
+      ..sort();
+    expect(ids, [for (var i = 1; i <= ids.length; i++) i]);
+    // A row removed by hand: AUTOINCREMENT never hands its id out again.
+    final last = ids.last;
+    await (db.delete(db.postings)..where((p) => p.entryId.equals(last))).go();
+    await (db.delete(db.journalEntries)..where((e) => e.id.equals(last))).go();
+
+    final second = await transactions.add(
+      tx(mpesa, eat(2026, 11, 3), kes(100), category: rent),
+    );
+    await journal.sync();
+    final posted = (await entriesFor(second)).single;
+    expect(posted.id, greaterThan(last));
+    expect(await postingsOf(posted.id), {
+      BookAccount.category(rent, income: false).key: kes(100),
+      BookAccount.money(mpesa).key: -kes(100),
+    });
+    expect(await entriesFor(first), hasLength(1));
+    expect(await journal.unbalanced(), isEmpty);
+  });
+
   test('recategorising reverses the entry and posts it anew', () async {
     final id = await transactions.add(
       tx(mpesa, eat(2026, 11, 2), kes(300), category: groceries),

@@ -142,6 +142,7 @@ class JournalRepository {
     var posted = 0;
     var reversed = 0;
     final now = _clock();
+    final writes = _JournalWrites();
     for (final e in wanted) {
       final shape = _shape(e.at, e.memo, e.accountId, [
         for (final l in e.lines) (l.account.key, l.amountMinor, e.currency),
@@ -152,18 +153,19 @@ class JournalRepository {
         if (!kept && s.shape == shape) {
           kept = true;
         } else {
-          await _reverse(s, now);
+          writes.reverse(s, now);
           reversed++;
         }
       }
       if (kept) continue;
-      await _post(e, rateOf(e), now);
+      writes.post(e, rateOf(e), now);
       posted++;
     }
     for (final gone in byKey.values.expand((s) => s)) {
-      await _reverse(gone, now);
+      writes.reverse(gone, now);
       reversed++;
     }
+    await writes.flush(_db);
     return JournalSync(posted: posted, reversed: reversed);
   }
 
@@ -210,63 +212,6 @@ class JournalRepository {
   }
 
   static const _slice = 500;
-
-  Future<void> _post(JournalEntry e, int? rate, DateTime now) async {
-    final id = await _db
-        .into(_db.journalEntries)
-        .insert(
-          JournalEntriesCompanion.insert(
-            occurredAt: e.at,
-            sourceKind: e.source,
-            sourceId: e.sourceId,
-            memo: Value(e.memo),
-            recordedAt: now,
-            accountId: Value(e.accountId),
-          ),
-        );
-    for (final l in e.lines) {
-      await _db
-          .into(_db.postings)
-          .insert(
-            PostingsCompanion.insert(
-              entryId: id,
-              account: l.account.key,
-              amountMinor: l.amountMinor,
-              currency: e.currency,
-              rateMicros: Value(rate),
-            ),
-          );
-    }
-  }
-
-  Future<void> _reverse(_Stored s, DateTime now) async {
-    final id = await _db
-        .into(_db.journalEntries)
-        .insert(
-          JournalEntriesCompanion.insert(
-            occurredAt: s.row.occurredAt,
-            sourceKind: s.row.sourceKind,
-            sourceId: s.row.sourceId,
-            memo: Value(s.row.memo),
-            reverses: Value(s.row.id),
-            recordedAt: now,
-            accountId: Value(s.row.accountId),
-          ),
-        );
-    for (final p in s.postings) {
-      await _db
-          .into(_db.postings)
-          .insert(
-            PostingsCompanion.insert(
-              entryId: id,
-              account: p.account,
-              amountMinor: -p.amountMinor,
-              currency: p.currency,
-              rateMicros: Value(p.rateMicros),
-            ),
-          );
-    }
-  }
 
   /// Every stored entry, reversals and the entries they cancel included (so
   /// they net out), after a [sync]. With [converter], postings in another
@@ -508,6 +453,84 @@ Future<void> createJournalTriggers(AppDatabase db) async {
   };
   for (final MapEntry(key: name, value: body) in triggers.entries) {
     await db.customStatement('CREATE TRIGGER IF NOT EXISTS $name $body');
+  }
+}
+
+/// The entries and postings one repost adds, written in one batch: a
+/// round trip per row took most of a large sync, more so on a phone, where
+/// the database runs in its own isolate. Rows go in the order they were
+/// added, with the ids the database would have given them one at a time.
+class _JournalWrites {
+  final _rows = <(JournalEntriesCompanion, List<PostingsCompanion>)>[];
+
+  void post(JournalEntry e, int? rate, DateTime now) => _rows.add((
+    JournalEntriesCompanion.insert(
+      occurredAt: e.at,
+      sourceKind: e.source,
+      sourceId: e.sourceId,
+      memo: Value(e.memo),
+      recordedAt: now,
+      accountId: Value(e.accountId),
+    ),
+    [
+      for (final l in e.lines)
+        _posting(l.account.key, l.amountMinor, e.currency, rate),
+    ],
+  ));
+
+  void reverse(_Stored s, DateTime now) => _rows.add((
+    JournalEntriesCompanion.insert(
+      occurredAt: s.row.occurredAt,
+      sourceKind: s.row.sourceKind,
+      sourceId: s.row.sourceId,
+      memo: Value(s.row.memo),
+      reverses: Value(s.row.id),
+      recordedAt: now,
+      accountId: Value(s.row.accountId),
+    ),
+    [
+      for (final p in s.postings)
+        _posting(p.account, -p.amountMinor, p.currency, p.rateMicros),
+    ],
+  ));
+
+  static PostingsCompanion _posting(
+    String account,
+    int amountMinor,
+    String currency,
+    int? rateMicros,
+  ) => PostingsCompanion.insert(
+    // Filled in by [flush], once the entry's id is known.
+    entryId: 0,
+    account: account,
+    amountMinor: amountMinor,
+    currency: currency,
+    rateMicros: Value(rateMicros),
+  );
+
+  /// Writes everything added, inside the caller's transaction.
+  Future<void> flush(AppDatabase db) async {
+    if (_rows.isEmpty) return;
+    // The id AUTOINCREMENT would give next: past every id ever used.
+    final next = await db
+        .customSelect(
+          'SELECT MAX(COALESCE((SELECT seq FROM sqlite_sequence '
+          "WHERE name = 'journal_entries'), 0), "
+          'COALESCE((SELECT MAX(id) FROM journal_entries), 0)) + 1 AS next',
+          readsFrom: {db.journalEntries},
+        )
+        .map((row) => row.read<int>('next'))
+        .getSingle();
+    await db.batch((b) {
+      for (final (i, (entry, postings)) in _rows.indexed) {
+        final id = next + i;
+        b.insert(db.journalEntries, entry.copyWith(id: Value(id)));
+        b.insertAll(db.postings, [
+          for (final p in postings) p.copyWith(entryId: Value(id)),
+        ]);
+      }
+    });
+    _rows.clear();
   }
 }
 
