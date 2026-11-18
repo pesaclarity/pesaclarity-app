@@ -2,8 +2,9 @@
 # Runs the project's checks on your machine. GitHub only builds and releases,
 # so this is what keeps dev green. The pre-push hook runs it in full.
 #
-#   tool/check          everything: format, analyse, all tests, dependency
-#                       scan, and the UI flows when they changed
+#   tool/check          everything: format, analyse, all tests, the
+#                       accessibility check, dependency scan, and the UI
+#                       flows when they changed
 #   tool/check --fast   format, analyse and the quick pure-Dart tests
 #   tool/check --deps   only the dependency scan
 #   tool/check --ui     only the UI flows (needs Maestro and a device)
@@ -17,7 +18,7 @@ cd "$(dirname "$0")/.." || exit 1
 mode="${1:-full}"
 case "$mode" in
   full | --fast | --deps | --ui) ;;
-  -h | --help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h | --help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *) echo "Unknown option: $mode (try --help)" >&2; exit 2 ;;
 esac
 
@@ -147,6 +148,8 @@ case "$mode" in
     format_and_analyse
     step "Tests" "fix the failing tests; rerun one with: flutter test <file>" \
       flutter test
+    step "Accessibility (large text, tap targets, labels)" "fix what it names; see the PNGs with: tool/accessibility.sh --shots" \
+      tool/accessibility.sh
     deps
     if ui_changed; then
       ui_flows
