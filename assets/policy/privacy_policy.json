@@ -1,7 +1,14 @@
 {
-  "version": "2.1",
-  "updated": "2026-11-17",
+  "version": "2.2",
+  "updated": "2026-11-18",
   "changes": [
+    {
+      "version": "2.2",
+      "date": "2026-11-18",
+      "items": [
+        "The website section now mentions the saved theme choice. Nothing about the app changed."
+      ]
+    },
     {
       "version": "2.1",
       "date": "2026-11-17",

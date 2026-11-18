@@ -136,8 +136,10 @@ Pesa Clarity is for people aged 18 and over.
 ## This website
 
 This site sets no cookies, runs no analytics and loads nothing from
-other servers. Fonts are served from this site. The web host may keep
-standard request logs, such as IP address and time, for security.
+other servers. Fonts are served from this site. If you choose a light or
+dark theme, your browser keeps that choice on your device; it is never
+sent to us. The site's only script applies that choice. The web host may
+keep standard request logs, such as IP address and time, for security.
 
 ## Changes
 
