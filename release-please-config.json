@@ -20,8 +20,7 @@
     ".": {
       "release-type": "dart",
       "package-name": "pesaclarity",
-      "changelog-path": "CHANGELOG.md",
-      "release-as": "0.5.1"
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
