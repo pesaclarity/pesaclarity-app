@@ -1,0 +1,182 @@
+name: Screenshots
+
+# Draws the app's marketing screenshots (tool/screenshots.sh: the app's own
+# screens with made-up records, light and dark) and keeps them on a rolling
+# pre-release: `screenshots` for dev, `screenshots-main` for main. When a
+# screen changed since the last run it:
+#
+# - asks pesaclarity.github.io to refresh its screens (repository_dispatch
+#   `screenshots-updated`; needs the WEB_DISPATCH_TOKEN secret, as the APK
+#   workflow's website job does), and
+# - on main, opens a pull request into dev with the F-Droid listing's phone
+#   screenshots redrawn.
+#
+# Tests run on the developer's machine before each push (tool/check), not here.
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - lib/**
+      - assets/**
+      - pubspec.yaml
+      - pubspec.lock
+      - test/screenshots/**
+      - test/helpers/**
+      - test/domain/fixtures.dart
+      - tool/screenshots.sh
+      - tool/publish_screenshots.sh
+      - tool/fastlane_screenshots.sh
+      - .github/workflows/screenshots.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  draw:
+    name: Draw the screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      dir: ${{ steps.draw.outputs.dir }}
+    steps:
+      # No stored token: app and test code run in this job.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+
+      - uses: actions/cache@v6
+        with:
+          path: .dart_tool/build/entrypoint
+          key: build-runner-screenshots-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}
+      - run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Draw
+        id: draw
+        run: |
+          tool/screenshots.sh "$RUNNER_TEMP/screenshots"
+          echo "dir=$RUNNER_TEMP/screenshots" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 30
+
+  publish:
+    name: Publish the screenshots
+    needs: draw
+    # Only the long-lived branches publish; a run started by hand on another
+    # branch keeps its screenshots as an artifact.
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.publish.outputs.changed }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: tool
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          path: ${{ runner.temp }}/screenshots
+
+      - id: tag
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            echo "tag=screenshots-main" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=screenshots" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Put on the release
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: tool/publish_screenshots.sh "$RUNNER_TEMP/screenshots" "$TAG"
+
+  website:
+    name: Refresh the website's screens
+    needs: publish
+    if: needs.publish.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the website for a pull request
+        env:
+          GH_TOKEN: ${{ secrets.WEB_DISPATCH_TOKEN }}
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Website not refreshed; add the WEB_DISPATCH_TOKEN secret (README, Website)."
+            exit 0
+          fi
+          gh api repos/pesaclarity/pesaclarity.github.io/dispatches \
+            -f event_type=screenshots-updated \
+            -f "client_payload[repo]=$GITHUB_REPOSITORY" \
+            -f "client_payload[tag]=$TAG" \
+            -f "client_payload[ref]=$GITHUB_REF_NAME" \
+            -f "client_payload[sha]=$GITHUB_SHA"
+
+  fastlane:
+    name: Refresh the F-Droid screenshots
+    needs: publish
+    if: github.ref == 'refs/heads/main' && needs.publish.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Into dev, where changes land before they reach main.
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          path: ${{ runner.temp }}/screenshots
+
+      - name: Redraw the listing's screenshots
+        run: |
+          command -v convert > /dev/null || command -v magick > /dev/null ||
+            { sudo apt-get update -q && sudo apt-get install -y -q imagemagick; }
+          tool/fastlane_screenshots.sh "$RUNNER_TEMP/screenshots"
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/fastlane-screenshots
+          base: dev
+          add-paths: fastlane/metadata/android/en-US/images/phoneScreenshots/*.png
+          commit-message: "docs: F-Droid screenshots from ${{ github.sha }}"
+          title: "docs: F-Droid screenshots from ${{ github.sha }}"
+          body: |
+            The F-Droid listing's phone screenshots, redrawn from `main` at ${{ github.sha }} by the screenshots workflow (`tool/fastlane_screenshots.sh`): Home, Activity, Plan, Debts, Insights and Today, light theme, 780 x 1688.
+
+            Made-up records only. Review the images before merging.
+          delete-branch: true

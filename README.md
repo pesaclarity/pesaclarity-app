@@ -111,9 +111,9 @@ lib/
     shared/adaptive/         shared dialog, picker, choice and grouped-row helpers
     shared/widgets/
     theme/                   brand tokens, light and dark themes, iOS and Android typography
-test/                        unit, widget and database tests
+test/                        unit, widget and database tests; screenshots/ draws the marketing screens
 .maestro/                    Maestro UI flows (YAML), one per journey
-tool/                        UI flows, F-Droid prep, release build, Swift type-check
+tool/                        UI flows, F-Droid prep, release build, Swift type-check, screenshots
 android/                     Android project (applicationId com.pesaclarity.app)
 ios/                         iPhone project (bundle id com.pesaclarity.app)
 assets/fonts/                Space Grotesk and Inter, with their OFL licences
@@ -351,6 +351,24 @@ The full `tool/check` runs it when the branch changes the flows or their scripts
 
 The flows use the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
+## Screenshots
+
+The marketing screenshots (the website's screens and the F-Droid listing's) are drawn from the app's own widgets, not by hand. `test/screenshots/` pumps each screen with a made-up, seeded database (a salaried person's months, a grocer's day, a many-currency account, Support and Spaces): synthetic names and amounts only, phone numbers as `0700 000 000`. They use the app's real fonts (Space Grotesk, Inter and the Material icons, not the square test font), a 390 x 844 phone at 3x (1170 x 2532 pixels, with a 47-point status bar where the website's screens have one) and real shadows, in light and dark.
+
+```sh
+tool/screenshots.sh                # into build/screenshots/
+tool/screenshots.sh /tmp/shots     # or anywhere
+```
+
+It writes `<screen>-light.png` and `<screen>-dark.png` for home, activity, plan, goals, debts, insights, accounts, currencies, today, money, people, stock, sell, pay, sell-keypad, receipt, close-day, tax, support and spaces, and `manifest.json` with each one's name, file, theme, size and SHA-256 and a `digest` of them all. The same commit draws the same bytes, so the digest only changes when a screen does. The tests are skipped in the normal run (`tool/check`); the script turns them on with `--dart-define=SCREENSHOTS=true`. A screen is added by adding a `screenshot('<name>', ...)` to one of the files in `test/screenshots/`.
+
+On each push to `dev` or `main` that touches the app, the `Screenshots` workflow (`.github/workflows/screenshots.yml`) runs the script, keeps the PNGs and manifest as an artifact for 30 days and puts them on a rolling pre-release: [`screenshots`](https://github.com/pesaclarity/pesaclarity-app/releases/tag/screenshots) for `dev`, [`screenshots-main`](https://github.com/pesaclarity/pesaclarity-app/releases/tag/screenshots-main) for `main` (`tool/publish_screenshots.sh`). When the digest differs from the one already on the release, it:
+
+- asks the website to refresh its screens (a `repository_dispatch` of type `screenshots-updated` with the release tag and commit, using the `WEB_DISPATCH_TOKEN` secret below); the website opens a pull request with the new WebP screens, and
+- on `main`, opens a pull request into `dev` with the F-Droid listing's six phone screenshots redrawn (`tool/fastlane_screenshots.sh`: Home, Activity, Plan, Debts, Insights and Today, light, 780 x 1688). It uses the workflow's own token, so the organisation and repository must allow GitHub Actions to create pull requests, as for release-please.
+
+It can also be run by hand (Actions › Screenshots › Run workflow); on other branches it only keeps the artifact.
+
 ## Branches and releases
 
 `main` is what users get; nothing lands there untested.
@@ -362,7 +380,7 @@ The flows use the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Website
 
-After each APK build on `dev` or `main`, the `website` job in `test-apk.yml` asks [pesaclarity.github.io](https://github.com/pesaclarity/pesaclarity.github.io) to rebuild (a `repository_dispatch` of type `app-build`). The site reads the release its download buttons use when it builds, and shows its version and date under them, so the website always offers the newest build. The job needs a `WEB_DISPATCH_TOKEN` secret in this repository: a fine-grained personal access token for `pesaclarity/pesaclarity.github.io` with Contents read and write. Without it the job only warns.
+After each APK build on `dev` or `main`, the `website` job in `test-apk.yml` asks [pesaclarity.github.io](https://github.com/pesaclarity/pesaclarity.github.io) to rebuild (a `repository_dispatch` of type `app-build`). The site reads the release its download buttons use when it builds, and shows its version and date under them, so the website always offers the newest build. The job needs a `WEB_DISPATCH_TOKEN` secret in this repository: a fine-grained personal access token for `pesaclarity/pesaclarity.github.io` with Contents read and write. Without it the job only warns. The `Screenshots` workflow uses the same token to send `screenshots-updated` (Screenshots, above).
 
 ## Google sign-in
 
