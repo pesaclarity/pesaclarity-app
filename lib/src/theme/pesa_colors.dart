@@ -131,6 +131,12 @@ class PesaColors extends ThemeExtension<PesaColors> {
   /// A light fill behind something to check, such as an item running low.
   Color get warningSoft => warning.withValues(alpha: 0.12);
 
+  /// A deeper brand red for a second red series: a shade (mixed with
+  /// black, never white) in light, brand red itself beside [link] in dark.
+  Color get brandDeep => shadow.a == 0
+      ? danger
+      : Color.lerp(danger, const Color(0xFF000000), 0.45)!;
+
   static PesaColors of(BuildContext context) =>
       Theme.of(context).extension<PesaColors>()!;
 

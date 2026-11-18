@@ -29,7 +29,7 @@ List<Color> chartSeries(BuildContext context) {
     colors.link,
     colors.warning,
     colors.success,
-    colors.link.withValues(alpha: .45),
+    colors.brandDeep,
     colors.textMuted,
     colors.border,
   ];

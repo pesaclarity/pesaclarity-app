@@ -285,7 +285,7 @@ class _LeakageCard extends StatelessWidget {
       // Picked out with a brand-coloured edge.
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.link.withValues(alpha: .3)),
+        side: BorderSide(color: Theme.of(context).colorScheme.primary),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),

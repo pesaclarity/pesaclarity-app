@@ -146,7 +146,7 @@ class _Figure extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: colors.link.withValues(alpha: .3)),
+        side: BorderSide(color: Theme.of(context).colorScheme.primary),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),

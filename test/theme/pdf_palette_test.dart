@@ -79,9 +79,12 @@ void main() {
     expect(p.muted, _pdf(PesaColors.light.textMuted.toARGB32()));
     expect(p.headerFill, _pdf(PesaColors.light.selected.toARGB32()));
     expect(p.success, _pdf(PesaColors.light.successText.toARGB32()));
-    // The brand tint is gone: headers and boxes are neutral.
-    final soft = _key(_pdf(BrandTokens.brandSoft.toARGB32()));
-    expect(p.all.map(_key), isNot(contains(soft)));
+    // The brand tint is gone: text, lines, headers and boxes are pure greys.
+    for (final c in [p.text, p.muted, p.line, p.headerFill!, p.panel!, p.bar]) {
+      expect(c.red, c.green, reason: _key(c));
+      expect(c.green, c.blue, reason: _key(c));
+    }
+    expect(p.all.map(_key), isNot(contains(_key(_pdf(0xFFFDECEE)))));
     // Red is only the accent.
     expect(
       p.all.where((c) => _key(c) == _key(p.accent)),

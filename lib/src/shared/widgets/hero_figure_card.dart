@@ -182,7 +182,7 @@ class HeroProgress extends StatelessWidget {
             value: value,
             minHeight: 8,
             color: onCard,
-            backgroundColor: onCard.withValues(alpha: 0.25),
+            backgroundColor: const Color(0x33000000),
           ),
         ),
         if (label != null) ...[

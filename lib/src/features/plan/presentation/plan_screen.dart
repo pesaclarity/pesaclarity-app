@@ -181,8 +181,8 @@ Color _groupColour(BuildContext context, PlanGroup group) {
   return switch (group) {
     PlanGroup.debt => colors.link,
     PlanGroup.tax => colors.link,
-    PlanGroup.living => Color.lerp(colors.link, scheme.onSurface, 0.45)!,
-    PlanGroup.school => Color.lerp(colors.brandSoft, colors.link, 0.25)!,
+    PlanGroup.living => colors.brandDeep,
+    PlanGroup.school => scheme.onSurfaceVariant,
     PlanGroup.savings => colors.success,
   };
 }

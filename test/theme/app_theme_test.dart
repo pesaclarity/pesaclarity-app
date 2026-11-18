@@ -14,18 +14,18 @@ void main() {
       expect(theme.brightness, Brightness.light);
       expect(theme.colorScheme.primary, const Color(0xFFC8102E));
       expect(theme.colorScheme.onPrimary, const Color(0xFFFFFFFF));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFFF6F1EE));
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFF5F5F5));
       expect(theme.colorScheme.surface, const Color(0xFFFFFFFF));
-      expect(theme.colorScheme.onSurface, const Color(0xFF1C1215));
-      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFF6F6064));
+      expect(theme.colorScheme.onSurface, const Color(0xFF171717));
+      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFF525252));
     });
 
     test('exposes brand colours outside the Material scheme', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(colors.brandSoft, const Color(0xFFFDECEE));
+      expect(colors.brandSoft, const Color(0xFFEBEBEB));
       // Links, progress and the current tab are in the brand's link red.
-      expect(colors.link, const Color(0xFFB81D2F));
-      expect(colors.border, const Color(0xFFEFE6E7));
+      expect(colors.link, const Color(0xFFC8102E));
+      expect(colors.border, const Color(0xFFE5E5E5));
       expect(colors.successText, const Color(0xFF047857));
       expect(colors.warning, const Color(0xFFB45309));
     });
@@ -39,17 +39,17 @@ void main() {
       // The same red as light, with white text on it.
       expect(theme.colorScheme.primary, const Color(0xFFC8102E));
       expect(theme.colorScheme.onPrimary, const Color(0xFFFFFFFF));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFF140E10));
-      expect(theme.colorScheme.surface, const Color(0xFF1E1618));
-      expect(theme.colorScheme.onSurface, const Color(0xFFE3D9DB));
-      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFA3969A));
+      expect(theme.scaffoldBackgroundColor, const Color(0xFF0A0A0A));
+      expect(theme.colorScheme.surface, const Color(0xFF171717));
+      expect(theme.colorScheme.onSurface, const Color(0xFFE5E5E5));
+      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFA3A3A3));
     });
 
     test('floats sheets and menus on a lighter surface, without shadows', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(colors.field, const Color(0xFF241B1E));
-      expect(colors.floating, const Color(0xFF2A2124));
-      expect(colors.border, const Color(0xFF352B2E));
+      expect(colors.field, const Color(0xFF1F1F1F));
+      expect(colors.floating, const Color(0xFF242424));
+      expect(colors.border, const Color(0xFF2E2E2E));
       expect(colors.floatingShadow, isEmpty);
       expect(theme.bottomSheetTheme.backgroundColor, colors.floating);
       expect(theme.bottomSheetTheme.modalElevation, 0);
@@ -87,7 +87,7 @@ void main() {
 
     test('small danger text is brand red brightened, the same hue', () {
       final text = theme.colorScheme.error;
-      expect(text, const Color(0xFFFF3C5B));
+      expect(text, const Color(0xFFFF4D6A));
       expect(hue(text), closeTo(hue(BrandTokens.brand), 0.5));
       expect(HSLColor.fromColor(text).saturation, 1);
       for (final surface in [
@@ -109,15 +109,15 @@ void main() {
         expect(hsl.saturation, lessThan(0.06), reason: '$tint');
         expect(tint.b, lessThanOrEqualTo(tint.g), reason: '$tint');
       }
-      expect(colors.brandSoft, const Color(0xFF2F2D2C));
-      expect(colors.selected, const Color(0xFF383534));
+      expect(colors.brandSoft, const Color(0xFF262626));
+      expect(colors.selected, const Color(0xFF383838));
     });
 
     test('light keeps its reds', () {
       final light = AppTheme.light;
       expect(light.colorScheme.error, const Color(0xFFC8102E));
       expect(light.extension<PesaColors>()!.danger, const Color(0xFFC8102E));
-      expect(light.extension<PesaColors>()!.brandSoft, const Color(0xFFFDECEE));
+      expect(light.extension<PesaColors>()!.brandSoft, const Color(0xFFEBEBEB));
     });
   });
 
@@ -126,20 +126,20 @@ void main() {
       final theme = AppTheme.darkHighContrast;
       final colors = theme.extension<PesaColors>()!;
       expect(theme.brightness, Brightness.dark);
-      expect(theme.colorScheme.onSurface, const Color(0xFFF5EEF0));
-      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFCFC3C6));
-      expect(colors.textMuted, const Color(0xFFCFC3C6));
-      expect(colors.border, const Color(0xFF5A4A4F));
-      expect(colors.link, const Color(0xFFFF3C5B));
+      expect(theme.colorScheme.onSurface, const Color(0xFFF5F5F5));
+      expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFCCCCCC));
+      expect(colors.textMuted, const Color(0xFFCCCCCC));
+      expect(colors.border, const Color(0xFF525252));
+      expect(colors.link, const Color(0xFFFF4D6A));
     });
 
     test('light strengthens text, muted text and edges', () {
       final theme = AppTheme.lightHighContrast;
       final colors = theme.extension<PesaColors>()!;
       expect(theme.brightness, Brightness.light);
-      expect(theme.colorScheme.onSurface, const Color(0xFF120A0D));
-      expect(colors.textMuted, const Color(0xFF4F4246));
-      expect(colors.border, const Color(0xFFCDBFC2));
+      expect(theme.colorScheme.onSurface, const Color(0xFF0A0A0A));
+      expect(colors.textMuted, const Color(0xFF404040));
+      expect(colors.border, const Color(0xFFC4C4C4));
     });
   });
 

@@ -96,7 +96,7 @@ class MainAddButton extends ConsumerWidget {
           shape: const CircleBorder(),
           // A soft lift in light; flat in dark.
           elevation: PesaColors.of(context).floatingElevation,
-          shadowColor: scheme.primary.withValues(alpha: 0.4),
+          shadowColor: const Color(0x40000000),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => business
