@@ -319,13 +319,21 @@ class _PillItem extends StatelessWidget {
               color: color,
             ),
             const SizedBox(height: 3),
-            Text(
-              destination.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            // Whole, never cut: with large text a long name such as
+            // Insights shrinks to the tab's width. Screen readers read it
+            // from the label above.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  destination.label,
+                  maxLines: 1,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],

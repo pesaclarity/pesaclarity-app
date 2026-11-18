@@ -11,6 +11,7 @@ import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/progress_ring.dart';
@@ -388,45 +389,52 @@ class _NetWorthCard extends StatelessWidget {
         '${change > 0 ? '+' : ''}'
         '${shownMoney(context, change, withCurrency: false)} this month';
 
+    final value = shownMoney(context, netWorth.valueMinor, withCurrency: false);
+    final valueStyle = AppTypography.tileFigure(theme.colorScheme.onSurface);
+    final changeStyle = theme.textTheme.labelMedium!.copyWith(
+      fontWeight: FontWeight.w600,
+      color: change >= 0 ? colors.successText : theme.colorScheme.onSurface,
+    );
+    final figure = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Net worth',
+          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
+        ),
+        const SizedBox(height: 4),
+        FigureText(value, style: valueStyle),
+      ],
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        // The change beside the figure while both fit whole; with large
+        // text, under it.
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final fits =
+                FigureText.numberWidth(context, value, valueStyle) +
+                    Layout.cardGap +
+                    textLineWidth(context, changeText, changeStyle) <=
+                constraints.maxWidth;
+            if (!fits) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Net worth',
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
+                  figure,
                   const SizedBox(height: 4),
-                  Text(
-                    shownMoney(
-                      context,
-                      netWorth.valueMinor,
-                      withCurrency: false,
-                    ),
-                    style: AppTypography.tileFigure(
-                      theme.colorScheme.onSurface,
-                    ),
-                  ),
+                  Text(changeText, style: changeStyle),
                 ],
-              ),
-            ),
-            Text(
-              changeText,
-              style: theme.textTheme.labelMedium!.copyWith(
-                fontWeight: FontWeight.w600,
-                color: change >= 0
-                    ? colors.successText
-                    : theme.colorScheme.onSurface,
-              ),
-            ),
-          ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: figure),
+                Text(changeText, style: changeStyle),
+              ],
+            );
+          },
         ),
       ),
     );

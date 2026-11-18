@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 //
 // Less motion: Android's "Remove animations" and iPhone's "Reduce Motion".
 // Things then change in place, without sliding, growing or fading.
+//
+// Larger text: field hints and help lines wrap instead of being cut short.
 
 /// Whether the phone asks for less motion.
 bool reduceMotion(BuildContext context) =>
@@ -54,4 +56,19 @@ class _ReducedMotionTransitions extends PageTransitionsTheme {
       child,
     );
   }
+}
+
+/// [theme] for the phone's accessibility settings: page transitions that
+/// respect less motion, and, with larger text, field hints and help lines
+/// that wrap rather than end in "...". At the usual size it is unchanged.
+ThemeData accessibleTheme(BuildContext context, ThemeData theme) {
+  final themed = withReducedMotion(theme);
+  if (MediaQuery.textScalerOf(context).scale(1) <= 1) return themed;
+  return themed.copyWith(
+    inputDecorationTheme: themed.inputDecorationTheme.copyWith(
+      hintMaxLines: 3,
+      helperMaxLines: 3,
+      errorMaxLines: 3,
+    ),
+  );
 }

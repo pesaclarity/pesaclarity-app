@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,7 @@ import '../../../routing/app_shell.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -283,6 +286,19 @@ class _PayBar extends StatelessWidget {
   final String action;
   final VoidCallback? onPay;
 
+  /// The narrowest this bar can be with its amount whole on one line.
+  double minWidth(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return 2 * 24 +
+        FigureText.numberWidth(
+          context,
+          amount,
+          AppTypography.tileFigure(Colors.black),
+        ) +
+        textLineWidth(context, action, textTheme.titleMedium!) +
+        24;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -296,22 +312,25 @@ class _PayBar extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPay,
-        child: SizedBox(
-          height: PillNavigationBar.height,
+        // The tab bar's height, growing with large text.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: PillNavigationBar.height,
+          ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         what,
                         style: textTheme.bodySmall!.copyWith(color: fg),
                       ),
-                      Text(amount, style: AppTypography.tileFigure(fg)),
+                      FigureText(amount, style: AppTypography.tileFigure(fg)),
                     ],
                   ),
                 ),
@@ -578,7 +597,9 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: Layout.cardGap,
               crossAxisSpacing: Layout.cardGap,
-              childAspectRatio: 1.45,
+              // Taller with large text, so a tile's lines all fit.
+              childAspectRatio:
+                  1.45 / math.max(1, MediaQuery.textScalerOf(context).scale(1)),
               children: [
                 for (final item in shown)
                   _Tile(
@@ -603,34 +624,75 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
                 action: 'Add',
                 onPay: total > 0 ? _toTab : null,
               )
-            : Row(
-                children: [
-                  SizedBox(
-                    height: PillNavigationBar.height,
-                    child: OutlinedButton(
-                      key: const Key('sell-add-to-tab'),
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        side: BorderSide(
-                          color: PesaColors.of(context).link,
-                          width: 1.5,
-                        ),
-                      ),
-                      onPressed: total > 0 ? _toTab : null,
-                      child: const Text('Add to a tab'),
+            : _SellBar(
+                addToTab: OutlinedButton(
+                  key: const Key('sell-add-to-tab'),
+                  style: OutlinedButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    side: BorderSide(
+                      color: PesaColors.of(context).link,
+                      width: 1.5,
                     ),
                   ),
-                  const SizedBox(width: Layout.cardGap),
-                  Expanded(
-                    child: _PayBar(
-                      what: count == 1 ? '1 item' : '$count items',
-                      amount: formatMoney(Money(total)),
-                      onPay: total > 0 ? _pay : null,
-                    ),
-                  ),
-                ],
+                  onPressed: total > 0 ? _toTab : null,
+                  child: const Text('Add to a tab'),
+                ),
+                pay: _PayBar(
+                  what: count == 1 ? '1 item' : '$count items',
+                  amount: formatMoney(Money(total)),
+                  onPay: total > 0 ? _pay : null,
+                ),
               ),
       ),
+    );
+  }
+}
+
+/// Add to a tab beside the pay bar, both the tab bar's height. When the
+/// total would not fit whole beside the button, as with large text, the
+/// button goes under the bar, each at full width and growing with the
+/// text.
+class _SellBar extends StatelessWidget {
+  const _SellBar({required this.addToTab, required this.pay});
+
+  final Widget addToTab;
+  final _PayBar pay;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: PillNavigationBar.height),
+      child: addToTab,
+    );
+    final buttonWidth =
+        textLineWidth(
+          context,
+          'Add to a tab',
+          Theme.of(context).textTheme.labelLarge!,
+        ) +
+        2 * 24;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (buttonWidth + Layout.cardGap + pay.minWidth(context) >
+            constraints.maxWidth) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              pay,
+              const SizedBox(height: Layout.cardGap),
+              button,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            button,
+            const SizedBox(width: Layout.cardGap),
+            Expanded(child: pay),
+          ],
+        );
+      },
     );
   }
 }

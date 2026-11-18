@@ -31,9 +31,8 @@ class PesaClarityApp extends ConsumerWidget {
       themeMode: themeModeFor(theme),
       routerConfig: ref.watch(appRouterProvider),
       builder: (context, child) => Theme(
-        // New screens show without zooming in when the phone asks for less
-        // motion.
-        data: withReducedMotion(Theme.of(context)),
+        // Less motion and larger text, when the phone asks for them.
+        data: accessibleTheme(context, Theme.of(context)),
         child: AmountsHiddenScope(
           child: FieldStyleTheme(
             // A verified "update required" notice covers everything.

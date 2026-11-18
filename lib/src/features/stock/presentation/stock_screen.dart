@@ -180,17 +180,16 @@ class _ItemRow extends StatelessWidget {
     return ListTile(
       key: Key('item-${item.id}'),
       onTap: () => context.push(AppRoutes.item(item.id)),
-      title: Row(
+      // The tag beside the name while it fits, else under it, as with a
+      // long name or large text.
+      title: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Flexible(child: Text(item.name, overflow: TextOverflow.ellipsis)),
-          if (item.isLow) ...[
-            const SizedBox(width: 8),
-            const Tag('Running low', tone: Tone.warning),
-          ],
-          if (!item.isProduct) ...[
-            const SizedBox(width: 8),
-            const Tag('Service'),
-          ],
+          Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (item.isLow) const Tag('Running low', tone: Tone.warning),
+          if (!item.isProduct) const Tag('Service'),
         ],
       ),
       subtitle: Text(

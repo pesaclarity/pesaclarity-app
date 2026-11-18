@@ -117,6 +117,11 @@ class _FadingScrollState extends State<_FadingScroll> {
   }
 }
 
+/// The width of [text] on one line in [style], at the phone's text size:
+/// for deciding whether things fit side by side.
+double textLineWidth(BuildContext context, String text, TextStyle style) =>
+    _width(context, text, style);
+
 /// The width of [text] on one line in [style], at the phone's text size.
 double _width(BuildContext context, String text, TextStyle style) {
   final painter = TextPainter(

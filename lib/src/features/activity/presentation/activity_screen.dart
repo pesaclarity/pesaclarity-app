@@ -22,6 +22,7 @@ import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
@@ -346,54 +347,71 @@ class _WeekCard extends StatelessWidget {
     // never shrunk to fit.
     Widget figure(String text, Color color, TextAlign align) =>
         Text(text, textAlign: align, style: AppTypography.tileFigure(color));
+    final out = _orHidden(
+      context,
+      code == null
+          ? _plain(week.outMinor)
+          : formatMoney(Money(week.outMinor, currency: code)),
+    );
+    final inn = week.inMinor > 0
+        ? _orHidden(context, _signed(week.inMinor, code: code))
+        : '0';
+    final figureStyle = AppTypography.tileFigure(theme.colorScheme.onSurface);
+    Widget side(String title, String value, Color color, {bool end = false}) =>
+        Column(
+          crossAxisAlignment: end
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Text(title, style: label),
+            figure(value, color, end ? TextAlign.end : TextAlign.start),
+          ],
+        );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // Side by side while both numbers fit whole in half the card;
+            // with large text, one under the other.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final half = (constraints.maxWidth - Layout.cardGap) / 2;
+                final fits = [out, inn].every(
+                  (v) =>
+                      FigureText.numberWidth(context, v, figureStyle) <= half,
+                );
+                final outSide = side(
+                  'Out this week',
+                  out,
+                  theme.colorScheme.onSurface,
+                );
+                if (!fits) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Out this week', style: label),
-                      figure(
-                        _orHidden(
-                          context,
-                          code == null
-                              ? _plain(week.outMinor)
-                              : formatMoney(
-                                  Money(week.outMinor, currency: code),
-                                ),
-                        ),
-                        theme.colorScheme.onSurface,
-                        TextAlign.start,
-                      ),
+                      outSide,
+                      const SizedBox(height: 8),
+                      side('In this week', inn, colors.successText),
                     ],
-                  ),
-                ),
-                const SizedBox(width: Layout.cardGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('In this week', style: label),
-                      figure(
-                        week.inMinor > 0
-                            ? _orHidden(
-                                context,
-                                _signed(week.inMinor, code: code),
-                              )
-                            : '0',
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: outSide),
+                    const SizedBox(width: Layout.cardGap),
+                    Expanded(
+                      child: side(
+                        'In this week',
+                        inn,
                         colors.successText,
-                        TextAlign.end,
+                        end: true,
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
             if (code != null) ...[
               const SizedBox(height: 8),
