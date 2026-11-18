@@ -302,7 +302,7 @@ jobs:
 
   # Rebuilds pesaclarity.github.io once both APKs are on Releases, so the
   # version under its download buttons is the one people get. Needs the
-  # WEB_DISPATCH_TOKEN secret: a fine-grained token for pesaclarity-web with
+  # WEB_DISPATCH_TOKEN secret: a fine-grained token for pesaclarity.github.io with
   # Contents read and write (README, Website).
   website:
     name: Refresh the website

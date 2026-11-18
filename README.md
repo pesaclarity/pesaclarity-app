@@ -362,7 +362,7 @@ The flows use the debug APK, which skips `FLAG_SECURE`; release builds keep it.
 
 ## Website
 
-After each APK build on `dev` or `main`, the `website` job in `test-apk.yml` asks [pesaclarity-web](https://github.com/pesaclarity/pesaclarity-web) to rebuild (a `repository_dispatch` of type `app-build`). The site reads the release its download buttons use when it builds, and shows its version and date under them, so the website always offers the newest build. The job needs a `WEB_DISPATCH_TOKEN` secret in this repository: a fine-grained personal access token for `pesaclarity/pesaclarity-web` with Contents read and write. Without it the job only warns.
+After each APK build on `dev` or `main`, the `website` job in `test-apk.yml` asks [pesaclarity.github.io](https://github.com/pesaclarity/pesaclarity.github.io) to rebuild (a `repository_dispatch` of type `app-build`). The site reads the release its download buttons use when it builds, and shows its version and date under them, so the website always offers the newest build. The job needs a `WEB_DISPATCH_TOKEN` secret in this repository: a fine-grained personal access token for `pesaclarity/pesaclarity.github.io` with Contents read and write. Without it the job only warns.
 
 ## Google sign-in
 

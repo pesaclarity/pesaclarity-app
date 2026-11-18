@@ -49,7 +49,7 @@ Not collected, and why:
 
 ## Before submitting
 
-- [ ] The privacy policy is published at a public URL (pesaclarity-web#3) and added to the store listing.
+- [ ] The privacy policy is published at a public URL ([pesaclarity.github.io#3](https://github.com/pesaclarity/pesaclarity.github.io/issues/3)) and added to the store listing.
 - [ ] The privacy policy names the device name the server keeps; it currently does not.
 - [ ] A web page or link where people can ask to delete their account without the app; Play asks for this URL in the Data safety form.
 - [ ] You have approved this wording.
