@@ -189,6 +189,8 @@ class LoanPayments extends Table {
   unique: true,
 )
 @TableIndex(name: 'transactions_message', columns: {#messageHash})
+// Home, Activity, Plan and Insights read transactions by date alone.
+@TableIndex(name: 'transactions_occurred_at', columns: {#occurredAt})
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get accountId => integer().references(Accounts, #id)();

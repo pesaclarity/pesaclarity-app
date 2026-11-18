@@ -748,6 +748,34 @@ void main() {
       expect(await userVersion(db), db.schemaVersion);
     });
 
+    test('migrates a version 37 database: transactions by date', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP INDEX transactions_occurred_at');
+      await old.customStatement('PRAGMA user_version = 37');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final plan = await db
+          .customSelect(
+            'EXPLAIN QUERY PLAN SELECT id FROM transactions '
+            'WHERE occurred_at >= 0 AND occurred_at < 1',
+          )
+          .map((r) => r.read<String>('detail'))
+          .get();
+      expect(plan.join(' '), contains('transactions_occurred_at'));
+    });
+
+    test('the version 38 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 37');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+    });
+
     test('migrates a version 17 database: moved transactions', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE moved_transactions');
