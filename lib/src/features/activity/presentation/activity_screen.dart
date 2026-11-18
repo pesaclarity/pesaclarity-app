@@ -22,6 +22,7 @@ import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
@@ -353,58 +354,74 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A long amount with its code wraps and the card grows; money is
-    // never shrunk to fit.
-    Widget figure(String text, Color color, TextAlign align) =>
-        Text(text, textAlign: align, style: AppTypography.tileFigure(color));
+    // Money is kept whole, code and number on one line, never shrunk.
+    Widget figure(String text, Color color) =>
+        FigureText(text, style: AppTypography.tileFigure(color));
+    final out = _orHidden(
+      context,
+      code == null
+          ? _plain(week.outMinor)
+          : formatMoney(Money(week.outMinor, currency: code)),
+    );
+    final inn = week.inMinor > 0
+        ? _orHidden(context, _signed(week.inMinor, code: code))
+        : '0';
+    final figureStyle = AppTypography.tileFigure(theme.colorScheme.onSurface);
+    Widget side(String title, String value, Color color, {bool end = false}) =>
+        Column(
+          crossAxisAlignment: end
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Text(title, style: label),
+            figure(value, color),
+          ],
+        );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // Side by side while both numbers fit whole in half the card;
+            // with large text, one under the other.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final half = (constraints.maxWidth - Layout.cardGap) / 2;
+                final fits = [out, inn].every(
+                  (v) =>
+                      FigureText.numberWidth(context, v, figureStyle) <= half,
+                );
+                final outSide = side(
+                  'Out this week',
+                  out,
+                  theme.colorScheme.onSurface,
+                );
+                if (!fits) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Out this week', style: label),
-                      figure(
-                        _orHidden(
-                          context,
-                          code == null
-                              ? _plain(week.outMinor)
-                              : formatMoney(
-                                  Money(week.outMinor, currency: code),
-                                ),
-                        ),
-                        theme.colorScheme.onSurface,
-                        TextAlign.start,
-                      ),
+                      outSide,
+                      const SizedBox(height: 8),
+                      side('In this week', inn, colors.successText),
                     ],
-                  ),
-                ),
-                const SizedBox(width: Layout.cardGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('In this week', style: label),
-                      figure(
-                        week.inMinor > 0
-                            ? _orHidden(
-                                context,
-                                _signed(week.inMinor, code: code),
-                              )
-                            : '0',
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: outSide),
+                    const SizedBox(width: Layout.cardGap),
+                    Expanded(
+                      child: side(
+                        'In this week',
+                        inn,
                         colors.successText,
-                        TextAlign.end,
+                        end: true,
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
             if (code != null) ...[
               const SizedBox(height: 8),
@@ -677,10 +694,14 @@ class _ActivityRow extends StatelessWidget {
   }) {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0 && !borrowed;
-    return Text(
-      _orHidden(context, _signed(signedMinor, code: code)),
-      style: AppTypography.rowAmount(
-        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
+    final text = _orHidden(context, _signed(signedMinor, code: code));
+    return readAsAmount(
+      text,
+      Text(
+        text,
+        style: AppTypography.rowAmount(
+          inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -722,15 +743,19 @@ class _ActivityRow extends StatelessWidget {
         : ownCode != null
         ? 'Not in totals yet'
         : null;
-    if (under == null) return Text(main, style: style);
+    final mainText = readAsAmount(main, Text(main, style: style));
+    if (under == null) return mainText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(main, style: style),
-        Text(
+        mainText,
+        readAsAmount(
           under,
-          style: Theme.of(context).textTheme.bodySmall!
-              .copyWith(color: colors.textMuted),
+          Text(
+            under,
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: colors.textMuted),
+          ),
         ),
       ],
     );
@@ -905,27 +930,33 @@ class _Choosable extends StatelessWidget {
     if (id == null) return child;
     final choosing = chosen.isNotEmpty;
     final on = chosen.contains(id);
-    return GestureDetector(
-      key: Key('activity-choose-$id'),
-      behavior: HitTestBehavior.opaque,
-      onLongPress: () => onToggle(id),
-      onTap: choosing ? () => onToggle(id) : null,
-      child: Row(
-        children: [
-          if (choosing)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                on ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: on
-                    ? Theme.of(context).colorScheme.onSurface
-                    : PesaColors.of(context).textMuted,
+    // Screen readers say whether a row is chosen, and that a long press
+    // chooses it.
+    return Semantics(
+      checked: choosing ? on : null,
+      onLongPressHint: 'Choose',
+      child: GestureDetector(
+        key: Key('activity-choose-$id'),
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () => onToggle(id),
+        onTap: choosing ? () => onToggle(id) : null,
+        child: Row(
+          children: [
+            if (choosing)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  on ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: on
+                      ? Theme.of(context).colorScheme.onSurface
+                      : PesaColors.of(context).textMuted,
+                ),
               ),
+            Expanded(
+              child: AbsorbPointer(absorbing: choosing, child: child),
             ),
-          Expanded(
-            child: AbsorbPointer(absorbing: choosing, child: child),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

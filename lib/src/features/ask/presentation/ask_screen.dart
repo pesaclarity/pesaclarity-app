@@ -11,6 +11,7 @@ import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/accessibility.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../theme/layout.dart';
@@ -92,9 +93,13 @@ class _AskScreenState extends ConsumerState<AskScreen> {
 
   void _toEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
+      if (!_scroll.hasClients) return;
+      final end = _scroll.position.maxScrollExtent;
+      if (!mounted || reduceMotion(context)) {
+        _scroll.jumpTo(end);
+      } else {
         _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
+          end,
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );

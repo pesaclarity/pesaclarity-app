@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/flavor.dart';
+import '../../../shared/accessibility.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
@@ -77,7 +78,7 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
   Widget build(BuildContext context) {
     final challenge = _challenge;
     return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
+      duration: motionDuration(context, const Duration(milliseconds: 200)),
       alignment: Alignment.topCenter,
       child: challenge == null ? _emailStep(context) : _codeStep(challenge),
     );

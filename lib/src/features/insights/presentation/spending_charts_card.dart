@@ -29,7 +29,7 @@ List<Color> chartSeries(BuildContext context) {
     colors.link,
     colors.warning,
     colors.success,
-    colors.brandDeep,
+    colors.secondSeries,
     colors.textMuted,
     colors.border,
   ];

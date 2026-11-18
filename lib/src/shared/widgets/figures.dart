@@ -6,18 +6,21 @@ import 'package:flutter/rendering.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import 'amounts_hidden.dart';
 
 /// An amount, such as `24,330.50` or `KES 102,865`, laid out as one piece
-/// that never breaks inside the number.
+/// that never breaks: not at its commas or decimal point, and not between
+/// its currency code and the number either. When the line before it has
+/// no room, the whole amount goes onto a line of its own.
 ///
-/// The only place the line may break is the space between a currency code
-/// and the number: when both do not fit, the code goes on the line above.
-/// The number itself is kept whole: no break at its commas or decimal
-/// point, and it is never shrunk or cut to fit. The layouts around it
-/// ([FigureRow], [LabelValueRow] and the lead card) give it a line wide
-/// enough. Only where no line on the screen is that wide, as with a
-/// seven-figure amount at twice the text size on a narrow phone, does the
-/// number scroll sideways, still whole, rather than split.
+/// It is never shrunk or cut to fit. With larger text it grows as Android
+/// grows large text (see [figureTextScaler]): small amounts as much as body
+/// text, large ones such as a lead card's figure less, but never below
+/// their usual size. The layouts around it ([FigureRow], [LabelValueRow]
+/// and the lead card) give it a line wide enough. Only where no line on the
+/// screen is that wide, as with a seven-figure amount at twice the text
+/// size on a narrow phone, does it scroll sideways, still whole, rather
+/// than split.
 class FigureText extends StatelessWidget {
   const FigureText(this.value, {required this.style, super.key});
 
@@ -25,28 +28,93 @@ class FigureText extends StatelessWidget {
   final String value;
   final TextStyle style;
 
-  /// The width of [value]'s number on one line, without its currency code:
-  /// the narrowest line the figure fits on whole. Line breaking never
-  /// breaks between digits, or at the commas and decimal point between
-  /// them, so this is the widest unbreakable part of [value].
+  /// The width of [value] on one line, currency code and all, at the size
+  /// it is drawn: the narrowest line the figure fits on whole.
   static double numberWidth(
     BuildContext context,
     String value,
     TextStyle style,
-  ) => _minWidth(context, value, style);
+  ) => _measure(context, value, style, figureTextScaler(context, style)).width;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final number = numberWidth(context, value, style);
-      if (number <= constraints.maxWidth) {
-        // The number has no break in it, so a line can only end at the
-        // space before it.
-        return Text(value, style: style);
-      }
-      return _FadingScroll(child: Text(value, style: style, softWrap: false));
+      final fits = numberWidth(context, value, style) <= constraints.maxWidth;
+      // Never wrapped, so the code and the number stay on one line.
+      final text = Text(
+        value,
+        style: style,
+        textScaler: figureTextScaler(context, style),
+        softWrap: false,
+      );
+      return readAsAmount(value, fits ? text : _FadingScroll(child: text));
     },
   );
+}
+
+/// How much an amount in [style] grows with the phone's text size. Small
+/// amounts grow as body text does; large ones grow less, following the
+/// curve Android 14 uses for large text at twice the size (12 to 24, 24 to
+/// 36, 40 to about 49), so a lead card's figure stays on one line on a
+/// phone. Never smaller than the usual size, and the same as
+/// [MediaQuery.textScalerOf] at the usual size.
+TextScaler figureTextScaler(BuildContext context, TextStyle style) {
+  final base = MediaQuery.textScalerOf(context);
+  final size = style.fontSize ?? 14;
+  final factor = base.scale(size) / size;
+  if (factor <= 1) return base;
+  final atDouble = _androidDouble(size);
+  final scaled = size + (atDouble - size) * (factor - 1);
+  return TextScaler.linear(math.max(1, scaled / size));
+}
+
+/// Android 14's size for [size] at twice the text size, between the points
+/// it lists; 100 and up do not grow.
+double _androidDouble(double size) {
+  const points = [
+    (8.0, 16.0),
+    (10.0, 20.0),
+    (12.0, 24.0),
+    (14.0, 26.0),
+    (18.0, 30.0),
+    (20.0, 32.0),
+    (24.0, 36.0),
+    (30.0, 40.0),
+    (100.0, 100.0),
+  ];
+  if (size <= points.first.$1) return size * 2;
+  for (var i = 1; i < points.length; i++) {
+    final (x1, y1) = points[i];
+    if (size <= x1) {
+      final (x0, y0) = points[i - 1];
+      return y0 + (y1 - y0) * (size - x0) / (x1 - x0);
+    }
+  }
+  return size;
+}
+
+/// [text] in [style] laid out on one line at [scaler], for measuring.
+({double width, double minIntrinsicWidth}) _measure(
+  BuildContext context,
+  String text,
+  TextStyle style,
+  TextScaler scaler,
+) {
+  final painter = TextPainter(
+    // As the Text draws it: over the text style around it.
+    text: TextSpan(
+      text: text,
+      style: DefaultTextStyle.of(context).style.merge(style),
+    ),
+    textDirection: Directionality.of(context),
+    textScaler: scaler,
+  )..layout();
+  final result = (
+    width: painter.width,
+    minIntrinsicWidth: painter.minIntrinsicWidth,
+  );
+  painter.dispose();
+  return result;
 }
 
 /// [child] scrolling sideways, its edges fading out on the side where more
@@ -116,6 +184,11 @@ class _FadingScrollState extends State<_FadingScroll> {
     );
   }
 }
+
+/// The width of [text] on one line in [style], at the phone's text size:
+/// for deciding whether things fit side by side.
+double textLineWidth(BuildContext context, String text, TextStyle style) =>
+    _width(context, text, style);
 
 /// The width of [text] on one line in [style], at the phone's text size.
 double _width(BuildContext context, String text, TextStyle style) {
@@ -461,7 +534,7 @@ class LabelValueRow extends StatelessWidget {
           if (detail != null) _minWidth(context, detail!, detailStyle),
         ].reduce(math.max) +
         Layout.cardGap +
-        _width(context, value, valueStyle);
+        FigureText.numberWidth(context, value, valueStyle);
     final row = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: Layout.cardPadding,

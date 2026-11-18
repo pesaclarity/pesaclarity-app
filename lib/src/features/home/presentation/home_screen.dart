@@ -319,13 +319,18 @@ class _Header extends ConsumerWidget {
               ActionChip(
                 key: const Key('home-space'),
                 tooltip: 'Switch space',
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(space.name),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.expand_more, size: 18),
-                  ],
+                // A long name shrinks to fit under large text rather than
+                // fading out at the chip's edge; the chip keeps its height.
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(space.name),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.expand_more, size: 18),
+                    ],
+                  ),
                 ),
                 onPressed: () => showSpaces(context),
               ),
@@ -338,6 +343,7 @@ class _Header extends ConsumerWidget {
               ),
               Semantics(
                 identifier: SemanticIds.titleHome,
+                header: true,
                 // A business calls its first tab Today.
                 child: Text(
                   space.kind == SpaceKind.business ? 'Today' : 'Home',

@@ -591,17 +591,34 @@ class _LineRow extends StatelessWidget {
           Expanded(child: Text(line.name, style: theme.textTheme.bodyLarge)),
           if (change != null) ...[
             step(Icons.remove, 'One fewer', -milli),
-            InkWell(
-              onTap: () async {
-                final text = await _askQuantity(context, line);
-                final q = text == null ? null : quantityFrom(text);
-                if (q != null) change(q);
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  quantityText(line.quantityMilli),
-                  style: theme.textTheme.titleMedium,
+            Semantics(
+              button: true,
+              label: 'How many',
+              value: quantityText(line.quantityMilli),
+              hint: 'Type how many',
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: () async {
+                  final text = await _askQuantity(context, line);
+                  final q = text == null ? null : quantityFrom(text);
+                  if (q != null) change(q);
+                },
+                // At least a finger's width and height to tap.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: kMinInteractiveDimension,
+                    minHeight: kMinInteractiveDimension,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        quantityText(line.quantityMilli),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

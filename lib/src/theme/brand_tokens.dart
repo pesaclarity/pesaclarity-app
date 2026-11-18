@@ -92,6 +92,13 @@ abstract final class BrandTokens {
   static const darkMarkPurple = Color(0xFFA78BFA);
   static const darkMarkTeal = Color(0xFF2DD4BF);
   static const darkSelected = Color(0xFF333333);
+
+  /// A neutral grey for the second red series in a chart (the fourth
+  /// spending series, the Plan income bar's Living), where brand red is only
+  /// 2.9:1 on a card. 3.6:1 on a card and 3.2:1 on a sheet; apart from muted
+  /// text (1.9:1), the brightened red (1.5:1) and the border (2.9:1) by
+  /// lightness as well as hue. Not in the brand tokens: an app chart colour.
+  static const darkChartGrey = Color(0xFF737373);
   static const darkShadow = Color(0x00000000);
 
   /// The phone's high-contrast setting keeps the deeper near-black page.

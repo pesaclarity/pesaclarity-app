@@ -11,7 +11,9 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const spinner = Center(child: CircularProgressIndicator.adaptive());
+    const spinner = Center(
+      child: CircularProgressIndicator.adaptive(semanticsLabel: 'Loading'),
+    );
     return inList
         ? const Padding(padding: EdgeInsets.all(32), child: spinner)
         : spinner;
@@ -33,10 +35,15 @@ class ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge,
+          // Read out when it appears, as a screen reader would not
+          // otherwise know the screen changed.
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
           ),
           const SizedBox(height: 12),
           TextButton(onPressed: onRetry, child: const Text('Try again')),

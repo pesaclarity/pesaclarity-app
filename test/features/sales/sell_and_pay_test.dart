@@ -398,6 +398,31 @@ void main() {
       await settleFrames(tester);
     }
 
+    testAppWidgets('tiles in a row stay as tall as each other at 2x text', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pump(tester);
+      tester.view.physicalSize = const Size(390, 1600);
+      await tester.pumpAndSettle();
+      final tiles = find.byWidgetPredicate(
+        (w) =>
+            w is Card &&
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('tile-'),
+      );
+      final rects = [
+        for (final e in tiles.evaluate())
+          tester.getRect(find.byWidget(e.widget)),
+      ];
+      // Tomatoes and Delivery share the first row, Other sale the second.
+      expect(rects, hasLength(3));
+      expect(rects[0].top, rects[1].top);
+      expect(rects[0].height, rects[1].height);
+      expect(tester.takeException(), isNull);
+    });
+
     testAppWidgets('one group shows as two segments with All', (tester) async {
       await pump(tester);
       expect(find.byKey(const Key('sell-groups')), findsNothing);

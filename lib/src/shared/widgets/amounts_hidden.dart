@@ -76,6 +76,25 @@ String shownMoney(
 String shownAmounts(BuildContext context, String text) =>
     maskAmountsIf(AmountsHidden.of(context), text);
 
+/// [text] as a screen reader should say it: masked amounts read as
+/// "hidden" rather than as a row of dots, and a minus sign as "minus", so
+/// `-KES 1,200` is not read as a dash. The hidden value never reaches it.
+String spokenAmounts(String text) => text
+    .replaceAll(maskedDigits, 'hidden')
+    .replaceAllMapped(
+      RegExp(r'(^|[\s(])-(?=[A-Z]{3} |\d)'),
+      (m) => '${m[1]}minus ',
+    );
+
+/// [child], which shows [text], read by screen readers as [spokenAmounts]
+/// says it, when that differs from how it is written.
+Widget readAsAmount(String text, Widget child) {
+  final spoken = spokenAmounts(text);
+  return spoken == text
+      ? child
+      : Semantics(label: spoken, excludeSemantics: true, child: child);
+}
+
 /// The eye that shows or hides amounts. It is the same everywhere: at the
 /// right of a screen's title, or on the red card a screen leads with (pass
 /// that card's [color]). An open eye while amounts show, a slashed one

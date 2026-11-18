@@ -22,6 +22,7 @@ import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../balances/presentation/fuliza_paid.dart';
+import '../../security/application/balance_visibility.dart';
 import '../application/debts_overview_provider.dart';
 import 'debt_row.dart';
 import 'debt_sheet.dart';
@@ -469,10 +470,14 @@ class _WhatIfCardState extends State<_WhatIfCard> {
               max: _maxSteps.toDouble(),
               divisions: _maxSteps,
               label: shownMoney(context, extra, withCurrency: false),
+              // Read as the amount added, not as a position on the track.
+              semanticFormatterCallback: (_) => spokenAmounts(
+                '${shownMoney(context, extra, withCurrency: false)} more a month',
+              ),
               onChanged: (v) => setState(() => _steps = v.round()),
             ),
             Text(
-              _whatIfText(comparison, extra),
+              _whatIfText(comparison, extra, hidden: AmountsHidden.of(context)),
               style: theme.textTheme.bodyMedium!.copyWith(
                 color: colors.textMuted,
               ),
@@ -484,7 +489,11 @@ class _WhatIfCardState extends State<_WhatIfCard> {
   }
 }
 
-String _whatIfText(PayoffComparison comparison, int extra) {
+String _whatIfText(
+  PayoffComparison comparison,
+  int extra, {
+  required bool hidden,
+}) {
   if (extra == 0) return 'Slide to see how much sooner you could be debt-free.';
   final month = comparison.plan.debtFreeMonth;
   if (month == null || !comparison.plan.clearsAll) {
@@ -496,7 +505,9 @@ String _whatIfText(PayoffComparison comparison, int extra) {
     'Debt-free ${monthLabel(month)}',
     if (sooner != null && sooner > 0)
       sooner == 1 ? 'a month sooner' : '$sooner months sooner',
-    if (saved != null && saved > 0) 'about ${_roughly(saved)} less interest',
+    if (saved != null && saved > 0)
+      // Masked with every other amount while they are hidden.
+      'about ${hidden ? maskedDigits : _roughly(saved)} less interest',
   ];
   return '${parts.join(', ')}.';
 }

@@ -392,6 +392,24 @@ On each push to `dev` or `main` that touches the app, the `Screenshots` workflow
 
 It can also be run by hand (Actions › Screenshots › Run workflow); on other branches it only keeps the artifact.
 
+## Accessibility check
+
+The same screens, plus the sheets and dialogs most screens open (`test/screenshots/sheets_screen_test.dart`), make the accessibility check. `tool/accessibility.sh` draws each one at 1, 1.3, 1.5 and 2 times the text size in light and dark, and at the usual size in high contrast too, scrolls each list to its end, and fails on:
+
+- anything that overflows (Flutter reports a `RenderFlex` overflow as an error),
+- an amount cut short: ellipsized, clipped or narrower than its number, as amounts are always shown whole,
+- a tap target under 48 x 48 (Android) or 44 x 44 (iPhone), and
+- something that can be tapped with no label for screen readers.
+
+Text contrast is reported, not failed on: `contrast.jsonl` in the output folder, summarised at the end. Other text cut short, such as a long name ellipsized in a row, goes to `shortened.jsonl`.
+
+```sh
+tool/accessibility.sh                      # into build/accessibility/
+tool/accessibility.sh --shots /tmp/a11y    # and save each screen as a PNG
+```
+
+The full `tool/check` runs it. Screen-reader labels, headers, live regions and less motion have widget tests in `test/widget/accessibility_test.dart`.
+
 ## Branches and releases
 
 `main` is what users get; nothing lands there untested.

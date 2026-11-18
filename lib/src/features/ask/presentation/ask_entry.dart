@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/accessibility.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -218,10 +219,16 @@ class _AskBarScopeState extends ConsumerState<AskBarScope> {
               ignoring: _away,
               child: AnimatedSlide(
                 offset: _away ? const Offset(0, 1) : Offset.zero,
-                duration: const Duration(milliseconds: 200),
+                duration: motionDuration(
+                  context,
+                  const Duration(milliseconds: 200),
+                ),
                 child: AnimatedOpacity(
                   opacity: _away ? 0 : 1,
-                  duration: const Duration(milliseconds: 200),
+                  duration: motionDuration(
+                    context,
+                    const Duration(milliseconds: 200),
+                  ),
                   child: DecoratedBox(
                     // A soft fade so the list does not clash with the bar.
                     decoration: BoxDecoration(
@@ -297,35 +304,45 @@ class AskAboutLink extends ConsumerWidget {
     if (!ref.watch(askShownProvider)) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final m = month;
-    return InkWell(
-      key: const Key('ask-about'),
-      onTap: () => context.push(
-        AppRoutes.askAbout(
-          categoryId: categoryId,
-          month: m == null
-              ? null
-              : '${m.year}-${m.month.toString().padLeft(2, '0')}',
+    // A button of its own for screen readers, even inside a row that opens
+    // something else, and at least a finger's height to tap.
+    return Semantics(
+      container: true,
+      button: true,
+      child: InkWell(
+        key: const Key('ask-about'),
+        onTap: () => context.push(
+          AppRoutes.askAbout(
+            categoryId: categoryId,
+            month: m == null
+                ? null
+                : '${m.year}-${m.month.toString().padLeft(2, '0')}',
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 14,
-              color: PesaColors.of(context).link,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall!.copyWith(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinInteractiveDimension,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 14,
                 color: PesaColors.of(context).link,
-                fontWeight: FontWeight.w600,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    color: PesaColors.of(context).link,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

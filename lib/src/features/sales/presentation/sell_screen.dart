@@ -14,6 +14,7 @@ import '../../../routing/app_shell.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -283,6 +284,19 @@ class _PayBar extends StatelessWidget {
   final String action;
   final VoidCallback? onPay;
 
+  /// The narrowest this bar can be with its amount whole on one line.
+  double minWidth(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return 2 * 24 +
+        FigureText.numberWidth(
+          context,
+          amount,
+          AppTypography.tileFigure(Colors.black),
+        ) +
+        textLineWidth(context, action, textTheme.titleMedium!) +
+        24;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -296,22 +310,25 @@ class _PayBar extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPay,
-        child: SizedBox(
-          height: PillNavigationBar.height,
+        // The tab bar's height, growing with large text.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: PillNavigationBar.height,
+          ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         what,
                         style: textTheme.bodySmall!.copyWith(color: fg),
                       ),
-                      Text(amount, style: AppTypography.tileFigure(fg)),
+                      FigureText(amount, style: AppTypography.tileFigure(fg)),
                     ],
                   ),
                 ),
@@ -513,6 +530,17 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
     final total = lines.fold(0, (sum, l) => sum + l.totalMinor);
     final count = lines.length;
 
+    final tiles = [
+      for (final item in shown)
+        _Tile(
+          item: item,
+          ways: _ways(item),
+          measures: widget.measures[item.id] ?? const [],
+          count: _countOf(item),
+          onTap: () => _tap(item),
+        ),
+      _OtherTile(onTap: _otherSale),
+    ];
     final tab = widget.tab;
     return Scaffold(
       appBar: SellAppBar(
@@ -572,23 +600,23 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
               ),
             ],
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: Layout.cardGap,
-              crossAxisSpacing: Layout.cardGap,
-              childAspectRatio: 1.45,
+            // Two to a row, each row as tall as its tallest tile, so tiles
+            // grow with large text and a row stays even.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final item in shown)
-                  _Tile(
-                    item: item,
-                    ways: _ways(item),
-                    measures: widget.measures[item.id] ?? const [],
-                    count: _countOf(item),
-                    onTap: () => _tap(item),
+                for (var i = 0; i < tiles.length; i += 2) ...[
+                  if (i > 0) const SizedBox(height: Layout.cardGap),
+                  FigureRow(
+                    children: [
+                      tiles[i],
+                      if (i + 1 < tiles.length)
+                        tiles[i + 1]
+                      else
+                        const SizedBox.shrink(),
+                    ],
                   ),
-                _OtherTile(onTap: _otherSale),
+                ],
               ],
             ),
           ],
@@ -603,36 +631,93 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
                 action: 'Add',
                 onPay: total > 0 ? _toTab : null,
               )
-            : Row(
-                children: [
-                  SizedBox(
-                    height: PillNavigationBar.height,
-                    child: OutlinedButton(
-                      key: const Key('sell-add-to-tab'),
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        side: BorderSide(
-                          color: PesaColors.of(context).link,
-                          width: 1.5,
-                        ),
-                      ),
-                      onPressed: total > 0 ? _toTab : null,
-                      child: const Text('Add to a tab'),
+            : _SellBar(
+                addToTab: OutlinedButton(
+                  key: const Key('sell-add-to-tab'),
+                  style: OutlinedButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    side: BorderSide(
+                      color: PesaColors.of(context).link,
+                      width: 1.5,
                     ),
                   ),
-                  const SizedBox(width: Layout.cardGap),
-                  Expanded(
-                    child: _PayBar(
-                      what: count == 1 ? '1 item' : '$count items',
-                      amount: formatMoney(Money(total)),
-                      onPay: total > 0 ? _pay : null,
-                    ),
-                  ),
-                ],
+                  onPressed: total > 0 ? _toTab : null,
+                  child: const Text('Add to a tab'),
+                ),
+                pay: _PayBar(
+                  what: count == 1 ? '1 item' : '$count items',
+                  amount: formatMoney(Money(total)),
+                  onPay: total > 0 ? _pay : null,
+                ),
               ),
       ),
     );
   }
+}
+
+/// Add to a tab beside the pay bar, both the tab bar's height. When the
+/// total would not fit whole beside the button, as with large text, the
+/// button goes under the bar, each at full width and growing with the
+/// text.
+class _SellBar extends StatelessWidget {
+  const _SellBar({required this.addToTab, required this.pay});
+
+  final Widget addToTab;
+  final _PayBar pay;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: PillNavigationBar.height),
+      child: addToTab,
+    );
+    final buttonWidth =
+        textLineWidth(
+          context,
+          'Add to a tab',
+          Theme.of(context).textTheme.labelLarge!,
+        ) +
+        2 * 24;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (buttonWidth + Layout.cardGap + pay.minWidth(context) >
+            constraints.maxWidth) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              pay,
+              const SizedBox(height: Layout.cardGap),
+              button,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            button,
+            const SizedBox(width: Layout.cardGap),
+            Expanded(child: pay),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A tile on Sell: as tall as the grid's tiles were (1.45 times narrower
+/// than wide) and taller when its text needs it.
+class _TileBox extends StatelessWidget {
+  const _TileBox({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => ConstrainedBox(
+      constraints: BoxConstraints(minHeight: constraints.maxWidth / 1.45),
+      child: child,
+    ),
+  );
 }
 
 String _plainMoney(int minor) => formatMoney(Money(minor), withCurrency: false);
@@ -678,62 +763,74 @@ class _Tile extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final picked = count > 0;
-    return Card(
-      key: Key('tile-${item.id}'),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Layout.panelRadius),
-        side: BorderSide(
-          color: picked ? colors.link : colors.border,
-          width: picked ? 2 : 1,
+    return _TileBox(
+      child: Card(
+        key: Key('tile-${item.id}'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
+          side: BorderSide(
+            color: picked ? colors.link : colors.border,
+            width: picked ? 2 : 1,
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(_price(), style: theme.textTheme.titleSmall),
-                  const Spacer(),
-                  if (!item.isProduct)
-                    const Tag('Service')
-                  else if (item.isLow)
-                    Tag(_stock(), tone: Tone.warning)
-                  else
-                    Text(
-                      _stock(),
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.textMuted,
-                      ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.cardPadding),
+            child: Stack(
+              // The tile's least height reaches the column, which puts the
+              // stock at the bottom.
+              fit: StackFit.passthrough,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(_price(), style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 4),
+                      ],
                     ),
-                ],
-              ),
-              if (picked)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: CircleAvatar(
-                    radius: 13,
-                    backgroundColor: theme.colorScheme.primary,
-                    child: Text(
-                      quantityText(count),
-                      style: theme.textTheme.labelMedium!.copyWith(
-                        color: theme.colorScheme.onPrimary,
+                    if (!item.isProduct)
+                      const Tag('Service')
+                    else if (item.isLow)
+                      Tag(_stock(), tone: Tone.warning)
+                    else
+                      Text(
+                        _stock(),
+                        style: theme.textTheme.bodySmall!.copyWith(
+                          color: colors.textMuted,
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-            ],
+                if (picked)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: CircleAvatar(
+                      radius: 13,
+                      backgroundColor: theme.colorScheme.primary,
+                      child: Text(
+                        quantityText(count),
+                        semanticsLabel: '${quantityText(count)} in the sale',
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -749,23 +846,25 @@ class _OtherTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      key: const Key('tile-other'),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Layout.panelRadius),
-        side: BorderSide(color: PesaColors.of(context).border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Other sale', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text('Type an amount', style: theme.textTheme.titleSmall),
-            ],
+    return _TileBox(
+      child: Card(
+        key: const Key('tile-other'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
+          side: BorderSide(color: PesaColors.of(context).border),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.cardPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Other sale', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text('Type an amount', style: theme.textTheme.titleSmall),
+              ],
+            ),
           ),
         ),
       ),
