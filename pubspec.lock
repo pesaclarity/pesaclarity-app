@@ -937,8 +937,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: a64d855a561157d69d70ef4f58fc5543449391ea
-      resolved-ref: a64d855a561157d69d70ef4f58fc5543449391ea
+      ref: "054c8311619f60b38fed07c8042cf9564e36126f"
+      resolved-ref: "054c8311619f60b38fed07c8042cf9564e36126f"
       url: "https://github.com/pesaclarity/rayo.git"
     source: git
     version: "0.1.0"

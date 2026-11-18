@@ -26,13 +26,14 @@ dependencies:
     git:
       url: https://github.com/pesaclarity/ujumbe-parsers.git
       ref: v0.3.0
-  # rayo (pesaclarity/rayo, AGPL-3.0) runs the Ask models; its build hook
-  # compiles its C from source for each target. Pinned to a commit on main
-  # until the v0.1.0 tag exists on GitHub; then use `ref: v0.1.0`.
+  # rayo (pesaclarity/rayo, AGPL-3.0) runs the Ask models and the message
+  # reader; its build hook compiles its C from source for each target. Pinned
+  # to a commit on main (the one pesaclarity-ml exports and scores the reader
+  # with) until the v0.1.0 tag exists on GitHub; then use `ref: v0.1.0`.
   rayo:
     git:
       url: https://github.com/pesaclarity/rayo.git
-      ref: a64d855a561157d69d70ef4f58fc5543449391ea
+      ref: 054c8311619f60b38fed07c8042cf9564e36126f
   printing: ^5.15.1
   http: ^1.6.0
   flutter_local_notifications: ^23.0.0
