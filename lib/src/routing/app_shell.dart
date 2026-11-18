@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -245,6 +247,39 @@ class PillNavigationBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  /// The text size for every tab's label: the phone's, or smaller when the
+  /// widest label, in bold as when chosen, would not fit [width] at it.
+  /// Never smaller than the usual size if that fits.
+  TextScaler labelScaler(BuildContext context, double width) {
+    final style = _PillItem.labelStyle(context, selected: true);
+    double widest(TextScaler scaler) {
+      var widest = 0.0;
+      for (final d in destinations) {
+        final painter = TextPainter(
+          text: TextSpan(text: d.label, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: scaler,
+          maxLines: 1,
+        )..layout();
+        widest = math.max(widest, painter.width);
+        painter.dispose();
+      }
+      return widest;
+    }
+
+    final base = MediaQuery.textScalerOf(context);
+    final size = style.fontSize ?? 11;
+    var scaler = base;
+    // Width is not quite in proportion to size (letter spacing does not
+    // grow), so narrow it down in a few steps.
+    for (var i = 0; i < 4; i++) {
+      final w = widest(scaler);
+      if (w <= width || w == 0) return scaler;
+      scaler = TextScaler.linear(scaler.scale(size) / size * width / w * 0.99);
+    }
+    return scaler;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = PesaColors.of(context);
@@ -261,18 +296,33 @@ class PillNavigationBar extends StatelessWidget {
         type: MaterialType.transparency,
         shape: shape,
         clipBehavior: Clip.antiAlias,
-        child: Row(
-          children: [
-            for (final (index, destination) in destinations.indexed)
-              Expanded(
-                child: _PillItem(
-                  destination: destination,
-                  selected: index == selectedIndex,
-                  position: '${index + 1} of ${destinations.length}',
-                  onTap: () => onSelected(index),
-                ),
+        // Every label at one size: the phone's text size, or, when the
+        // longest name would not fit its tab at that size, the size at
+        // which it does, so no label ends in "..." and none looks smaller
+        // than the others.
+        child: LayoutBuilder(
+          builder: (context, constraints) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: labelScaler(
+                context,
+                constraints.maxWidth / destinations.length -
+                    2 * _PillItem.labelPadding,
               ),
-          ],
+            ),
+            child: Row(
+              children: [
+                for (final (index, destination) in destinations.indexed)
+                  Expanded(
+                    child: _PillItem(
+                      destination: destination,
+                      selected: index == selectedIndex,
+                      position: '${index + 1} of ${destinations.length}',
+                      onTap: () => onSelected(index),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -291,6 +341,19 @@ class _PillItem extends StatelessWidget {
   final bool selected;
   final String position;
   final VoidCallback onTap;
+
+  /// Space each side of a label, clear of the bar's rounded ends.
+  static const labelPadding = 5.0;
+
+  static TextStyle labelStyle(BuildContext context, {required bool selected}) {
+    final color = selected
+        ? PesaColors.of(context).link
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Theme.of(context).textTheme.labelSmall!.copyWith(
+      color: color,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -319,21 +382,15 @@ class _PillItem extends StatelessWidget {
               color: color,
             ),
             const SizedBox(height: 3),
-            // Whole, never cut: with large text a long name such as
-            // Insights shrinks to the tab's width. Screen readers read it
-            // from the label above.
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  destination.label,
-                  maxLines: 1,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _PillItem.labelPadding,
+              ),
+              child: Text(
+                destination.label,
+                maxLines: 1,
+                softWrap: false,
+                style: labelStyle(context, selected: selected),
               ),
             ),
           ],
