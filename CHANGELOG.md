@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from pull request titles.
+All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
 ## [0.5.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.4.0...v0.5.0) (2026-11-18)
 

@@ -55,7 +55,8 @@ Select widgets with `id:` and add new identifiers to `lib/src/shared/semantic_id
 ## Commits and pull requests
 
 - Small, focused pull requests against `dev`, with a short description of what changed and why. `main` takes only `dev` and release pull requests (see [Branches and releases](README.md#branches-and-releases)).
-- Pull request titles follow [Conventional Commits](https://www.conventionalcommits.org): `feat: add payee table`, `fix: …`, `feat!: …` for a breaking change. They set the next version and the changelog.
-- Commit titles follow the same rule (the pre-push hook checks them): `feat: add payee table`.
+- Every commit follows [Conventional Commits](https://www.conventionalcommits.org): `feat: add payee table`, `fix: …`, `feat!: …` for a breaking change. Pull requests into `dev` are rebase-merged, so each commit lands on `dev` as is and the commits set the next version and the changelog (the pre-push hook checks each title).
+- Changes users can see are `feat` or `fix`; a privacy policy text change, for example, is a `fix` and releases as a patch. Review follow-ups they don't see use a hidden type (`refactor`, `test`, `style`, `chore`, `docs`, `ci`, `build`) so the changelog stays clean. Write them as new commits: pushed history is never rewritten, so no `fixup!`, `squash!` or `amend!` commits.
+- One logical change per commit.
 - Link the issue the change addresses. UI changes should include screenshots in light and dark mode; `tool/check --ui` saves both in `build/maestro/`.
 - `tool/check` must pass before review; the pre-push hook runs it.
