@@ -135,6 +135,27 @@ void main() {
       expect(contrast(colors.secondSeries, colors.border), greaterThan(2.5));
     });
 
+    test('the third chart series is a blue, not a second grey', () {
+      // Plan's School sits beside the grey Living, so it takes a hue.
+      expect(colors.thirdSeries, BrandTokens.darkChartBlue);
+      expect(HSLColor.fromColor(colors.thirdSeries).saturation, greaterThan(0));
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkFloating,
+      ]) {
+        expect(contrast(colors.thirdSeries, surface), greaterThanOrEqualTo(3));
+      }
+      expect(
+        contrast(colors.thirdSeries, BrandTokens.darkSurface),
+        closeTo(6.70, 0.01),
+      );
+      expect(
+        contrast(colors.thirdSeries, colors.secondSeries),
+        greaterThan(1.8),
+      );
+    });
+
     test('text keeps its contrast on the softer greys', () {
       expect(
         contrast(BrandTokens.darkText, BrandTokens.darkBackground),

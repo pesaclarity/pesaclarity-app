@@ -180,6 +180,9 @@ void main() {
         for (final g in PlanGroup.values) planGroupColour(context, g),
       };
       expect(colours, hasLength(PlanGroup.values.length));
+      // Only one may be a neutral grey: two greys read as one group.
+      final greys = colours.where((c) => HSLColor.fromColor(c).saturation == 0);
+      expect(greys, hasLength(lessThanOrEqualTo(1)));
     });
   }
 

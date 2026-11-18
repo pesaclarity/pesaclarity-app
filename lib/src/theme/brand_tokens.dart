@@ -99,6 +99,13 @@ abstract final class BrandTokens {
   /// text (1.9:1), the brightened red (1.5:1) and the border (2.9:1) by
   /// lightness as well as hue. Not in the brand tokens: an app chart colour.
   static const darkChartGrey = Color(0xFF737373);
+
+  /// A blue for a chart series beside [darkChartGrey] (the Plan income
+  /// bar's School), where muted text would be a second grey. 6.7:1 on a
+  /// card and 6.0:1 on a sheet; apart from the grey (1.9:1) by lightness
+  /// and from the red, amber and green by hue. Not in the brand tokens: an
+  /// app chart colour.
+  static const darkChartBlue = Color(0xFF60A5FA);
   static const darkShadow = Color(0x00000000);
 
   /// The phone's high-contrast setting keeps the deeper near-black page.

@@ -139,6 +139,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
       ? BrandTokens.darkChartGrey
       : Color.lerp(danger, const Color(0xFF000000), 0.45)!;
 
+  /// The series beside [secondSeries]: muted grey in light, and in dark a
+  /// blue, since [secondSeries] is already a grey there.
+  Color get thirdSeries =>
+      shadow.a == 0 ? BrandTokens.darkChartBlue : textMuted;
+
   static PesaColors of(BuildContext context) =>
       Theme.of(context).extension<PesaColors>()!;
 
