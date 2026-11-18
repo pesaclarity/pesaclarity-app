@@ -43,11 +43,22 @@ class SectionLabel extends StatelessWidget {
       padding: padding,
       child: trailing == null
           ? label
-          : Row(
-              children: [
-                Expanded(child: label),
-                trailing!,
-              ],
+          // Side by side when both fit; with large text the trailing part
+          // drops under the label rather than breaking the label's word.
+          : LayoutBuilder(
+              builder: (context, constraints) => Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                    child: label,
+                  ),
+                  trailing!,
+                ],
+              ),
             ),
     );
   }

@@ -613,62 +613,79 @@ class _HealthIndexCard extends StatelessWidget {
           2 * (_healthRingStroke + 6),
     );
 
+    final healthRing = SizedBox.square(
+      dimension: ring,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: math.min(index.score, 100) / 100,
+              strokeWidth: _healthRingStroke,
+              // The band's colour on a neutral track: brand red
+              // is kept for actions.
+              color: healthBandColor(context, index.band),
+              backgroundColor: colors.border,
+            ),
+          ),
+          Text('${index.score}', style: figure),
+        ],
+      ),
+    );
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Financial health · ${index.band.label}',
+          style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          headline,
+          style: theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted),
+        ),
+        if (action != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Weakest: ${action.indicator.label.toLowerCase()}. '
+            '${action.message}',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      ],
+    );
+    final chevron = Icon(Icons.chevron_right, color: colors.textMuted);
+    // With very large text the ring leaves too little room beside it for a
+    // long word, so it goes above the words instead.
+    final stacked = MediaQuery.textScalerOf(context).scale(1) >= 1.75;
+
     return Card(
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Row(
-            children: [
-              SizedBox.square(
-                dimension: ring,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: math.min(index.score, 100) / 100,
-                        strokeWidth: _healthRingStroke,
-                        // The band's colour on a neutral track: brand red
-                        // is kept for actions.
-                        color: healthBandColor(context, index.band),
-                        backgroundColor: colors.border,
-                      ),
-                    ),
-                    Text('${index.score}', style: figure),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+          child: stacked
+              ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Financial health · ${index.band.label}',
-                      style: theme.textTheme.titleMedium,
+                    healthRing,
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: details),
+                        chevron,
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      headline,
-                      style: theme.textTheme.bodyMedium!.copyWith(
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    if (action != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Weakest: ${action.indicator.label.toLowerCase()}. '
-                        '${action.message}',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
+                  ],
+                )
+              : Row(
+                  children: [
+                    healthRing,
+                    const SizedBox(width: 16),
+                    Expanded(child: details),
+                    chevron,
                   ],
                 ),
-              ),
-              Icon(Icons.chevron_right, color: colors.textMuted),
-            ],
-          ),
         ),
       ),
     );

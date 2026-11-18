@@ -394,10 +394,12 @@ class _SoFarCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
+            // Wraps onto two lines when large text makes both too wide.
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
               children: [
                 _Key(color: PesaColors.of(context).link, label: 'This $name'),
-                const SizedBox(width: 16),
                 _Key(
                   color: colors.textMuted,
                   label: 'Last $name',
@@ -421,6 +423,7 @@ class _Key extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
     children: [
       Container(
         width: 14,
