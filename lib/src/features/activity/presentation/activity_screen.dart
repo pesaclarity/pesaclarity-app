@@ -345,8 +345,10 @@ class _WeekCard extends StatelessWidget {
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
     // A long amount with its code wraps and the card grows; money is
     // never shrunk to fit.
-    Widget figure(String text, Color color, TextAlign align) =>
-        Text(text, textAlign: align, style: AppTypography.tileFigure(color));
+    Widget figure(String text, Color color, TextAlign align) => readAsAmount(
+      text,
+      Text(text, textAlign: align, style: AppTypography.tileFigure(color)),
+    );
     final out = _orHidden(
       context,
       code == null
@@ -684,10 +686,14 @@ class _ActivityRow extends StatelessWidget {
   }) {
     final colors = PesaColors.of(context);
     final inflow = signedMinor > 0 && !borrowed;
-    return Text(
-      _orHidden(context, _signed(signedMinor, code: code)),
-      style: AppTypography.rowAmount(
-        inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
+    final text = _orHidden(context, _signed(signedMinor, code: code));
+    return readAsAmount(
+      text,
+      Text(
+        text,
+        style: AppTypography.rowAmount(
+          inflow ? colors.successText : Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
@@ -729,15 +735,19 @@ class _ActivityRow extends StatelessWidget {
         : ownCode != null
         ? 'Not in totals yet'
         : null;
-    if (under == null) return Text(main, style: style);
+    final mainText = readAsAmount(main, Text(main, style: style));
+    if (under == null) return mainText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(main, style: style),
-        Text(
+        mainText,
+        readAsAmount(
           under,
-          style: Theme.of(context).textTheme.bodySmall!
-              .copyWith(color: colors.textMuted),
+          Text(
+            under,
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: colors.textMuted),
+          ),
         ),
       ],
     );
@@ -912,27 +922,33 @@ class _Choosable extends StatelessWidget {
     if (id == null) return child;
     final choosing = chosen.isNotEmpty;
     final on = chosen.contains(id);
-    return GestureDetector(
-      key: Key('activity-choose-$id'),
-      behavior: HitTestBehavior.opaque,
-      onLongPress: () => onToggle(id),
-      onTap: choosing ? () => onToggle(id) : null,
-      child: Row(
-        children: [
-          if (choosing)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                on ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: on
-                    ? Theme.of(context).colorScheme.onSurface
-                    : PesaColors.of(context).textMuted,
+    // Screen readers say whether a row is chosen, and that a long press
+    // chooses it.
+    return Semantics(
+      checked: choosing ? on : null,
+      onLongPressHint: 'Choose',
+      child: GestureDetector(
+        key: Key('activity-choose-$id'),
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () => onToggle(id),
+        onTap: choosing ? () => onToggle(id) : null,
+        child: Row(
+          children: [
+            if (choosing)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  on ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: on
+                      ? Theme.of(context).colorScheme.onSurface
+                      : PesaColors.of(context).textMuted,
+                ),
               ),
+            Expanded(
+              child: AbsorbPointer(absorbing: choosing, child: child),
             ),
-          Expanded(
-            child: AbsorbPointer(absorbing: choosing, child: child),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

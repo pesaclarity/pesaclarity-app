@@ -57,7 +57,10 @@ class SheetBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (title != null)
-              Text(title!, style: theme.textTheme.headlineSmall),
+              Semantics(
+                header: true,
+                child: Text(title!, style: theme.textTheme.headlineSmall),
+              ),
             if (subtitle != null) ...[
               const SizedBox(height: 4),
               Text(

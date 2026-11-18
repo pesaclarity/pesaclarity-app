@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import 'amounts_hidden.dart';
 
 /// An amount, such as `24,330.50` or `KES 102,865`, laid out as one piece
 /// that never breaks inside the number.
@@ -42,9 +43,12 @@ class FigureText extends StatelessWidget {
       if (number <= constraints.maxWidth) {
         // The number has no break in it, so a line can only end at the
         // space before it.
-        return Text(value, style: style);
+        return readAsAmount(value, Text(value, style: style));
       }
-      return _FadingScroll(child: Text(value, style: style, softWrap: false));
+      return readAsAmount(
+        value,
+        _FadingScroll(child: Text(value, style: style, softWrap: false)),
+      );
     },
   );
 }

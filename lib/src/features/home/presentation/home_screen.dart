@@ -322,6 +322,7 @@ class _Header extends ConsumerWidget {
               ),
               Semantics(
                 identifier: SemanticIds.titleHome,
+                header: true,
                 // A business calls its first tab Today.
                 child: Text(
                   space.kind == SpaceKind.business ? 'Today' : 'Home',

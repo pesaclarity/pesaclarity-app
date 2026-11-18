@@ -789,6 +789,7 @@ class _Tile extends StatelessWidget {
                     backgroundColor: theme.colorScheme.primary,
                     child: Text(
                       quantityText(count),
+                      semanticsLabel: '${quantityText(count)} in the sale',
                       style: theme.textTheme.labelMedium!.copyWith(
                         color: theme.colorScheme.onPrimary,
                       ),
