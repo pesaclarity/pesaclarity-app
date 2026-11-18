@@ -5,6 +5,7 @@ import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/not_yet_sorted.dart';
 import '../../../domain/reader/message_reading.dart';
+import '../../../domain/reader/model_reader.dart';
 import '../../accounts/domain/institution.dart';
 import '../../review/application/review_draft.dart';
 import '../../review/application/review_providers.dart';
@@ -27,24 +28,30 @@ final notYetSortedProvider = FutureProvider<NotYetSorted>((ref) async {
       ? null
       : await ref.watch(messageReaderProvider.future);
   final catalogue = ref.watch(institutionCatalogueProvider);
+  // Every message to check at once, off the UI thread where the reader can.
+  final readings = reader == null
+      ? null
+      : await readMessages(reader, [for (final item in items) item.body ?? '']);
   return NotYetSorted.of(entries, [
-    for (final item in items)
-      messageToCheck(item, reader: reader, institutions: catalogue),
+    for (final (i, item) in items.indexed)
+      messageToCheck(
+        item,
+        reading: item.body == null ? null : readings?[i],
+        institutions: catalogue,
+      ),
   ]);
 });
 
-/// What [reader] makes of [item]'s amount, in the currency it would be
-/// added in: the one printed with the amount, else the institution's.
+/// What [reading] of [item]'s message makes of its amount, in the currency
+/// it would be added in: the one printed with the amount, else the
+/// institution's.
 MessageToCheck messageToCheck(
   ReviewItem item, {
-  required MessageReader? reader,
+  required MessageReading? reading,
   required List<Institution> institutions,
 }) {
-  final body = item.body;
-  if (reader == null || body == null) {
-    return (amountMinor: null, currency: null);
-  }
-  final draft = ReviewDraft.fromReading(reader.read(body));
+  if (reading == null) return (amountMinor: null, currency: null);
+  final draft = ReviewDraft.fromReading(reading);
   if (!draft.isComplete) return (amountMinor: null, currency: null);
   String? packCurrency;
   for (final i in institutions) {

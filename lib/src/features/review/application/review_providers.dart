@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
@@ -14,37 +11,37 @@ import '../../../domain/reader/fuliza_wording.dart';
 import '../../../domain/reader/message_reading.dart';
 import '../../../domain/reader/reader_tokens.dart';
 import '../../../domain/reader/reading_template.dart';
-import '../../../domain/reader/rule_reader.dart';
 import '../../accounts/domain/institution.dart';
+import '../../ask/data/ask_model_store.dart' show AssetReader;
+import '../data/rayo_reader_runtime.dart';
 import '../data/reader_store.dart';
 import 'review_draft.dart';
 
-/// Opens an installed reader model. None ships yet, and the app has no
-/// runtime for one: rayo will run it once pesaclarity-ml exports it with a
-/// graph (pesaclarity/docs decision 0020). Until then this is null and the
-/// rules reader is used. Override in tests with a fake.
+/// Opens `reader.weights` on rayo, the same in every build. Where rayo's
+/// library cannot load, the review inbox uses the rules reader. Override
+/// with null to use the rules only, or with a fake in tests.
 final readerRuntimeOpenerProvider = Provider<ReaderRuntimeOpener?>(
-  (ref) => null,
+  (ref) => openMessageReader,
 );
 
-/// Where an installed reader model is read from. No model ships with the
-/// app yet; until one is installed the rules reader is used.
-final readerFolderProvider = FutureProvider<Directory>(
-  (ref) async => Directory(
-    p.join((await getApplicationSupportDirectory()).path, readerFolderName),
-  ),
+/// Reads the bundled reader files; null when absent.
+final readerAssetReaderProvider = Provider<AssetReader>(
+  (ref) => (path) async {
+    try {
+      final data = await rootBundle.load(path);
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } on Object {
+      return null;
+    }
+  },
 );
 
-/// The trained reader when installed, else the rules reader.
+/// The trained reader (`assets/models/reader/reader.weights`) when bundled
+/// and rayo runs it, else the rules reader. Loaded the first time a message
+/// needs reading.
 final messageReaderProvider = FutureProvider<MessageReader>((ref) async {
-  final Directory folder;
-  try {
-    folder = await ref.watch(readerFolderProvider.future);
-  } on Object {
-    return const RuleMessageReader();
-  }
   final reader = await loadReader(
-    folder,
+    readAsset: ref.watch(readerAssetReaderProvider),
     openRuntime: ref.watch(readerRuntimeOpenerProvider),
   );
   ref.onDispose(reader.close);

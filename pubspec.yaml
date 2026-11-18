@@ -74,6 +74,8 @@ flutter:
     - assets/tax/
     # Ask's question reader, exported by pesaclarity-ml (akili ask-reader).
     - assets/models/ask/
+    # The message reader, exported by pesaclarity-ml (akili reader).
+    - assets/models/reader/
   fonts:
     - family: SpaceGrotesk
       fonts:

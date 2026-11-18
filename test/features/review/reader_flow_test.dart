@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' show sha256;
@@ -55,15 +54,22 @@ class _FakeRuntime implements ReaderRuntime {
 
 void main() {
   group('loading the reader', () {
-    late Directory folder;
-    setUp(() => folder = Directory.systemTemp.createTempSync('reader'));
-    tearDown(() => folder.deleteSync(recursive: true));
+    late Map<String, Uint8List> assets;
+    setUp(() => assets = {});
+    Future<Uint8List?> readAsset(String path) async => assets[path];
+    void bundle(String name, List<int> bytes) =>
+        assets['$readerModelFolder/$name'] = Uint8List.fromList(bytes);
 
     final model = Uint8List.fromList(List.generate(64, (i) => i));
-    Map<String, Object?> manifest({int schema = readerSchemaVersion}) => {
-      'model_file': 'reader.tflite',
-      'model_sha256': sha256.convert(model).toString(),
-      'model_size_bytes': model.length,
+    Map<String, Object?> manifest({
+      int schema = readerSchemaVersion,
+      int format = 1,
+      String file = 'reader.weights',
+    }) => {
+      'weights_file': file,
+      'weights_sha256': sha256.convert(model).toString(),
+      'weights_size_bytes': model.length,
+      'weights_format_version': format,
       'reader_schema_version': schema,
       'max_tokens': readerMaxTokens,
       'hash_buckets': readerHashBuckets,
@@ -85,41 +91,72 @@ void main() {
         },
       },
     };
+    void bundleManifest(Map<String, Object?> json) =>
+        bundle(readerManifestFile, utf8.encode(jsonEncode(json)));
 
     Future<MessageReader> load() =>
-        loadReader(folder, openRuntime: (_) => _FakeRuntime());
+        loadReader(readAsset: readAsset, openRuntime: (_) => _FakeRuntime());
 
-    test('uses the rules until a model is installed', () async {
+    test('uses the rules when no model is bundled', () async {
       expect(await load(), isA<RuleMessageReader>());
     });
 
-    test('opens an installed model that fits', () async {
-      File('${folder.path}/reader.tflite').writeAsBytesSync(model);
-      File('${folder.path}/$readerManifestFile')
-          .writeAsStringSync(jsonEncode(manifest()));
+    test('opens a bundled model that fits', () async {
+      bundle('reader.weights', model);
+      bundleManifest(manifest());
       final reader = await load();
       expect(reader, isA<ModelMessageReader>());
       expect(reader.read('Hello').kind, MessageKind.notTransaction);
     });
 
     test('uses the rules when the build has no runtime', () async {
-      File('${folder.path}/reader.tflite').writeAsBytesSync(model);
-      File('${folder.path}/$readerManifestFile')
-          .writeAsStringSync(jsonEncode(manifest()));
+      bundle('reader.weights', model);
+      bundleManifest(manifest());
       expect(
-        await loadReader(folder, openRuntime: null),
+        await loadReader(readAsset: readAsset, openRuntime: null),
+        isA<RuleMessageReader>(),
+      );
+    });
+
+    test('uses the rules when the runtime cannot open the file', () async {
+      bundle('reader.weights', model);
+      bundleManifest(manifest());
+      expect(
+        await loadReader(
+          readAsset: readAsset,
+          openRuntime: (_) => throw StateError('no rayo here'),
+        ),
         isA<RuleMessageReader>(),
       );
     });
 
     test('refuses a model for another schema or with other bytes', () async {
-      File('${folder.path}/reader.tflite').writeAsBytesSync(model);
-      File('${folder.path}/$readerManifestFile')
-          .writeAsStringSync(jsonEncode(manifest(schema: 99)));
+      bundle('reader.weights', model);
+      bundleManifest(manifest(schema: 99));
       expect(await load(), isA<RuleMessageReader>());
-      File('${folder.path}/$readerManifestFile')
-          .writeAsStringSync(jsonEncode(manifest()));
-      File('${folder.path}/reader.tflite').writeAsBytesSync([1, 2, 3]);
+      bundleManifest(manifest(format: 2));
+      expect(await load(), isA<RuleMessageReader>());
+      bundleManifest(manifest(file: '../reader.weights'));
+      expect(await load(), isA<RuleMessageReader>());
+      bundleManifest(manifest());
+      bundle('reader.weights', [1, 2, 3]);
+      expect(await load(), isA<RuleMessageReader>());
+      bundle('reader.weights', [...model.reversed]);
+      expect(await load(), isA<RuleMessageReader>());
+    });
+
+    test('the old manifest, naming reader.tflite, is not read', () async {
+      bundle('reader.tflite', model);
+      bundleManifest({
+        ...manifest()
+          ..remove('weights_file')
+          ..remove('weights_sha256')
+          ..remove('weights_size_bytes')
+          ..remove('weights_format_version'),
+        'model_file': 'reader.tflite',
+        'model_sha256': sha256.convert(model).toString(),
+        'model_size_bytes': model.length,
+      });
       expect(await load(), isA<RuleMessageReader>());
     });
   });
