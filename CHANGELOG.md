@@ -2,6 +2,14 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from pull request titles.
 
+## [0.5.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.4.0...v0.5.0) (2026-11-18)
+
+
+### Features
+
+* ask reader v3 on rayo a64d855 ([#276](https://github.com/pesaclarity/pesaclarity-app/issues/276)) ([c6d4e54](https://github.com/pesaclarity/pesaclarity-app/commit/c6d4e54dd424c40e001122589a6e0f64358930be))
+* run the Ask models on rayo, and remove TFLite ([#275](https://github.com/pesaclarity/pesaclarity-app/issues/275)) ([cf82f84](https://github.com/pesaclarity/pesaclarity-app/commit/cf82f84748006d28dff32653be5be1f340e2131a))
+
 ## [0.4.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.3.0...v0.4.0) (2026-11-17)
 
 
