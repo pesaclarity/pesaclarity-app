@@ -287,6 +287,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import a statement'));
     await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Choose a PDF'));
     expect(find.text('Choose a PDF'), findsOneWidget);
   });
 

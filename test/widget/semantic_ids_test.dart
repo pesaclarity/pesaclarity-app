@@ -8,6 +8,14 @@ import '../helpers/test_app.dart';
 // test fails first if a refactor drops one.
 void main() {
   Future<void> tapId(WidgetTester tester, String id) async {
+    // A long screen builds what is below the fold only once scrolled to.
+    if (find.bySemanticsIdentifier(id).evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        find.bySemanticsIdentifier(id),
+        300,
+        scrollable: find.byType(Scrollable).hitTestable().first,
+      );
+    }
     await tester.ensureVisible(find.bySemanticsIdentifier(id));
     await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsIdentifier(id));

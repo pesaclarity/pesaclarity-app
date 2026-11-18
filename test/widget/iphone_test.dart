@@ -96,7 +96,7 @@ void main() {
     ) async {
       final theme = AppTheme.light;
       expect(theme.platform, TargetPlatform.android);
-      expect(theme.textTheme.bodyLarge!.fontSize, 16);
+      expect(theme.textTheme.bodyLarge!.fontSize, 17);
       expect(theme.textTheme.bodyLarge!.fontFamily, 'Inter');
       expect(theme.textTheme.displaySmall!.fontFamily, 'SpaceGrotesk');
       expect(
@@ -117,6 +117,7 @@ void main() {
       );
       expect(find.text('Allow access to messages'), findsNothing);
 
+      await scrollTo(tester, find.byKey(const Key('connect-open-shortcuts')));
       await tester.tap(find.byKey(const Key('connect-open-shortcuts')));
       await tester.pumpAndSettle();
       expect(shortcuts.opened, 1);

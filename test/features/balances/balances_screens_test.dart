@@ -141,8 +141,18 @@ void main() {
     );
     final bar = find.byKey(const Key('ask-bar'));
     final barHeight = tester.getSize(bar).height;
-    await tester.drag(find.byType(ListView).first, const Offset(0, -4000));
-    await settle(tester);
+    // The list builds rows as they come into view, so its length grows as
+    // it scrolls: drag until it stops at the end.
+    final list = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byType(ListView).first,
+        matching: find.byType(Scrollable),
+      ),
+    );
+    do {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -4000));
+      await settle(tester);
+    } while (list.position.pixels < list.position.maxScrollExtent);
     final barTop =
         tester.getBottomLeft(find.byType(AskBarScope)).dy -
         AskBarScope.margin.bottom -
