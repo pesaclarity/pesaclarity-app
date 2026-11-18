@@ -104,9 +104,16 @@ void main() {
       final figure = tester.widget<Text>(
         find.descendant(of: onHand, matching: find.text('-1,150')),
       );
-      // The danger colour on the plain tile; the red lead card keeps its
-      // figure white.
-      expect(figure.style!.color, colors.danger);
+      // Red text on the plain tile: brand red in light, brightened in dark
+      // to read on a card (where brand red is 2.9:1); the red lead card
+      // keeps its figure white.
+      expect(figure.style!.color, theme.colorScheme.error);
+      expect(
+        figure.style!.color,
+        theme.brightness == Brightness.dark
+            ? colors.link
+            : const Color(0xFFC8102E),
+      );
       expect(
         tester.widget<Text>(find.text('KES 0')).style!.color,
         theme.colorScheme.onPrimary,

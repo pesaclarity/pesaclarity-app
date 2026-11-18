@@ -56,9 +56,7 @@ class AskHomeButton extends ConsumerWidget {
           foregroundColor: away
               ? PesaColors.of(context).link
               : theme.colorScheme.onSurface,
-          side: BorderSide(
-            color: away ? theme.colorScheme.primary : colors.border,
-          ),
+          side: BorderSide(color: away ? colors.link : colors.border),
         ),
         icon: const Icon(Icons.chat_bubble_outline),
         onPressed: () => context.push(AppRoutes.ask),

@@ -24,7 +24,8 @@ class AskSettingsScreen extends ConsumerWidget {
     final settings =
         ref.watch(askSettingsProvider).value ?? const AskSettings();
     final controller = ref.read(askSettingsProvider.notifier);
-    final danger = theme.colorScheme.primary;
+    // Small red text: brand red in light, brightened in dark.
+    final danger = theme.colorScheme.error;
     return Scaffold(
       appBar: AppBar(title: const Text(AskStrings.settings)),
       body: ListView(

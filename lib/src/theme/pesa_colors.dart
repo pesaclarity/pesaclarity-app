@@ -89,9 +89,10 @@ class PesaColors extends ThemeExtension<PesaColors> {
   /// The worse of two warnings, such as a struggling health score.
   final Color warningStrong;
 
-  /// Below zero in a large figure, such as a lead card's or a tile's, and
-  /// a destructive button's fill: brand red in light and dark. Small text
-  /// takes the colour scheme's `error`, which dark brightens to read.
+  /// A destructive button's fill: brand red in light and dark, with white
+  /// text on it. Red text, including a large figure below zero, takes the
+  /// colour scheme's `error`, and a red edge takes [link]; dark brightens
+  /// both to read on a card.
   final Color danger;
 
   /// Only for marking the parts of a message, each its own colour.

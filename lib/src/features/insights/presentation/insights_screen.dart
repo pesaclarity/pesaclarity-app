@@ -282,10 +282,11 @@ class _LeakageCard extends StatelessWidget {
     );
 
     return Card(
-      // Picked out with a brand-coloured edge.
+      // Picked out with a red edge: the link red, which keeps 3:1 on a
+      // dark card where brand red does not.
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+        side: BorderSide(color: PesaColors.of(context).link),
       ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),

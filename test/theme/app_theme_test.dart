@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/domain/look/look_settings.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 import 'package:pesaclarity/src/theme/brand_tokens.dart';
 import 'package:pesaclarity/src/theme/pesa_colors.dart';
@@ -39,16 +40,17 @@ void main() {
       // The same red as light, with white text on it.
       expect(theme.colorScheme.primary, const Color(0xFFC8102E));
       expect(theme.colorScheme.onPrimary, const Color(0xFFFFFFFF));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFF0A0A0A));
-      expect(theme.colorScheme.surface, const Color(0xFF171717));
-      expect(theme.colorScheme.onSurface, const Color(0xFFE5E5E5));
+      // A soft dark: grey page and cards, not near black.
+      expect(theme.scaffoldBackgroundColor, const Color(0xFF121212));
+      expect(theme.colorScheme.surface, const Color(0xFF1C1C1C));
+      expect(theme.colorScheme.onSurface, const Color(0xFFE0E0E0));
       expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFA3A3A3));
     });
 
     test('floats sheets and menus on a lighter surface, without shadows', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(colors.field, const Color(0xFF1F1F1F));
-      expect(colors.floating, const Color(0xFF242424));
+      expect(colors.field, const Color(0xFF222222));
+      expect(colors.floating, const Color(0xFF262626));
       expect(colors.border, const Color(0xFF2E2E2E));
       expect(colors.floatingShadow, isEmpty);
       expect(theme.bottomSheetTheme.backgroundColor, colors.floating);
@@ -69,19 +71,74 @@ void main() {
     // The hue of a colour, in degrees.
     double hue(Color c) => HSLColor.fromColor(c).hue;
 
-    test('danger is brand red, for fills and large figures', () {
+    test('danger is brand red, a fill only', () {
       expect(colors.danger, const Color(0xFFC8102E));
       expect(colors.danger, theme.colorScheme.primary);
-      // 3:1 for a large figure on a card and on the page.
-      expect(contrast(colors.danger, BrandTokens.darkSurface), greaterThan(3));
-      expect(
-        contrast(colors.danger, BrandTokens.darkBackground),
-        greaterThan(3),
-      );
       // White on the red fill.
       expect(
         contrast(BrandTokens.darkOnBrand, colors.danger),
         greaterThan(4.5),
+      );
+      // Under 3:1 on a dark card, so never red text or a red edge there.
+      expect(contrast(colors.danger, BrandTokens.darkSurface), lessThan(3));
+    });
+
+    test('red figures and edges on dark use the brightened red', () {
+      // A large figure below zero takes error; a red edge takes link.
+      expect(theme.colorScheme.error, const Color(0xFFFF4D6A));
+      expect(colors.link, const Color(0xFFFF4D6A));
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkField,
+        BrandTokens.darkFloating,
+      ]) {
+        expect(contrast(colors.link, surface), greaterThanOrEqualTo(3));
+      }
+      // 5.29:1 on a card.
+      expect(
+        contrast(colors.link, BrandTokens.darkSurface),
+        closeTo(5.29, 0.01),
+      );
+    });
+
+    test('text keeps its contrast on the softer greys', () {
+      expect(
+        contrast(BrandTokens.darkText, BrandTokens.darkBackground),
+        closeTo(14.19, 0.01),
+      );
+      expect(
+        contrast(BrandTokens.darkText, BrandTokens.darkSurface),
+        closeTo(12.91, 0.01),
+      );
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkField,
+        BrandTokens.darkFloating,
+        BrandTokens.darkSelected,
+      ]) {
+        expect(
+          contrast(BrandTokens.darkTextMuted, surface),
+          greaterThanOrEqualTo(4.5),
+        );
+      }
+    });
+
+    test('focus, cursor and chosen controls are in the link red', () {
+      expect(theme.textSelectionTheme.cursorColor, colors.link);
+      expect(theme.progressIndicatorTheme.color, colors.link);
+      expect(
+        theme.radioTheme.fillColor!.resolve({WidgetState.selected}),
+        colors.link,
+      );
+      final focused =
+          theme.inputDecorationTheme.focusedBorder! as UnderlineInputBorder;
+      expect(focused.borderSide.color, colors.link);
+      final boxed = AppTheme.withFields(theme, FieldStyle.boxed);
+      expect(
+        boxed.inputDecorationTheme.focusedBorder!.borderSide.color,
+        colors.link,
       );
     });
 
@@ -110,7 +167,7 @@ void main() {
         expect(tint.b, lessThanOrEqualTo(tint.g), reason: '$tint');
       }
       expect(colors.brandSoft, const Color(0xFF262626));
-      expect(colors.selected, const Color(0xFF383838));
+      expect(colors.selected, const Color(0xFF333333));
     });
 
     test('light keeps its reds', () {
@@ -126,6 +183,8 @@ void main() {
       final theme = AppTheme.darkHighContrast;
       final colors = theme.extension<PesaColors>()!;
       expect(theme.brightness, Brightness.dark);
+      // Keeps the deeper near-black page of the old dark.
+      expect(theme.scaffoldBackgroundColor, const Color(0xFF0A0A0A));
       expect(theme.colorScheme.onSurface, const Color(0xFFF5F5F5));
       expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFCCCCCC));
       expect(colors.textMuted, const Color(0xFFCCCCCC));

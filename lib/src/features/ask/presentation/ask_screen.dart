@@ -529,7 +529,8 @@ class _InputBar extends StatelessWidget {
 Future<void> showAskMenu(BuildContext context, WidgetRef ref) {
   final session = ref.read(askControllerProvider);
   final controller = ref.read(askControllerProvider.notifier);
-  final danger = Theme.of(context).colorScheme.primary;
+  // Small red text: brand red in light, brightened in dark.
+  final danger = Theme.of(context).colorScheme.error;
   return showAppSheet<void>(
     context: context,
     builder: (sheet) => SheetBody(

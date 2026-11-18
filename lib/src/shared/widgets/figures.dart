@@ -216,7 +216,11 @@ class FigureTile extends StatelessWidget {
                     FigureText(
                       value,
                       style: AppTypography.tileFigure(
-                        belowZero ? colors.danger : theme.colorScheme.onSurface,
+                        belowZero
+                            // Brand red in light, brightened in dark to
+                            // read on a card.
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onSurface,
                       ),
                     ),
                     if (note != null) ...[

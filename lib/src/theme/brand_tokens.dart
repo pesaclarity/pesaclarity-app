@@ -47,22 +47,30 @@ abstract final class BrandTokens {
   static const hcTextMuted = Color(0xFF404040);
   static const hcBorder = Color(0xFFC4C4C4);
 
-  /// Dark surfaces climb a gentle ladder of neutral near-blacks: page, card,
-  /// chip or field, then floating parts (tab bar, sheets, menus).
-  static const darkBackground = Color(0xFF0A0A0A);
-  static const darkSurface = Color(0xFF171717);
-  static const darkField = Color(0xFF1F1F1F);
-  static const darkFloating = Color(0xFF242424);
+  /// Dark is a soft dark: surfaces climb a gentle ladder of neutral greys
+  /// rather than near-blacks, so it glares less. Page, card, chip or field,
+  /// then floating parts (tab bar, sheets, menus).
+  static const darkBackground = Color(0xFF121212);
+  static const darkSurface = Color(0xFF1C1C1C);
+  static const darkField = Color(0xFF222222);
+  static const darkFloating = Color(0xFF262626);
   static const darkBorder = Color(0xFF2E2E2E);
 
-  /// Moderate rather than maximal contrast (both pass 4.5:1), easier on
-  /// eyes with astigmatism or light sensitivity.
-  static const darkText = Color(0xFFE5E5E5);
+  /// Moderate rather than maximal contrast, easier on eyes with astigmatism
+  /// or light sensitivity: text 14.2:1 on the page and 12.9:1 on a card,
+  /// muted text 7.4:1 and 6.8:1.
+  static const darkText = Color(0xFFE0E0E0);
   static const darkTextMuted = Color(0xFFA3A3A3);
 
-  /// The same red as light, with white text on it.
+  /// The same red as light, a fill only, with white text on it (5.9:1).
+  /// On a dark card it is 2.9:1, so red text, large red figures and red
+  /// edges on dark take [darkBrandLink] instead.
   static const darkBrand = Color(0xFFC8102E);
   static const darkOnBrand = Color(0xFFFFFFFF);
+
+  /// The brand red's hue brightened to read on dark: links, the current tab,
+  /// progress, chosen options, red edges and large red figures. 5.8:1 on the
+  /// page, 5.3:1 on a card.
   static const darkBrandLink = Color(0xFFFF4D6A);
 
   /// A soft neutral tint, never pink.
@@ -72,19 +80,22 @@ abstract final class BrandTokens {
   static const darkWarning = Color(0xFFFBBF24);
   static const darkWarningStrong = Color(0xFFFB923C);
 
-  /// Danger in dark is brand red too, for fills and large figures (3.0:1
-  /// on a card, 3.4:1 on the page).
+  /// Danger in dark is brand red too, as a fill only (a destructive
+  /// button), with white text on it.
   static const darkDanger = Color(0xFFC8102E);
 
-  /// The same hue as brand red, brightened only as far as small text needs:
-  /// 4.8:1 on a sheet, 5.6:1 on a card, 6.2:1 on the page.
+  /// The same hue as brand red, brightened to read on dark: danger text and
+  /// large figures below zero. 4.7:1 on a sheet, 5.3:1 on a card, 5.8:1 on
+  /// the page.
   static const darkDangerText = Color(0xFFFF4D6A);
   static const darkMarkBlue = Color(0xFF60A5FA);
   static const darkMarkPurple = Color(0xFFA78BFA);
   static const darkMarkTeal = Color(0xFF2DD4BF);
-  static const darkSelected = Color(0xFF383838);
+  static const darkSelected = Color(0xFF333333);
   static const darkShadow = Color(0x00000000);
 
+  /// The phone's high-contrast setting keeps the deeper near-black page.
+  static const darkHcBackground = Color(0xFF0A0A0A);
   static const darkHcText = Color(0xFFF5F5F5);
   static const darkHcTextMuted = Color(0xFFCCCCCC);
   static const darkHcBorder = Color(0xFF525252);
