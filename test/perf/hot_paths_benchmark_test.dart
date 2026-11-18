@@ -99,7 +99,7 @@ void main() {
     final cpuAfter = processCpuMicros();
     check('journal first sync', (
       wall: watch.elapsed,
-      cpu: cpu == null || cpuAfter == null
+      cpu: cpu == null || cpuAfter == null || cpuAfter < cpu
           ? null
           : Duration(microseconds: cpuAfter - cpu),
     ));

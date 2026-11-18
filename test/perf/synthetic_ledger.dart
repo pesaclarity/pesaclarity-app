@@ -213,7 +213,9 @@ Future<Timing> medianTime(Future<void> Function() body, {int runs = 5}) async {
     await body();
     walls.add(watch.elapsedMicroseconds);
     final after = processCpuMicros();
-    if (cpu != null && after != null) cpus.add(after - cpu);
+    // A thread that ended during the run takes its time with it; such a
+    // reading can come out below zero, so it is left out.
+    if (cpu != null && after != null && after >= cpu) cpus.add(after - cpu);
   }
   int median(List<int> xs) => (xs..sort())[xs.length ~/ 2];
   return (
