@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Before a push: every commit being pushed needs a Conventional Commits title
-# (release-please builds the version and changelog from them), then the full
+# (release-please builds the version and changelog from them, and pull requests
+# are rebase-merged, so fixup!/squash!/amend! titles fail on purpose), then the full
 # tool/check must pass. Skip both in an emergency with: git push --no-verify
 set -uo pipefail
 
@@ -28,6 +29,8 @@ if [ -n "$bad" ]; then
   echo "Start each with a type, e.g. 'feat: add debts screen', 'fix: keep footers out of rows'"
   echo "or 'feat!: change the backup format'. Types: ${COMMIT_TYPES//|/, }."
   echo "Reword them with: git rebase -i <base>  (then 'reword' each one)"
+  echo "Pull requests are rebase-merged, so instead of a fixup!/squash!/amend! commit write a"
+  echo "Conventional Commit, e.g. 'refactor: name the payee rules'."
   exit 1
 fi
 
