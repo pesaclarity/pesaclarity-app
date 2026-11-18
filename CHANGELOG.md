@@ -5,9 +5,9 @@ All notable changes to the app. Versions follow [semantic versioning](https://se
 ## [0.5.1](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.0...v0.5.1) (2026-11-18)
 
 
-### Chores
+### Documentation
 
-* release 0.5.1 ([#283](https://github.com/pesaclarity/pesaclarity-app/issues/283)) ([b40637c](https://github.com/pesaclarity/pesaclarity-app/commit/b40637cd8647067258e7ce10bc09c2140d26f86c))
+* privacy policy 2.2: the website section now says the site keeps your light or dark theme choice in your browser; nothing about the app changed ([#281](https://github.com/pesaclarity/pesaclarity-app/issues/281))
 
 ## [0.5.0](https://github.com/pesaclarity/pesaclarity-app/compare/v0.4.0...v0.5.0) (2026-11-18)
 
