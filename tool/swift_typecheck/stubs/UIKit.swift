@@ -18,6 +18,7 @@ open class UIViewController: UIResponder {
   public var presentedViewController: UIViewController? { nil }
   public var popoverPresentationController: UIPopoverPresentationController? { nil }
   open func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)? = nil) {}
+  open func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {}
 }
 open class UIPopoverPresentationController: NSObject { public var sourceView: UIView? }
 
@@ -36,8 +37,35 @@ open class UIApplication: UIResponder {
 }
 
 open class UIDevice: NSObject {
+  public enum BatteryState: Int { case unknown, unplugged, charging, full }
   public class var current: UIDevice { UIDevice() }
   public var name: String { "" }
+  open var isBatteryMonitoringEnabled: Bool = false
+  open var batteryState: BatteryState { .unknown }
+}
+
+open class UIImage: NSObject {
+  public func jpegData(compressionQuality: CGFloat) -> Data? { nil }
+}
+
+public protocol UINavigationControllerDelegate: NSObjectProtocol {}
+open class UINavigationController: UIViewController {}
+public protocol UIImagePickerControllerDelegate: NSObjectProtocol {}
+// The delegate's methods are optional in Apple's Objective-C protocol.
+extension UIImagePickerControllerDelegate {
+  public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {}
+  public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {}
+}
+open class UIImagePickerController: UINavigationController {
+  public enum SourceType: Int { case photoLibrary, camera, savedPhotosAlbum }
+  public struct InfoKey: Hashable, RawRepresentable {
+    public var rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public static let originalImage = InfoKey(rawValue: "UIImagePickerControllerOriginalImage")
+  }
+  open class func isSourceTypeAvailable(_ sourceType: SourceType) -> Bool { false }
+  open var sourceType: SourceType = .photoLibrary
+  weak open var delegate: (UIImagePickerControllerDelegate & UINavigationControllerDelegate)?
 }
 
 open class UIActivity: NSObject {}

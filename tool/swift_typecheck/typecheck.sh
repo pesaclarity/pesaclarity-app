@@ -21,7 +21,7 @@ docker run --rm -v "$here:/check:ro" -v "$repo/ios/Runner:/runner:ro" "$image" b
   cp /runner/*.swift "$work/src/"
   # Linux Swift has no Objective-C runtime.
   sed -i "s/@objc class /class /" "$work/src/"*.swift
-  for module in UIKit UniformTypeIdentifiers UserNotifications Flutter DeviceCheck AppIntents; do
+  for module in UIKit UniformTypeIdentifiers UserNotifications Flutter DeviceCheck AppIntents ContactsUI; do
     swiftc -swift-version 5 -parse-as-library -emit-module -module-name "$module" \
       -I "$work/out" -o "$work/out/$module.swiftmodule" "/check/stubs/$module.swift"
   done
