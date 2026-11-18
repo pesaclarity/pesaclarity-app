@@ -144,6 +144,97 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     );
 
     final askFilter = askAboutFilter(_filter, categories, today);
+    final head = <Widget>[
+      if (_chosen.isEmpty)
+        const TabHeader(
+          'Activity',
+          semanticsId: SemanticIds.titleActivity,
+          actions: [ActivityExportButton(), AmountsEye()],
+        )
+      else
+        MoveChosenBar(chosen: _chosen, onDone: () => setState(_chosen.clear)),
+      TextField(
+        controller: _search,
+        onChanged: (q) => _update((f) => f.copyWith(query: q)),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search payee, amount, note',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _filter.query.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    _search.clear();
+                    _update((f) => f.copyWith(query: ''));
+                  },
+                ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      _Filters(
+        filter: _filter,
+        accounts: accounts,
+        categories: categories,
+        onChanged: _update,
+      ),
+      _FixedNote(
+        accounts: accounts,
+        onSeeThem: (id) => _update((f) => f.copyWith(accountId: () => id)),
+      ),
+      const SizedBox(height: 16),
+      _WeekCard(week, code: code, others: others),
+      const SizedBox(height: 8),
+      if (loaded.isLoading && !loaded.hasValue)
+        const LoadingView(inList: true)
+      else if (days.isEmpty)
+        EmptyNote(
+          entries.isEmpty
+              ? 'Transactions show here once your messages are read, '
+                    'or when you add one with +.'
+              : 'Nothing matches these filters.',
+        ),
+    ];
+    // Each day's heading, then its lines. Only the rows on screen are
+    // built: months of history are thousands of rows.
+    final feed = <(ActivityDay, ActivityLine?)>[
+      if (!(loaded.isLoading && !loaded.hasValue))
+        for (final day in days) ...[
+          (day, null),
+          for (final line in day.lines) (day, line),
+        ],
+    ];
+    Widget feedItem((ActivityDay, ActivityLine?) item) => switch (item) {
+      (final day, null) => SectionLabel(dayHeading(day.date, today: today)),
+      (_, final line?) => _Choosable(
+        id: line is EntryLine ? line.entry.id : null,
+        chosen: _chosen,
+        onToggle: _toggle,
+        child: _ActivityRow(
+          line: line,
+          accounts: accounts,
+          categoryName: categoryName,
+          categories: categories,
+          suggest: (e) => suggester?.suggest(e),
+          onAccept: (e, s) => confirmCategory(ref, e, s.categoryId, s),
+          base: base,
+          code: code,
+          fulizaAuto: fulizaAuto,
+        ),
+      ),
+    };
+    final tail = <Widget>[
+      if (_filter.from == null && entries.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: () => setState(() => _pages++),
+            child: const Text('Show older'),
+          ),
+        ),
+      ],
+    ];
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -152,95 +243,15 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             enabled: askFilter != null,
             label: askFilter?.$1,
             route: askFilter?.$2 ?? AppRoutes.ask,
-            builder: (context, bottomPadding) => ListView(
+            builder: (context, bottomPadding) => ListView.builder(
               padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
-              children: [
-                if (_chosen.isEmpty)
-                  const TabHeader(
-                    'Activity',
-                    semanticsId: SemanticIds.titleActivity,
-                    actions: [ActivityExportButton(), AmountsEye()],
-                  )
-                else
-                  MoveChosenBar(
-                    chosen: _chosen,
-                    onDone: () => setState(_chosen.clear),
-                  ),
-                TextField(
-                  controller: _search,
-                  onChanged: (q) => _update((f) => f.copyWith(query: q)),
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: 'Search payee, amount, note',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _filter.query.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Clear search',
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              _search.clear();
-                              _update((f) => f.copyWith(query: ''));
-                            },
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _Filters(
-                  filter: _filter,
-                  accounts: accounts,
-                  categories: categories,
-                  onChanged: _update,
-                ),
-                _FixedNote(
-                  accounts: accounts,
-                  onSeeThem: (id) =>
-                      _update((f) => f.copyWith(accountId: () => id)),
-                ),
-                const SizedBox(height: 16),
-                _WeekCard(week, code: code, others: others),
-                const SizedBox(height: 8),
-                if (loaded.isLoading && !loaded.hasValue)
-                  const LoadingView(inList: true)
-                else if (days.isEmpty)
-                  EmptyNote(
-                    entries.isEmpty
-                        ? 'Transactions show here once your messages are read, '
-                              'or when you add one with +.'
-                        : 'Nothing matches these filters.',
-                  )
-                else
-                  for (final day in days) ...[
-                    SectionLabel(dayHeading(day.date, today: today)),
-                    for (final line in day.lines)
-                      _Choosable(
-                        id: line is EntryLine ? line.entry.id : null,
-                        chosen: _chosen,
-                        onToggle: _toggle,
-                        child: _ActivityRow(
-                          line: line,
-                          accounts: accounts,
-                          categoryName: categoryName,
-                          categories: categories,
-                          suggest: (e) => suggester?.suggest(e),
-                          onAccept: (e, s) =>
-                              confirmCategory(ref, e, s.categoryId, s),
-                          base: base,
-                          code: code,
-                          fulizaAuto: fulizaAuto,
-                        ),
-                      ),
-                  ],
-                if (_filter.from == null && entries.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => setState(() => _pages++),
-                      child: const Text('Show older'),
-                    ),
-                  ),
-                ],
-              ],
+              itemCount: head.length + feed.length + tail.length,
+              itemBuilder: (context, i) {
+                if (i < head.length) return head[i];
+                i -= head.length;
+                if (i < feed.length) return feedItem(feed[i]);
+                return tail[i - feed.length];
+              },
             ),
           ),
         ),
