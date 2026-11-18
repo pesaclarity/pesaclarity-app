@@ -13,6 +13,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
@@ -225,12 +226,14 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
                   key: const Key('choose-tax-note'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  key: const Key('choose-certificate'),
-                  controller: _certificate,
-                  decoration: const InputDecoration(
-                    labelText: 'Certificate number (optional)',
-                    hintText: 'Add it when it comes',
+                LabeledField(
+                  label: 'Certificate number (optional)',
+                  child: TextField(
+                    key: const Key('choose-certificate'),
+                    controller: _certificate,
+                    decoration: const InputDecoration(
+                      hintText: 'Add it when it comes',
+                    ),
                   ),
                 ),
                 if (_customer.text.trim().isNotEmpty)
@@ -247,14 +250,16 @@ class _ChoosePaymentsState extends ConsumerState<_ChoosePayments> {
               ],
               if (_short == ShortBy.theyOweIt) ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('choose-customer'),
-                  controller: _customer,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Who owes it'),
-                  validator: (text) => (text ?? '').trim().isEmpty
-                      ? 'Enter who owes the rest, such as Otieno.'
-                      : null,
+                LabeledField(
+                  label: 'Who owes it',
+                  child: TextFormField(
+                    key: const Key('choose-customer'),
+                    controller: _customer,
+                    textCapitalization: TextCapitalization.words,
+                    validator: (text) => (text ?? '').trim().isEmpty
+                        ? 'Enter who owes the rest, such as Otieno.'
+                        : null,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DueDateChips(

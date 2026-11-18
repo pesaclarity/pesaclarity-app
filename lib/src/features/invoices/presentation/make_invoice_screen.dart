@@ -370,20 +370,22 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                 _loadClient();
               },
               fieldViewBuilder: (context, controller, focus, submit) =>
-                  TextFormField(
-                    key: const Key('invoice-client'),
-                    controller: controller,
-                    focusNode: focus,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Client'),
-                    validator: (t) => (t ?? '').trim().isEmpty
-                        ? 'Enter the client, such as Bidii Traders Ltd.'
-                        : null,
-                    onChanged: (t) {
-                      _client.text = t;
-                      _withholding = null;
-                      _loadClient();
-                    },
+                  LabeledField(
+                    label: 'Client',
+                    child: TextFormField(
+                      key: const Key('invoice-client'),
+                      controller: controller,
+                      focusNode: focus,
+                      textCapitalization: TextCapitalization.words,
+                      validator: (t) => (t ?? '').trim().isEmpty
+                          ? 'Enter the client, such as Bidii Traders Ltd.'
+                          : null,
+                      onChanged: (t) {
+                        _client.text = t;
+                        _withholding = null;
+                        _loadClient();
+                      },
+                    ),
                   ),
             ),
             const SizedBox(height: 16),
@@ -532,27 +534,29 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                   children: [
                     Expanded(
                       flex: 3,
-                      child: TextField(
-                        key: Key('item-name-$i'),
-                        controller: t.name,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(labelText: 'What'),
-                        onChanged: (_) => setState(() {}),
+                      child: LabeledField(
+                        label: 'What',
+                        child: TextField(
+                          key: Key('item-name-$i'),
+                          controller: t.name,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 56,
-                      child: TextField(
-                        key: Key('item-quantity-$i'),
-                        controller: t.quantity,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                      child: LabeledField(
+                        label: 'How many',
+                        child: TextField(
+                          key: Key('item-quantity-$i'),
+                          controller: t.quantity,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'How many',
-                        ),
-                        onChanged: (_) => setState(() {}),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -605,14 +609,14 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: TextField(
-                      key: Key('cost-name-$i'),
-                      controller: t.name,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Cost passed on',
+                    child: LabeledField(
+                      label: 'Cost passed on',
+                      child: TextField(
+                        key: Key('cost-name-$i'),
+                        controller: t.name,
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: (_) => setState(() {}),
                       ),
-                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -729,13 +733,15 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              key: const Key('invoice-notes'),
-              controller: _notes,
-              minLines: 1,
-              maxLines: 4,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+            LabeledField(
+              label: 'Notes (optional)',
+              child: TextField(
+                key: const Key('invoice-notes'),
+                controller: _notes,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+              ),
             ),
             const SizedBox(height: 16),
             ButtonPair(

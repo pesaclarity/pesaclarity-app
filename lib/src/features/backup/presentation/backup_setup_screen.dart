@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/backup/backup.dart';
 import '../../../core/time/clock.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
@@ -98,41 +99,45 @@ class _BackupSetupScreenState extends ConsumerState<BackupSetupScreen> {
             style: theme.textTheme.bodyLarge!.copyWith(color: colors.textMuted),
           ),
           const SizedBox(height: 20),
-          TextFormField(
-            controller: _passphrase,
-            obscureText: _obscure,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: InputDecoration(
-              labelText: 'Passphrase',
-              helperText:
-                  'At least $minPassphraseLength characters. '
-                  'A short sentence works well.',
-              suffixIcon: IconButton(
-                tooltip: _obscure ? 'Show passphrase' : 'Hide passphrase',
-                icon: Icon(
-                  _obscure
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+          LabeledField(
+            label: 'Passphrase',
+            child: TextFormField(
+              controller: _passphrase,
+              obscureText: _obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                helperText:
+                    'At least $minPassphraseLength characters. '
+                    'A short sentence works well.',
+                suffixIcon: IconButton(
+                  tooltip: _obscure ? 'Show passphrase' : 'Hide passphrase',
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
                 ),
-                onPressed: () => setState(() => _obscure = !_obscure),
               ),
+              validator: (value) => (value ?? '').length < minPassphraseLength
+                  ? 'Use at least $minPassphraseLength characters.'
+                  : null,
             ),
-            validator: (value) => (value ?? '').length < minPassphraseLength
-                ? 'Use at least $minPassphraseLength characters.'
-                : null,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _confirm,
-            obscureText: _obscure,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: const InputDecoration(labelText: 'Type it again'),
-            validator: (value) => value != _passphrase.text
-                ? 'The two passphrases differ.'
-                : null,
-            onFieldSubmitted: (_) => _continue(),
+          LabeledField(
+            label: 'Type it again',
+            child: TextFormField(
+              controller: _confirm,
+              obscureText: _obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              validator: (value) => value != _passphrase.text
+                  ? 'The two passphrases differ.'
+                  : null,
+              onFieldSubmitted: (_) => _continue(),
+            ),
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: _continue, child: const Text('Continue')),

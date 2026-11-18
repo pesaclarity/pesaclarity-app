@@ -238,7 +238,7 @@ void main() {
 
     await tester.tap(find.text('Tap to name this payee'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'John');
+    await tester.enterText(fieldLabelled('Name'), 'John');
     // Save turns on once there is a name.
     await tester.pump();
     await tester.tap(find.text('Save'));
@@ -263,8 +263,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add a transaction'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Amount'), '250');
-    await tester.enterText(find.widgetWithText(TextField, 'Paid to'), 'John');
+    await tester.enterText(fieldLabelled('Amount'), '250');
+    await tester.enterText(fieldLabelled('Paid to'), 'John');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -305,7 +305,7 @@ void main() {
     await tester.tap(find.byTooltip('Add a transaction'));
     await tester.pumpAndSettle();
     expect(find.text('Import a statement'), findsNothing);
-    expect(find.widgetWithText(TextField, 'Amount'), findsOneWidget);
+    expect(fieldLabelled('Amount'), findsOneWidget);
   });
 
   testAppWidgets('Home numbers open Activity filtered', (tester) async {

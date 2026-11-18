@@ -196,13 +196,13 @@ class _AddMissingSheetState extends ConsumerState<AddMissingSheet> {
             onChanged: (k) => setState(() => _kind = k),
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('add-missing-who'),
-            controller: _who,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: _out ? BalanceText.paidTo : BalanceText.receivedFrom,
-              hintText: BalanceText.optional,
+          LabeledField(
+            label: _out ? BalanceText.paidTo : BalanceText.receivedFrom,
+            child: TextField(
+              key: const Key('add-missing-who'),
+              controller: _who,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(hintText: BalanceText.optional),
             ),
           ),
           const SizedBox(height: 12),

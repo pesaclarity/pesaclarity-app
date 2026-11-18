@@ -133,7 +133,7 @@ void main() {
       find.text('Applies to every past and future payment to 0700000001.'),
       findsOneWidget,
     );
-    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'John');
+    await tester.enterText(fieldLabelled('Name'), 'John');
     expect(
       find.descendant(
         of: find.byKey(const Key('payee-leak-type')),
@@ -167,10 +167,7 @@ void main() {
     // Inline category creation from the transaction.
     await tester.tap(find.text('Category'));
     await _settle(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Find or add a category'),
-      'Harambee',
-    );
+    await tester.enterText(fieldLabelled('Find or add a category'), 'Harambee');
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('new-category-type')));
     await tester.pumpAndSettle();
@@ -187,17 +184,11 @@ void main() {
     expect(harambee!.type, CategoryType.savings);
 
     // Tags: add two, remove one.
-    await tester.ensureVisible(find.widgetWithText(TextField, 'Add a tag'));
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Add a tag'),
-      'Wedding',
-    );
+    await tester.ensureVisible(fieldLabelled('Add a tag'));
+    await tester.enterText(fieldLabelled('Add a tag'), 'Wedding');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Add a tag'),
-      'reimbursable',
-    );
+    await tester.enterText(fieldLabelled('Add a tag'), 'reimbursable');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
     expect(find.text('#wedding'), findsOneWidget);

@@ -196,14 +196,14 @@ class _AttachSheetState extends ConsumerState<_AttachSheet> {
                       children: [
                         Expanded(
                           flex: 3,
-                          child: TextField(
-                            key: Key('attach-name-${p.file.name}'),
-                            controller: p.name,
-                            textCapitalization: TextCapitalization.sentences,
-                            decoration: const InputDecoration(
-                              labelText: 'Cost',
+                          child: LabeledField(
+                            label: 'Cost',
+                            child: TextField(
+                              key: Key('attach-name-${p.file.name}'),
+                              controller: p.name,
+                              textCapitalization: TextCapitalization.sentences,
+                              onChanged: (_) => setState(() {}),
                             ),
-                            onChanged: (_) => setState(() {}),
                           ),
                         ),
                         const SizedBox(width: 8),

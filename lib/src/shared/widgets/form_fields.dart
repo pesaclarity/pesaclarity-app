@@ -8,6 +8,33 @@ import '../../domain/time/calendar.dart';
 import '../adaptive/adaptive.dart';
 import '../format/date_labels.dart';
 
+/// A form field with its [label] above it, in place of a label inside the
+/// field. The label wraps onto more lines at larger text, where a label
+/// inside the field would end in "...". Every labelled text field uses it.
+///
+/// A screen reader reads the label as the field's name, as it would a
+/// label inside the field.
+class LabeledField extends StatelessWidget {
+  const LabeledField({required this.label, required this.child, super.key});
+
+  final String label;
+
+  /// The field, with no label of its own.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      ExcludeSemantics(
+        child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+      Semantics(label: label, child: child),
+    ],
+  );
+}
+
 /// A text field for an amount, read with [parseMoneyMinor]. Every typed
 /// amount uses it.
 class AmountField extends StatelessWidget {
@@ -47,10 +74,13 @@ class AmountField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LabeledField(label: label, child: _field());
+  }
+
+  Widget _field() {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
-        labelText: label,
         hintText: hint,
         prefixText: '${currency ?? BaseCurrency.code} ',
       ),

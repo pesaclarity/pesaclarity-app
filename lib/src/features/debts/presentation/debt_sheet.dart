@@ -175,16 +175,16 @@ class _DebtSheetState extends State<DebtSheet> {
             onChanged: (type) => setState(() => _type = type),
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _lender,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: _family ? 'Who lent it' : 'Lender',
+          LabeledField(
+            label: _family ? 'Who lent it' : 'Lender',
+            child: TextFormField(
+              controller: _lender,
+              textCapitalization: TextCapitalization.words,
+              inputFormatters: [LengthLimitingTextInputFormatter(80)],
+              validator: (text) => (text ?? '').trim().isEmpty
+                  ? 'Enter a name, such as KCB or a relative.'
+                  : null,
             ),
-            inputFormatters: [LengthLimitingTextInputFormatter(80)],
-            validator: (text) => (text ?? '').trim().isEmpty
-                ? 'Enter a name, such as KCB or a relative.'
-                : null,
           ),
           const SizedBox(height: 12),
           AmountField(
@@ -194,19 +194,21 @@ class _DebtSheetState extends State<DebtSheet> {
           ),
           if (!_family) ...[
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _rate,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            LabeledField(
+              label: 'Interest a year',
+              child: TextFormField(
+                controller: _rate,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  suffixText: '%',
+                  helperText: 'Leave empty for an interest-free loan.',
+                ),
+                validator: (text) => _rateFrom(text ?? '') == null
+                    ? 'Enter a rate, such as 13 or 12.5.'
+                    : null,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Interest a year',
-                suffixText: '%',
-                helperText: 'Leave empty for an interest-free loan.',
-              ),
-              validator: (text) => _rateFrom(text ?? '') == null
-                  ? 'Enter a rate, such as 13 or 12.5.'
-                  : null,
             ),
           ],
           const SizedBox(height: 12),

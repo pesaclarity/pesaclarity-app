@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/privacy/privacy_policy.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/application/auth_controller.dart';
@@ -100,15 +101,14 @@ class _EmailPolicySheetState extends ConsumerState<EmailPolicySheet> {
           'There is no email app on this phone, so we can send the '
           'privacy policy for you, as text and a PDF.',
       children: [
-        TextField(
-          key: const Key('email-policy-address'),
-          controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          autofillHints: const [AutofillHints.email],
-          decoration: InputDecoration(
-            labelText: 'Send it to',
-            errorText: _error,
-            errorMaxLines: 3,
+        LabeledField(
+          label: 'Send it to',
+          child: TextField(
+            key: const Key('email-policy-address'),
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            decoration: InputDecoration(errorText: _error, errorMaxLines: 3),
           ),
         ),
         const SizedBox(height: 8),

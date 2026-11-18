@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/spaces_providers.dart';
@@ -62,15 +63,15 @@ class _AddSpaceScreenState extends ConsumerState<AddSpaceScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            TextField(
-              key: const Key('space-name'),
-              controller: _name,
-              autofocus: true,
-              maxLength: 40,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Vegetable stall',
+            LabeledField(
+              label: 'Name',
+              child: TextField(
+                key: const Key('space-name'),
+                controller: _name,
+                autofocus: true,
+                maxLength: 40,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(hintText: 'Vegetable stall'),
               ),
             ),
             const SizedBox(height: 8),

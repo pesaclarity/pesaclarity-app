@@ -109,16 +109,16 @@ class _GoalSheetState extends State<GoalSheet> {
       child: SheetBody(
         title: goal == null ? 'Add a goal' : 'Edit ${goal.name}',
         children: [
-          TextFormField(
-            controller: _name,
-            decoration: const InputDecoration(
-              labelText: 'What are you saving for?',
+          LabeledField(
+            label: 'What are you saving for?',
+            child: TextFormField(
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 80,
+              validator: (text) => (text ?? '').trim().isEmpty
+                  ? 'Enter a name, such as School fees.'
+                  : null,
             ),
-            textCapitalization: TextCapitalization.sentences,
-            maxLength: 80,
-            validator: (text) => (text ?? '').trim().isEmpty
-                ? 'Enter a name, such as School fees.'
-                : null,
           ),
           const SizedBox(height: 8),
           AmountField(controller: _target, label: 'Target'),

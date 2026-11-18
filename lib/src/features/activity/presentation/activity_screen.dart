@@ -615,7 +615,7 @@ class _ActivityRow extends StatelessWidget {
         name == null
             ? 'Uncategorised · Tap to choose'
             : '$name? ${suggestion!.percent}%',
-        maxLines: 1,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyMedium,
       ),
@@ -669,12 +669,7 @@ class _ActivityRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                RowName(title, style: Theme.of(context).textTheme.titleMedium),
                 subtitle,
               ],
             ),

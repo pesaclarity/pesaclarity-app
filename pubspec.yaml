@@ -33,7 +33,7 @@ dependencies:
   rayo:
     git:
       url: https://github.com/pesaclarity/rayo.git
-      ref: 054c8311619f60b38fed07c8042cf9564e36126f
+      ref: 21c953ebad8cb88790add8fcb8462e371cd6229d
   printing: ^5.15.1
   http: ^1.6.0
   flutter_local_notifications: ^23.0.0

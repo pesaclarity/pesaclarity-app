@@ -264,6 +264,26 @@ class ButtonPair extends StatelessWidget {
   );
 }
 
+/// The name at the head of an Activity or Money row, such as a payee: a
+/// long one wraps to a second line before it ends in "...", so it stays
+/// readable at larger text. The row's amount beside it is never shortened.
+class RowName extends StatelessWidget {
+  const RowName(this.name, {this.style, super.key});
+
+  final String name;
+  final TextStyle? style;
+
+  static const maxLines = 2;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    name,
+    maxLines: maxLines,
+    overflow: TextOverflow.ellipsis,
+    style: style,
+  );
+}
+
 /// A row's detail line, up to two lines: [lead], such as the category,
 /// flows and wraps like any text, and [tail], such as the account
 /// ("Equity Bank ···8765"), always shows whole after a " · ". When both

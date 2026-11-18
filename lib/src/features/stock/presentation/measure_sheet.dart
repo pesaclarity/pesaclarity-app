@@ -175,40 +175,42 @@ class _MeasureSheetState extends State<_MeasureSheet> {
         title: pack ? 'A pack size' : 'Sell it another way',
         subtitle: '${widget.item} · counted in ${unitFor(_unit, 2 * milli)}',
         children: [
-          TextFormField(
-            key: const Key('measure-name'),
-            controller: _name,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Name',
-              hintText: pack ? 'Crate' : 'Tot, 25 ml',
+          LabeledField(
+            label: 'Name',
+            child: TextFormField(
+              key: const Key('measure-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: pack ? 'Crate' : 'Tot, 25 ml',
+              ),
+              validator: (t) => (t ?? '').trim().isEmpty
+                  ? (pack
+                        ? 'Enter what the pack is, such as Crate.'
+                        : 'Enter what it is, such as Tot, 25 ml.')
+                  : null,
             ),
-            validator: (t) => (t ?? '').trim().isEmpty
-                ? (pack
-                      ? 'Enter what the pack is, such as Crate.'
-                      : 'Enter what it is, such as Tot, 25 ml.')
-                : null,
           ),
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: TextFormField(
-                  key: const Key('measure-count'),
-                  controller: _count,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: pack
-                        ? '${_capital(unitFor(_unit, 2 * milli))} in one'
-                        : 'How many in a $_unit',
+                child: LabeledField(
+                  label: pack
+                      ? '${_capital(unitFor(_unit, 2 * milli))} in one'
+                      : 'How many in a $_unit',
+                  child: TextFormField(
+                    key: const Key('measure-count'),
+                    controller: _count,
+                    keyboardType: TextInputType.number,
+                    validator: (t) {
+                      final n = int.tryParse((t ?? '').trim());
+                      return n == null || n < 2
+                          ? 'Enter a whole number, such as ${pack ? 24 : 30}.'
+                          : null;
+                    },
                   ),
-                  validator: (t) {
-                    final n = int.tryParse((t ?? '').trim());
-                    return n == null || n < 2
-                        ? 'Enter a whole number, such as ${pack ? 24 : 30}.'
-                        : null;
-                  },
                 ),
               ),
               const SizedBox(width: 12),

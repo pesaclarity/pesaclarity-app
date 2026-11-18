@@ -25,6 +25,7 @@ import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.d
 import 'package:pesaclarity/src/features/sms/application/sms_ingestor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 import 'package:pesaclarity/src/features/statements/application/statement_importer.dart';
+import 'package:pesaclarity/src/shared/widgets/form_fields.dart';
 import 'package:pesaclarity/src/shared/widgets/marks.dart';
 
 import 'fake_app_lock.dart';
@@ -43,6 +44,16 @@ void testAppWidgets(
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
   });
+}
+
+/// The [type] text field (a [TextField] by default) labelled [label]: its
+/// label above it ([LabeledField]), or the hint inside it.
+Finder fieldLabelled(String label, {Type type = TextField}) {
+  final above = find.descendant(
+    of: find.widgetWithText(LabeledField, label),
+    matching: find.byType(type),
+  );
+  return above.evaluate().isNotEmpty ? above : find.widgetWithText(type, label);
 }
 
 /// A fresh in-memory database, closed when the test ends.

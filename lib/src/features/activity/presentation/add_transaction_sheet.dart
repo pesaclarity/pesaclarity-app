@@ -161,13 +161,13 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
             ),
           ],
           const SizedBox(height: 12),
-          TextField(
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: _direction == TransactionDirection.outflow
-                  ? 'Paid to'
-                  : 'Received from',
+          LabeledField(
+            label: _direction == TransactionDirection.outflow
+                ? 'Paid to'
+                : 'Received from',
+            child: TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
             ),
           ),
           const SizedBox(height: 12),

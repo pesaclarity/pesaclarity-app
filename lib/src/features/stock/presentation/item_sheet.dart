@@ -39,15 +39,17 @@ class QuantityField extends StatelessWidget {
   final bool optional;
 
   @override
-  Widget build(BuildContext context) => TextFormField(
-    controller: controller,
-    decoration: InputDecoration(labelText: label),
-    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    validator: (text) {
-      final t = (text ?? '').trim();
-      if (t.isEmpty) return optional ? null : 'Enter how much, such as 10.';
-      return quantityFrom(t) == null ? 'Enter a number, such as 0.5.' : null;
-    },
+  Widget build(BuildContext context) => LabeledField(
+    label: label,
+    child: TextFormField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      validator: (text) {
+        final t = (text ?? '').trim();
+        if (t.isEmpty) return optional ? null : 'Enter how much, such as 10.';
+        return quantityFrom(t) == null ? 'Enter a number, such as 0.5.' : null;
+      },
+    ),
   );
 }
 
@@ -154,13 +156,15 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: TextFormField(
-              key: const Key('item-unit'),
-              controller: _unit,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'You count it in',
-                hintText: 'Bottle, kg, bunch',
+            child: LabeledField(
+              label: 'You count it in',
+              child: TextFormField(
+                key: const Key('item-unit'),
+                controller: _unit,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  hintText: 'Bottle, kg, bunch',
+                ),
               ),
             ),
           ),
@@ -310,14 +314,16 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
             ),
             const SizedBox(height: 12),
           ],
-          TextFormField(
-            key: const Key('item-name'),
-            controller: _name,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Name'),
-            validator: (t) => (t ?? '').trim().isEmpty
-                ? 'Enter what it is, such as Tomatoes.'
-                : null,
+          LabeledField(
+            label: 'Name',
+            child: TextFormField(
+              key: const Key('item-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              validator: (t) => (t ?? '').trim().isEmpty
+                  ? 'Enter what it is, such as Tomatoes.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 12),
           if (product)
@@ -330,19 +336,21 @@ class _ItemSheetState extends ConsumerState<_ItemSheet> {
                 label: 'Price (empty if it varies)',
                 allowZero: true,
               ),
-              TextFormField(
-                key: const Key('item-unit'),
-                controller: _unit,
-                decoration: const InputDecoration(labelText: 'Per (optional)'),
+              LabeledField(
+                label: 'Per (optional)',
+                child: TextFormField(
+                  key: const Key('item-unit'),
+                  controller: _unit,
+                ),
               ),
             ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('item-group'),
-            controller: _group,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Group on Sell (optional), such as Vegetables',
+          LabeledField(
+            label: 'Group on Sell (optional), such as Vegetables',
+            child: TextFormField(
+              key: const Key('item-group'),
+              controller: _group,
+              textCapitalization: TextCapitalization.sentences,
             ),
           ),
           const SizedBox(height: 16),

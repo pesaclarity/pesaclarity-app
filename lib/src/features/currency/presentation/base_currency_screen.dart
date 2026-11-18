@@ -9,6 +9,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
@@ -311,42 +312,43 @@ class _OwnRateDialogState extends ConsumerState<_OwnRateDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              key: const Key('own-rate-code'),
-              controller: _code,
-              decoration: const InputDecoration(
-                labelText: 'Currency code',
-                hintText: 'USD',
+            LabeledField(
+              label: 'Currency code',
+              child: TextFormField(
+                key: const Key('own-rate-code'),
+                controller: _code,
+                decoration: const InputDecoration(hintText: 'USD'),
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  final c = (v ?? '').trim().toUpperCase();
+                  if (!currencyCatalogue.containsKey(c)) {
+                    return 'Enter a code, such as USD.';
+                  }
+                  return c == base
+                      ? 'Choose a currency other than $base.'
+                      : null;
+                },
               ),
-              textCapitalization: TextCapitalization.characters,
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final c = (v ?? '').trim().toUpperCase();
-                if (!currencyCatalogue.containsKey(c)) {
-                  return 'Enter a code, such as USD.';
-                }
-                return c == base ? 'Choose a currency other than $base.' : null;
-              },
             ),
             const SizedBox(height: 8),
-            TextFormField(
-              key: const Key('own-rate-value'),
-              controller: _rate,
-              decoration: InputDecoration(
-                labelText:
-                    '1 $base buys how much ${code.isEmpty ? 'of it' : code}?',
+            LabeledField(
+              label: '1 $base buys how much ${code.isEmpty ? 'of it' : code}?',
+              child: TextFormField(
+                key: const Key('own-rate-value'),
+                controller: _rate,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (v) {
+                  final rate = double.tryParse(
+                    (v ?? '').trim().replaceAll(',', ''),
+                  );
+                  return rate == null || rate <= 0
+                      ? 'Enter a rate, such as 0.0077.'
+                      : null;
+                },
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: (v) {
-                final rate = double.tryParse(
-                  (v ?? '').trim().replaceAll(',', ''),
-                );
-                return rate == null || rate <= 0
-                    ? 'Enter a rate, such as 0.0077.'
-                    : null;
-              },
             ),
           ],
         ),

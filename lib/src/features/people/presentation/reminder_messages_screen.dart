@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/people/reminder_text.dart';
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
@@ -257,15 +258,17 @@ class _TillFieldState extends State<_TillField> {
   }
 
   @override
-  Widget build(BuildContext context) => TextField(
-    key: const Key('till'),
-    controller: _controller,
-    focusNode: _focus,
-    keyboardType: TextInputType.text,
-    onSubmitted: (t) => widget.onSaved(t.trim()),
-    decoration: const InputDecoration(
-      labelText: 'Till or Paybill for {till}',
-      helperText: 'Such as 000000, or Paybill 000000 account 123',
+  Widget build(BuildContext context) => LabeledField(
+    label: 'Till or Paybill for {till}',
+    child: TextField(
+      key: const Key('till'),
+      controller: _controller,
+      focusNode: _focus,
+      keyboardType: TextInputType.text,
+      onSubmitted: (t) => widget.onSaved(t.trim()),
+      decoration: const InputDecoration(
+        helperText: 'Such as 000000, or Paybill 000000 account 123',
+      ),
     ),
   );
 }
@@ -315,20 +318,24 @@ class _TemplateDialogState extends State<_TemplateDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            key: const Key('message-name'),
-            controller: _name,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Name'),
+          LabeledField(
+            label: 'Name',
+            child: TextField(
+              key: const Key('message-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+            ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('message-text'),
-            controller: _text,
-            minLines: 3,
-            maxLines: 8,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Message'),
+          LabeledField(
+            label: 'Message',
+            child: TextField(
+              key: const Key('message-text'),
+              controller: _text,
+              minLines: 3,
+              maxLines: 8,
+              textCapitalization: TextCapitalization.sentences,
+            ),
           ),
         ],
       ),

@@ -95,15 +95,15 @@ void main() {
     await tester.tap(find.byTooltip('Add a goal'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'What are you saving for?'),
+      fieldLabelled('What are you saving for?', type: TextFormField),
       'School fees',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Target'),
+      fieldLabelled('Target', type: TextFormField),
       '45,000',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Saved so far'),
+      fieldLabelled('Saved so far', type: TextFormField),
       '15000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
@@ -115,7 +115,7 @@ void main() {
     await tester.tap(find.text('School fees'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Saved so far'),
+      fieldLabelled('Saved so far', type: TextFormField),
       '45,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));

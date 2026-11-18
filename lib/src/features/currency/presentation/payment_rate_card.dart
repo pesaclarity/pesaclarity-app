@@ -7,6 +7,7 @@ import '../../../data/repositories/transactions_repository.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
@@ -208,18 +209,18 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
       title: const Text('The rate I got'),
       content: Form(
         key: _formKey,
-        child: TextFormField(
-          key: const Key('rate-got-field'),
-          controller: _rate,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: '1 $one bought how much $other?',
-            suffixText: other,
+        child: LabeledField(
+          label: '1 $one bought how much $other?',
+          child: TextFormField(
+            key: const Key('rate-got-field'),
+            controller: _rate,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(suffixText: other),
+            validator: (v) =>
+                _parse(v) == null ? 'Enter a rate, such as 129.5.' : null,
+            onFieldSubmitted: (_) => _save(),
           ),
-          validator: (v) =>
-              _parse(v) == null ? 'Enter a rate, such as 129.5.' : null,
-          onFieldSubmitted: (_) => _save(),
         ),
       ),
       actions: [

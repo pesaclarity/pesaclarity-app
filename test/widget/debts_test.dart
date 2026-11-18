@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/shared/widgets/choice_menu.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/goals_harness.dart' show settle;
+import '../helpers/test_app.dart' show fieldLabelled;
 
 /// 26 October 2026, 08:00 EAT.
 final _now = DateTime.utc(2026, 10, 26, 5);
@@ -77,19 +78,19 @@ void main() {
     await tester.tap(find.byTooltip('Add a debt'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Lender'),
+      fieldLabelled('Lender', type: TextFormField),
       'Test Bank',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Owed now'),
+      fieldLabelled('Owed now', type: TextFormField),
       '12,000',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Interest a year'),
+      fieldLabelled('Interest a year', type: TextFormField),
       '12.5',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Minimum each month'),
+      fieldLabelled('Minimum each month', type: TextFormField),
       '2,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
@@ -154,7 +155,7 @@ void main() {
     await tester.tap(find.text('Mama'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Payment'),
+      fieldLabelled('Payment', type: TextFormField),
       '1,500',
     );
     await tester.tap(find.text('Record a payment'));

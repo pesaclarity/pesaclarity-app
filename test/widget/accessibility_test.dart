@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +11,12 @@ import 'package:pesaclarity/src/shared/accessibility.dart';
 import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
 import 'package:pesaclarity/src/shared/widgets/app_sheet.dart';
 import 'package:pesaclarity/src/shared/widgets/figures.dart';
+import 'package:pesaclarity/src/shared/widgets/form_fields.dart';
 import 'package:pesaclarity/src/shared/widgets/hero_figure_card.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
 import 'package:pesaclarity/src/shared/widgets/states.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../helpers/app_fonts.dart';
 import '../helpers/test_app.dart';
@@ -19,6 +24,14 @@ import '../helpers/test_app.dart';
 /// Screen readers (TalkBack, VoiceOver) and the phone's accessibility
 /// settings. The screens at large text sizes, with their tap targets and
 /// labels, are checked by tool/accessibility.sh.
+/// How many lines [text] is drawn on.
+int lines(RenderParagraph text) => {
+  for (final box in text.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: text.text.toPlainText().length),
+  ))
+    box.top.round(),
+}.length;
+
 void main() {
   Widget app(Widget child, {bool hidden = false}) => ProviderScope(
     child: MaterialApp(
@@ -316,6 +329,125 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('field labels sit above their fields and wrap, read with '
+        'them', (tester) async {
+      phone(tester);
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final label in ['You count it in', 'In stock now'])
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: LabeledField(
+                          label: label,
+                          child: const TextField(),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      for (final label in ['You count it in', 'In stock now']) {
+        final text = tester.renderObject<RenderParagraph>(find.text(label));
+        expect(text.didExceedMaxLines, isFalse, reason: label);
+        // Too long for one line at twice the size: it wraps, whole.
+        expect(lines(text), greaterThan(1));
+        // Above its field, and the field reads it as its name.
+        final field = find.ancestor(
+          of: find.byType(TextField),
+          matching: find.byType(LabeledField),
+        );
+        expect(
+          tester.getBottomLeft(find.text(label)).dy,
+          lessThanOrEqualTo(
+            tester
+                .getTopLeft(
+                  find
+                      .descendant(
+                        of: field.at(label == 'You count it in' ? 0 : 1),
+                        matching: find.byType(TextField),
+                      )
+                      .first,
+                )
+                .dy,
+          ),
+        );
+        expect(
+          tester.getSemantics(
+            find
+                .descendant(
+                  of: field.at(label == 'You count it in' ? 0 : 1),
+                  matching: find.byType(EditableText),
+                )
+                .first,
+          ),
+          isSemantics(label: label, isTextField: true),
+        );
+      }
+      handle.dispose();
+    });
+
+    testWidgets('a row name wraps to two lines, then ends in "...", and its '
+        'amount stays whole', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  for (final name in [
+                    'Green Basket',
+                    'Green Basket Grocers',
+                    'Green Basket Grocers and Butchery, Westlands Branch',
+                  ])
+                    Row(
+                      children: [
+                        Expanded(child: RowName(name)),
+                        const SizedBox(width: 12),
+                        const Text('-1,440'),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      RenderParagraph name(String text) =>
+          tester.renderObject<RenderParagraph>(find.text(text));
+      expect(lines(name('Green Basket')), 1);
+      final two = name('Green Basket Grocers');
+      expect(lines(two), 2);
+      expect(two.didExceedMaxLines, isFalse);
+      final long = name('Green Basket Grocers and Butchery, Westlands Branch');
+      expect(lines(long), 2);
+      expect(long.didExceedMaxLines, isTrue);
+      for (final amount in tester.renderObjectList<RenderParagraph>(
+        find.text('-1,440'),
+      )) {
+        expect(amount.didExceedMaxLines, isFalse);
+        expect(
+          amount.size.width + 0.5,
+          greaterThanOrEqualTo(amount.getMaxIntrinsicWidth(double.infinity)),
+        );
+        expect(amount.textScaler.scale(1), 2);
+      }
+    });
+
     testAppWidgets('Home scrolls clear of the Ask bar', (tester) async {
       phone(tester, large: false);
       await pumpApp(tester, db: openTestDatabase());
@@ -336,5 +468,41 @@ void main() {
         greaterThanOrEqualTo(bar.height + AskBarScope.margin.vertical),
       );
     });
+  });
+
+  group('small muted print', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    for (final (name, theme) in [
+      ('light', AppTheme.light),
+      ('dark', AppTheme.dark),
+    ]) {
+      test('reads at 4.5:1 or more on the page, cards and sheets in $name', () {
+        final colors = theme.extension<PesaColors>()!;
+        final small = colors.mutedSmall(theme.colorScheme.onSurface);
+        for (final ground in [
+          theme.scaffoldBackgroundColor,
+          theme.colorScheme.surface,
+          colors.floating,
+          // A tinted card, such as "The drawer matches the records."
+          Color.alphaBlend(colors.successSoft, theme.scaffoldBackgroundColor),
+        ]) {
+          expect(contrast(small, ground), greaterThanOrEqualTo(4.5));
+          // Darker than the usual muted text, lighter than body text.
+          expect(
+            contrast(small, ground),
+            greaterThan(contrast(colors.textMuted, ground)),
+          );
+          expect(
+            contrast(small, ground),
+            lessThan(contrast(theme.colorScheme.onSurface, ground)),
+          );
+        }
+      });
+    }
   });
 }

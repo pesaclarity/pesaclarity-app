@@ -11,6 +11,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
@@ -260,14 +261,14 @@ class _RemindSheetState extends ConsumerState<_RemindSheet> {
             ),
           ),
         const SizedBox(height: 12),
-        TextField(
-          key: const Key('remind-message'),
-          controller: _message,
-          minLines: 3,
-          maxLines: 6,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Message (change it for this one if you like)',
+        LabeledField(
+          label: 'Message (change it for this one if you like)',
+          child: TextField(
+            key: const Key('remind-message'),
+            controller: _message,
+            minLines: 3,
+            maxLines: 6,
+            textCapitalization: TextCapitalization.sentences,
           ),
         ),
         const SizedBox(height: 16),
@@ -373,12 +374,14 @@ class PhoneField extends StatelessWidget {
       ),
       const SizedBox(width: 8),
       Expanded(
-        child: TextField(
-          key: const Key('phone-number'),
-          controller: controller,
-          keyboardType: TextInputType.phone,
-          onChanged: (_) => onChanged?.call(),
-          decoration: InputDecoration(labelText: label),
+        child: LabeledField(
+          label: label,
+          child: TextField(
+            key: const Key('phone-number'),
+            controller: controller,
+            keyboardType: TextInputType.phone,
+            onChanged: (_) => onChanged?.call(),
+          ),
         ),
       ),
       IconButton(

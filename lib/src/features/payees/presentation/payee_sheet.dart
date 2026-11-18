@@ -10,6 +10,7 @@ import '../../../domain/payees/payee_identifier.dart';
 import '../../../shared/names.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import 'category_picker.dart';
 
@@ -126,14 +127,16 @@ class _PayeeSheetState extends ConsumerState<PayeeSheet> {
           ? 'Changes apply to every past and future payment.'
           : 'Applies to every past and future payment to $who.',
       children: [
-        TextField(
-          controller: _name,
-          autofocus: widget.payee == null,
-          maxLength: 80,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Name',
-            hintText: 'John (brother) or Naivas',
+        LabeledField(
+          label: 'Name',
+          child: TextField(
+            controller: _name,
+            autofocus: widget.payee == null,
+            maxLength: 80,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              hintText: 'John (brother) or Naivas',
+            ),
           ),
         ),
         const SizedBox(height: 12),

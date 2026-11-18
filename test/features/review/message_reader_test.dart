@@ -80,9 +80,10 @@ void main() {
     expect(reader, isA<ModelMessageReader>());
   });
 
-  // rayo gives the same floats on every kernel and thread count; a library
-  // compiled for another platform may differ in the last bits (the compiler
-  // may fuse a multiply and an add), so there only nearly.
+  // rayo gives the same floats on every kernel and thread count, and from
+  // any compiler and flags (it is built with -ffp-contract=off). Another
+  // platform's C library may round exp or tanh differently in the last bit,
+  // so there only nearly.
   final exact = recorded['abi'] == Abi.current().toString();
   test(
     exact

@@ -15,6 +15,7 @@ import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -191,12 +192,12 @@ class _AmountPadScreenState extends State<AmountPadScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              key: const Key('sell-note'),
-              controller: _note,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'What for (optional)',
+            LabeledField(
+              label: 'What for (optional)',
+              child: TextField(
+                key: const Key('sell-note'),
+                controller: _note,
+                textCapitalization: TextCapitalization.sentences,
               ),
             ),
             const SizedBox(height: 20),

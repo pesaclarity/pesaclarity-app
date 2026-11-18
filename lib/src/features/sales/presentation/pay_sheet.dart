@@ -439,14 +439,16 @@ class _PaySheetState extends ConsumerState<PaySheet> {
     final colors = PesaColors.of(context);
     final picked = _picked;
     return [
-      TextFormField(
-        key: const Key('pay-customer'),
-        controller: _customer,
-        textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(labelText: 'Customer'),
-        validator: (text) => (text ?? '').trim().isEmpty
-            ? 'Enter who will pay, such as Otieno.'
-            : null,
+      LabeledField(
+        label: 'Customer',
+        child: TextFormField(
+          key: const Key('pay-customer'),
+          controller: _customer,
+          textCapitalization: TextCapitalization.words,
+          validator: (text) => (text ?? '').trim().isEmpty
+              ? 'Enter who will pay, such as Otieno.'
+              : null,
+        ),
       ),
       if (customers.isNotEmpty) ...[
         const SizedBox(height: 8),
@@ -645,13 +647,13 @@ class _LineRow extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog.adaptive(
         title: Text(line.name),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'How much',
-            hintText: '0.5',
+        content: LabeledField(
+          label: 'How much',
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(hintText: '0.5'),
           ),
         ),
         actions: [

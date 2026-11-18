@@ -139,6 +139,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
       ? BrandTokens.darkChartGrey
       : Color.lerp(danger, const Color(0xFF000000), 0.45)!;
 
+  /// Muted small print (12 px) where [textMuted] measures under 4.5:1, such
+  /// as a note under a button or a list: [textMuted] taken 45% of the way
+  /// to [text], the body text colour.
+  Color mutedSmall(Color text) => Color.lerp(textMuted, text, 0.45)!;
+
   /// The series beside [secondSeries]: muted grey in light, and in dark a
   /// blue, since [secondSeries] is already a grey there.
   Color get thirdSeries =>

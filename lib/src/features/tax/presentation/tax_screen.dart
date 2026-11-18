@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/money/money.dart';
 import '../../../data/repositories/tax_repository.dart';
-import '../../../domain/books/business_report.dart' show periodText;
 import '../../../domain/books/business_report.dart' as report;
+import '../../../domain/books/business_report.dart' show periodText;
 import '../../../domain/tax/tax_estimate.dart';
 import '../../../domain/tax/tax_pack.dart';
 import '../../../domain/time/calendar.dart';
@@ -14,6 +14,7 @@ import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/figures.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
@@ -540,11 +541,13 @@ class _CertificateDialogState extends State<_CertificateDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
     title: Text('Certificate from ${widget.withheld.person}'),
-    content: TextField(
-      key: const Key('certificate-number'),
-      controller: _number,
-      autofocus: true,
-      decoration: const InputDecoration(labelText: 'Certificate number'),
+    content: LabeledField(
+      label: 'Certificate number',
+      child: TextField(
+        key: const Key('certificate-number'),
+        controller: _number,
+        autofocus: true,
+      ),
     ),
     actions: [
       DialogAction(

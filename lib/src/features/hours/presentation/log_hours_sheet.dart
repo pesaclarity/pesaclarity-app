@@ -223,14 +223,16 @@ class _LogHoursState extends ConsumerState<_LogHours> {
             ],
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('hours-what'),
-            controller: _what,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'What you did'),
-            validator: (t) => (t ?? '').trim().isEmpty
-                ? 'Enter what you did, such as Design review.'
-                : null,
+          LabeledField(
+            label: 'What you did',
+            child: TextFormField(
+              key: const Key('hours-what'),
+              controller: _what,
+              textCapitalization: TextCapitalization.sentences,
+              validator: (t) => (t ?? '').trim().isEmpty
+                  ? 'Enter what you did, such as Design review.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -250,19 +252,19 @@ class _LogHoursState extends ConsumerState<_LogHours> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextFormField(
-                  key: const Key('hours-hours'),
-                  controller: _hours,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                child: LabeledField(
+                  label: 'Hours',
+                  child: TextFormField(
+                    key: const Key('hours-hours'),
+                    controller: _hours,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(hintText: '1.5'),
+                    validator: (t) => minutesFrom(t ?? '') == null
+                        ? 'Enter the hours, such as 1.5.'
+                        : null,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Hours',
-                    hintText: '1.5',
-                  ),
-                  validator: (t) => minutesFrom(t ?? '') == null
-                      ? 'Enter the hours, such as 1.5.'
-                      : null,
                 ),
               ),
             ],
@@ -375,13 +377,15 @@ class _SuggestState extends State<_Suggest> {
       );
     },
     onSelected: (_) => onChanged?.call(),
-    fieldViewBuilder: (context, controller, focus, onSubmit) => TextFormField(
-      controller: controller,
-      focusNode: focus,
-      textCapitalization: TextCapitalization.words,
-      onChanged: (_) => onChanged?.call(),
-      validator: widget.validator,
-      decoration: InputDecoration(labelText: label),
+    fieldViewBuilder: (context, controller, focus, onSubmit) => LabeledField(
+      label: label,
+      child: TextFormField(
+        controller: controller,
+        focusNode: focus,
+        textCapitalization: TextCapitalization.words,
+        onChanged: (_) => onChanged?.call(),
+        validator: widget.validator,
+      ),
     ),
     optionsViewBuilder: (context, onSelected, options) => Align(
       alignment: Alignment.topLeft,

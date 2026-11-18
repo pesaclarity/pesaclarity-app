@@ -175,7 +175,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             'Opens the giving page in your browser. M-Pesa asks for your PIN '
             'as usual. Nothing from the app is shared.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: colors.mutedSmall(theme.colorScheme.onSurface),
+            ),
           ),
           const SizedBox(height: 20),
           GroupedSection(

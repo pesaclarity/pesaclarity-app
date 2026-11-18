@@ -139,13 +139,16 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
             ),
             const SizedBox(height: 16),
           ],
-          TextFormField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Name'),
-            textCapitalization: TextCapitalization.sentences,
-            maxLength: 80,
-            validator: (v) =>
-                (v ?? '').trim().isEmpty ? 'Enter a name, such as Rent.' : null,
+          LabeledField(
+            label: 'Name',
+            child: TextFormField(
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 80,
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Enter a name, such as Rent.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           AmountField(controller: _amount, label: 'Amount'),

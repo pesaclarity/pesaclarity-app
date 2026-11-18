@@ -8,6 +8,7 @@ import '../../../core/money/money_format.dart';
 import '../../../core/time/clock.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -135,25 +136,25 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
-                          key: const Key('converter-amount'),
-                          controller: _amount,
-                          textAlign: TextAlign.end,
-                          style: AppTypography.tileFigure(
-                            theme.colorScheme.onSurface,
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[\d.,]'),
+                        child: LabeledField(
+                          label: 'Amount in $from',
+                          child: TextField(
+                            key: const Key('converter-amount'),
+                            controller: _amount,
+                            textAlign: TextAlign.end,
+                            style: AppTypography.tileFigure(
+                              theme.colorScheme.onSurface,
                             ),
-                          ],
-                          decoration: InputDecoration(
-                            labelText: 'Amount in $from',
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[\d.,]'),
+                              ),
+                            ],
+                            onChanged: (_) => setState(() {}),
                           ),
-                          onChanged: (_) => setState(() {}),
                         ),
                       ),
                     ],

@@ -429,14 +429,12 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
               },
             ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('bought-note'),
-            controller: _note,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: _stock
-                  ? 'What you bought (optional)'
-                  : 'Note (optional)',
+          LabeledField(
+            label: _stock ? 'What you bought (optional)' : 'Note (optional)',
+            child: TextField(
+              key: const Key('bought-note'),
+              controller: _note,
+              textCapitalization: TextCapitalization.sentences,
             ),
           ),
           const SizedBox(height: 16),
@@ -451,16 +449,16 @@ class _BoughtSheetState extends ConsumerState<_BoughtSheet> {
             onSelected: (m) => setState(() => _method = m),
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('bought-supplier'),
-            controller: _supplier,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: later ? 'Supplier' : 'Supplier (optional)',
+          LabeledField(
+            label: later ? 'Supplier' : 'Supplier (optional)',
+            child: TextFormField(
+              key: const Key('bought-supplier'),
+              controller: _supplier,
+              textCapitalization: TextCapitalization.words,
+              validator: (text) => later && (text ?? '').trim().isEmpty
+                  ? 'Enter who you will pay, such as Wakulima wholesaler.'
+                  : null,
             ),
-            validator: (text) => later && (text ?? '').trim().isEmpty
-                ? 'Enter who you will pay, such as Wakulima wholesaler.'
-                : null,
           ),
           if (later) ...[
             const SizedBox(height: 16),

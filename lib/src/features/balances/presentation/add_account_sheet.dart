@@ -99,16 +99,16 @@ class _AddAccountSheetState extends ConsumerState<AddAccountSheet> {
         title: BalanceText.addAccount,
         subtitle: BalanceText.addAccountIntro,
         children: [
-          TextFormField(
-            key: const Key('add-account-name'),
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: BalanceText.accountName,
+          LabeledField(
+            label: BalanceText.accountName,
+            child: TextFormField(
+              key: const Key('add-account-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              validator: (text) => (text ?? '').trim().isEmpty
+                  ? 'Give it a name, such as Cash.'
+                  : null,
             ),
-            validator: (text) => (text ?? '').trim().isEmpty
-                ? 'Give it a name, such as Cash.'
-                : null,
           ),
           const SizedBox(height: Layout.cardGap),
           Text(BalanceText.accountType, style: muted),

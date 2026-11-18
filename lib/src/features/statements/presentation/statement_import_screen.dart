@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../domain/time/calendar.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sms/presentation/explain_text.dart';
 import '../application/statement_import_controller.dart';
@@ -96,22 +97,24 @@ class _StatementImportScreenState extends ConsumerState<StatementImportScreen> {
                     : 'It is used once to open the file, then forgotten.',
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _password,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                autofocus: true,
-                keyboardType: TextInputType.visiblePassword,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submitPassword(),
-                decoration: InputDecoration(
-                  labelText: 'Statement password',
-                  errorText: state.retryAt != null
-                      ? 'Try again in ${passwordWait.inSeconds} seconds.'
-                      : state.wrongPassword
-                      ? 'That password did not open the file. Try again.'
-                      : null,
+              LabeledField(
+                label: 'Statement password',
+                child: TextField(
+                  controller: _password,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofocus: true,
+                  keyboardType: TextInputType.visiblePassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submitPassword(),
+                  decoration: InputDecoration(
+                    errorText: state.retryAt != null
+                        ? 'Try again in ${passwordWait.inSeconds} seconds.'
+                        : state.wrongPassword
+                        ? 'That password did not open the file. Try again.'
+                        : null,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

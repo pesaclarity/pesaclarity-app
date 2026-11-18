@@ -54,7 +54,7 @@ void main() {
     await tester.tap(find.text('Record a payment'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount paid'),
+      fieldLabelled('Amount paid', type: TextFormField),
       '6,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
@@ -62,7 +62,7 @@ void main() {
     expect(find.text('Up to KES 5,000.'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount paid'),
+      fieldLabelled('Amount paid', type: TextFormField),
       '2,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
@@ -90,11 +90,11 @@ void main() {
     await tester.tap(find.text('I borrowed'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Borrowed from'),
+      fieldLabelled('Borrowed from', type: TextFormField),
       'Aunt Wanjiru',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount'),
+      fieldLabelled('Amount', type: TextFormField),
       '21,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
@@ -113,7 +113,7 @@ void main() {
     await tester.tap(find.text('Record a payment'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount paid'),
+      fieldLabelled('Amount paid', type: TextFormField),
       '1,000',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Record a payment'));
@@ -128,13 +128,14 @@ void main() {
     await tester.tap(find.byTooltip('Add a loan'));
     await settle(tester);
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Lent to'),
+      fieldLabelled('Lent to', type: TextFormField),
       'John',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount'),
+      fieldLabelled('Amount', type: TextFormField),
       '1,500',
     );
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save'));
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
     expect(find.text('You lent'), findsOneWidget);

@@ -248,9 +248,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('One-off'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Gift');
+    await tester.enterText(fieldLabelled('Name', type: TextFormField), 'Gift');
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Amount'),
+      fieldLabelled('Amount', type: TextFormField),
       '2,500',
     );
     await tapText(tester, 'Save');

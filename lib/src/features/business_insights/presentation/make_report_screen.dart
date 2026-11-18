@@ -8,6 +8,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
@@ -391,36 +392,46 @@ class _CoverDialogState extends State<_CoverDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            key: const Key('cover-business'),
-            controller: _business,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Business name'),
+          LabeledField(
+            label: 'Business name',
+            child: TextField(
+              key: const Key('cover-business'),
+              controller: _business,
+              textCapitalization: TextCapitalization.words,
+            ),
           ),
-          TextField(
-            key: const Key('cover-owner'),
-            controller: _owner,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Your name'),
+          LabeledField(
+            label: 'Your name',
+            child: TextField(
+              key: const Key('cover-owner'),
+              controller: _owner,
+              textCapitalization: TextCapitalization.words,
+            ),
           ),
-          TextField(
-            key: const Key('cover-phone'),
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Phone'),
+          LabeledField(
+            label: 'Phone',
+            child: TextField(
+              key: const Key('cover-phone'),
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+            ),
           ),
-          TextField(
-            key: const Key('cover-place'),
-            controller: _place,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Place'),
+          LabeledField(
+            label: 'Place',
+            child: TextField(
+              key: const Key('cover-place'),
+              controller: _place,
+              textCapitalization: TextCapitalization.words,
+            ),
           ),
-          TextField(
-            key: const Key('cover-permit'),
-            controller: _permit,
-            decoration: const InputDecoration(
-              labelText: 'Business permit number',
-              helperText: 'Shows when the style asks for it',
+          LabeledField(
+            label: 'Business permit number',
+            child: TextField(
+              key: const Key('cover-permit'),
+              controller: _permit,
+              decoration: const InputDecoration(
+                helperText: 'Shows when the style asks for it',
+              ),
             ),
           ),
         ],
@@ -471,12 +482,14 @@ class _NameDialogState extends State<_NameDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
     title: const Text('Save this report'),
-    content: TextField(
-      key: const Key('report-name'),
-      controller: _name,
-      autofocus: true,
-      textCapitalization: TextCapitalization.sentences,
-      decoration: const InputDecoration(labelText: 'Name'),
+    content: LabeledField(
+      label: 'Name',
+      child: TextField(
+        key: const Key('report-name'),
+        controller: _name,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+      ),
     ),
     actions: [
       DialogAction(

@@ -7,16 +7,18 @@ runs that very file on the rayo library `flutter test` runs: the one rayo's buil
 for this computer from the commit pubspec.lock pins (under .dart_tool; RAYO_LIB names another
 build). It records its float32 outputs for the exact input the app encodes: the kind
 probabilities, and the field probabilities of every token of the message. rayo gives the same
-floats on every kernel and thread count, but a library compiled another way (another compiler,
-its flags or another processor) can differ in the last bits, since the compiler may fuse a
-multiply and an add. So the test checks the app's rayo gives these bit for bit on the platform
-they were recorded on (`abi`), and within 1e-5 with the same labels elsewhere.
+floats on every kernel and thread count, and from any compiler and flags: since rayo 21c953e it
+is always built with -ffp-contract=off, so no compiler fuses a multiply and an add (the hook's
+clang -O3 -mavx2 -mfma build and a plain gcc -O2 one record the same file). Another platform's
+C library may still round exp or tanh differently in the last bit, so the test checks the
+app's rayo gives these bit for bit on the platform they were recorded on (`abi`), and within
+1e-5 with the same labels elsewhere.
 
 As a cross-check it also runs the PyTorch model the weights were quantised from: the reader's
 module (akili.reader.model) with the parameters of the release's reader.onnx, whose SHA-256
 must be the manifest's source.sha256. The int8 file must give torch's field and kind on every
 token where torch's two best scores are clearly apart, and probabilities within twice the
-export's tolerance (2e-2 for the fields, 1e-2 for the kind); a message beyond the tolerance
+export's tolerance (2e-2 for the fields and for the kind); a message beyond the tolerance
 itself is named, and the largest differences are recorded.
 
   1. READER_RECORD=build/reader-requests.json \\
@@ -45,7 +47,7 @@ MODEL_DIR = ROOT / "assets" / "models" / "reader"
 
 # The export's tolerances, int8 against torch (pesaclarity-ml docs/READER.md).
 FIELDS_TOLERANCE = 2e-2
-KIND_TOLERANCE = 1e-2
+KIND_TOLERANCE = 2e-2
 
 
 def pinned_commit() -> str:

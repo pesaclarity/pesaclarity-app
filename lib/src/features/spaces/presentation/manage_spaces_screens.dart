@@ -14,6 +14,7 @@ import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
@@ -332,12 +333,14 @@ class SpaceSettingsScreen extends ConsumerWidget {
       builder: (context) => SheetBody(
         title: 'Name',
         children: [
-          TextField(
-            key: const Key('space-name-field'),
-            controller: controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Name'),
+          LabeledField(
+            label: 'Name',
+            child: TextField(
+              key: const Key('space-name-field'),
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+            ),
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -472,12 +475,12 @@ class _DeleteSpaceSheetState extends ConsumerState<_DeleteSpaceSheet> {
           onOnline: (v) => setState(() => _online = v),
         ),
         const SizedBox(height: 16),
-        TextField(
-          key: const Key('space-delete-name'),
-          controller: _name,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            labelText: 'Type ${space.name} to confirm',
+        LabeledField(
+          label: 'Type ${space.name} to confirm',
+          child: TextField(
+            key: const Key('space-delete-name'),
+            controller: _name,
+            onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(height: 16),
@@ -862,16 +865,14 @@ class _DeleteAllScreenState extends ConsumerState<DeleteAllScreen> {
             icon: Icons.lock_outline,
           ),
           const SizedBox(height: 16),
-          TextField(
-            key: const Key('delete-all-check'),
-            controller: _check,
-            obscureText: pinSet,
-            keyboardType: pinSet ? TextInputType.number : TextInputType.text,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: pinSet
-                  ? 'Your app lock PIN'
-                  : 'Type DELETE to confirm',
+          LabeledField(
+            label: pinSet ? 'Your app lock PIN' : 'Type DELETE to confirm',
+            child: TextField(
+              key: const Key('delete-all-check'),
+              controller: _check,
+              obscureText: pinSet,
+              keyboardType: pinSet ? TextInputType.number : TextInputType.text,
+              onChanged: (_) => setState(() {}),
             ),
           ),
           const SizedBox(height: 16),

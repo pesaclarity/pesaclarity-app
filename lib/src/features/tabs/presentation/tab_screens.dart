@@ -15,6 +15,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
@@ -119,17 +120,17 @@ class _AddToTabSheetState extends ConsumerState<_AddToTabSheet> {
             ),
             const SectionLabel('Or start one'),
           ],
-          TextFormField(
-            key: const Key('tab-new'),
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              hintText: 'Table 7, or a name',
+          LabeledField(
+            label: 'Name',
+            child: TextFormField(
+              key: const Key('tab-new'),
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(hintText: 'Table 7, or a name'),
+              validator: (t) => (t ?? '').trim().isEmpty
+                  ? 'Enter a table or a name, such as Table 7.'
+                  : null,
             ),
-            validator: (t) => (t ?? '').trim().isEmpty
-                ? 'Enter a table or a name, such as Table 7.'
-                : null,
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -299,16 +300,16 @@ class _NameDialogState extends State<_NameDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
     title: const Text('Start a tab'),
-    content: TextField(
-      key: const Key('tab-start-name'),
-      controller: _name,
-      autofocus: true,
-      textCapitalization: TextCapitalization.words,
-      decoration: const InputDecoration(
-        labelText: 'Name',
-        hintText: 'Table 7, or a name',
+    content: LabeledField(
+      label: 'Name',
+      child: TextField(
+        key: const Key('tab-start-name'),
+        controller: _name,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(hintText: 'Table 7, or a name'),
+        onSubmitted: (_) => _done(),
       ),
-      onSubmitted: (_) => _done(),
     ),
     actions: [
       DialogAction(

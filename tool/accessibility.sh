@@ -2,9 +2,11 @@
 # The accessibility check: every screen of the marketing screenshots
 # (test/screenshots) at 1, 1.3, 1.5 and 2 times the text size, in light and
 # dark, and in high contrast at the usual size. Fails on anything that
-# overflows, an amount cut short, a tap target under 48 x 48 (Android) or
-# 44 x 44 (iPhone) and a button with no label. Text contrast is reported in
-# <out-dir>/contrast.jsonl and summarised, not failed on.
+# overflows, an amount cut short, a field's label cut short, a row name in
+# Activity or Money cut before its second line, a tap target under 48 x 48
+# (Android) or 44 x 44 (iPhone) and a button with no label. Text contrast is
+# reported in <out-dir>/contrast.jsonl and summarised; it fails only on the
+# screens in must_pass below, which once fell short and were fixed.
 #
 #   tool/accessibility.sh [--shots] [out-dir]   default: build/accessibility
 #
@@ -37,4 +39,17 @@ for r in failed:
     print(f"- {r['screen']} ({r['theme']}):")
     for line in r["reason"].strip().splitlines():
         print(f"    {line}")
+
+# Their small print once measured under 4.5:1 and now takes the darker
+# muted colour (PesaColors.mutedSmall): they must keep passing.
+must_pass = {"close-day", "support"}
+regressed = sorted({f"{r['screen']} ({r['theme']})" for r in failed
+                    if r["screen"] in must_pass})
+missing = must_pass - {r["screen"] for r in rows}
+if regressed or missing:
+    for name in regressed:
+        print(f"FAILED: text contrast fell short on {name}")
+    for name in sorted(missing):
+        print(f"FAILED: no contrast reading for {name}")
+    sys.exit(1)
 PY

@@ -225,12 +225,7 @@ class CashBookRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium,
-                  ),
+                  RowName(title, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 4),
                   Row(
                     children: [

@@ -137,16 +137,16 @@ class _LoanSheetState extends State<LoanSheet> {
             ),
             const SizedBox(height: 16),
           ],
-          TextFormField(
-            controller: _person,
-            decoration: InputDecoration(
-              labelText: lent ? 'Lent to' : 'Borrowed from',
+          LabeledField(
+            label: lent ? 'Lent to' : 'Borrowed from',
+            child: TextFormField(
+              controller: _person,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 80,
+              validator: (text) => (text ?? '').trim().isEmpty
+                  ? 'Enter a name, such as Grace.'
+                  : null,
             ),
-            textCapitalization: TextCapitalization.words,
-            maxLength: 80,
-            validator: (text) => (text ?? '').trim().isEmpty
-                ? 'Enter a name, such as Grace.'
-                : null,
           ),
           const SizedBox(height: 8),
           AmountField(controller: _amount, label: 'Amount'),
@@ -171,10 +171,9 @@ class _LoanSheetState extends State<LoanSheet> {
           ),
           if (lent) ...[
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _note,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
-              maxLength: 120,
+            LabeledField(
+              label: 'Note (optional)',
+              child: TextFormField(controller: _note, maxLength: 120),
             ),
           ] else ...[
             const SizedBox(height: 8),

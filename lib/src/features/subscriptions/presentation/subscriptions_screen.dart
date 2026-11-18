@@ -335,15 +335,17 @@ class _SubscriptionFormState extends ConsumerState<SubscriptionForm> {
       child: SheetBody(
         title: editing ? 'Edit subscription' : 'Add a subscription',
         children: [
-          TextFormField(
-            key: const Key('subscription-name'),
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Name'),
-            textCapitalization: TextCapitalization.sentences,
-            maxLength: 80,
-            validator: (v) => (v ?? '').trim().isEmpty
-                ? 'Enter a name, such as Netflix.'
-                : null,
+          LabeledField(
+            label: 'Name',
+            child: TextFormField(
+              key: const Key('subscription-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 80,
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Enter a name, such as Netflix.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           AmountField(

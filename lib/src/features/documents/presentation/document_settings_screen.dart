@@ -7,6 +7,7 @@ import '../../../domain/documents/document_settings.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
@@ -462,16 +463,16 @@ class _FieldsDialogState extends State<_FieldsDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final (i, f) in widget.fields.indexed)
-            TextField(
-              key: Key('field-${f.label}'),
-              controller: _controllers[i],
-              keyboardType: f.keyboard,
-              textCapitalization: f.keyboard == null
-                  ? TextCapitalization.sentences
-                  : TextCapitalization.none,
-              decoration: InputDecoration(
-                labelText: f.label,
-                helperText: f.hint,
+            LabeledField(
+              label: f.label,
+              child: TextField(
+                key: Key('field-${f.label}'),
+                controller: _controllers[i],
+                keyboardType: f.keyboard,
+                textCapitalization: f.keyboard == null
+                    ? TextCapitalization.sentences
+                    : TextCapitalization.none,
+                decoration: InputDecoration(helperText: f.hint),
               ),
             ),
         ],

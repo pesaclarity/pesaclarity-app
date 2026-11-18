@@ -11,6 +11,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/backup_labels.dart';
@@ -297,22 +298,24 @@ class _RestoreDialogState extends ConsumerState<RestoreDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                key: const Key('restore-secret'),
-                controller: _secret,
-                enabled: !_busy,
-                obscureText: !_useRecoveryKey,
-                autocorrect: false,
-                enableSuggestions: false,
-                textCapitalization: _useRecoveryKey
-                    ? TextCapitalization.characters
-                    : TextCapitalization.none,
-                decoration: InputDecoration(
-                  labelText: _useRecoveryKey ? 'Recovery key' : 'Passphrase',
-                  errorText: _error,
-                  errorMaxLines: 3,
+              LabeledField(
+                label: _useRecoveryKey ? 'Recovery key' : 'Passphrase',
+                child: TextField(
+                  key: const Key('restore-secret'),
+                  controller: _secret,
+                  enabled: !_busy,
+                  obscureText: !_useRecoveryKey,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textCapitalization: _useRecoveryKey
+                      ? TextCapitalization.characters
+                      : TextCapitalization.none,
+                  decoration: InputDecoration(
+                    errorText: _error,
+                    errorMaxLines: 3,
+                  ),
+                  onSubmitted: (_) => _restore(),
                 ),
-                onSubmitted: (_) => _restore(),
               ),
               TextButton(
                 onPressed: _busy
