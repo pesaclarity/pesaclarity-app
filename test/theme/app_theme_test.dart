@@ -30,6 +30,14 @@ void main() {
       expect(colors.successText, const Color(0xFF047857));
       expect(colors.warning, const Color(0xFFB45309));
     });
+
+    test('keeps a deeper brand red for the second chart series', () {
+      final colors = theme.extension<PesaColors>()!;
+      expect(
+        colors.secondSeries,
+        Color.lerp(BrandTokens.danger, const Color(0xFF000000), 0.45),
+      );
+    });
   });
 
   group('dark theme', () {
@@ -100,6 +108,31 @@ void main() {
         contrast(colors.link, BrandTokens.darkSurface),
         closeTo(5.29, 0.01),
       );
+    });
+
+    test('the second chart series is a neutral grey, not brand red', () {
+      // Brand red is under 3:1 on a card, so the series beside the red one
+      // (spending's fourth, Plan's Living) is grey in dark.
+      expect(colors.secondSeries, const Color(0xFF737373));
+      expect(colors.secondSeries, BrandTokens.darkChartGrey);
+      final grey = HSLColor.fromColor(colors.secondSeries);
+      expect(grey.saturation, 0);
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkFloating,
+      ]) {
+        expect(contrast(colors.secondSeries, surface), greaterThanOrEqualTo(3));
+      }
+      expect(
+        contrast(colors.secondSeries, BrandTokens.darkSurface),
+        closeTo(3.59, 0.01),
+      );
+      // Apart by lightness from its neighbours: the red series, muted text
+      // (the next series) and the border ("Other" and the bar's empty part).
+      expect(contrast(colors.secondSeries, colors.link), greaterThan(1.4));
+      expect(contrast(colors.secondSeries, colors.textMuted), greaterThan(1.8));
+      expect(contrast(colors.secondSeries, colors.border), greaterThan(2.5));
     });
 
     test('text keeps its contrast on the softer greys', () {
