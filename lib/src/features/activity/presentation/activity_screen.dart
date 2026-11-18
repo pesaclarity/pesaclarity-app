@@ -343,12 +343,9 @@ class _WeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final label = theme.textTheme.bodyMedium!.copyWith(color: colors.textMuted);
-    // A long amount with its code wraps and the card grows; money is
-    // never shrunk to fit.
-    Widget figure(String text, Color color, TextAlign align) => readAsAmount(
-      text,
-      Text(text, textAlign: align, style: AppTypography.tileFigure(color)),
-    );
+    // Money is kept whole, code and number on one line, never shrunk.
+    Widget figure(String text, Color color) =>
+        FigureText(text, style: AppTypography.tileFigure(color));
     final out = _orHidden(
       context,
       code == null
@@ -366,7 +363,7 @@ class _WeekCard extends StatelessWidget {
               : CrossAxisAlignment.start,
           children: [
             Text(title, style: label),
-            figure(value, color, end ? TextAlign.end : TextAlign.start),
+            figure(value, color),
           ],
         );
     return Card(
