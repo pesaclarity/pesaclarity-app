@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/health/health_index.dart';
@@ -39,9 +40,11 @@ final healthIndexProvider = FutureProvider<HealthOnHome?>((ref) async {
   for (final a in accounts) {
     if (a.openingDate.isBefore(from)) from = a.openingDate;
   }
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(from: from, to: month.endInstant);
+  final entries = await readLedgerHistory(
+    ref,
+    from: from,
+    to: month.endInstant,
+  );
 
   final journal = await readJournal(ref);
   HealthIndex? scoreOf(MonthPlan plan) {
