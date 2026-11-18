@@ -44,7 +44,7 @@ notes="The app's marketing screenshots, drawn from \`$branch\` at commit ${GITHU
 - \`<screen>-light.png\` and \`<screen>-dark.png\`: 1170 x 2532 pixels, a 390 x 844 phone at 3x.
 - \`manifest.json\`: each screen's name, file, theme and SHA-256, and a digest of them all.
 
-The website (pesaclarity.github.io) turns the light ones into its WebP screens.
+The website (pesaclarity.github.io) turns them into its WebP screens: light for its light mode, dark for its dark mode.
 
 Drawn by $RUN_URL"
 

@@ -364,7 +364,7 @@ It writes `<screen>-light.png` and `<screen>-dark.png` for home, activity, plan,
 
 On each push to `dev` or `main` that touches the app, the `Screenshots` workflow (`.github/workflows/screenshots.yml`) runs the script, keeps the PNGs and manifest as an artifact for 30 days and puts them on a rolling pre-release: [`screenshots`](https://github.com/pesaclarity/pesaclarity-app/releases/tag/screenshots) for `dev`, [`screenshots-main`](https://github.com/pesaclarity/pesaclarity-app/releases/tag/screenshots-main) for `main` (`tool/publish_screenshots.sh`). When the digest differs from the one already on the release, it:
 
-- asks the website to refresh its screens (a `repository_dispatch` of type `screenshots-updated` with the release tag and commit, using the `WEB_DISPATCH_TOKEN` secret below); the website opens a pull request with the new WebP screens, and
+- asks the website to refresh its screens (a `repository_dispatch` of type `screenshots-updated` with the release tag and commit, using the `WEB_DISPATCH_TOKEN` secret below); the website opens a pull request with the new WebP screens, `<name>.webp` from the light theme and `<name>-dark.webp` from the dark one for its dark mode, and
 - on `main`, opens a pull request into `dev` with the F-Droid listing's six phone screenshots redrawn (`tool/fastlane_screenshots.sh`: Home, Activity, Plan, Debts, Insights and Today, light, 780 x 1688). It uses the workflow's own token, so the organisation and repository must allow GitHub Actions to create pull requests, as for release-please.
 
 It can also be run by hand (Actions › Screenshots › Run workflow); on other branches it only keeps the artifact.
