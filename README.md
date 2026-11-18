@@ -343,6 +343,29 @@ Tests cover the domain rules with synthetic ledgers, money formatting, the theme
 
 The checks run on your machine (CONTRIBUTING.md, Checks run on your machine); GitHub Actions only builds and releases; pull requests run no builds.
 
+## Performance
+
+The app is meant to stay quick on 2–3 GB phones with Cortex-A53 or A55 cores, with years of messages.
+
+**On a phone.** With a phone on USB debugging (`adb devices`):
+
+```sh
+tool/startup_timing.sh          # profile APK, install, 5 cold starts, medians
+tool/startup_timing.sh 10       # 10 cold starts
+SKIP_BUILD=1 tool/startup_timing.sh   # time the profile APK already installed
+tool/startup_timing.sh --trace  # flutter run --profile --trace-startup, once
+```
+
+Each cold start prints Android's launch time (`am start -W`: process start to first frame) and the app's startup phases in milliseconds since Dart's `main`: `look read`, `first frame`, `database key read`, `database open` and `home data shown` (Home's cards have their numbers). Debug and profile builds log these as `Startup: <phase> <ms> ms` and mark them on the Dart timeline (`lib/src/core/perf/startup_timeline.dart`), so they also show in DevTools' Performance view; release builds do neither. `home data shown` needs the app set up with app lock off. Measure with the phone's usual data in the app: startup work after unlock grows with the ledger.
+
+**On your computer.** `test/perf/hot_paths_benchmark_test.dart` builds a synthetic ledger of 20,000 transactions over two years and times the journal, ledger reads and the providers behind Home, Balances and Insights. It runs with the other tests and fails only on large regressions (generous ceilings in the file). To print the table:
+
+```sh
+flutter test test/perf/hot_paths_benchmark_test.dart --dart-define=PERF_REPORT=true
+```
+
+These are host numbers, from an in-memory database on a desktop CPU; on a phone the database runs in its own isolate and everything is several times slower. Use them to compare before and after a change, not as phone timings.
+
 ## UI screenshots
 
 `tool/check --ui` builds a `foss` debug APK, installs it on the connected emulator or phone and runs the [Maestro](https://maestro.mobile.dev) flows in `.maestro/` twice, in light and dark mode. Each flow walks one journey (onboarding with the account picker before and after ticking M-Pesa, the five tabs, Profile, Profile > My accounts, Debts, Backup, Privacy), checks the screen title is visible and saves a screenshot with a stable name such as `01-onboarding-welcome-dark.png`. Screenshots and JUnit reports land in `build/maestro/`.

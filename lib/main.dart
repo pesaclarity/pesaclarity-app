@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'src/app.dart';
+import 'src/core/perf/startup_timeline.dart';
 import 'src/data/database/connection.dart';
 import 'src/data/database/database_providers.dart';
 import 'src/domain/spaces/space.dart';
@@ -9,11 +12,18 @@ import 'src/features/look/application/look_providers.dart';
 import 'src/features/security/data/secure_store.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  StartupTimeline.start();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
   final choice = await readOpenSpaceChoice();
   final spaceId = spaceToOpen(choice, await readActiveSpaceId());
   // Read before the first frame so the lock screen already has the look.
   final look = await readStartupLook(FlutterSecureStore());
+  StartupTimeline.mark('look read');
+  unawaited(
+    binding.waitUntilFirstFrameRasterized.then(
+      (_) => StartupTimeline.mark('first frame'),
+    ),
+  );
   runApp(
     ProviderScope(
       overrides: [

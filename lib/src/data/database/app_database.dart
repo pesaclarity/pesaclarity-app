@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../core/perf/startup_timeline.dart';
 import '../../domain/books/books.dart';
 import '../../domain/categories/default_categories.dart';
 import '../../domain/enums.dart';
@@ -342,6 +343,8 @@ class AppDatabase extends _$AppDatabase {
       }
     },
     beforeOpen: (details) async {
+      // Opened and migrated, as far as startup is concerned.
+      StartupTimeline.mark('database open');
       await customStatement('PRAGMA foreign_keys = ON');
       // The journal starts from every existing record, and version 35's
       // posting rules repost what version 34 posted.
