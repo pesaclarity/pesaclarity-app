@@ -34,7 +34,7 @@ jobs:
   rebuild:
     name: Build foss twice and compare
     if: github.event.pull_request.draft != true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       BUILD_DIR: /home/vagrant/build/com.pesaclarity.app

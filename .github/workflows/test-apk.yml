@@ -45,7 +45,7 @@ env:
 jobs:
   changes:
     name: Anything new to build?
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       build: ${{ steps.check.outputs.build }}
@@ -72,7 +72,7 @@ jobs:
     name: Build ${{ matrix.flavor }} APK
     needs: changes
     if: needs.changes.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write
@@ -307,7 +307,7 @@ jobs:
   website:
     name: Refresh the website
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Ask the website to rebuild

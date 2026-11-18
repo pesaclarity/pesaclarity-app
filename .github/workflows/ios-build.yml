@@ -31,7 +31,7 @@ jobs:
   # A cheap Linux check first, so an unchanged evening costs no macOS time.
   changes:
     name: Anything new to build?
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       build: ${{ steps.check.outputs.build }}
