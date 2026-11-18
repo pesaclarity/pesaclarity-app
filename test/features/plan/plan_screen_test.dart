@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,42 @@ import '../../helpers/test_app.dart';
 
 /// Thursday 26 November 2026, 09:00 EAT.
 final now = DateTime.utc(2026, 11, 26, 6);
+
+/// Machado, Oliveira and Fernandes (2009) at full severity, on linear RGB.
+const protanopia = [
+  [0.152286, 1.052583, -0.204868],
+  [0.114503, 0.786281, 0.099216],
+  [-0.003882, -0.048116, 1.051998],
+];
+const deuteranopia = [
+  [0.367322, 0.860646, -0.227968],
+  [0.280085, 0.672501, 0.047413],
+  [-0.011820, 0.042940, 0.968881],
+];
+
+double _linear(double v) =>
+    v <= 0.04045 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+
+/// [colour] as someone with [deficiency] sees it, in CIELAB.
+List<double> simulatedLab(Color colour, List<List<double>> deficiency) {
+  final rgb = [colour.r, colour.g, colour.b].map(_linear).toList();
+  final s = [
+    for (final row in deficiency)
+      (row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]).clamp(0.0, 1.0),
+  ];
+  final x = (0.4124 * s[0] + 0.3576 * s[1] + 0.1805 * s[2]) / 0.95047;
+  final y = 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2];
+  final z = (0.0193 * s[0] + 0.1192 * s[1] + 0.9505 * s[2]) / 1.08883;
+  double f(double t) =>
+      t > 0.008856 ? math.pow(t, 1 / 3).toDouble() : 7.787 * t + 16 / 116;
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
+/// The CIE76 colour difference between two CIELAB colours.
+double labDistance(List<double> a, List<double> b) => math.sqrt(
+  [for (var i = 0; i < 3; i++) (a[i] - b[i]) * (a[i] - b[i])]
+      .reduce((p, q) => p + q),
+);
 
 Future<int> categoryId(AppDatabase db, String key) async => (await (db.select(
   db.categories,
@@ -183,6 +221,19 @@ void main() {
       // Only one may be a neutral grey: two greys read as one group.
       final greys = colours.where((c) => HSLColor.fromColor(c).saturation == 0);
       expect(greys, hasLength(lessThanOrEqualTo(1)));
+      // And they stay apart with red-green colour blindness.
+      for (final deficiency in [protanopia, deuteranopia]) {
+        final seen = colours.map((c) => simulatedLab(c, deficiency)).toList();
+        for (var i = 0; i < seen.length; i++) {
+          for (var j = i + 1; j < seen.length; j++) {
+            expect(
+              labDistance(seen[i], seen[j]),
+              greaterThan(12),
+              reason: '${colours.elementAt(i)} and ${colours.elementAt(j)}',
+            );
+          }
+        }
+      }
     });
   }
 

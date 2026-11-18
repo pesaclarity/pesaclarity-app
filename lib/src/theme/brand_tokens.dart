@@ -106,6 +106,13 @@ abstract final class BrandTokens {
   /// and from the red, amber and green by hue. Not in the brand tokens: an
   /// app chart colour.
   static const darkChartBlue = Color(0xFF60A5FA);
+
+  /// A cyan for the Plan income bar's Living. Brightened brand red reads as
+  /// a mid grey to someone without red cones (protanopia), so a grey Living
+  /// beside Debt looks the same; this stays apart from the red, amber,
+  /// green and [darkChartBlue] with red-green colour blindness too. 9.2:1
+  /// on a card. Not in the brand tokens: an app chart colour.
+  static const darkChartCyan = Color(0xFF67DAE4);
   static const darkShadow = Color(0x00000000);
 
   /// The phone's high-contrast setting keeps the deeper near-black page.

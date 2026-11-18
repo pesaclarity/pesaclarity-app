@@ -156,6 +156,21 @@ void main() {
       );
     });
 
+    test("Plan's Living is a cyan, not the chart grey", () {
+      expect(colors.livingSeries, BrandTokens.darkChartCyan);
+      expect(
+        HSLColor.fromColor(colors.livingSeries).saturation,
+        greaterThan(0),
+      );
+      for (final surface in [
+        BrandTokens.darkBackground,
+        BrandTokens.darkSurface,
+        BrandTokens.darkFloating,
+      ]) {
+        expect(contrast(colors.livingSeries, surface), greaterThanOrEqualTo(3));
+      }
+    });
+
     test('text keeps its contrast on the softer greys', () {
       expect(
         contrast(BrandTokens.darkText, BrandTokens.darkBackground),

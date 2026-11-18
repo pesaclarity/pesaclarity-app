@@ -144,6 +144,11 @@ class PesaColors extends ThemeExtension<PesaColors> {
   Color get thirdSeries =>
       shadow.a == 0 ? BrandTokens.darkChartBlue : textMuted;
 
+  /// The Plan income bar's Living: [secondSeries] in light, and in dark a
+  /// cyan, since the dark grey and the red look alike without red cones.
+  Color get livingSeries =>
+      shadow.a == 0 ? BrandTokens.darkChartCyan : secondSeries;
+
   static PesaColors of(BuildContext context) =>
       Theme.of(context).extension<PesaColors>()!;
 
