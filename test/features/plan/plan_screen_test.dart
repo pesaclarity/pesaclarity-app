@@ -138,6 +138,24 @@ void main() {
     expect(find.text('Show all'), findsOneWidget);
   });
 
+  testAppWidgets('draws the income bar at its full height', (tester) async {
+    final db = openTestDatabase();
+    await tester.runAsync(() => seedNovember(db));
+    await pumpScreen(tester, db, const PlanScreen());
+
+    final bar = find.byWidgetPredicate(
+      (w) => w is SizedBox && w.height == 10 && w.child is Row,
+    );
+    final segments = find.descendant(
+      of: bar,
+      matching: find.byType(ColoredBox),
+    );
+    expect(segments, findsWidgets);
+    for (var i = 0; i < segments.evaluate().length; i++) {
+      expect(tester.getSize(segments.at(i)).height, 10);
+    }
+  });
+
   testAppWidgets('adds a one-off to the month', (tester) async {
     final db = openTestDatabase();
     await tester.runAsync(() => seedNovember(db));
