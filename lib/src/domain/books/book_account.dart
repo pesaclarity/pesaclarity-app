@@ -135,11 +135,14 @@ class BookAccount {
   const BookAccount.fulizaOwed(int accountId)
     : this._(BookAccountKind.fulizaOwed, accountId);
 
+  /// Kinds by name, built once: reading the journal parses every posting's
+  /// account.
+  static final _kinds = BookAccountKind.values.asNameMap();
+
   /// The account a stored [key] names (see [key]); null when it names none.
   static BookAccount? parse(String key) {
     final colon = key.indexOf(':');
-    final kind = BookAccountKind.values
-        .asNameMap()[colon < 0 ? key : key.substring(0, colon)];
+    final kind = _kinds[colon < 0 ? key : key.substring(0, colon)];
     if (kind == null) return null;
     if (!kind.hasId) return colon < 0 ? BookAccount.fixed(kind) : null;
     final id = colon < 0 ? null : int.tryParse(key.substring(colon + 1));
