@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -532,6 +530,17 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
     final total = lines.fold(0, (sum, l) => sum + l.totalMinor);
     final count = lines.length;
 
+    final tiles = [
+      for (final item in shown)
+        _Tile(
+          item: item,
+          ways: _ways(item),
+          measures: widget.measures[item.id] ?? const [],
+          count: _countOf(item),
+          onTap: () => _tap(item),
+        ),
+      _OtherTile(onTap: _otherSale),
+    ];
     final tab = widget.tab;
     return Scaffold(
       appBar: SellAppBar(
@@ -591,25 +600,23 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
               ),
             ],
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: Layout.cardGap,
-              crossAxisSpacing: Layout.cardGap,
-              // Taller with large text, so a tile's lines all fit.
-              childAspectRatio:
-                  1.45 / math.max(1, MediaQuery.textScalerOf(context).scale(1)),
+            // Two to a row, each row as tall as its tallest tile, so tiles
+            // grow with large text and a row stays even.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final item in shown)
-                  _Tile(
-                    item: item,
-                    ways: _ways(item),
-                    measures: widget.measures[item.id] ?? const [],
-                    count: _countOf(item),
-                    onTap: () => _tap(item),
+                for (var i = 0; i < tiles.length; i += 2) ...[
+                  if (i > 0) const SizedBox(height: Layout.cardGap),
+                  FigureRow(
+                    children: [
+                      tiles[i],
+                      if (i + 1 < tiles.length)
+                        tiles[i + 1]
+                      else
+                        const SizedBox.shrink(),
+                    ],
                   ),
-                _OtherTile(onTap: _otherSale),
+                ],
               ],
             ),
           ],
@@ -697,6 +704,22 @@ class _SellBar extends StatelessWidget {
   }
 }
 
+/// A tile on Sell: as tall as the grid's tiles were (1.45 times narrower
+/// than wide) and taller when its text needs it.
+class _TileBox extends StatelessWidget {
+  const _TileBox({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => ConstrainedBox(
+      constraints: BoxConstraints(minHeight: constraints.maxWidth / 1.45),
+      child: child,
+    ),
+  );
+}
+
 String _plainMoney(int minor) => formatMoney(Money(minor), withCurrency: false);
 
 class _Tile extends StatelessWidget {
@@ -740,63 +763,74 @@ class _Tile extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final picked = count > 0;
-    return Card(
-      key: Key('tile-${item.id}'),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Layout.panelRadius),
-        side: BorderSide(
-          color: picked ? colors.link : colors.border,
-          width: picked ? 2 : 1,
+    return _TileBox(
+      child: Card(
+        key: Key('tile-${item.id}'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
+          side: BorderSide(
+            color: picked ? colors.link : colors.border,
+            width: picked ? 2 : 1,
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(_price(), style: theme.textTheme.titleSmall),
-                  const Spacer(),
-                  if (!item.isProduct)
-                    const Tag('Service')
-                  else if (item.isLow)
-                    Tag(_stock(), tone: Tone.warning)
-                  else
-                    Text(
-                      _stock(),
-                      style: theme.textTheme.bodySmall!.copyWith(
-                        color: colors.textMuted,
-                      ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.cardPadding),
+            child: Stack(
+              // The tile's least height reaches the column, which puts the
+              // stock at the bottom.
+              fit: StackFit.passthrough,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(_price(), style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 4),
+                      ],
                     ),
-                ],
-              ),
-              if (picked)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: CircleAvatar(
-                    radius: 13,
-                    backgroundColor: theme.colorScheme.primary,
-                    child: Text(
-                      quantityText(count),
-                      semanticsLabel: '${quantityText(count)} in the sale',
-                      style: theme.textTheme.labelMedium!.copyWith(
-                        color: theme.colorScheme.onPrimary,
+                    if (!item.isProduct)
+                      const Tag('Service')
+                    else if (item.isLow)
+                      Tag(_stock(), tone: Tone.warning)
+                    else
+                      Text(
+                        _stock(),
+                        style: theme.textTheme.bodySmall!.copyWith(
+                          color: colors.textMuted,
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-            ],
+                if (picked)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: CircleAvatar(
+                      radius: 13,
+                      backgroundColor: theme.colorScheme.primary,
+                      child: Text(
+                        quantityText(count),
+                        semanticsLabel: '${quantityText(count)} in the sale',
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -812,23 +846,25 @@ class _OtherTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      key: const Key('tile-other'),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Layout.panelRadius),
-        side: BorderSide(color: PesaColors.of(context).border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Layout.cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Other sale', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text('Type an amount', style: theme.textTheme.titleSmall),
-            ],
+    return _TileBox(
+      child: Card(
+        key: const Key('tile-other'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
+          side: BorderSide(color: PesaColors.of(context).border),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.cardPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Other sale', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text('Type an amount', style: theme.textTheme.titleSmall),
+              ],
+            ),
           ),
         ),
       ),
