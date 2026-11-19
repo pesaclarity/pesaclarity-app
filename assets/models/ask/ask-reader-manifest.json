@@ -1,7 +1,13 @@
 {
-  "model_file": "ask-reader.tflite",
-  "model_sha256": "f6599bc4d9758bf7917fd974225d10552d4760327d39748784bd7864d820a4bb",
-  "model_size_bytes": 271904,
+  "weights_file": "ask-reader.weights",
+  "weights_sha256": "1dac0b7b9db60f843ed33a2578b2da2bcfddfb735c4a89c021ba443f2c121106",
+  "weights_size_bytes": 252860,
+  "weights_format_version": 1,
+  "source": {
+    "file": "ask-reader.onnx",
+    "sha256": "cc2cc4d38d763a2cce66cd75fa76484658ead79ef22f1196fefea74f30ce954c",
+    "size_bytes": 964440
+  },
   "ask_schema_version": 1,
   "reader_schema_version": 1,
   "max_tokens": 96,
@@ -14,6 +20,22 @@
       192
     ],
     "encoding": "the message reader's encode(), unchanged (docs/READER.md)"
+  },
+  "rayo_inputs": {
+    "tokens": {
+      "dtype": "int32",
+      "shape": [
+        96
+      ],
+      "from": "question[0:96]"
+    },
+    "shapes": {
+      "dtype": "int32",
+      "shape": [
+        96
+      ],
+      "from": "question[96:192]"
+    }
   },
   "outputs": {
     "intent": {
@@ -71,9 +93,5 @@
       ]
     }
   },
-  "weights_file": "ask-reader.weights",
-  "weights_sha256": "7f88fe2910e498738d7defcf976d7ae80d1785e289fc69ee4067e4d951413b2e",
-  "weights_size_bytes": 251276,
-  "weights_format_version": 1,
   "trained_on": "synthetic questions only"
 }

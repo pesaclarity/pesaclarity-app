@@ -29,9 +29,9 @@ abstract interface class BackgroundAskReaderRuntime
 /// fall back to the rules.
 class AskReaderManifest {
   const AskReaderManifest({
-    required this.modelFile,
-    required this.modelSha256,
-    required this.modelSizeBytes,
+    required this.sourceFile,
+    required this.sourceSha256,
+    required this.sourceSizeBytes,
     required this.weightsFile,
     required this.weightsSha256,
     required this.weightsSizeBytes,
@@ -48,10 +48,11 @@ class AskReaderManifest {
     List<String> labels(String name) =>
         ((outputs[name]! as Map<String, Object?>)['labels']! as List)
             .cast<String>();
+    final source = json['source']! as Map<String, Object?>;
     return AskReaderManifest(
-      modelFile: json['model_file']! as String,
-      modelSha256: json['model_sha256']! as String,
-      modelSizeBytes: json['model_size_bytes']! as int,
+      sourceFile: source['file']! as String,
+      sourceSha256: source['sha256']! as String,
+      sourceSizeBytes: source['size_bytes']! as int,
       weightsFile: json['weights_file']! as String,
       weightsSha256: json['weights_sha256']! as String,
       weightsSizeBytes: json['weights_size_bytes']! as int,
@@ -64,14 +65,15 @@ class AskReaderManifest {
     );
   }
 
-  /// The TFLite file pesaclarity-ml exported and scored. The app does not
-  /// ship it; its hash says which model the weights are.
-  final String modelFile;
-  final String modelSha256;
-  final int modelSizeBytes;
+  /// The ONNX file of the PyTorch model pesaclarity-ml exported and scored,
+  /// which the weights were quantised from (the manifest's `source`). The
+  /// app does not ship it; its hash says which model the weights are.
+  final String sourceFile;
+  final String sourceSha256;
+  final int sourceSizeBytes;
 
-  /// The model's plain weights (pesaclarity-ml docs/WEIGHTS.md), read out
-  /// of [modelFile]: what the app runs.
+  /// The model's plain weights (pesaclarity-ml docs/WEIGHTS.md), quantised
+  /// from [sourceFile]: what the app runs.
   final String weightsFile;
   final String weightsSha256;
   final int weightsSizeBytes;

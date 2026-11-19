@@ -15,13 +15,15 @@ import 'plain_weights.dart';
 /// pooling. [layers] is the list this code implements, and a weights file
 /// that lists anything else is refused.
 ///
-/// The model is dynamic-range quantised, and this runs it the way TFLite's
-/// hybrid kernels do, so it gives TFLite's outputs (pesaclarity-ml
-/// docs/WEIGHTS.md): before each int8 layer the float input is quantised to
-/// int8 on the fly, the products are summed as integers (exactly, in
-/// float32 lanes: every sum stays below 2^24) and the sum is scaled back.
-/// A dilated convolution quantises each of its dilation phases on its own,
-/// as TFLite runs it as `SPACE_TO_BATCH_ND`. Activations are float32.
+/// The weights are rayo-convert's int8 quantisation of the PyTorch model's
+/// ONNX file (pesaclarity-ml docs/ASK.md), and this runs them as rayo does,
+/// so it gives rayo's outputs (pesaclarity-ml docs/WEIGHTS.md; a copy of
+/// akili's `reader_weights.forward`): before each int8 layer the float
+/// input is quantised to int8 on the fly, the products are summed as
+/// integers (exactly, in float32 lanes: every sum stays below 2^24) and the
+/// sum is scaled back. A dilated convolution quantises each of its dilation
+/// phases on its own, as rayo's conv1d does. Activations, and the pooling's
+/// sums, are float32.
 class DartAskReader implements AskReaderRuntime {
   DartAskReader._(
     this._tokens,
@@ -182,6 +184,7 @@ class DartAskReader implements AskReaderRuntime {
     ];
 
     // Intent: masked max and mean of the context, and the mean embedding.
+    // As rayo sums them: one position after another, in float32.
     final count = math.max(n, 1);
     final pooled = Float32List(2 * c + e);
     for (var j = 0; j < c; j++) {
@@ -190,17 +193,17 @@ class DartAskReader implements AskReaderRuntime {
       for (var i = 0; i < t; i++) {
         final v = x[i * c + j] * mask[i];
         best = math.max(best, v - (1 - mask[i]) * 1e4);
-        sum += v;
+        sum = _Layer._f32(sum + v);
       }
       pooled[j] = best;
-      pooled[c + j] = sum / count;
+      pooled[c + j] = _Layer._f32(sum / count);
     }
     for (var j = 0; j < e; j++) {
       var sum = 0.0;
       for (var i = 0; i < t; i++) {
-        sum += emb[i * e + j] * mask[i];
+        sum = _Layer._f32(sum + emb[i * e + j] * mask[i]);
       }
-      pooled[2 * c + j] = sum / count;
+      pooled[2 * c + j] = _Layer._f32(sum / count);
     }
     final h = _intentHidden.apply(pooled, 1);
     final intent = List<double>.of(_intent.apply(h, 1));
@@ -338,7 +341,7 @@ class _Layer {
   Float32List apply(Float32List x, int rows) {
     final lanes = inputs ~/ 4;
     final scales = _scales;
-    // Each row's input scale: TFLite quantises a dense layer's rows one by
+    // Each row's input scale: rayo quantises a dense layer's rows one by
     // one and each dilation phase of a convolution (the rows i with
     // i % dilation == p) as a whole.
     final Float32List input;
@@ -379,7 +382,7 @@ class _Layer {
           }
         }
         final sum = acc.x + acc.y + acc.z + acc.w;
-        // As TFLite: the sum times (input scale * weight scale), then the
+        // As rayo: the sum times (input scale * weight scale), then the
         // bias, in float32.
         final v = scales == null
             ? _f32(_bias[o] + sum)
@@ -400,9 +403,9 @@ class _Layer {
 
   /// Quantises rows `from, from + step, ...` (below [end]) of the
   /// [width]-wide matrix [x] into [out] as `value - zero point` (integers),
-  /// as TFLite's AsymmetricQuantizeFloats does for one batch row: one scale
-  /// and zero point for them all, the range widened to include 0, rounding
-  /// halves away from zero. Returns the scale.
+  /// as rayo quantises one row (as TFLite's AsymmetricQuantizeFloats does):
+  /// one scale and zero point for them all, the range widened to include 0,
+  /// rounding halves away from zero. Returns the scale.
   static double _quantise(
     Float32List x,
     Float32List out,

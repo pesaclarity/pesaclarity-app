@@ -42,16 +42,22 @@ void main() {
     final bytes = (await asset('$askModelFolder/${m.weightsFile}'))!;
     expect(bytes.length, m.weightsSizeBytes);
     expect(await sha256Hex(bytes), m.weightsSha256);
-    // The reader trained on invented names (pesaclarity-ml ask-reader v3,
-    // pesaclarity-ml#51), which test/features/ask/ask_reader_test.dart
-    // runs: its weights, read out of that model's TFLite file. The app does not ship the TFLite
-    // file.
-    expect(PlainWeights.parse(bytes).sourceSha256, m.modelSha256);
+    // Ask reader v4 in PyTorch (pesaclarity-ml run 16), which
+    // test/features/ask/ask_reader_test.dart runs: its int8 weights,
+    // quantised from the model's ONNX file (the manifest's source). The app
+    // does not ship the ONNX file.
+    final json = (jsonDecode(
+      utf8.decode((await asset('$askModelFolder/$askReaderManifestFile'))!),
+    ) as Map).cast<String, Object?>();
+    final source = (json['source']! as Map).cast<String, Object?>();
+    expect(PlainWeights.parse(bytes).sourceSha256, source['sha256']);
+    expect(m.sourceSha256, source['sha256']);
+    expect(m.sourceFile, 'ask-reader.onnx');
     expect(
-      m.modelSha256,
-      'f6599bc4d9758bf7917fd974225d10552d4760327d39748784bd7864d820a4bb',
+      m.weightsSha256,
+      '1dac0b7b9db60f843ed33a2578b2da2bcfddfb735c4a89c021ba443f2c121106',
     );
-    expect(await asset('$askModelFolder/${m.modelFile}'), isNull);
+    expect(await asset('$askModelFolder/${m.sourceFile}'), isNull);
   });
 
   test('a weights file that does not match the manifest is not used', () async {

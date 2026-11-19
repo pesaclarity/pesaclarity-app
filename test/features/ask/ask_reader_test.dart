@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:ffi' show Abi;
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,10 +24,13 @@ import 'package:pesaclarity/src/features/ask/data/rayo_ask_runtimes.dart';
 /// compiles the C for the host), first alone and then with the rules behind
 /// it.
 ///
-/// TFLite stays the reference: tool/ask_reader_decodes.py ran the same
-/// model's `ask-reader.tflite` on these very inputs, and rayo and the Dart
-/// reader (the fallback where rayo cannot load) must both give the same
-/// labels and probabilities within [_tolerance].
+/// tool/ask_reader_decodes.py ran the same file on the app's own rayo
+/// library (the commit the app pins, as its build hook compiles it), on
+/// these very inputs, and checked it against the PyTorch model it was
+/// quantised from. The app's rayo must give those outputs bit for bit on
+/// the platform they were recorded on, and the Dart reader (the fallback
+/// where rayo cannot load) the same labels and probabilities within
+/// [_dartTolerance].
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -41,10 +46,16 @@ void main() {
   final recorded = jsonDecode(
     File('test/fixtures/ask/ask_reader_decodes.json').readAsStringSync(),
   ) as Map<String, Object?>;
+  // Recordings of other weights are no recordings of these: every question
+  // is then missing, for tool/ask_reader_decodes.py to record afresh.
+  final bundled = jsonDecode(
+    File('$askModelFolder/$askReaderManifestFile').readAsStringSync(),
+  ) as Map<String, Object?>;
   final readings = {
-    for (final r
-        in (recorded['readings']! as List).cast<Map<String, Object?>>())
-      r['question'] as String: r.cast<String, Object?>(),
+    if (recorded['weights_sha256'] == bundled['weights_sha256'])
+      for (final r
+          in (recorded['readings']! as List).cast<Map<String, Object?>>())
+        r['question'] as String: r.cast<String, Object?>(),
   };
   final missing = <String>[];
   tearDownAll(() => _saveMissing(missing));
@@ -53,45 +64,57 @@ void main() {
     final manifest = (jsonDecode(
       utf8.decode((await asset('$askModelFolder/$askReaderManifestFile'))!),
     ) as Map).cast<String, Object?>();
-    expect(recorded['model_sha256'], manifest['model_sha256']);
+    expect(recorded['weights_sha256'], manifest['weights_sha256']);
     final weights = PlainWeights.parse(
       (await asset('$askModelFolder/${manifest['weights_file']}'))!,
     );
-    expect(weights.sourceSha256, manifest['model_sha256']);
+    expect(weights.sourceSha256, (manifest['source']! as Map)['sha256']);
   });
 
-  final runtimes = <String, AskReaderRuntime Function(Uint8List)>{
-    'rayo': RayoAskReader.open,
-    'the Dart reader': DartAskReader.parse,
+  // rayo gives the same floats on every kernel and thread count, and from
+  // any compiler and flags (it is built with -ffp-contract=off). Another
+  // platform's C library may round exp differently in the last bit, so
+  // there only nearly.
+  final exact = recorded['abi'] == Abi.current().toString();
+  final runtimes = <String, (AskReaderRuntime Function(Uint8List), double)>{
+    'rayo': (RayoAskReader.open, exact ? 0 : _otherPlatforms),
+    'the Dart reader': (DartAskReader.parse, _dartTolerance),
   };
-  for (final MapEntry(key: name, value: open) in runtimes.entries) {
-    test("$name gives TFLite's outputs on every recording", () async {
-      final model = open((await asset('$askModelFolder/ask-reader.weights'))!);
-      addTearDown(model.close);
-      var worst = 0.0;
-      for (final r in readings.values) {
-        final input = (r['input']! as List).cast<int>();
-        final (slots, intent) = model.run(input);
-        final wantIntent = _doubles(r['intent']!);
-        expect(
-          _argmax(intent),
-          _argmax(wantIntent),
-          reason: 'intent of "${r['question']}"',
+  for (final MapEntry(key: name, value: (open, tolerance))
+      in runtimes.entries) {
+    test(
+      tolerance == 0
+          ? '$name gives the recorded outputs bit for bit'
+          : '$name gives the recorded outputs within $tolerance',
+      () async {
+        final model = open(
+          (await asset('$askModelFolder/ask-reader.weights'))!,
         );
-        worst = math.max(worst, _maxDiff(intent, wantIntent));
-        final wantSlots = (r['slots']! as List).map(_doubles).toList();
-        for (final (t, want) in wantSlots.indexed) {
-          expect(
-            _argmax(slots[t]),
-            _argmax(want),
-            reason: 'slot of token $t of "${r['question']}"',
-          );
-          worst = math.max(worst, _maxDiff(slots[t], want));
+        addTearDown(model.close);
+        var worst = 0.0;
+        void check(List<double> got, List<double> want, String what) {
+          if (tolerance == 0) {
+            expect(got, want, reason: what);
+          } else {
+            expect(_argmax(got), _argmax(want), reason: what);
+            worst = math.max(worst, _maxDiff(got, want));
+          }
         }
-      }
-      expect(readings, hasLength(greaterThanOrEqualTo(_cases.length)));
-      expect(worst, lessThan(_tolerance));
-    });
+
+        for (final r in readings.values) {
+          final input = (r['input']! as List).cast<int>();
+          final (slots, intent) = model.run(input);
+          final question = r['question'];
+          check(intent, _float32s(r['intent']!), 'intent of "$question"');
+          final wantSlots = (r['slots']! as List).map(_float32s).toList();
+          for (final (t, want) in wantSlots.indexed) {
+            check(slots[t], want, 'slots of token $t of "$question"');
+          }
+        }
+        expect(readings, hasLength(greaterThanOrEqualTo(_cases.length)));
+        if (tolerance > 0) expect(worst, lessThan(tolerance));
+      },
+    );
   }
 
   test('the app opens the reader on rayo', () async {
@@ -127,19 +150,11 @@ void main() {
           expect(
             missing,
             isNot(contains(question)),
-            reason: 'no TFLite recording: run tool/ask_reader_decodes.py',
+            reason: 'no rayo recording: run tool/ask_reader_decodes.py',
           );
           final u = r.read(question);
           expect(u.intent, intent, reason: 'intent');
-          if (kind != null && !rules && _partNames.containsKey(question)) {
-            // The model tags part of the name; with the rules behind it,
-            // the app takes the rules' whole name.
-            expect(
-              u.span(kind)?.text.toLowerCase(),
-              _partNames[question]!.toLowerCase(),
-              reason: 'a known miss',
-            );
-          } else if (kind != null) {
+          if (kind != null) {
             // The rules give names in lower case.
             expect(
               u.span(kind)?.text.toLowerCase(),
@@ -194,15 +209,18 @@ void main() {
   });
 }
 
-/// How far rayo's and the Dart reader's probabilities may be from TFLite's.
-/// The recordings are of TFLite's built-in kernels, rounded to 1e-5; both
-/// are within about 2e-5 of them. (TFLite's XNNPACK delegate is up to 0.019
-/// from its own built-in kernels on ask reader v3, so it is not recorded.)
-const _tolerance = 1e-4;
+/// How far the app's rayo may be from the recordings on another platform
+/// than theirs, whose C library may round exp in the last bit.
+const _otherPlatforms = 1e-5;
 
-List<double> _doubles(Object? values) => [
+/// How far the Dart reader's probabilities may be from rayo's. It runs each
+/// operation as rayo does, in float32 (pesaclarity-ml docs/ASK.md), but
+/// its softmax divides in double.
+const _dartTolerance = 1e-4;
+
+List<double> _float32s(Object? values) => Float32List.fromList([
   for (final v in values! as List) (v! as num).toDouble(),
-];
+]);
 
 int _argmax(List<double> v) {
   var best = 0;
@@ -365,13 +383,6 @@ const _cases = <(String, AskIntent, SlotKind?, String?)>[
   ("What's the weather?", AskIntent.outOfScope, null, null),
   ('What can I ask?', AskIntent.help, null, null),
 ];
-
-/// Names ask reader v3 tags only part of, with the part it tags. It took
-/// all of "Example Nowhere" before v3. The rules' name holds the part on
-/// word boundaries, so the app widens the model's span to it.
-const _partNames = <String, String>{
-  'What was my biggest payment to Example Nowhere?': 'Example',
-};
 
 /// A reader that is never sure, so the model's reading stands on its own.
 class _Unsure implements QuestionReader {

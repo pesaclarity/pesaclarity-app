@@ -158,9 +158,9 @@ void main() {
 
   group('model question reader', () {
     final manifest = AskReaderManifest(
-      modelFile: 'ask-reader.tflite',
-      modelSha256: '',
-      modelSizeBytes: 0,
+      sourceFile: 'ask-reader.onnx',
+      sourceSha256: '',
+      sourceSizeBytes: 0,
       weightsFile: 'ask-reader.weights',
       weightsSha256: '',
       weightsSizeBytes: 0,
@@ -204,9 +204,9 @@ void main() {
 
     test('an unknown label makes the model unusable', () {
       const odd = AskReaderManifest(
-        modelFile: 'x',
-        modelSha256: '',
-        modelSizeBytes: 0,
+        sourceFile: 'x',
+        sourceSha256: '',
+        sourceSizeBytes: 0,
         weightsFile: 'x',
         weightsSha256: '',
         weightsSizeBytes: 0,

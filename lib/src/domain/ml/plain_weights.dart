@@ -145,7 +145,10 @@ class PlainWeights {
   /// Which model these are, such as `ask-reader`.
   final String model;
 
-  /// The SHA-256 of the TFLite file they were read out of.
+  /// The SHA-256 of the file they came from, the manifest's source: the
+  /// ONNX file of a PyTorch model they were quantised from (the message and
+  /// Ask readers), or the TFLite file they were read out of (the Ask
+  /// writer).
   final String sourceSha256;
 
   /// The layers in the order they run, as the header lists them.
