@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,11 +56,18 @@ void main() {
     ('Insights', const BusinessInsightsScreen(), BusinessSells.products),
   ];
 
-  for (final (width, scale) in [(320.0, 2.0), (390.0, 1.0)]) {
+  for (final (width, scale, iPhone) in [
+    (320.0, 2.0, false),
+    (390.0, 1.0, false),
+    (320.0, 2.0, true),
+    (390.0, 1.0, true),
+  ]) {
     for (final (title, screen, sells) in screens) {
       final name = sells == null ? title : 'Business $title';
+      final platform = iPhone ? ' on iPhone' : '';
       testAppWidgets('$name header fits at ${width.toInt()} dp '
-          'and ${scale}x text', (tester) async {
+          'and ${scale}x text$platform', (tester) async {
+        if (iPhone) debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
         final db = openTestDatabase();
         final now = eat(2026, 11, 5, 18);
         final container = ProviderContainer(
@@ -144,7 +152,14 @@ void main() {
           final at = box.localToGlobal(Offset.zero);
           expect(at.dx, greaterThanOrEqualTo(0));
           expect(at.dx + box.size.width, lessThanOrEqualTo(width + 0.5));
+          // On iPhone the buttons sit above the title, never beside or
+          // under it.
+          if (iPhone) {
+            expect(at.dy + box.size.height, lessThanOrEqualTo(rect.top + 0.5));
+          }
         }
+        // Before the test ends, so Flutter's debug check passes.
+        debugDefaultTargetPlatformOverride = null;
       });
     }
   }

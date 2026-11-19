@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -104,6 +105,10 @@ class SectionTitle extends StatelessWidget {
 /// The title is never shrunk or cut. When it and the actions do not fit on
 /// one line, as on a narrow phone with large text, the actions wrap onto
 /// the lines under the title, at the right.
+///
+/// On iPhone the actions sit in a row of their own above the title, at the
+/// right, as iOS lays out a large title under its bar's buttons (and as
+/// Home does), so the 34 point title never pushes them onto a second line.
 class TabHeader extends StatelessWidget {
   const TabHeader(
     this.title, {
@@ -127,20 +132,28 @@ class TabHeader extends StatelessWidget {
       header: true,
       child: Text(title, style: Theme.of(context).textTheme.headlineLarge),
     );
+    final buttons = Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: actions,
+    );
+    if (actions.isNotEmpty && defaultTargetPlatform == TargetPlatform.iOS) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: Layout.titleGap),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(alignment: AlignmentDirectional.centerEnd, child: buttons),
+            Align(alignment: AlignmentDirectional.centerStart, child: heading),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: Layout.titleGap),
       child: actions.isEmpty
           ? Align(alignment: AlignmentDirectional.centerStart, child: heading)
-          : _TitleAndActions(
-              children: [
-                heading,
-                Wrap(
-                  alignment: WrapAlignment.end,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: actions,
-                ),
-              ],
-            ),
+          : _TitleAndActions(children: [heading, buttons]),
     );
   }
 }
