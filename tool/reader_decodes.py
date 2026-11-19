@@ -36,48 +36,25 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import platform
-import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from rayo_recording import (
+    ROOT,
+    abi,
+    app_session,
+    float32s,
+    margin_apart,
+    pinned_commit,
+    same_recording,
+    write_recording,
+)
+
 MODEL_DIR = ROOT / "assets" / "models" / "reader"
 
 # The export's tolerances, int8 against torch (pesaclarity-ml docs/READER.md).
 FIELDS_TOLERANCE = 2e-2
 KIND_TOLERANCE = 2e-2
-
-
-def pinned_commit() -> str:
-    """The rayo commit pubspec.lock resolves."""
-    lock = (ROOT / "pubspec.lock").read_text()
-    block = lock[lock.index("\n  rayo:") :]
-    commit = re.search(r'resolved-ref: "?([0-9a-f]{40})', block)
-    if commit is None:
-        sys.exit("pubspec.lock pins no rayo commit")
-    return commit.group(1)
-
-
-def app_rayo() -> Path:
-    """The rayo library rayo's build hook last compiled for `flutter test` here."""
-    if os.environ.get("RAYO_LIB"):
-        return Path(os.environ["RAYO_LIB"])
-    builds = sorted(
-        (ROOT / ".dart_tool" / "hooks_runner" / "shared" / "rayo" / "build").glob("*/librayo.*"),
-        key=lambda p: p.stat().st_mtime,
-    )
-    if not builds:
-        sys.exit("no rayo build under .dart_tool: run step 1 first, or set RAYO_LIB")
-    return builds[-1]
-
-
-def abi() -> str:
-    """This computer as Dart's Abi.current() names it, such as linux_x64."""
-    system = {"linux": "linux", "darwin": "macos", "win32": "windows"}[sys.platform]
-    machine = platform.machine().lower()
-    return f"{system}_{ {'x86_64': 'x64', 'amd64': 'x64', 'aarch64': 'arm64'}.get(machine, machine)}"
 
 
 def torch_reader(onnx_bytes: bytes):  # noqa: ANN201
@@ -106,15 +83,9 @@ def torch_reader(onnx_bytes: bytes):  # noqa: ANN201
     return module.eval()
 
 
-def margin_apart(row, margin: float) -> bool:  # noqa: ANN001
-    top = sorted(row, reverse=True)
-    return top[0] - top[1] > margin
-
-
 def main(onnx_path: str, requests_path: str, out_path: str) -> int:
     import numpy as np
     import torch
-    from rayo_convert.runtime import Library, Model, Session
 
     manifest = json.loads((MODEL_DIR / "reader-manifest.json").read_text())
     weights = (MODEL_DIR / manifest["weights_file"]).read_bytes()
@@ -127,15 +98,14 @@ def main(onnx_path: str, requests_path: str, out_path: str) -> int:
         return 1
     n = manifest["max_tokens"]
 
-    session = Session(Model(Library(app_rayo()), weights))
+    session = app_session(weights)
     session.bind("T", n)
     module = torch_reader(onnx_bytes)
 
     requests = json.loads(Path(requests_path).read_text())
     target = Path(out_path)
     old = json.loads(target.read_text()) if target.exists() else {}
-    same = (manifest["weights_sha256"], pinned_commit(), abi())
-    if (old.get("weights_sha256"), old.get("rayo"), old.get("abi")) != same:
+    if not same_recording(old, manifest["weights_sha256"]):
         old = {}
     readings = {r["message"]: r for r in old.get("readings", [])}
     worst = old.get("torch_max_abs", {"fields": 0.0, "kind": 0.0})
@@ -173,8 +143,8 @@ def main(onnx_path: str, requests_path: str, out_path: str) -> int:
         readings[r["message"]] = {
             "message": r["message"],
             "input": r["input"],
-            "kind": [float(str(np.float32(p))) for p in kind],
-            "fields": [[float(str(np.float32(p))) for p in row] for row in fields[:count]],
+            "kind": float32s(kind),
+            "fields": [float32s(row) for row in fields[:count]],
         }
     # The export holds the int8 file to these tolerances on messages like the ones it trains
     # on; on the vectors' edge cases (96 tokens of one word, say) it can be a little further,
@@ -195,11 +165,9 @@ def main(onnx_path: str, requests_path: str, out_path: str) -> int:
         "model they were quantised from.",
         "readings": sorted(readings.values(), key=lambda r: r["message"]),
     }
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # One message per line, so a re-record shows as a readable diff.
-    rows = ",\n".join("  " + json.dumps(r, separators=(",", ":")) for r in result["readings"])
-    head = json.dumps({k: v for k, v in result.items() if k != "readings"}, indent=1)
-    target.write_text(head[:-2] + ',\n "readings": [\n' + rows + "\n ]\n}\n")
+    write_recording(
+        target, {k: v for k, v in result.items() if k != "readings"}, result["readings"]
+    )
     print(f"{len(requests)} read, {len(readings)} recorded in {target}; from torch: {worst}")
     return 0
 
