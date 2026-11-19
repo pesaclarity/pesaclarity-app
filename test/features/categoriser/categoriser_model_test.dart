@@ -114,6 +114,42 @@ void main() {
     expect(scores.fold(0.0, (a, s) => a + s.confidence), closeTo(1, 1e-5));
   });
 
+  test(
+    'with the model loaded, the rules still settle the message types',
+    () async {
+      final loaded = await loadCategoriser(
+        readAsset: asset,
+        openRuntime: openCategoriserRuntime,
+      );
+      addTearDown(loaded.categoriser.close);
+      expect(loaded.status, ModelStatus.loaded);
+      CategoriserInput input(String payee, TransactionKind kind) =>
+          CategoriserInput(
+            payee: payee,
+            amountMinor: 3000,
+            isInflow: false,
+            occurredAt: DateTime.utc(2026, 11, 19, 9),
+            kind: kind,
+          );
+      for (final (kind, key) in [
+        (TransactionKind.fulizaRepayment, 'fuliza_repayment'),
+        (TransactionKind.airtime, 'airtime_data'),
+        (TransactionKind.charge, 'fees_charges'),
+      ]) {
+        final best = loaded.categoriser.score(input('SAFARICOM', kind)).first;
+        expect(best.key, key, reason: '$kind');
+        expect(best.source, SuggestionSource.rules, reason: '$kind');
+      }
+      // An unfamiliar payee goes to the model, all 27 labels.
+      final scores = loaded.categoriser.score(
+        input('DEMO FRESH MART TILL 000123', TransactionKind.till),
+      );
+      expect(scores, hasLength(27));
+      expect(scores.first.source, isNull);
+      expect(loaded.categoriser.source, SuggestionSource.model);
+    },
+  );
+
   // rayo gives the same floats on every kernel and thread count, and from
   // any compiler and flags (it is built with -ffp-contract=off). Another
   // platform's C library may round exp differently in the last bit, so

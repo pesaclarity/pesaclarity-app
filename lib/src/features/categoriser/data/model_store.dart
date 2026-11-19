@@ -50,10 +50,11 @@ class LoadedCategoriser {
   final bool tuned;
 }
 
-/// Loads the categoriser in [folder] through [readAsset]:
-/// `model-manifest.json`, `labels.json` and the weights file the manifest
-/// names. Falls back to [RuleCategoriser] when nothing is there or the
-/// model is refused. Never throws.
+/// Loads the categoriser in [folder] through [readAsset]: the model, with
+/// the rules ahead of it where they are certain ([RulesFirstCategoriser]).
+/// It reads `model-manifest.json`, `labels.json` and the weights file the
+/// manifest names. Falls back to [RuleCategoriser] alone when nothing is
+/// there or the model is refused. Never throws.
 ///
 /// A model is refused when its weights format, feature schema, config or
 /// input differ from what this app reads and produces, when its weights'
@@ -128,7 +129,7 @@ Future<LoadedCategoriser> loadCategoriser({
         runtime: DartCategoriserRuntime(fineTunable.network, tunedWeights),
       );
       return LoadedCategoriser(
-        categoriser,
+        RulesFirstCategoriser(rules: fallback, model: categoriser),
         ModelStatus.loaded,
         const [],
         fineTunable,
@@ -146,7 +147,7 @@ Future<LoadedCategoriser> loadCategoriser({
       runtime: openRuntime(weights, manifest.featureConfig),
     );
     return LoadedCategoriser(
-      categoriser,
+      RulesFirstCategoriser(rules: fallback, model: categoriser),
       ModelStatus.loaded,
       const [],
       fineTunable,

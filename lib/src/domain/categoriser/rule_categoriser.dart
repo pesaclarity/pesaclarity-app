@@ -3,6 +3,8 @@ import 'categoriser.dart';
 import 'features.dart';
 
 /// Confidence for a category the message type settles, such as airtime.
+/// At [certainRuleConfidence] or more, the rules' answer is used even when
+/// the model is loaded.
 const kindRuleConfidence = 0.9;
 
 /// Confidence for a well-known payee or a telling word in its name.
@@ -87,8 +89,9 @@ const _inflowPayees = <(String, List<String>)>[
   ),
 ];
 
-/// The fallback when no model is installed: built-in payee defaults and
-/// simple rules on the message type and payee words.
+/// Built-in payee defaults and simple rules on the message type and payee
+/// words: the whole categoriser when the model is refused, and, at
+/// [certainRuleConfidence], ahead of it ([RulesFirstCategoriser]).
 class RuleCategoriser implements Categoriser {
   const RuleCategoriser();
 

@@ -158,6 +158,48 @@ void main() {
     expect(loaded.categoriser.source, SuggestionSource.rules);
   });
 
+  test('a refused model leaves the rules to categorise everything', () async {
+    await install(version: 2);
+    final loaded = await loadCategoriser(readAsset: read, openRuntime: open);
+    expect(loaded.status, ModelStatus.refused);
+    final airtime = loaded.categoriser.score(
+      CategoriserInput(
+        payee: 'SAFARICOM',
+        amountMinor: 5000,
+        isInflow: false,
+        occurredAt: DateTime.utc(2026, 11, 4),
+        kind: TransactionKind.airtime,
+      ),
+    );
+    expect(airtime.single.key, 'airtime_data');
+    final naivas = loaded.categoriser.score(
+      CategoriserInput(
+        payee: 'NAIVAS',
+        amountMinor: 5000,
+        isInflow: false,
+        occurredAt: DateTime.utc(2026, 11, 4),
+      ),
+    );
+    expect(naivas.single.key, 'groceries');
+    expect(loaded.categoriser.source, SuggestionSource.rules);
+  });
+
+  test('a loaded model puts the certain rules first', () async {
+    await install();
+    final loaded = await loadCategoriser(readAsset: read, openRuntime: open);
+    final fuliza = loaded.categoriser.score(
+      CategoriserInput(
+        payee: 'FULIZA',
+        amountMinor: 5000,
+        isInflow: false,
+        occurredAt: DateTime.utc(2026, 11, 4),
+        kind: TransactionKind.fulizaRepayment,
+      ),
+    );
+    expect(fuliza.single.key, 'fuliza_repayment');
+    expect(fuliza.single.source, SuggestionSource.rules);
+  });
+
   group('fine-tuning', () {
     Future<TunedWeights> tunedFor(String sha) async => TunedWeights(
       weightsSha256: sha,

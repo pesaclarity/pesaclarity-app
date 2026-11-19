@@ -308,6 +308,89 @@ void main() {
     });
   });
 
+  group('RulesFirstCategoriser', () {
+    late int modelRuns;
+    late RulesFirstCategoriser c;
+    setUp(() {
+      modelRuns = 0;
+      c = RulesFirstCategoriser(
+        rules: const RuleCategoriser(),
+        model: _CountingCategoriser(() => modelRuns++, [
+          const CategoryScore('eating_out', 0.8),
+        ]),
+      );
+    });
+
+    CategoriserInput input(String payee, TransactionKind? kind) =>
+        CategoriserInput(
+          payee: payee,
+          amountMinor: 5000,
+          isInflow: false,
+          occurredAt: DateTime.utc(2026, 11, 19, 9),
+          kind: kind,
+        );
+
+    test('the rules decide what the message type settles', () {
+      for (final (kind, key) in [
+        (TransactionKind.fulizaRepayment, 'fuliza_repayment'),
+        (TransactionKind.airtime, 'airtime_data'),
+        (TransactionKind.charge, 'fees_charges'),
+      ]) {
+        final scores = c.score(input('SAFARICOM', kind));
+        expect(scores.single.key, key);
+        expect(scores.single.confidence, kindRuleConfidence);
+        expect(scores.single.source, SuggestionSource.rules);
+      }
+      expect(modelRuns, 0);
+    });
+
+    test('everything else goes to the model, payee-word rules included', () {
+      expect(
+        c.score(input('DEMO UNKNOWN SHOP', TransactionKind.till)).first.key,
+        'eating_out',
+      );
+      // A payee word (0.6) is below certainRuleConfidence.
+      expect(
+        c.score(input('NAIVAS', TransactionKind.till)).first.key,
+        'eating_out',
+      );
+      expect(modelRuns, 2);
+      expect(kindRuleConfidence, greaterThanOrEqualTo(certainRuleConfidence));
+      expect(payeeRuleConfidence, lessThan(certainRuleConfidence));
+    });
+
+    test('the suggestion says which one it came from', () {
+      final s = CategorySuggester(
+        categoriser: RulesFirstCategoriser(
+          rules: const RuleCategoriser(),
+          model: FixedCategoriser([const CategoryScore('groceries', 0.7)]),
+        ),
+        categories: [
+          ...options,
+          const CategoryOption(
+            id: 5,
+            key: 'airtime_data',
+            type: CategoryType.expense,
+          ),
+        ],
+        corrections: {'name:my airtime shop': 2},
+      );
+      final airtime = s.suggest(entry(kind: TransactionKind.airtime))!;
+      expect(airtime.key, 'airtime_data');
+      expect(airtime.source, SuggestionSource.rules);
+      expect(autoApplies(airtime), isTrue);
+      final shop = s.suggest(entry(name: 'Demo Unknown Shop'))!;
+      expect(shop.key, 'groceries');
+      expect(shop.source, SuggestionSource.model);
+      // The person's own choice still comes first.
+      final chosen = s.suggest(
+        entry(name: 'My Airtime Shop', kind: TransactionKind.airtime),
+      )!;
+      expect(chosen.categoryId, 2);
+      expect(chosen.source, SuggestionSource.correction);
+    });
+  });
+
   group('CategorySuggester', () {
     test("the person's choice for the payee wins over the model", () {
       final s = CategorySuggester(
@@ -378,4 +461,23 @@ void main() {
       );
     });
   });
+}
+
+class _CountingCategoriser implements Categoriser {
+  _CountingCategoriser(this.onScore, this.scores);
+
+  final void Function() onScore;
+  final List<CategoryScore> scores;
+
+  @override
+  SuggestionSource get source => SuggestionSource.model;
+
+  @override
+  List<CategoryScore> score(CategoriserInput input) {
+    onScore();
+    return scores;
+  }
+
+  @override
+  void close() {}
 }

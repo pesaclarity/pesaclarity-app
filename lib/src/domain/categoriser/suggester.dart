@@ -123,7 +123,7 @@ class CategorySuggester {
           categoryId: option.id,
           key: score.key,
           confidence: score.confidence,
-          source: categoriser.source,
+          source: score.source ?? categoriser.source,
         );
       }
     }
