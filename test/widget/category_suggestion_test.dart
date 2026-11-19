@@ -80,7 +80,7 @@ void main() {
     await tester.runAsync(() => _seed(db));
     await _pump(tester, db);
 
-    expect(find.text('Groceries and household? 60%'), findsOneWidget);
+    expect(find.text('Groceries and household? 90%'), findsOneWidget);
     await tester.tap(find.byTooltip('Accept Groceries and household'));
     await _settle(tester);
 

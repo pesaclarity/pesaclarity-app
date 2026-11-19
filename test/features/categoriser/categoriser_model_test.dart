@@ -140,6 +140,18 @@ void main() {
         expect(best.key, key, reason: '$kind');
         expect(best.source, SuggestionSource.rules, reason: '$kind');
       }
+      // Well-known payees too; a word in the name is the model's to judge.
+      final naivas = loaded.categoriser
+          .score(input('NAIVAS WESTLANDS', TransactionKind.till))
+          .single;
+      expect(naivas.key, 'groceries');
+      expect(naivas.source, SuggestionSource.rules);
+      expect(
+        loaded.categoriser.score(
+          input('DEMO SUPERMARKET', TransactionKind.till),
+        ),
+        hasLength(27),
+      );
       // An unfamiliar payee goes to the model, all 27 labels.
       final scores = loaded.categoriser.score(
         input('DEMO FRESH MART TILL 000123', TransactionKind.till),

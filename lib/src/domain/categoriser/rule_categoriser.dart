@@ -7,85 +7,120 @@ import 'features.dart';
 /// the model is loaded.
 const kindRuleConfidence = 0.9;
 
-/// Confidence for a well-known payee or a telling word in its name.
+/// Confidence for a well-known payee by name, such as Naivas or KPLC: as
+/// certain as the message type, so it is used ahead of the model
+/// ([certainRuleConfidence]).
+const knownPayeeRuleConfidence = 0.9;
+
+/// Confidence for a telling word in the payee's name, such as `mart` or
+/// `hotel`: a guess, which the model makes instead when it is loaded.
 const payeeRuleConfidence = 0.6;
 
 /// Confidence for a guess from direction alone.
 const weakRuleConfidence = 0.4;
 
-/// Well-known Kenyan payees and words, by category key, for outflows. The
+/// One category's well-known payees (names of businesses and services) and
+/// the words in a payee's name that suggest it.
+typedef _PayeeRule = ({String key, List<String> payees, List<String> words});
+
+/// Well-known Kenyan payees and words, by category key, for outflows. A
+/// known payee anywhere in the table wins over a word; among each, the
 /// first match wins, so specific entries come before general ones (a
 /// matatu SACCO is transport, other SACCOs are savings).
-const _outflowPayees = <(String, List<String>)>[
-  ('transport', ['matatu', 'uber', 'bolt', 'little cab', 'sgr', 'fare']),
+const _outflowPayees = <_PayeeRule>[
   (
-    'utilities',
-    ['kplc', 'tokens', 'water', 'zuku', 'faiba', 'safaricom home', 'internet'],
+    key: 'transport',
+    payees: ['uber', 'bolt', 'little cab', 'sgr'],
+    words: ['matatu', 'fare'],
   ),
-  ('fuel', ['petrol', 'shell', 'rubis', 'totalenergies', 'fuel', 'ola']),
   (
-    'groceries',
-    [
+    key: 'utilities',
+    payees: ['kplc', 'zuku', 'faiba', 'safaricom home'],
+    words: ['tokens', 'water', 'internet'],
+  ),
+  (
+    key: 'fuel',
+    payees: ['shell', 'rubis', 'totalenergies', 'ola'],
+    words: ['petrol', 'fuel'],
+  ),
+  (
+    key: 'groceries',
+    payees: [
       'naivas',
       'quickmart',
       'carrefour',
       'chandarana',
       'magunas',
       'cleanshelf',
-      'supermarket',
-      'grocers',
-      'mart',
-      'butchery',
-      'mama mboga',
     ],
+    words: ['supermarket', 'grocers', 'mart', 'butchery', 'mama mboga'],
   ),
   (
-    'eating_out',
-    [
-      'hotel',
-      'cafe',
-      'restaurant',
-      'kibanda',
-      'grill',
-      'kfc',
-      'java',
-      'artcaffe',
-      'pizza',
-    ],
+    key: 'eating_out',
+    payees: ['kfc', 'java', 'artcaffe'],
+    words: ['hotel', 'cafe', 'restaurant', 'kibanda', 'grill', 'pizza'],
   ),
-  ('snacks', ['snacks', 'snack', 'bakery', 'bakers', 'ice cream', 'sweets']),
-  ('lifestyle', ['lounge', 'bar', 'club', 'cinema', 'showmax', 'netflix']),
-  ('airtime_data', ['airtime', 'bundles', 'data']),
-  ('rent', ['rent', 'landlord', 'apartments']),
-  ('school_fees', ['school', 'academy', 'college', 'university', 'fees']),
   (
-    'health',
-    [
+    key: 'snacks',
+    payees: [],
+    words: ['snacks', 'snack', 'bakery', 'bakers', 'ice cream', 'sweets'],
+  ),
+  (
+    key: 'lifestyle',
+    payees: ['showmax', 'netflix'],
+    words: ['lounge', 'bar', 'club', 'cinema'],
+  ),
+  (key: 'airtime_data', payees: [], words: ['airtime', 'bundles', 'data']),
+  (key: 'rent', payees: [], words: ['rent', 'landlord', 'apartments']),
+  (
+    key: 'school_fees',
+    payees: [],
+    words: ['school', 'academy', 'college', 'university', 'fees'],
+  ),
+  (
+    key: 'health',
+    payees: ['nhif', 'sha'],
+    words: [
       'hospital',
       'clinic',
       'pharmacy',
       'chemist',
-      'nhif',
-      'sha',
       'medical',
       'insurance',
     ],
   ),
-  ('betting', ['sportpesa', 'betika', 'odibets', 'mozzart', 'betway', 'bet']),
-  ('shopping', ['jumia', 'kilimall', 'boutique', 'shoes', 'hardware']),
-  ('giving', ['church', 'tithe', 'harambee', 'parish', 'mosque']),
-  ('tax', ['kra', 'itax']),
-  ('savings', ['sacco', 'mshwari', 'mmf', 'money market', 'ziidi']),
-  ('fuliza_repayment', ['fuliza']),
-  ('loan_repayment', ['loan', 'tala', 'zenka']),
-  ('fees_charges', ['charges', 'charge', 'fee']),
+  (
+    key: 'betting',
+    payees: ['sportpesa', 'betika', 'odibets', 'mozzart', 'betway'],
+    words: ['bet'],
+  ),
+  (
+    key: 'shopping',
+    payees: ['jumia', 'kilimall'],
+    words: ['boutique', 'shoes', 'hardware'],
+  ),
+  (
+    key: 'giving',
+    payees: [],
+    words: ['church', 'tithe', 'harambee', 'parish', 'mosque'],
+  ),
+  (key: 'tax', payees: ['kra', 'itax'], words: []),
+  (
+    key: 'savings',
+    payees: ['mshwari', 'ziidi'],
+    words: ['sacco', 'mmf', 'money market'],
+  ),
+  (key: 'fuliza_repayment', payees: ['fuliza'], words: []),
+  (key: 'loan_repayment', payees: ['tala', 'zenka'], words: ['loan']),
+  (key: 'fees_charges', payees: [], words: ['charges', 'charge', 'fee']),
 ];
 
-const _inflowPayees = <(String, List<String>)>[
-  ('salary', ['salary', 'payroll', 'wages']),
+const _inflowPayees = <_PayeeRule>[
+  (key: 'salary', payees: [], words: ['salary', 'payroll', 'wages']),
   (
-    'allowance_bursary',
-    ['allowance', 'bursary', 'stipend', 'scholarship', 'helb'],
+    key: 'allowance_bursary',
+    payees: ['helb'],
+    words: ['allowance', 'bursary', 'stipend', 'scholarship'],
   ),
 ];
 
@@ -104,10 +139,16 @@ class RuleCategoriser implements Categoriser {
     if (byKind != null) return [CategoryScore(byKind, kindRuleConfidence)];
 
     final tokens = tokenise(input.payee);
-    for (final (key, words)
-        in input.isInflow ? _inflowPayees : _outflowPayees) {
-      if (words.any((w) => _containsPhrase(tokens, w.split(' ')))) {
-        return [CategoryScore(key, payeeRuleConfidence)];
+    bool named(String phrase) => _containsPhrase(tokens, phrase.split(' '));
+    final table = input.isInflow ? _inflowPayees : _outflowPayees;
+    for (final rule in table) {
+      if (rule.payees.any(named)) {
+        return [CategoryScore(rule.key, knownPayeeRuleConfidence)];
+      }
+    }
+    for (final rule in table) {
+      if (rule.words.any(named)) {
+        return [CategoryScore(rule.key, payeeRuleConfidence)];
       }
     }
     if (input.isInflow && input.kind == TransactionKind.received) {

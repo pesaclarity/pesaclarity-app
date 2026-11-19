@@ -125,9 +125,11 @@ class ModelCategoriser implements Categoriser {
 }
 
 /// The model, except where the rules are certain: when [rules] give an
-/// answer at [certainRuleConfidence] or more (the message type settles it:
-/// airtime, a Fuliza repayment, charges), that answer is used and [model]
-/// is not run. Every other transaction goes to [model].
+/// answer at [certainRuleConfidence] or more (the message type settles it,
+/// such as airtime, a Fuliza repayment or charges, or the payee is a
+/// well-known one in the rules' table, such as Naivas or KPLC), that answer
+/// is used and [model] is not run. Every other transaction, a guess from a
+/// word in the payee's name included, goes to [model].
 ///
 /// The person's own choices for a payee and the payee's default category
 /// come before both, in `CategorySuggester` and `applyPayee`.
@@ -159,8 +161,9 @@ class RulesFirstCategoriser implements Categoriser {
   }
 }
 
-/// A rule answer at or above this confidence is used instead of the model.
-/// It is the confidence the rules give when the message type settles the
-/// category (`kindRuleConfidence`); weaker rule guesses, such as a payee
-/// word, leave the transaction to the model.
+/// A rule answer at or above this confidence is used instead of the model:
+/// the confidence the rules give when the message type settles the category
+/// (`kindRuleConfidence`) or the payee is a well-known one
+/// (`knownPayeeRuleConfidence`). Weaker rule guesses, such as a word in the
+/// payee's name (`payeeRuleConfidence`), leave the transaction to the model.
 const certainRuleConfidence = 0.9;

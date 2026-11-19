@@ -209,7 +209,7 @@ void main() {
     );
 
     final row = CategoriserInput(
-      payee: 'Naivas',
+      payee: 'Demo Shop',
       amountMinor: 50000,
       isInflow: false,
       occurredAt: DateTime.utc(2026, 11, 4),

@@ -306,6 +306,28 @@ void main() {
       ]);
       expect(keys('Unknown Business'), isEmpty);
     });
+
+    test('a known payee is certain, a word in the name a guess', () {
+      double confidence(String payee, {bool inflow = false}) => rules
+          .score(
+            CategoriserInput(
+              payee: payee,
+              amountMinor: 5000,
+              isInflow: inflow,
+              occurredAt: DateTime.utc(2026),
+            ),
+          )
+          .single
+          .confidence;
+      expect(confidence('Naivas Juja City'), knownPayeeRuleConfidence);
+      expect(confidence('KPLC PREPAID'), knownPayeeRuleConfidence);
+      expect(confidence('HELB', inflow: true), knownPayeeRuleConfidence);
+      expect(confidence('DEMO SUPERMARKET'), payeeRuleConfidence);
+      expect(confidence('DEMO KIBANDA CAFE'), payeeRuleConfidence);
+      // A known payee anywhere in the table wins over an earlier word.
+      expect(keys('UBER WATER DELIVERY'), ['transport']);
+      expect(keys('SAMPLE WATER NAIVAS'), ['groceries']);
+    });
   });
 
   group('RulesFirstCategoriser', () {
@@ -344,14 +366,32 @@ void main() {
       expect(modelRuns, 0);
     });
 
-    test('everything else goes to the model, payee-word rules included', () {
+    test('the rules decide well-known payees', () {
+      for (final (payee, key) in [
+        ('NAIVAS WESTLANDS', 'groceries'),
+        ('KPLC PREPAID', 'utilities'),
+        ('SPORTPESA', 'betting'),
+      ]) {
+        final scores = c.score(input(payee, TransactionKind.till));
+        expect(scores.single.key, key);
+        expect(scores.single.confidence, knownPayeeRuleConfidence);
+        expect(scores.single.source, SuggestionSource.rules);
+      }
+      expect(modelRuns, 0);
+      expect(
+        knownPayeeRuleConfidence,
+        greaterThanOrEqualTo(certainRuleConfidence),
+      );
+    });
+
+    test('everything else goes to the model, payee-word guesses included', () {
       expect(
         c.score(input('DEMO UNKNOWN SHOP', TransactionKind.till)).first.key,
         'eating_out',
       );
-      // A payee word (0.6) is below certainRuleConfidence.
+      // `supermarket` is a word (0.6), below certainRuleConfidence.
       expect(
-        c.score(input('NAIVAS', TransactionKind.till)).first.key,
+        c.score(input('DEMO SUPERMARKET', TransactionKind.till)).first.key,
         'eating_out',
       );
       expect(modelRuns, 2);
@@ -373,7 +413,7 @@ void main() {
             type: CategoryType.expense,
           ),
         ],
-        corrections: {'name:my airtime shop': 2},
+        corrections: {'name:my airtime shop': 2, 'name:naivas ruaka': 2},
       );
       final airtime = s.suggest(entry(kind: TransactionKind.airtime))!;
       expect(airtime.key, 'airtime_data');
@@ -382,7 +422,17 @@ void main() {
       final shop = s.suggest(entry(name: 'Demo Unknown Shop'))!;
       expect(shop.key, 'groceries');
       expect(shop.source, SuggestionSource.model);
+      final naivas = s.suggest(entry(name: 'Naivas Juja'))!;
+      expect(naivas.key, 'groceries');
+      expect(naivas.source, SuggestionSource.rules);
+      expect(
+        s.suggest(entry(name: 'Demo Supermarket'))!.source,
+        SuggestionSource.model,
+      );
       // The person's own choice still comes first.
+      final mine = s.suggest(entry(name: 'Naivas Ruaka'))!;
+      expect(mine.categoryId, 2);
+      expect(mine.source, SuggestionSource.correction);
       final chosen = s.suggest(
         entry(name: 'My Airtime Shop', kind: TransactionKind.airtime),
       )!;
