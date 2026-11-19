@@ -12,7 +12,10 @@ import 'email_policy_sheet.dart';
 
 /// The plain-language promises, each with a tick.
 class PrivacyPromisesCard extends StatelessWidget {
-  const PrivacyPromisesCard({super.key});
+  const PrivacyPromisesCard({this.counts = false, super.key});
+
+  /// Whether the server's monthly counts are named (policy 2.4 on).
+  final bool counts;
 
   static const promises = [
     'Your transactions, payees and debts stay on this phone.',
@@ -20,6 +23,11 @@ class PrivacyPromisesCard extends StatelessWidget {
     'We never sell your data and never show ads.',
     'Delete your account any time; we erase it within 30 days.',
   ];
+
+  /// The second promise once policy 2.4 is agreed (ADR 0024).
+  static const countsPromise =
+      'We store only your sign-in details, backups we cannot open and '
+      'counts that name no one.';
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +38,11 @@ class PrivacyPromisesCard extends StatelessWidget {
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
           children: [
-            for (final promise in promises)
+            for (final promise in [
+              promises[0],
+              counts ? countsPromise : promises[1],
+              ...promises.skip(2),
+            ])
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
@@ -61,7 +73,7 @@ class PrivacyPromisesCard extends StatelessWidget {
 const consentLabels = {
   ConsentKind.improveApp: (
     'Help improve the app',
-    'Share anonymous model updates, never your data',
+    'Learn from your corrections on this phone. Nothing is sent',
   ),
   ConsentKind.licensedModels: (
     'Contribute to licensed models',
@@ -73,13 +85,18 @@ const consentLabels = {
   ),
 };
 
-/// The three consent switches in one card.
+/// Consent switches in one card: [kinds], by default the two the app asks
+/// about when the policy changes. Crash reports are asked about when one
+/// happens (ADR 0024), so they are left out.
 class ConsentSwitchesCard extends StatelessWidget {
   const ConsentSwitchesCard({
     required this.values,
     required this.onChanged,
+    this.kinds = const [ConsentKind.improveApp, ConsentKind.licensedModels],
     super.key,
   });
+
+  final List<ConsentKind> kinds;
 
   /// Null while loading, which disables the switches.
   final Map<ConsentKind, bool>? values;
@@ -91,7 +108,7 @@ class ConsentSwitchesCard extends StatelessWidget {
     return Card(
       child: Column(
         children: [
-          for (final (index, kind) in ConsentKind.values.indexed) ...[
+          for (final (index, kind) in kinds.indexed) ...[
             if (index > 0) const Divider(height: 1),
             CheckboxListTile(
               title: Text(consentLabels[kind]!.$1),

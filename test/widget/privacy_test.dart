@@ -119,7 +119,9 @@ void main() {
     expect(find.text('Our privacy policy changed'), findsOneWidget);
     expect(find.text('The first version of the policy.'), findsOneWidget);
 
-    await tapText(tester, 'Send crash reports');
+    // Crash reports are asked about when one happens, not here (ADR 0024).
+    expect(find.text('Send crash reports'), findsNothing);
+    await tapText(tester, 'Contribute to licensed models');
     await tapText(tester, 'Agree and continue');
     expect(find.text('Our privacy policy changed'), findsNothing);
     expect(find.text('Safe to spend today'), findsOneWidget);
@@ -129,10 +131,10 @@ void main() {
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
     expect(saved!['acceptedVersion'], '2.3');
-    final crash =
-        (saved['choices']! as Map)['crashReports'] as Map<String, Object?>;
-    expect(crash['value'], isTrue);
-    expect(crash['policyVersion'], '2.3');
+    final licensed =
+        (saved['choices']! as Map)['licensedModels'] as Map<String, Object?>;
+    expect(licensed['value'], isTrue);
+    expect(licensed['policyVersion'], '2.3');
   });
 
   testAppWidgets('asks someone who agreed to 2.2 to read 2.3', (tester) async {

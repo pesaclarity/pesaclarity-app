@@ -4,8 +4,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../routing/app_router.dart';
+import '../../app_status/application/update_check_choice.dart';
 import '../application/crash_reports.dart';
 import '../data/pending_crash_store.dart';
+import 'crash_report_sheet.dart';
 
 /// Starts crash capture, and once the app is unlocked and onboarded deals
 /// with the reports waiting from the last run (ADR 0024). It shows nothing:
@@ -31,17 +33,32 @@ class _CrashReportsOnStartState extends ConsumerState<CrashReportsOnStart> {
       if ((gate.value ?? false) && !_handled) {
         _handled = true;
         unawaited(
-          ref
-              .read(pendingCrashReportsProvider.future)
-              .then<void>(
-                (_) {},
-                onError: (Object _) {
-                  // Best effort: the reports wait for the next start.
-                },
-              ),
+          _handle().then<void>(
+            (_) {},
+            onError: (Object _) {
+              // Best effort: the reports wait for the next start.
+            },
+          ),
         );
       }
     }, fireImmediately: true);
+  }
+
+  /// Sends or deletes the waiting reports as chosen; with Ask each time,
+  /// once policy 2.4 is agreed, asks with the sheet.
+  Future<void> _handle() async {
+    final outcome = await ref.read(pendingCrashReportsProvider.future);
+    if (outcome != PendingOutcome.waitingForAnswer || !mounted) return;
+    if (!await ref.read(agreedToReportingPolicyProvider.future)) return;
+    final reports = await ref.read(pendingCrashStoreProvider).read();
+    if (reports.isEmpty || !mounted) return;
+    final navigator = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .navigatorKey
+        .currentContext;
+    if (navigator == null || !navigator.mounted) return;
+    await showCrashReportSheet(navigator, reports);
   }
 
   Future<void> _install() async {

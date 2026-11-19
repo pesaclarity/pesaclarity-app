@@ -10,6 +10,9 @@ import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/activity/presentation/add_transaction_sheet.dart';
 import 'package:pesaclarity/src/features/app_status/presentation/update_check_sheet.dart';
+import 'package:pesaclarity/src/features/crash_reports/domain/crash_report.dart';
+import 'package:pesaclarity/src/features/crash_reports/presentation/crash_choice_sheet.dart';
+import 'package:pesaclarity/src/features/crash_reports/presentation/crash_report_sheet.dart';
 import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debt_sheet.dart';
 import 'package:pesaclarity/src/features/goals/presentation/goal_sheet.dart';
@@ -88,6 +91,22 @@ void main() {
   _sheet('plan-item', (c) => showPlanItemSheet(c, month: _today.yearMonth));
   _sheet('spaces-sheet', showSpaces);
   _sheet('update-check-sheet', showUpdateCheckSheet);
+  _sheet('crash-choice-sheet', showCrashChoiceSheet);
+  _sheet(
+    'crash-report-sheet',
+    (c) => showCrashReportSheet(c, const [
+      CrashReport(
+        app: '0.5.2',
+        buildNumber: 412,
+        build: 'play',
+        os: 'Android 13',
+        cpu: 'arm64',
+        error: 'TypeError',
+        buildId: 'b6f1c4e09a2d7f35',
+        stack: ['#00 pc 0x2f4b3c', '#01 pc 0x2f49e0'],
+      ),
+    ]),
+  );
   _sheet('item-sheet', showItemSheet, space: _shop);
   _sheet('bought-sheet', showBoughtSheet, space: _shop);
   _sheet(
