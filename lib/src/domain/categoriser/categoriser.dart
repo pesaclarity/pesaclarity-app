@@ -52,10 +52,11 @@ abstract interface class Categoriser {
   void close();
 }
 
-/// A loaded categoriser model (pesaclarity-ml exports it as TFLite), kept
-/// behind this interface so the domain does not depend on a runtime. The
-/// app has none for it yet (pesaclarity/docs decision 0020).
-abstract interface class TfliteRuntime {
+/// A loaded categoriser model, kept behind this interface so the domain does
+/// not depend on a runtime: `categoriser.weights` on rayo, or the same
+/// network in Dart, with weights fine-tuned on the phone or where rayo
+/// cannot load (`DartCategoriserRuntime`).
+abstract interface class CategoriserRuntime {
   /// Number of output classes for one row.
   int get outputSize;
 
@@ -76,16 +77,16 @@ class ModelRefused implements Exception {
 }
 
 /// The exported categoriser from pesaclarity-ml, run on the phone.
-class TfliteCategoriser implements Categoriser {
-  TfliteCategoriser._(this._runtime, this._config, this.labels);
+class ModelCategoriser implements Categoriser {
+  ModelCategoriser._(this._runtime, this._config, this.labels);
 
   /// Wraps [runtime], refusing it with [ModelRefused] when the manifest
   /// asks for features this app cannot produce or the labels do not match
   /// the model's outputs. The runtime is closed when refused.
-  factory TfliteCategoriser({
+  factory ModelCategoriser({
     required ModelManifest manifest,
     required ModelLabels labels,
-    required TfliteRuntime runtime,
+    required CategoriserRuntime runtime,
   }) {
     final reasons = [
       ...manifest.incompatibilities(),
@@ -96,10 +97,10 @@ class TfliteCategoriser implements Categoriser {
       runtime.close();
       throw ModelRefused(reasons);
     }
-    return TfliteCategoriser._(runtime, manifest.featureConfig, labels);
+    return ModelCategoriser._(runtime, manifest.featureConfig, labels);
   }
 
-  final TfliteRuntime _runtime;
+  final CategoriserRuntime _runtime;
   final FeatureConfig _config;
   final ModelLabels labels;
 

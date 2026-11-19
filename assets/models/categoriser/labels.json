@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "labels": [
+    "salary",
+    "business_income",
+    "money_received",
+    "support_received",
+    "allowance_bursary",
+    "gifts_received",
+    "groceries",
+    "eating_out",
+    "snacks",
+    "transport",
+    "fuel",
+    "airtime_data",
+    "rent",
+    "utilities",
+    "school_fees",
+    "health",
+    "family_support",
+    "friends_social",
+    "lifestyle",
+    "betting",
+    "shopping",
+    "giving",
+    "fees_charges",
+    "loan_repayment",
+    "fuliza_repayment",
+    "savings",
+    "tax"
+  ]
+}

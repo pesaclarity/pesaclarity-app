@@ -76,6 +76,8 @@ flutter:
     - assets/models/ask/
     # The message reader, exported by pesaclarity-ml (akili reader).
     - assets/models/reader/
+    # The categoriser, exported by pesaclarity-ml (akili train).
+    - assets/models/categoriser/
   fonts:
     - family: SpaceGrotesk
       fonts:

@@ -7,16 +7,24 @@ import 'package:pesaclarity/src/domain/categoriser/suggester.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 
-/// The manifest pesaclarity-ml writes for the shipping config.
+/// The manifest pesaclarity-ml writes for the shipping config, without its
+/// `fine_tune` block.
 Map<String, Object?> manifestJson({
   int version = 1,
   int maxTokens = 8,
   List<int>? shape,
   List<String>? layout,
+  int weightsFormat = 1,
 }) => {
-  'model_file': 'categoriser.tflite',
-  'model_sha256': 'AB' * 32,
-  'model_size_bytes': 81234,
+  'weights_file': 'categoriser.weights',
+  'weights_sha256': 'AB' * 32,
+  'weights_size_bytes': 75776,
+  'weights_format_version': weightsFormat,
+  'source': {
+    'file': 'categoriser.onnx',
+    'sha256': 'CD' * 32,
+    'size_bytes': 276510,
+  },
   'feature_schema_version': version,
   'feature_config': {'max_tokens': maxTokens, 'hash_buckets': 4096},
   'input': {
@@ -25,9 +33,16 @@ Map<String, Object?> manifestJson({
     'shape': shape ?? [-1, maxTokens + 5],
   },
   'layout': layout ?? FeatureConfig(maxTokens: maxTokens).layout,
+  'rayo_inputs': {
+    'features': {
+      'dtype': 'int32',
+      'shape': [maxTokens + 5],
+    },
+  },
+  'outputs': ['category'],
 };
 
-class FakeRuntime implements TfliteRuntime {
+class FakeRuntime implements CategoriserRuntime {
   FakeRuntime(this.probs);
 
   final List<double> probs;
@@ -98,8 +113,43 @@ void main() {
     test('accepts the shipping manifest', () {
       final m = ModelManifest.fromJson(manifestJson());
       expect(m.incompatibilities(), isEmpty);
-      expect(m.modelSha256, 'ab' * 32);
+      expect(m.weightsFile, 'categoriser.weights');
+      expect(m.weightsSha256, 'ab' * 32);
+      expect(m.weightsSizeBytes, 75776);
+      expect(m.weightsFormatVersion, 1);
+      expect(m.outputs, ['category']);
+      expect(m.fineTune, isNull);
       expect(m.featureConfig, const FeatureConfig());
+    });
+
+    test('refuses a weights format it does not read', () {
+      final m = ModelManifest.fromJson(manifestJson(weightsFormat: 2));
+      expect(m.incompatibilities(), ['weights format 2; this app reads 1']);
+    });
+
+    test('refuses a model without the category output', () {
+      final m = ModelManifest.fromJson({
+        ...manifestJson(),
+        'outputs': ['logits'],
+      });
+      expect(m.incompatibilities(), ['no category output']);
+    });
+
+    test('does not read the TFLite-era manifest', () {
+      final old = {...manifestJson()}
+        ..remove('weights_file')
+        ..remove('weights_sha256')
+        ..remove('weights_size_bytes')
+        ..remove('weights_format_version');
+      expect(
+        () => ModelManifest.fromJson({
+          ...old,
+          'model_file': 'categoriser.tflite',
+          'model_sha256': 'ab' * 32,
+          'model_size_bytes': 82376,
+        }),
+        throwsFormatException,
+      );
     });
 
     test('refuses a feature schema version it cannot feed', () {
@@ -142,7 +192,7 @@ void main() {
     });
   });
 
-  group('TfliteCategoriser', () {
+  group('ModelCategoriser', () {
     final labels = ModelLabels.fromJson({
       'version': 1,
       'labels': ['groceries', 'eating_out', 'salary'],
@@ -150,7 +200,7 @@ void main() {
 
     test('encodes the row and ranks labels by probability', () {
       final runtime = FakeRuntime([0.1, 0.7, 0.2]);
-      final c = TfliteCategoriser(
+      final c = ModelCategoriser(
         manifest: ModelManifest.fromJson(manifestJson()),
         labels: labels,
         runtime: runtime,
@@ -188,7 +238,7 @@ void main() {
     test('refuses labels that do not match the outputs, closing it', () {
       final runtime = FakeRuntime([0.5, 0.5]);
       expect(
-        () => TfliteCategoriser(
+        () => ModelCategoriser(
           manifest: ModelManifest.fromJson(manifestJson()),
           labels: labels,
           runtime: runtime,
@@ -200,7 +250,7 @@ void main() {
 
     test('refuses a newer feature schema', () {
       expect(
-        () => TfliteCategoriser(
+        () => ModelCategoriser(
           manifest: ModelManifest.fromJson(manifestJson(version: 2)),
           labels: labels,
           runtime: FakeRuntime([0, 0, 1]),

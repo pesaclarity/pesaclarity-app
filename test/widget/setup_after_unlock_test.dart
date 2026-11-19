@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart' show LazyDatabase, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/money/money.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
-import 'package:pesaclarity/src/features/categoriser/application/categoriser_providers.dart';
 
 import '../helpers/test_app.dart';
 
@@ -28,11 +25,7 @@ AppDatabase _lockedUntilReleased(ReleasedDatabaseKey key) {
 }
 
 void main() {
-  late Directory models;
-
   setUp(() {
-    models = Directory.systemTemp.createTempSync('models');
-    addTearDown(() => models.deleteSync(recursive: true));
     addTearDown(() => BaseCurrency.code = 'KES');
   });
 
@@ -44,11 +37,7 @@ void main() {
       await pumpApp(
         tester,
         db: db,
-        overrides: [
-          releasedDatabaseKeyProvider.overrideWithValue(key),
-          // A real folder, as on the phone, so learning reaches its reads.
-          modelFolderProvider.overrideWith((ref) async => models),
-        ],
+        overrides: [releasedDatabaseKeyProvider.overrideWithValue(key)],
       );
 
       await tester.tap(find.text('Get started'));

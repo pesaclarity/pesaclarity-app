@@ -1,26 +1,26 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../domain/categoriser/categoriser.dart';
+import '../../../domain/categoriser/features.dart';
 import '../../../domain/categoriser/model_manifest.dart';
 import '../../../domain/categoriser/rule_categoriser.dart';
 import '../../../domain/categoriser/trainable.dart';
+import '../../ask/data/ask_model_store.dart' show AssetReader;
+
+/// Where the categoriser ships in the app, as pesaclarity-ml exports it.
+const categoriserModelFolder = 'assets/models/categoriser';
 
 /// File names in the model folder, as pesaclarity-ml exports them.
 const modelManifestFile = 'model-manifest.json';
 const modelLabelsFile = 'labels.json';
 
-/// Name of the model folder under the app's support directory.
-const modelFolderName = 'categoriser';
-
-/// Opens a model from its bytes, for rows [width] long.
-typedef TfliteRuntimeOpener = TfliteRuntime Function(
-  Uint8List modelBytes,
-  int width,
+/// Opens `categoriser.weights` for rows of [config].
+typedef CategoriserRuntimeOpener = CategoriserRuntime Function(
+  Uint8List weights,
+  FeatureConfig config,
 );
 
 /// Whether a model was installed and used.
@@ -32,7 +32,7 @@ class LoadedCategoriser {
     this.categoriser,
     this.status, [
     this.reasons = const [],
-    this.trainable,
+    this.fineTunable,
     this.tuned = false,
   ]);
 
@@ -42,109 +42,114 @@ class LoadedCategoriser {
   /// Why an installed model was refused.
   final List<String> reasons;
 
-  /// The checked trainable copy, when the model came with one.
-  final TrainableModel? trainable;
+  /// The model as fine-tuning needs it, when its manifest's `fine_tune`
+  /// block is one this app implements and fits the weights.
+  final FineTunableModel? fineTunable;
 
   /// Whether suggestions use weights fine-tuned on this phone.
   final bool tuned;
 }
 
-/// Loads the model in [folder]: `model-manifest.json`, `labels.json` and the
-/// model file the manifest names. Falls back to [RuleCategoriser] when
-/// nothing is installed or the model is refused.
+/// Loads the categoriser in [folder] through [readAsset]:
+/// `model-manifest.json`, `labels.json` and the weights file the manifest
+/// names. Falls back to [RuleCategoriser] when nothing is there or the
+/// model is refused. Never throws.
 ///
-/// A model is refused when its feature schema, config or input differ from
-/// what this app produces, when its file size or SHA-256 differ from the
-/// manifest, or when its labels do not match its outputs.
+/// A model is refused when its weights format, feature schema, config or
+/// input differ from what this app reads and produces, when its weights'
+/// size or SHA-256 differ from the manifest, or when its labels do not
+/// match its outputs. With no [openRuntime] an installed model that checks
+/// out is still refused: the build cannot run it.
 ///
-/// When the manifest lists a trainable copy that also checks out, it is
-/// returned for fine-tuning. When [tuned] weights fit it, suggestions come
-/// from the trainable copy with those weights restored. With no
-/// [openRuntime], an installed model that checks out is still refused: the
-/// build cannot run it.
-Future<LoadedCategoriser> loadCategoriser(
-  Directory folder, {
-  required TfliteRuntimeOpener? openRuntime,
-  TrainableRuntimeOpener? openTrainable,
+/// When the manifest's `fine_tune` block is one this app implements and its
+/// shapes are the weights file's, the model is returned for fine-tuning.
+/// When [tuned] weights fit it, suggestions run in Dart with those weights
+/// in place of the shipped ones.
+Future<LoadedCategoriser> loadCategoriser({
+  required AssetReader readAsset,
+  required CategoriserRuntimeOpener? openRuntime,
+  String folder = categoriserModelFolder,
   TunedWeights? tuned,
 }) async {
   const fallback = RuleCategoriser();
-  final manifestFile = File(p.join(folder.path, modelManifestFile));
-  if (!await manifestFile.exists()) {
-    return const LoadedCategoriser(fallback, ModelStatus.notInstalled);
-  }
   LoadedCategoriser refuse(List<String> reasons) =>
       LoadedCategoriser(fallback, ModelStatus.refused, reasons);
 
   final ModelManifest manifest;
   final ModelLabels labels;
   try {
-    manifest = ModelManifest.fromJson(await _readJson(manifestFile));
-    labels = ModelLabels.fromJson(
-      await _readJson(File(p.join(folder.path, modelLabelsFile))),
-    );
-  } on Exception catch (e) {
+    final manifestBytes = await readAsset('$folder/$modelManifestFile');
+    if (manifestBytes == null) {
+      return const LoadedCategoriser(fallback, ModelStatus.notInstalled);
+    }
+    manifest = ModelManifest.fromJson(_json(manifestBytes));
+    final labelBytes = await readAsset('$folder/$modelLabelsFile');
+    if (labelBytes == null) return refuse(['no $modelLabelsFile']);
+    labels = ModelLabels.fromJson(_json(labelBytes));
+  } on Object catch (e) {
     return refuse(['unreadable manifest or labels: $e']);
   }
 
   final problems = manifest.incompatibilities();
   if (problems.isNotEmpty) return refuse(problems);
 
-  final (modelBytes, problem) = await _verifiedFile(
-    folder,
-    manifest.modelFile,
-    manifest.modelSizeBytes,
-    manifest.modelSha256,
-  );
-  if (problem != null) return refuse([problem]);
-  if (modelBytes == null) return refuse(['model file missing']);
+  // The manifest names a file in the same folder, never a path.
+  final name = manifest.weightsFile;
+  if (name.contains('/') || name.contains(r'\') || name.startsWith('.')) {
+    return refuse(['weights file name $name']);
+  }
+  final Uint8List? weights;
+  try {
+    weights = await readAsset('$folder/$name');
+  } on Object catch (e) {
+    return refuse(['unreadable weights: $e']);
+  }
+  if (weights == null) return refuse(['weights file missing']);
+  if (weights.length != manifest.weightsSizeBytes) {
+    return refuse([
+      'weights size ${weights.length} != ${manifest.weightsSizeBytes}',
+    ]);
+  }
+  if (await sha256Hex(weights) != manifest.weightsSha256) {
+    return refuse(['weights SHA-256 does not match the manifest']);
+  }
 
   if (openRuntime == null) {
-    return refuse(['this build has no runtime for the model yet']);
+    return refuse(['this build has no runtime for the model']);
   }
-  final trainable = await _trainableModel(folder, manifest, labels);
-  final width = manifest.featureConfig.width;
-  if (trainable != null &&
-      openTrainable != null &&
-      tuned != null &&
-      tuned.fits(trainable.manifest)) {
+  final fineTunable = _fineTunable(weights, manifest, labels);
+  final tunedWeights = fineTunable == null ? null : tuned?.fitting(fineTunable);
+  if (fineTunable != null && tunedWeights != null) {
     try {
-      final runtime = openTrainable(trainable.bytes, width);
-      try {
-        runtime.restore(tuned.weights);
-      } on Object {
-        runtime.close();
-        rethrow;
-      }
-      // Closes the runtime itself when it refuses it.
-      final categoriser = TfliteCategoriser(
+      // Refuses, and closes, a runtime whose outputs are not the labels'.
+      final categoriser = ModelCategoriser(
         manifest: manifest,
         labels: labels,
-        runtime: runtime,
+        runtime: DartCategoriserRuntime(fineTunable.network, tunedWeights),
       );
       return LoadedCategoriser(
         categoriser,
         ModelStatus.loaded,
         const [],
-        trainable,
+        fineTunable,
         true,
       );
     } on Object {
-      // Fall back to the installed weights below.
+      // Suggest with the installed weights below.
     }
   }
 
   try {
-    final categoriser = TfliteCategoriser(
+    final categoriser = ModelCategoriser(
       manifest: manifest,
       labels: labels,
-      runtime: openRuntime(modelBytes, width),
+      runtime: openRuntime(weights, manifest.featureConfig),
     );
     return LoadedCategoriser(
       categoriser,
       ModelStatus.loaded,
       const [],
-      trainable,
+      fineTunable,
     );
   } on ModelRefused catch (e) {
     return refuse(e.reasons);
@@ -153,52 +158,34 @@ Future<LoadedCategoriser> loadCategoriser(
   }
 }
 
-/// The trainable copy when the manifest lists one and it checks out.
-Future<TrainableModel?> _trainableModel(
-  Directory folder,
+/// The model for fine-tuning when its `fine_tune` block is one this app
+/// implements, with the shapes of the network in [weights].
+FineTunableModel? _fineTunable(
+  Uint8List weights,
   ModelManifest manifest,
   ModelLabels labels,
-) async {
-  final t = manifest.trainable;
-  if (t == null || t.problems().isNotEmpty) return null;
-  final (bytes, problem) = await _verifiedFile(
-    folder,
-    t.file,
-    t.sizeBytes,
-    t.sha256,
-  );
-  if (bytes == null || problem != null) return null;
-  return TrainableModel(
-    manifest: t,
-    bytes: bytes,
+) {
+  final tune = manifest.fineTune;
+  if (tune == null || tune.problems().isNotEmpty) return null;
+  final CategoriserNetwork network;
+  try {
+    network = CategoriserNetwork.parse(weights, manifest.featureConfig);
+  } on FormatException {
+    return null;
+  }
+  final shapes = network.shipped.shapes;
+  for (final MapEntry(:key, :value) in shapes.entries) {
+    final want = tune.weightShapes[key];
+    if (want == null || want.join(',') != value.join(',')) return null;
+  }
+  if (network.shipped.classes != labels.labels.length) return null;
+  return FineTunableModel(
+    manifest: tune,
+    weightsSha256: manifest.weightsSha256,
+    network: network,
     labels: labels.labels,
-    width: manifest.featureConfig.width,
     featureSchemaVersion: manifest.featureSchemaVersion,
   );
-}
-
-/// The bytes of [name] in [folder] when its size and SHA-256 match, else
-/// the problem. `(null, null)` when the file is missing.
-Future<(Uint8List?, String?)> _verifiedFile(
-  Directory folder,
-  String name,
-  int size,
-  String sha256,
-) async {
-  // The manifest names a file in the same folder, never a path.
-  if (p.basename(name) != name || name.startsWith('.')) {
-    return (null, 'model file name $name');
-  }
-  final file = File(p.join(folder.path, name));
-  if (!await file.exists()) return (null, null);
-  final bytes = await file.readAsBytes();
-  if (bytes.length != size) {
-    return (null, 'model size ${bytes.length} != $size');
-  }
-  if (await sha256Hex(bytes) != sha256) {
-    return (null, 'model SHA-256 does not match the manifest');
-  }
-  return (bytes, null);
 }
 
 /// Lower-case hex SHA-256 of [bytes].
@@ -208,10 +195,10 @@ Future<String> sha256Hex(List<int> bytes) async {
       .join();
 }
 
-Future<Map<String, Object?>> _readJson(File file) async {
-  final json = jsonDecode(await file.readAsString());
+Map<String, Object?> _json(Uint8List bytes) {
+  final json = jsonDecode(utf8.decode(bytes));
   if (json is! Map<String, Object?>) {
-    throw FormatException('${p.basename(file.path)} is not an object');
+    throw const FormatException('not a JSON object');
   }
   return json;
 }

@@ -1,0 +1,84 @@
+{
+  "weights_file": "categoriser.weights",
+  "weights_sha256": "0b97460bc709388fce6f9f08c58f3b0d307677271432e67dcd158d66595eff9d",
+  "weights_size_bytes": 75776,
+  "weights_format_version": 1,
+  "source": {
+    "file": "categoriser.onnx",
+    "sha256": "669ebc1e4b6656ccffac0b308213518e4072a70218d97d77867c5d1d406e9a86",
+    "size_bytes": 276510
+  },
+  "feature_schema_version": 1,
+  "feature_config": {
+    "max_tokens": 8,
+    "hash_buckets": 4096
+  },
+  "input": {
+    "name": "features",
+    "dtype": "int32",
+    "shape": [
+      -1,
+      13
+    ]
+  },
+  "layout": [
+    "token_0",
+    "token_1",
+    "token_2",
+    "token_3",
+    "token_4",
+    "token_5",
+    "token_6",
+    "token_7",
+    "amount_bucket",
+    "direction",
+    "hour_bucket",
+    "weekday",
+    "month_phase"
+  ],
+  "rayo_inputs": {
+    "features": {
+      "dtype": "int32",
+      "shape": [
+        13
+      ]
+    }
+  },
+  "outputs": [
+    "category"
+  ],
+  "fine_tune": {
+    "spec_version": 1,
+    "trains": [
+      "hidden.kernel",
+      "hidden.bias",
+      "category.kernel",
+      "category.bias"
+    ],
+    "input": "hidden",
+    "weights": {
+      "hidden.kernel": [
+        32,
+        36
+      ],
+      "hidden.bias": [
+        32
+      ],
+      "category.kernel": [
+        27,
+        32
+      ],
+      "category.bias": [
+        27
+      ]
+    },
+    "settings": {
+      "learning_rate": 0.05,
+      "epochs": 3,
+      "batch_size": 16,
+      "max_examples": 500,
+      "min_examples": 10,
+      "min_hours_between_runs": 24
+    }
+  }
+}

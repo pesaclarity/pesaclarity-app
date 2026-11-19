@@ -8,7 +8,7 @@ const plainWeightsFormatVersion = 1;
 class PlainTensor {
   PlainTensor._(this.shape, this.int8, this.float32, this.scales, this.axis);
 
-  /// Row-major (C order), as in the TFLite graph.
+  /// Row-major (C order), as the graph reads it.
   final List<int> shape;
 
   /// The values of an int8 tensor, else null.
@@ -94,7 +94,8 @@ class PlainWeights {
         case 'int8':
           final q = t['quantization']! as Map<String, Object?>;
           if (q['zero_point'] != 0) {
-            // TFLite's weights are symmetric; anything else is a new format.
+            // rayo-convert's int8 weights are symmetric; anything else is a
+            // new format.
             throw FormatException('$name: zero point ${q['zero_point']}');
           }
           final axis = q['axis'] as int?;
@@ -146,9 +147,9 @@ class PlainWeights {
   final String model;
 
   /// The SHA-256 of the file they came from, the manifest's source: the
-  /// ONNX file of a PyTorch model they were quantised from (the message and
-  /// Ask readers), or the TFLite file they were read out of (the Ask
-  /// writer).
+  /// ONNX file of a PyTorch model they were quantised from (the message
+  /// reader, the Ask reader and the categoriser), or the TFLite file they
+  /// were read out of (the Ask writer).
   final String sourceSha256;
 
   /// The layers in the order they run, as the header lists them.

@@ -2,32 +2,36 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/domain/categoriser/features.dart';
 import 'package:pesaclarity/src/domain/categoriser/learning.dart';
 import 'package:pesaclarity/src/domain/categoriser/model_manifest.dart';
 import 'package:pesaclarity/src/domain/categoriser/trainable.dart';
 
+import '../ml/plain_weights_writer.dart';
 import 'categoriser_test.dart' show manifestJson;
 
 const width = 13;
-const shapes = {
-  'w1': [3, 2],
-  'b1': [2],
-  'w2': [2, 2],
-  'b2': [2],
-};
+const _config = FeatureConfig(hashBuckets: 16);
 
-Map<String, Object?> trainableJson({
-  String sha = 'cd',
-  Map<String, Object?>? fineTune,
-  List<String> signatures = const ['train', 'infer', 'save', 'restore'],
+/// The manifest's `fine_tune` block for [tinyWeights].
+Map<String, Object?> fineTuneJson({
+  int specVersion = 1,
+  Map<String, Object?>? settings,
+  Map<String, Object?>? weights,
 }) => {
-  'file': 'categoriser-train.tflite',
-  'sha256': sha,
-  'size_bytes': 64,
-  'signatures': signatures,
-  'weights': shapes,
-  'fine_tune':
-      fineTune ??
+  'spec_version': specVersion,
+  'trains': FineTuneManifest.tensorNames,
+  'input': 'hidden',
+  'weights':
+      weights ??
+      {
+        'hidden.kernel': [3, 6],
+        'hidden.bias': [3],
+        'category.kernel': [2, 3],
+        'category.bias': [2],
+      },
+  'settings':
+      settings ??
       {
         'learning_rate': 0.05,
         'epochs': 3,
@@ -38,42 +42,42 @@ Map<String, Object?> trainableJson({
       },
 };
 
-class FakeTrainableRuntime implements TrainableRuntime {
-  FakeTrainableRuntime({this.loss = 1.0, this.savedShapes = shapes});
+/// A categoriser's weights file small enough to read: 16 token rows of
+/// width 1 (int8, one scale), five context tables of width 1, a hidden
+/// layer of 3 (int8, a scale per output) and 2 classes.
+Uint8List tinyWeights({String model = 'categoriser'}) => writePlainWeights(
+  model: model,
+  tensors: [
+    PlainTensorSpec.int8(
+      'token_embedding.table',
+      [16, 1],
+      List.generate(16, (i) => i * 8 - 64),
+      scales: [0.01],
+    ),
+    for (final (i, rows) in [12, 2, 6, 7, 3].indexed)
+      PlainTensorSpec.float32('context_$i.table', [
+        rows,
+        1,
+      ], List.generate(rows, (r) => (r - i) / 10)),
+    PlainTensorSpec.int8(
+      'hidden.kernel',
+      [3, 6],
+      List.generate(18, (i) => (i * 37 % 255) - 127),
+      scales: [0.01, 0.02, 0.005],
+      axis: 0,
+    ),
+    PlainTensorSpec.float32('hidden.bias', [3], [0.1, -0.1, 0.05]),
+    PlainTensorSpec.float32(
+      'category.kernel',
+      [2, 3],
+      [0.5, -0.5, 0.25, -0.25, 0.5, 0.1],
+    ),
+    PlainTensorSpec.float32('category.bias', [2], [0, 0.1]),
+  ],
+);
 
-  double loss;
-  final Map<String, List<int>> savedShapes;
-  final batches = <(List<List<int>>, List<int>, double)>[];
-  Map<String, Float32List>? restored;
-  var closed = false;
-  var probs = [0.3, 0.7];
-
-  @override
-  int get outputSize => probs.length;
-
-  @override
-  List<double> run(List<int> row) => probs;
-
-  @override
-  double train(List<List<int>> rows, List<int> labels, double learningRate) {
-    batches.add((rows, labels, learningRate));
-    return loss;
-  }
-
-  @override
-  Map<String, Float32List> save() => {
-    for (final MapEntry(:key, :value) in savedShapes.entries)
-      key: Float32List.fromList(
-        List.generate(value.fold(1, (a, b) => a * b), (i) => i / 10),
-      ),
-  };
-
-  @override
-  void restore(Map<String, Float32List> weights) => restored = weights;
-
-  @override
-  void close() => closed = true;
-}
+CategoriserNetwork tinyNetwork() =>
+    CategoriserNetwork.parse(tinyWeights(), _config);
 
 class MemoryStore implements TunedWeightsStore {
   TunedWeights? weights;
@@ -96,17 +100,18 @@ class MemoryStore implements TunedWeightsStore {
   Future<void> markRun(DateTime at) async => last = at;
 }
 
-TrainableModel model([Map<String, Object?>? json]) => TrainableModel(
-  manifest: TrainableManifest.fromJson(json ?? trainableJson()),
-  bytes: Uint8List(64),
-  labels: const ['groceries', 'eating_out'],
-  width: width,
-  featureSchemaVersion: 1,
-);
+FineTunableModel model({Map<String, Object?>? fineTune, String sha = 'cd'}) =>
+    FineTunableModel(
+      manifest: FineTuneManifest.fromJson(fineTune ?? fineTuneJson()),
+      weightsSha256: sha,
+      network: tinyNetwork(),
+      labels: const ['groceries', 'eating_out'],
+      featureSchemaVersion: 1,
+    );
 
 TrainingExample example(int i, {String label = 'groceries', int schema = 1}) =>
     TrainingExample(
-      features: List.filled(width, i),
+      features: [i % 16, 0, 0, 0, 0, 0, 0, 0, i % 12, i % 2, i % 6, i % 7, 0],
       label: label,
       featureSchemaVersion: schema,
     );
@@ -115,44 +120,47 @@ void main() {
   final now = DateTime.utc(2026, 11, 4, 9);
 
   group('manifest', () {
-    test('reads the trainable block', () {
+    test('reads the fine_tune block', () {
       final m = ModelManifest.fromJson({
         ...manifestJson(),
-        'trainable': trainableJson(sha: 'CD'),
+        'fine_tune': fineTuneJson(),
       });
-      final t = m.trainable!;
-      expect(t.sha256, 'cd');
+      final t = m.fineTune!;
       expect(t.problems(), isEmpty);
-      expect(t.weightShapes['w1'], [3, 2]);
-      expect(t.fineTune.learningRate, 0.05);
-      expect(t.fineTune.minHoursBetweenRuns, 24);
+      expect(t.weightShapes['hidden.kernel'], [3, 6]);
+      expect(t.settings.learningRate, 0.05);
+      expect(t.settings.minHoursBetweenRuns, 24);
     });
 
     test('a model without one has none', () {
-      expect(ModelManifest.fromJson(manifestJson()).trainable, isNull);
+      expect(ModelManifest.fromJson(manifestJson()).fineTune, isNull);
     });
 
     test('a malformed block is refused', () {
       expect(
-        () => ModelManifest.fromJson({...manifestJson(), 'trainable': 'x'}),
+        () => ModelManifest.fromJson({...manifestJson(), 'fine_tune': 'x'}),
         throwsFormatException,
       );
       expect(
-        () => TrainableManifest.fromJson({
-          ...trainableJson(),
-          'weights': {
-            'w1': [0, 2],
-          },
-        }),
+        () => FineTuneManifest.fromJson(
+          fineTuneJson(
+            weights: {
+              'hidden.kernel': [0, 2],
+            },
+          ),
+        ),
         throwsFormatException,
       );
     });
 
     test('lists what stops fine-tuning', () {
-      final t = TrainableManifest.fromJson(
-        trainableJson(
-          signatures: ['infer'],
-          fineTune: {
+      final t = FineTuneManifest.fromJson({
+        ...fineTuneJson(
+          specVersion: 2,
+          weights: {
+            'hidden.kernel': [3, 6],
+          },
+          settings: {
             'learning_rate': 0.05,
             'epochs': 1,
             'batch_size': 1,
@@ -161,52 +169,134 @@ void main() {
             'min_hours_between_runs': 24,
           },
         ),
-      );
+        'input': 'category',
+      });
       expect(t.problems(), [
-        'no train signature',
-        'no save signature',
-        'no restore signature',
+        'fine-tuning spec 2; this app implements 1',
+        'fine-tunes from category',
+        'no shape for hidden.bias',
+        'no shape for category.kernel',
+        'no shape for category.bias',
         'fine-tune settings out of range',
       ]);
+    });
+  });
+
+  group('CategoriserNetwork', () {
+    test('reads the tensors in rayo\'s layout, the kernel dequantised', () {
+      final n = tinyNetwork();
+      expect(n.width, width);
+      expect(n.shipped.shapes, {
+        'hidden.kernel': [3, 6],
+        'hidden.bias': [3],
+        'category.kernel': [2, 3],
+        'category.bias': [2],
+      });
+      // Row 1 of the kernel has scale 0.02.
+      expect(
+        n.shipped.hiddenKernel[6],
+        closeTo(((6 * 37 % 255) - 127) * 0.02, 1e-6),
+      );
+    });
+
+    test('f is the mean of the tokens that are not 0, then the contexts', () {
+      final n = tinyNetwork();
+      final f = n.input([3, 0, 5, 0, 0, 0, 0, 0, 2, 1, 0, 6, 2]);
+      // Token rows 3 and 5: (3 * 8 - 64) and (5 * 8 - 64), times 0.01.
+      expect(f[0], closeTo(((-40 + -24) / 2) * 0.01, 1e-7));
+      expect(f.sublist(1), [
+        for (final v in [0.2, 0.0, -0.2, 0.3, -0.2]) closeTo(v, 1e-7),
+      ]);
+      // No tokens: the sum over none, divided by 1.
+      expect(n.input([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])[0], 0);
+    });
+
+    test('refuses ids outside its tables and rows of another width', () {
+      final n = tinyNetwork();
+      expect(
+        () => n.input([16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        throwsArgumentError,
+      );
+      expect(
+        () => n.input([1, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0]),
+        throwsArgumentError,
+      );
+      expect(() => n.input([1, 2]), throwsArgumentError);
+    });
+
+    test('refuses another model\'s weights or a table of another size', () {
+      expect(
+        () => CategoriserNetwork.parse(tinyWeights(model: 'reader'), _config),
+        throwsFormatException,
+      );
+      expect(
+        () => CategoriserNetwork.parse(tinyWeights(), const FeatureConfig()),
+        throwsFormatException,
+      );
+    });
+
+    test('the Dart runtime gives a softmax per row', () {
+      final runtime = DartCategoriserRuntime(tinyNetwork());
+      expect(runtime.outputSize, 2);
+      final p = runtime.run(example(3).features);
+      expect(p[0] + p[1], closeTo(1, 1e-12));
     });
   });
 
   group('TunedWeights', () {
     TunedWeights tuned({String sha = 'cd', Map<String, Float32List>? w}) =>
         TunedWeights(
-          trainableSha256: sha,
+          weightsSha256: sha,
           trainedAt: now,
           exampleCount: 7,
-          weights: w ?? FakeTrainableRuntime().save(),
+          weights: w ?? tinyNetwork().shipped.toNamed(),
         );
 
-    test('round-trips through JSON', () {
-      final back = TunedWeights.fromJson(tuned().toJson())!;
-      expect(back.trainableSha256, 'cd');
+    test('round-trips through JSON, by tensor name', () {
+      final json = tuned().toJson();
+      expect((json['weights']! as Map).keys, FineTuneManifest.tensorNames);
+      final back = TunedWeights.fromJson(json)!;
+      expect(back.weightsSha256, 'cd');
+      expect(back.specVersion, 1);
       expect(back.trainedAt, now);
       expect(back.exampleCount, 7);
-      expect(back.weights['w1'], tuned().weights['w1']);
-      expect(back.fits(model().manifest), isTrue);
+      expect(back.weights['hidden.kernel'], tuned().weights['hidden.kernel']);
+      expect(back.fits(model()), isTrue);
     });
 
-    test('only fits the model it was learned on, with its shapes', () {
-      final m = model().manifest;
+    test('only fits the weights file it was learned on, with its shapes', () {
+      final m = model();
       expect(tuned(sha: 'ef').fits(m), isFalse);
-      final short = {...tuned().weights, 'w2': Float32List(3)};
+      final short = {...tuned().weights, 'category.kernel': Float32List(3)};
       expect(tuned(w: short).fits(m), isFalse);
       final nan = {
         ...tuned().weights,
-        'b2': Float32List.fromList([double.nan, 0]),
+        'category.bias': Float32List.fromList([double.nan, 0]),
       };
       expect(tuned(w: nan).fits(m), isFalse);
+      final other = TunedWeights.fromJson({
+        ...tuned().toJson(),
+        'spec_version': 2,
+      })!;
+      expect(other.fits(m), isFalse);
     });
 
-    test('a malformed record reads as none', () {
-      expect(TunedWeights.fromJson({'trainable_sha256': 'cd'}), isNull);
+    test('a malformed or TFLite-era record reads as none', () {
+      expect(TunedWeights.fromJson({'weights_sha256': 'cd'}), isNull);
       expect(
         TunedWeights.fromJson({
           ...tuned().toJson(),
-          'weights': {'w1': 'not base64!'},
+          'weights': {'hidden.kernel': 'not base64!'},
+        }),
+        isNull,
+      );
+      // What the app saved for categoriser-train.tflite.
+      expect(
+        TunedWeights.fromJson({
+          'trainable_sha256': 'cd',
+          'trained_at_ms': 0,
+          'examples': 7,
+          'weights': {'w1': 'AAAAAA=='},
         }),
         isNull,
       );
@@ -214,27 +304,16 @@ void main() {
   });
 
   group('ModelFineTuner', () {
-    late FakeTrainableRuntime runtime;
     late MemoryStore store;
-    late int opened;
 
-    ModelFineTuner tuner([TrainableModel? m]) => ModelFineTuner(
+    ModelFineTuner tuner([FineTunableModel? m]) => ModelFineTuner(
       model: m ?? model(),
-      open: (bytes, w) {
-        opened++;
-        expect(w, width);
-        return runtime;
-      },
       store: store,
       now: () => now,
       random: Random(1),
     );
 
-    setUp(() {
-      runtime = FakeTrainableRuntime();
-      store = MemoryStore();
-      opened = 0;
-    });
+    setUp(() => store = MemoryStore());
 
     test('waits for enough usable confirmations', () async {
       final examples = [
@@ -246,9 +325,14 @@ void main() {
           label: 'groceries',
           featureSchemaVersion: 1,
         ),
+        // A token id outside the model's 16 rows.
+        TrainingExample(
+          features: [99, ...List.filled(12, 0)],
+          label: 'groceries',
+          featureSchemaVersion: 1,
+        ),
       ];
       expect(await tuner().fineTune(examples), isFalse);
-      expect(opened, 0);
       expect(store.writes, 0);
     });
 
@@ -257,42 +341,56 @@ void main() {
         for (var i = 0; i < 12; i++)
           example(i, label: i.isEven ? 'groceries' : 'eating_out'),
       ];
-      expect(await tuner().fineTune(examples), isTrue);
+      final m = model();
+      final shipped = m.network.shipped.copy();
+      expect(await tuner(m).fineTune(examples), isTrue);
 
-      // 10 most recent, 3 epochs of batches of 4: 4 + 4 + 2.
-      expect(runtime.batches, hasLength(9));
-      expect(runtime.batches.every((b) => b.$3 == 0.05), isTrue);
-      final seen = {
-        for (final b in runtime.batches.take(3))
-          for (final row in b.$1) row.first,
-      };
-      expect(seen, {for (var i = 2; i < 12; i++) i});
-      for (final (rows, labels, _) in runtime.batches) {
-        for (var j = 0; j < rows.length; j++) {
-          expect(labels[j], rows[j].first.isEven ? 0 : 1);
-        }
-      }
-
-      expect(runtime.closed, isTrue);
       final saved = store.weights!;
-      expect(saved.trainableSha256, 'cd');
+      expect(saved.weightsSha256, 'cd');
       expect(saved.exampleCount, 10);
       expect(saved.trainedAt, now);
-      expect(saved.fits(model().manifest), isTrue);
+      expect(saved.fits(m), isTrue);
+      expect(saved.weights['category.bias'], isNot(shipped.categoryBias));
+
+      // The same run by hand: 10 most recent, 3 epochs of batches of 4, in
+      // the order the same Random gives, from the shipped weights.
+      final recent = examples.sublist(2);
+      final w = shipped.copy();
+      final order = List.generate(10, (i) => i);
+      final random = Random(1);
+      for (var epoch = 0; epoch < 3; epoch++) {
+        order.shuffle(random);
+        for (var start = 0; start < 10; start += 4) {
+          final batch = order.sublist(start, min(start + 4, 10));
+          w.step(
+            [for (final i in batch) m.network.input(recent[i].features)],
+            [for (final i in batch) recent[i].label == 'groceries' ? 0 : 1],
+            0.05,
+          );
+        }
+      }
+      for (final MapEntry(:key, :value) in w.toNamed().entries) {
+        expect(saved.weights[key], value, reason: key);
+      }
+      // Each run starts from the shipped weights.
+      expect(m.network.shipped.toNamed(), shipped.toNamed());
     });
 
     test('keeps nothing when training diverges', () async {
-      runtime.loss = double.nan;
       final examples = [for (var i = 0; i < 6; i++) example(i)];
-      expect(await tuner().fineTune(examples), isFalse);
-      expect(store.writes, 0);
-      expect(runtime.closed, isTrue);
-    });
-
-    test('keeps nothing when the saved weights do not fit', () async {
-      runtime = FakeTrainableRuntime(savedShapes: {'w1': shapes['w1']!});
-      final examples = [for (var i = 0; i < 6; i++) example(i)];
-      expect(await tuner().fineTune(examples), isFalse);
+      final m = model(
+        fineTune: fineTuneJson(
+          settings: {
+            'learning_rate': 1e300,
+            'epochs': 3,
+            'batch_size': 2,
+            'max_examples': 10,
+            'min_examples': 5,
+            'min_hours_between_runs': 24,
+          },
+        ),
+      );
+      expect(await tuner(m).fineTune(examples), isFalse);
       expect(store.writes, 0);
     });
   });
