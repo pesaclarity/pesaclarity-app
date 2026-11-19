@@ -9,6 +9,7 @@ import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/activity/presentation/add_transaction_sheet.dart';
+import 'package:pesaclarity/src/features/app_status/presentation/update_check_sheet.dart';
 import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debt_sheet.dart';
 import 'package:pesaclarity/src/features/goals/presentation/goal_sheet.dart';
@@ -86,6 +87,7 @@ void main() {
   _sheet('loan-sheet', (c) => showLoanSheet(c, today: _today));
   _sheet('plan-item', (c) => showPlanItemSheet(c, month: _today.yearMonth));
   _sheet('spaces-sheet', showSpaces);
+  _sheet('update-check-sheet', showUpdateCheckSheet);
   _sheet('item-sheet', showItemSheet, space: _shop);
   _sheet('bought-sheet', showBoughtSheet, space: _shop);
   _sheet(

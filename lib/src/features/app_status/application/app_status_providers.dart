@@ -13,6 +13,7 @@ import '../data/app_status_verifier.dart';
 import '../domain/app_status.dart';
 import '../domain/pinned_keys.dart';
 import 'message_rereader.dart';
+import 'update_check_choice.dart';
 import 'update_links.dart';
 
 /// How often the app asks the server at most.
@@ -66,6 +67,8 @@ class AppStatusController extends AsyncNotifier<AppStatusView?> {
     final build = ref.watch(updateChannelProvider).name;
     final platform = ref.watch(appStatusPlatformProvider);
     try {
+      // The F-Droid build asks first (ADR 0024): no answer, no check.
+      if (!await ref.watch(updateCheckAllowedProvider.future)) return null;
       return await _load(source, verifier, version, build, platform);
     } on Object {
       return null;
