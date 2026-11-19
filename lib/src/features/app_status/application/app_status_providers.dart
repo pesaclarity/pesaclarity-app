@@ -133,7 +133,10 @@ class AppStatusController extends AsyncNotifier<AppStatusView?> {
   /// This month's counting token, or null; a failure never stops the check.
   Future<String?> _countToken() async {
     try {
-      return await ref.read(countTokenIssuerProvider).tokenForCheckIn();
+      return await ref
+          .read(countTokenIssuerProvider)
+          .tokenForCheckIn()
+          .timeout(const Duration(seconds: 5));
     } on Object {
       return null;
     }

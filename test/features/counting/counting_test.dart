@@ -164,8 +164,8 @@ void main() {
             publicKey: publicKey,
             settings: settings,
             countTokens: store,
+            policyVersion: '2.4',
           ),
-          privacyPolicyProvider.overrideWithValue(AsyncData(policy('2.4'))),
         ],
       );
       addTearDown(c.dispose);

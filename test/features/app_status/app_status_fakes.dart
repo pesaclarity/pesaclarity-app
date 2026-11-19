@@ -1,16 +1,20 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:pesaclarity/src/config/build_info.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
+import 'package:pesaclarity/src/domain/privacy/privacy_policy.dart';
+import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/app_status/application/app_status_providers.dart';
 import 'package:pesaclarity/src/features/app_status/application/message_rereader.dart';
 import 'package:pesaclarity/src/features/app_status/application/update_links.dart';
 import 'package:pesaclarity/src/features/app_status/data/app_status_source.dart';
 import 'package:pesaclarity/src/features/counting/data/count_token_store.dart';
+import 'package:pesaclarity/src/features/privacy/data/policy_source.dart';
 
 /// A placeholder key for tests only: a fixed seed, never a real one.
 final testSeed = List<int>.filled(32, 7);
@@ -161,9 +165,22 @@ List<Override> appStatusOverrides({
   MessageRereader? rereader,
   UpdateOpener? opener,
   CountTokenStore? countTokens,
+  String policyVersion = '2.3',
 }) => [
   countTokenStoreProvider.overrideWithValue(
     countTokens ?? MemoryCountTokenStore(),
+  ),
+  // The bundled policy loads from the asset bundle, which a widget test's
+  // fake clock would hold up; app status needs only its version.
+  privacyPolicyProvider.overrideWithValue(
+    AsyncData(
+      PrivacyPolicy(
+        title: 'Privacy policy',
+        version: PolicyVersion.parse(policyVersion),
+        updated: CalendarDate(2026, 11, 18),
+        blocks: const [],
+      ),
+    ),
   ),
   appStatusSourceProvider.overrideWithValue(source),
   appStatusPublicKeysProvider.overrideWithValue([publicKey]),
