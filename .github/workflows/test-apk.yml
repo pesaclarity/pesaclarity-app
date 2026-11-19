@@ -182,10 +182,10 @@ jobs:
           BUILD_NAME: ${{ steps.version.outputs.name }}
           BUILD_NUMBER: ${{ github.run_number }}
           FLAVOR: ${{ matrix.flavor }}
-          API_URL: ${{ github.ref == 'refs/heads/main' && (secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL) || secrets.DEV_PESACLARITY_API_URL || vars.DEV_PESACLARITY_API_URL }}
-          VAULT_URL: ${{ github.ref == 'refs/heads/main' && (secrets.PESACLARITY_VAULT_URL || vars.PESACLARITY_VAULT_URL) || secrets.DEV_PESACLARITY_VAULT_URL || vars.DEV_PESACLARITY_VAULT_URL }}
-          PINNED_HOSTS: ${{ github.ref == 'refs/heads/main' && vars.PESACLARITY_PINNED_HOSTS || vars.DEV_PESACLARITY_PINNED_HOSTS }}
-          TRUSTED_ROOTS: ${{ github.ref == 'refs/heads/main' && vars.PESACLARITY_TRUSTED_ROOTS || vars.DEV_PESACLARITY_TRUSTED_ROOTS }}
+          API_URL: ${{ secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL }}
+          VAULT_URL: ${{ secrets.PESACLARITY_VAULT_URL || vars.PESACLARITY_VAULT_URL || secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL }}
+          PINNED_HOSTS: ${{ vars.PESACLARITY_PINNED_HOSTS }}
+          TRUSTED_ROOTS: ${{ vars.PESACLARITY_TRUSTED_ROOTS }}
           RATES_URL: ${{ vars.PESACLARITY_RATES_URL }}
           RATES_SOURCE_NAME: ${{ vars.PESACLARITY_RATES_SOURCE_NAME }}
           RATES_SOURCE_URL: ${{ vars.PESACLARITY_RATES_SOURCE_URL }}
