@@ -27,6 +27,7 @@ abstract interface class JsonTransport {
     Uri url, {
     Object? body,
     String? bearer,
+    Map<String, String> headers = const {},
   });
 }
 
@@ -47,6 +48,7 @@ class IoJsonTransport implements JsonTransport {
     Uri url, {
     Object? body,
     String? bearer,
+    Map<String, String> headers = const {},
   }) async {
     final request = await _client.openUrl(method, url).timeout(timeout);
     request.followRedirects = false;
@@ -54,6 +56,7 @@ class IoJsonTransport implements JsonTransport {
     if (bearer != null) {
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
     }
+    headers.forEach(request.headers.set);
     if (body != null) {
       request.headers.contentType = ContentType.json;
       request.add(utf8.encode(jsonEncode(body)));

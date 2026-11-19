@@ -6,6 +6,7 @@ import '../../../core/network/pinned_http_client.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../auth/data/json_transport.dart';
+import '../../counting/application/counting.dart';
 import '../data/app_status_memo.dart';
 import '../data/app_status_source.dart';
 import '../data/app_status_verifier.dart';
@@ -105,6 +106,7 @@ class AppStatusController extends AsyncNotifier<AppStatusView?> {
         version: version,
         build: build,
         platform: platform,
+        countToken: await _countToken(),
       );
       // Offline: try again next time the app opens.
       if (envelope == null) return null;
@@ -126,6 +128,15 @@ class AppStatusController extends AsyncNotifier<AppStatusView?> {
     if (status == null) return null;
     await _askForRereads(status);
     return AppStatusView(status, _memo.dismissed);
+  }
+
+  /// This month's counting token, or null; a failure never stops the check.
+  Future<String?> _countToken() async {
+    try {
+      return await ref.read(countTokenIssuerProvider).tokenForCheckIn();
+    } on Object {
+      return null;
+    }
   }
 
   /// Hands each notice's `reread_from` to the re-reader once.

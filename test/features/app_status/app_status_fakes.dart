@@ -10,6 +10,7 @@ import 'package:pesaclarity/src/features/app_status/application/app_status_provi
 import 'package:pesaclarity/src/features/app_status/application/message_rereader.dart';
 import 'package:pesaclarity/src/features/app_status/application/update_links.dart';
 import 'package:pesaclarity/src/features/app_status/data/app_status_source.dart';
+import 'package:pesaclarity/src/features/counting/data/count_token_store.dart';
 
 /// A placeholder key for tests only: a fixed seed, never a real one.
 final testSeed = List<int>.filled(32, 7);
@@ -97,14 +98,17 @@ class FakeAppStatusSource implements AppStatusSource {
 
   Object? response;
   final asked = <Map<String, String>>[];
+  final countTokens = <String?>[];
 
   @override
   Future<Object?> fetch({
     required String version,
     required String build,
     required String platform,
+    String? countToken,
   }) async {
     asked.add({'version': version, 'build': build, 'platform': platform});
+    countTokens.add(countToken);
     return response;
   }
 }
@@ -156,7 +160,11 @@ List<Override> appStatusOverrides({
   AppFlavor flavor = AppFlavor.play,
   MessageRereader? rereader,
   UpdateOpener? opener,
+  CountTokenStore? countTokens,
 }) => [
+  countTokenStoreProvider.overrideWithValue(
+    countTokens ?? MemoryCountTokenStore(),
+  ),
   appStatusSourceProvider.overrideWithValue(source),
   appStatusPublicKeysProvider.overrideWithValue([publicKey]),
   mainSettingsRepositoryProvider.overrideWithValue(settings),

@@ -26,6 +26,7 @@ class _RecordingTransport implements JsonTransport {
     Uri url, {
     Object? body,
     String? bearer,
+    Map<String, String> headers = const {},
   }) async {
     requests.add(_Request(method, url, body, bearer));
     if (error != null) throw error!;
