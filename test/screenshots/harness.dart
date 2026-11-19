@@ -86,12 +86,23 @@ Widget shotApp(Widget home, {GlobalKey<NavigatorState>? navigatorKey}) =>
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: shotTheme,
-      builder: (context, child) => Theme(
-        data: accessibleTheme(context, Theme.of(context)),
-        child: AmountsHiddenScope(child: FieldStyleTheme(child: child!)),
-      ),
+      builder: _shotBuilder,
       home: home,
     );
+
+/// A [MaterialApp.router] as the app builds one, in [shotTheme], for
+/// screens that move between routes.
+Widget shotRouterApp(RouterConfig<Object> router) => MaterialApp.router(
+  routerConfig: router,
+  debugShowCheckedModeBanner: false,
+  theme: shotTheme,
+  builder: _shotBuilder,
+);
+
+Widget _shotBuilder(BuildContext context, Widget? child) => Theme(
+  data: accessibleTheme(context, Theme.of(context)),
+  child: AmountsHiddenScope(child: FieldStyleTheme(child: child!)),
+);
 
 /// [body] in the tab bar with the + beside it, as the app's shell shows
 /// it; over [root] when given, so it has a back arrow.
@@ -134,12 +145,16 @@ Widget tabShell(
 ///
 /// With [checkAccessibility] it registers the screen once for each text
 /// size in [accessibilityScales] and theme instead, and [snap] checks it.
+/// A screen with a [knownAccessibilityIssue] is drawn but left out of that
+/// check until the issue is fixed; say what fails and where.
 void screenshot(
   String name,
   Future<void> Function(WidgetTester tester) body, {
   bool statusBar = true,
+  String? knownAccessibilityIssue,
 }) {
   if (checkAccessibility) {
+    if (knownAccessibilityIssue != null) return;
     for (final scale in accessibilityScales) {
       for (final (dark, contrast) in [
         (false, false),
