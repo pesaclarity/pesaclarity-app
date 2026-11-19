@@ -7,8 +7,9 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Gives Dart a readable name for this phone, such as "Tecno Spark 20", for the device list, and
- * whether it is charging, so on-phone learning runs only then.
+ * Gives Dart a readable name for this phone, such as "Tecno Spark 20", for the device list,
+ * whether it is charging, so on-phone learning runs only then, and Android's major version,
+ * such as "13", for a crash report (never the build fingerprint).
  */
 object DeviceChannel {
     fun register(messenger: BinaryMessenger, context: Context) {
@@ -16,6 +17,7 @@ object DeviceChannel {
             when (call.method) {
                 "name" -> result.success(name())
                 "charging" -> result.success(charging(context))
+                "systemVersion" -> result.success(Build.VERSION.RELEASE.orEmpty().takeWhile { it.isDigit() })
                 else -> result.notImplemented()
             }
         }
