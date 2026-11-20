@@ -290,6 +290,7 @@ String kindLabel(TransactionKind kind) => switch (kind) {
   TransactionKind.airtime => 'Airtime',
   TransactionKind.fulizaDraw => 'Fuliza',
   TransactionKind.fulizaRepayment => 'Fuliza repayment',
+  TransactionKind.loanRepayment => 'Loan repayment',
   TransactionKind.roundUp => 'Round-up',
   TransactionKind.charge => 'Charge',
   TransactionKind.reversal => 'Reversal',

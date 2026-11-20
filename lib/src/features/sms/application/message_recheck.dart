@@ -62,13 +62,17 @@ class MessageRecheck {
     required this._accounts,
     required this._settings,
     this._parse = parseInBackground,
-  });
+    List<Institution>? catalogue,
+  }) : _catalogue = catalogue ?? institutionCatalogue;
 
   final AppDatabase _db;
   final SmsSource _source;
   final AccountsRepository _accounts;
   final AppSettingsRepository _settings;
   final SmsParseBatch _parse;
+
+  /// Every institution, for messages about money on another's account.
+  final List<Institution> _catalogue;
 
   static const doneKey = 'sms.recheck';
   static const noticeKey = 'sms.recheckNotice';
@@ -109,12 +113,20 @@ class MessageRecheck {
       for (final p in parsed) {
         final row = stored[p.rawHash];
         if (row == null) continue;
+        // A message about money on another institution's account, such as
+        // KCB confirming an M-Pesa payment, belongs on that account.
+        final on = p.institution == null
+            ? institution
+            : _catalogue.where((i) => i.id == p.institution).firstOrNull;
+        if (on == null) continue;
         final accountId = await _accounts.accountForInstitution(
-          institution.id,
-          name: institution.name,
-          type: institution.type,
+          on.id,
+          name: on.name,
+          type: on.type,
           openingDate: p.time,
-          currency: p.currency,
+          // As when first read: a message naming no account of its own is
+          // on the account in the institution's currency.
+          currency: p.ownAccount == null ? on.pack.currency : p.currency,
           reference: p.ownAccount,
         );
         final currencyChanged = row.currency != p.currency;

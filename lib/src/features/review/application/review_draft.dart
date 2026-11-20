@@ -123,7 +123,7 @@ class ReviewDraft {
   }) {
     final when = occurredAt(receivedAt);
     final out = switch (ledgerKind) {
-      TransactionKind.fulizaRepayment => true,
+      TransactionKind.fulizaRepayment || TransactionKind.loanRepayment => true,
       TransactionKind.fulizaDraw => false,
       _ => kind == MessageKind.moneyOut,
     };

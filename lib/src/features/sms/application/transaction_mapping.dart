@@ -15,6 +15,7 @@ TransactionKind transactionKindFor(TransactionType type) => switch (type) {
   TransactionType.airtime => TransactionKind.airtime,
   TransactionType.fuliza => TransactionKind.fulizaDraw,
   TransactionType.fulizaRepayment => TransactionKind.fulizaRepayment,
+  TransactionType.loanRepayment => TransactionKind.loanRepayment,
   TransactionType.reversal => TransactionKind.reversal,
   TransactionType.bank => TransactionKind.bank,
 };
@@ -29,14 +30,30 @@ TransactionDirection transactionDirectionFor(Direction direction) =>
 /// person names applies to it, or null when the message names no party
 /// that can become a payee.
 ///
-/// For bank alerts the `account` group is the person's own account, and for
-/// reversals it is the receipt being reversed, so neither is a counterparty.
+/// For bank alerts the `account` group is the account money went to when
+/// the rule reads the person's own number as `own_account` too, and
+/// otherwise may be their own account; for a loan repayment it is the
+/// loan's number, and for reversals the receipt being reversed, so neither
+/// of those is a counterparty. A bank's message about money sent or
+/// received on M-Pesa can print the other side's bank account rather than a
+/// phone number.
 PayeeIdentifier? counterpartyIdentifier(ParsedTransaction parsed) {
   final name = parsed.counterparty;
   final account = parsed.account;
   return switch (parsed.type) {
     TransactionType.sent || TransactionType.received =>
-      account == null ? null : PayeeIdentifier.phone(account),
+      account == null
+          ? null
+          : PayeeIdentifier.phone(account) ??
+                (parsed.institution == null
+                    ? null
+                    : PayeeIdentifier.account(account)),
+    // Only a rule that reads the person's own number apart can mean the
+    // other side by `account`.
+    TransactionType.bank =>
+      account == null || parsed.ownAccount == null
+          ? null
+          : PayeeIdentifier.account(account),
     TransactionType.paybill =>
       name == null ? null : PayeeIdentifier.paybill(name, account),
     TransactionType.till => name == null ? null : PayeeIdentifier.till(name),

@@ -153,7 +153,8 @@ class SmsIngestor {
     this._templates,
     this._reads,
     this._parse = parseInBackground,
-  });
+    List<Institution>? catalogue,
+  }) : _catalogue = catalogue ?? institutionCatalogue;
 
   final AccountsRepository _accounts;
   final TransactionsRepository _transactions;
@@ -167,6 +168,11 @@ class SmsIngestor {
   /// keep a message from being stored twice.
   final MessageReadsRepository? _reads;
   final SmsParseBatch _parse;
+
+  /// Every institution the app knows, for messages one institution sends
+  /// about money on another's account (see
+  /// [ParsedTransaction.institution]).
+  final List<Institution> _catalogue;
 
   /// Ingests [messages], reading only those from the [selected] institutions.
   ///
@@ -237,7 +243,11 @@ class SmsIngestor {
               if (await _readAgain(reads, row, result)) {
                 updated++;
                 changes.add(
-                  ReadChange(result.packId, row.record.accountId, result.time),
+                  ReadChange(
+                    result.accountInstitution,
+                    row.record.accountId,
+                    result.time,
+                  ),
                 );
               }
             }
@@ -279,7 +289,13 @@ class SmsIngestor {
 
     var added = 0;
     var parsedCount = 0;
-    final institutions = {for (final i in selected) i.id: i};
+    // A message can be about money on another institution's account, such
+    // as KCB confirming an M-Pesa payment: it goes on that account even when
+    // that institution's own messages are not read.
+    final institutions = {
+      for (final i in _catalogue) i.id: i,
+      for (final i in selected) i.id: i,
+    };
 
     // Each account gets the messages that show its number and currency,
     // oldest first so an account from before numbers were read takes the
@@ -303,9 +319,20 @@ class SmsIngestor {
         );
       }
     }
-    for (final MapEntry(key: packId, value: parsed) in parsedByPack.entries) {
+    for (final parsed in parsedByPack.values) {
       for (final p in parsed) {
-        note((packId, p.ownAccount, p.currency), p.time, p);
+        // An institution this app does not know keeps the message on the
+        // sender's own account.
+        final on = institutions.containsKey(p.accountInstitution)
+            ? p.accountInstitution
+            : p.packId;
+        // A message that names no account of its own, such as a card
+        // payment abroad, is on the account in the institution's own
+        // currency, though its amount is in another.
+        final currency = p.ownAccount == null
+            ? institutions[on]!.pack.currency
+            : p.currency;
+        note((on, p.ownAccount, currency), p.time, p);
       }
     }
     final keys = pending.keys.toList()

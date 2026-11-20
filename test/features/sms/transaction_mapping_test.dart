@@ -41,6 +41,7 @@ void main() {
         TransactionType.airtime: TransactionKind.airtime,
         TransactionType.fuliza: TransactionKind.fulizaDraw,
         TransactionType.fulizaRepayment: TransactionKind.fulizaRepayment,
+        TransactionType.loanRepayment: TransactionKind.loanRepayment,
         TransactionType.reversal: TransactionKind.reversal,
         TransactionType.bank: TransactionKind.bank,
       },

@@ -28,6 +28,10 @@ enum TransactionKind {
   fulizaDraw,
   fulizaRepayment,
 
+  /// A repayment of a loan, such as a bank's salary advance, which the
+  /// message names. Paying back a debt, never spending.
+  loanRepayment,
+
   /// Small automatic moves into a money market fund, such as spare change.
   roundUp,
 

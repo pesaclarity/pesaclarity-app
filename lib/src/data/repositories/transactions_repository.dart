@@ -9,6 +9,8 @@ import '../../domain/payees/payee_identifier.dart';
 import '../../features/currency/application/currency_controller.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
+import 'message_links.dart';
+import 'message_twins_store.dart';
 import 'payees_repository.dart';
 
 /// The ledger of transactions from SMS, statements and manual entry.
@@ -23,6 +25,13 @@ abstract interface class TransactionsRepository {
   /// Stores each of [transactions] whose account has no transaction with the
   /// same dedupe key yet, resolving payees like [add]. Returns how many were
   /// stored.
+  ///
+  /// A message about money already stored on the same account (see
+  /// `twinMatch`: a bank's plain alert and its own confirmation of the same
+  /// transfer, or two messages with the same reference) is merged into that
+  /// transaction instead of stored again. A new transaction whose message
+  /// names one of the person's other accounts as where it went counts as an
+  /// own transfer, and a loan repayment is recorded against its debt.
   Future<int> addNew(Iterable<TransactionsCompanion> transactions);
 
   /// Finds an existing transaction with the same receipt, for dedupe between
@@ -147,24 +156,87 @@ class DriftTransactionsRepository implements TransactionsRepository {
       _db.transaction(() async {
         final directory = await payeeDirectory(_db);
         var added = 0;
+        var merged = 0;
         DateTime? earliest;
         DateTime? latest;
+        void touched(DateTime at) {
+          if (earliest == null || at.isBefore(earliest!)) earliest = at;
+          if (latest == null || at.isAfter(latest!)) latest = at;
+        }
+
+        final inserted = <int>[];
         for (final transaction in transactions) {
           final key = transaction.dedupeKey.present
               ? transaction.dedupeKey.value
               : null;
-          if (key != null && await _hasDedupeKey(transaction, key)) continue;
-          await _db
-              .into(_db.transactions)
-              .insert(_withPayee(transaction, directory));
+          if (key != null && await _hasDedupeKey(transaction, key)) {
+            // The same receipt and minute from another message, such as
+            // M-Pesa's own and KCB's confirmation of one payment: keep what
+            // only the new one says, such as M-Pesa's balance and fee.
+            final same = await _storedTwinByKey(transaction, key);
+            if (same != null) await mergeTwin(_db, same, transaction);
+            continue;
+          }
+          final row = _withPayee(transaction, directory);
+          // A second message about money already stored: one transaction.
+          final twin = await findTwin(_db, row);
+          if (twin != null) {
+            await mergeTwin(_db, twin, row);
+            merged++;
+            touched(twin.occurredAt);
+            touched(row.occurredAt.value);
+            continue;
+          }
+          // A card payment in another currency and the account's own debit.
+          final card = await findCardTwin(_db, row, _converter);
+          if (card != null) {
+            await mergeCardTwin(_db, card, row);
+            merged++;
+            touched(card.occurredAt);
+            continue;
+          }
+          inserted.add(await _db.into(_db.transactions).insert(row));
           added++;
-          final at = transaction.occurredAt.value;
-          if (earliest == null || at.isBefore(earliest)) earliest = at;
-          if (latest == null || at.isAfter(latest)) latest = at;
+          touched(row.occurredAt.value);
         }
-        if (added > 0) await pairOwnTransfers(from: earliest, to: latest);
+        if (inserted.isNotEmpty) {
+          final accounts = await _db.select(_db.accounts).get();
+          for (final id in inserted) {
+            await markTransferToOwnAccount(_db, id, accounts: accounts);
+            await linkLoanRepayment(_db, id);
+          }
+        }
+        if (added > 0 || merged > 0) {
+          await pairOwnTransfers(from: earliest, to: latest);
+        }
         return added;
       });
+
+  /// The stored message on [transaction]'s account with [key], when it is
+  /// another message than [transaction]'s.
+  Future<TransactionRecord?> _storedTwinByKey(
+    TransactionsCompanion transaction,
+    String key,
+  ) async {
+    final hash = transaction.messageHash.present
+        ? transaction.messageHash.value
+        : null;
+    if (hash == null) return null;
+    final row =
+        await (_db.select(_db.transactions)
+              ..where(
+                (t) =>
+                    t.accountId.equals(transaction.accountId.value) &
+                    t.dedupeKey.equals(key) &
+                    t.source.equalsValue(TransactionSource.sms),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null || row.messageHash == null || row.messageHash == hash) {
+      return null;
+    }
+    return row;
+  }
 
   Future<bool> _hasDedupeKey(
     TransactionsCompanion transaction,
@@ -317,42 +389,46 @@ class DriftTransactionsRepository implements TransactionsRepository {
       });
 
   @override
-  Future<int> pairOwnTransfers({DateTime? from, DateTime? to}) =>
-      _db.transaction(() async {
-        final t = _db.transactions;
-        final query = _db.select(t);
-        if (from != null) {
-          query.where(
-            (t) => t.occurredAt.isBiggerOrEqualValue(
-              from.subtract(waitingTransferWindow),
-            ),
-          );
-        }
-        if (to != null) {
-          query.where(
-            (t) => t.occurredAt.isSmallerOrEqualValue(
-              to.add(waitingTransferWindow),
-            ),
-          );
-        }
-        final categories = {
-          for (final c in await _db.select(_db.categories).get()) c.id: c,
-        };
-        final payees = {
-          for (final p in await _db.select(_db.payees).get()) p.id: p,
-        };
-        // Amounts as stored: a transfer moves in one currency.
-        final entries = [
-          for (final r in await query.get())
-            _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
-        ];
-        final pairs = findOwnTransfers(
-          entries,
-          declined: await declinedTransfers(),
-        );
-        await saveTransferPairs(pairs);
-        return pairs.length;
-      });
+  Future<int> pairOwnTransfers({
+    DateTime? from,
+    DateTime? to,
+  }) => _db.transaction(() async {
+    final t = _db.transactions;
+    final query = _db.select(t);
+    if (from != null) {
+      query.where(
+        (t) => t.occurredAt.isBiggerOrEqualValue(
+          from.subtract(waitingTransferWindow),
+        ),
+      );
+    }
+    if (to != null) {
+      query.where(
+        (t) =>
+            t.occurredAt.isSmallerOrEqualValue(to.add(waitingTransferWindow)),
+      );
+    }
+    final categories = {
+      for (final c in await _db.select(_db.categories).get()) c.id: c,
+    };
+    final payees = {
+      for (final p in await _db.select(_db.payees).get()) p.id: p,
+    };
+    // Amounts as stored: a transfer moves in one currency.
+    final entries = [
+      for (final r in await query.get())
+        _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
+    ];
+    final pairs = findOwnTransfers(
+      entries,
+      declined: await declinedTransfers(),
+      references: {
+        for (final a in await _db.select(_db.accounts).get()) a.id: a.reference,
+      },
+    );
+    await saveTransferPairs(pairs);
+    return pairs.length;
+  });
 
   @override
   Future<void> match(int outflowId, int inflowId) => _db.transaction(() async {

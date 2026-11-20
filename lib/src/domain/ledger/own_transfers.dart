@@ -1,4 +1,5 @@
 import '../../core/money/money.dart';
+import '../accounts/account_reference.dart';
 import '../enums.dart';
 import 'ledger_entry.dart';
 
@@ -109,6 +110,61 @@ bool _namedApart(LedgerEntry out, LedgerEntry into) =>
 bool _named(LedgerEntry out, LedgerEntry into) =>
     out.transferAccountId != null || into.transferAccountId != null;
 
+/// The account number [entry] paid into, as its message printed it: a
+/// paybill's account reference (`131***4567` at KCB's paybill) or a bank
+/// account sent to. Null when it names none.
+String? paidToReference(LedgerEntry entry) {
+  final value = entry.counterpartyValue;
+  if (value == null) return null;
+  return switch (entry.counterpartyKind) {
+    PayeeIdentifierKind.paybill => switch (value.indexOf('#')) {
+      final i when i >= 0 && i + 1 < value.length => value.substring(i + 1),
+      _ => null,
+    },
+    PayeeIdentifierKind.account => value,
+    _ => null,
+  };
+}
+
+/// The bank account number [entry]'s message says the money came from or
+/// went to (not a paybill reference, which may be a phone number). Null
+/// when it names none.
+String? _otherAccountNumber(LedgerEntry entry) =>
+    entry.counterpartyKind == PayeeIdentifierKind.account
+    ? entry.counterpartyValue
+    : null;
+
+/// Whether the account numbers the messages print rule [out] and [into]
+/// out as one transfer: money in that names the bank account it came from,
+/// when that is not [out]'s account, or money out that names the bank
+/// account it went to, when that is not [into]'s.
+bool _numberedApart(
+  LedgerEntry out,
+  LedgerEntry into,
+  Map<int, String?> references,
+) {
+  bool apart(String? printed, int accountId) {
+    final named = AccountReference.tryParse(printed);
+    final own = AccountReference.tryParse(references[accountId]);
+    return named != null && own != null && !named.sameAs(own);
+  }
+
+  return apart(_otherAccountNumber(into), out.accountId) ||
+      apart(_otherAccountNumber(out), into.accountId);
+}
+
+/// Whether [out] paid into the account [into] is on, by the number both
+/// messages print: a masked `131***4567` and a full `1310004567` agree.
+bool paidIntoAccount(
+  LedgerEntry out,
+  LedgerEntry into,
+  Map<int, String?> references,
+) {
+  final paid = AccountReference.tryParse(paidToReference(out));
+  final own = AccountReference.tryParse(references[into.accountId]);
+  return paid != null && own != null && paid.sameAs(own);
+}
+
 /// Finds own-account transfers (bank to M-Pesa, M-Pesa to bank, money market
 /// and savings moves) among entries not already paired.
 ///
@@ -122,13 +178,22 @@ bool _named(LedgerEntry out, LedgerEntry into) =>
 /// the account they named, and waits up to [waitingTransferWindow]. Pairs
 /// in [declined] were unmatched by the person and never pair again.
 ///
-/// When several candidates fit, equal amounts pair before ones with a fee,
+/// An outflow whose message names the account number it paid into, such as
+/// an M-Pesa payment to a bank's paybill for a masked account, pairs with
+/// money into the account with that number in [references] (each account's
+/// number, by id) first, and waits as long as a named transfer. Money in
+/// that names the bank account it came from never pairs with money out of
+/// an account with another number, and the same the other way.
+///
+/// When several candidates fit, pairs confirmed by account number come
+/// first, then equal amounts before ones with a fee,
 /// then the closest in time, so each entry is used at most once and the
 /// result does not depend on input order.
 List<TransferPair> findOwnTransfers(
   Iterable<LedgerEntry> entries, {
   Duration window = defaultTransferWindow,
   Set<TransferPair> declined = const {},
+  Map<int, String?> references = const {},
 }) {
   final outflows = <String, List<LedgerEntry>>{};
   final inflows = <String, List<LedgerEntry>>{};
@@ -144,7 +209,7 @@ List<TransferPair> findOwnTransfers(
         .add(entry);
   }
 
-  final candidates = <(int, Duration, LedgerEntry, LedgerEntry)>[];
+  final candidates = <(int, int, Duration, LedgerEntry, LedgerEntry)>[];
   for (final MapEntry(key: currency, value: outs) in outflows.entries) {
     final ins = inflows[currency];
     if (ins == null) continue;
@@ -152,27 +217,35 @@ List<TransferPair> findOwnTransfers(
       for (final into in ins) {
         if (out.accountId == into.accountId) continue;
         if (_namedApart(out, into)) continue;
+        if (_numberedApart(out, into, references)) continue;
         if (declined.contains(TransferPair(out.id, into.id))) continue;
         final fit = transferFit(out, into);
         if (fit == null || fit == TransferFit.loose) continue;
         final gap = out.occurredAt.difference(into.occurredAt).abs();
-        final allowed = _named(out, into) ? waitingTransferWindow : window;
-        if (gap <= allowed) candidates.add((fit.index, gap, out, into));
+        final byNumber = paidIntoAccount(out, into, references);
+        final allowed = _named(out, into) || byNumber
+            ? waitingTransferWindow
+            : window;
+        if (gap <= allowed) {
+          candidates.add((byNumber ? 0 : 1, fit.index, gap, out, into));
+        }
       }
     }
   }
   candidates.sort((a, b) {
-    final byFit = a.$1.compareTo(b.$1);
+    final byNumber = a.$1.compareTo(b.$1);
+    if (byNumber != 0) return byNumber;
+    final byFit = a.$2.compareTo(b.$2);
     if (byFit != 0) return byFit;
-    final byGap = a.$2.compareTo(b.$2);
+    final byGap = a.$3.compareTo(b.$3);
     if (byGap != 0) return byGap;
-    final byOut = a.$3.id.compareTo(b.$3.id);
-    return byOut != 0 ? byOut : a.$4.id.compareTo(b.$4.id);
+    final byOut = a.$4.id.compareTo(b.$4.id);
+    return byOut != 0 ? byOut : a.$5.id.compareTo(b.$5.id);
   });
 
   final used = <int>{};
   final pairs = <TransferPair>[];
-  for (final (_, _, out, into) in candidates) {
+  for (final (_, _, _, out, into) in candidates) {
     if (used.contains(out.id) || used.contains(into.id)) continue;
     used
       ..add(out.id)

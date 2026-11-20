@@ -160,6 +160,7 @@ class RuleCategoriser implements Categoriser {
   String? _byKind(CategoriserInput input) => switch (input.kind) {
     TransactionKind.airtime when !input.isInflow => 'airtime_data',
     TransactionKind.fulizaRepayment => 'fuliza_repayment',
+    TransactionKind.loanRepayment => 'loan_repayment',
     TransactionKind.charge when !input.isInflow => 'fees_charges',
     TransactionKind.roundUp => 'savings',
     _ => null,

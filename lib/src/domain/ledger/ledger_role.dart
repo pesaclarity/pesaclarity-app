@@ -66,7 +66,7 @@ LedgerRole roleOf(LedgerEntry entry) {
       return LedgerRole.ownTransfer;
     case TransactionKind.fulizaDraw:
       return LedgerRole.borrowing;
-    case TransactionKind.fulizaRepayment:
+    case TransactionKind.fulizaRepayment || TransactionKind.loanRepayment:
       return LedgerRole.debtRepayment;
     case TransactionKind.charge:
       return entry.isInflow ? LedgerRole.reversal : LedgerRole.fee;

@@ -77,7 +77,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 38;
+  int get schemaVersion => 39;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -331,6 +331,14 @@ class AppDatabase extends _$AppDatabase {
       // Transactions by date, which most screens read them by.
       if (from < 38) {
         await _createIndexIfMissing(m, transactionsOccurredAt);
+      }
+      // Two messages about the same money kept as one transaction.
+      if (from < 39) {
+        await _addColumnIfMissing(
+          m,
+          transactions,
+          transactions.twinMessageHash,
+        );
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

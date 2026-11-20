@@ -234,6 +234,11 @@ class Transactions extends Table {
   /// Hash of the source SMS for dedupe; the message text itself is never kept.
   TextColumn get messageHash => text().nullable()();
 
+  /// Hash of a second message about the same money, merged into this one:
+  /// a bank's plain debit alert and its transfer confirmation, say. A row
+  /// takes at most one such twin without a shared receipt.
+  TextColumn get twinMessageHash => text().nullable()();
+
   /// Receipt, amount and minute (ujumbe's `dedupeKey`), shared with statement
   /// imports so the same transaction is stored once per account.
   TextColumn get dedupeKey => text().nullable()();
