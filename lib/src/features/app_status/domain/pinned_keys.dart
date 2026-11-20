@@ -7,10 +7,11 @@
 /// release before the server signs with it.
 library;
 
-/// The production key: the public key `uv run ngome-app-status-key` prints in
-/// pesaclarity-backend. While it is empty no response can be verified, so the
-/// app asks for nothing and shows no notices.
-const appStatusProductionPublicKey = '';
+/// The production key: the public half of the seed pesaclarity-backend signs
+/// with (`NGOME_APP_STATUS_SIGNING_SEED`). With it empty no response could be
+/// verified, so the app would ask for nothing and show no notices.
+const appStatusProductionPublicKey =
+    'NXR6XVU3vs0bGJWsvY53vCtG/6K9pXYOyDing653iGU=';
 
 /// Every key a response may be signed with.
 const appStatusPublicKeys = <String>[appStatusProductionPublicKey];

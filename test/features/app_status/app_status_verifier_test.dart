@@ -147,6 +147,23 @@ void main() {
     );
   });
 
+  // A real response from the production server, so a pinned key that does not
+  // match the server's seed fails here rather than on phones.
+  test('the shipped key verifies the production server', () async {
+    final status = await AppStatusVerifier(appStatusPublicKeys).verify(
+      const {
+        'alg': 'Ed25519',
+        'payload': 'eyJidWlsZCI6ImZvc3MiLCJmb3JtYXQiOjEsImlzc3VlZF9hdCI6IjIwMjYtMTEtMjBUMTI6MTk6MzJaIiwibGF0ZXN0X3ZlcnNpb24iOm51bGwsIm5vdGljZXMiOltdLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJ2ZXJzaW9uIjoiMC41LjIifQ==',
+        'signature': '5DPqtZ72SwoT7UjTzVPmGT2bEjMGnQeiRMJXMoAiKfyQ8GrOIniNfOJj3Ker5EViYP3L7XxDUjxT6qb/NypyBA==',
+      },
+      version: '0.5.2',
+      build: 'foss',
+      platform: 'android',
+      now: DateTime.utc(2026, 11, 20, 12, 20),
+    );
+    expect(status, isNotNull);
+  });
+
   group('blocking', () {
     final current = AppVersion.tryParse('0.3.0')!;
 
