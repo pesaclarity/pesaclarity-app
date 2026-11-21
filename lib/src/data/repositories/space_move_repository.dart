@@ -6,6 +6,7 @@ import '../database/app_database.dart';
 import '../database/connection.dart';
 import '../database/database_providers.dart';
 import 'message_reads_repository.dart';
+import 'savings_links.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
 /// shared M-Pesa line that belongs to the business.
@@ -14,6 +15,9 @@ abstract interface class SpaceMoveRepository {
   /// institution or name; its category comes along when the other space has
   /// one with the same key. The open space remembers the move, so reading
   /// the same message again does not bring it back.
+  ///
+  /// A payment into or out of a savings account the app keeps stays where
+  /// it is, with its entry there (see `isSavingsLinked`).
   Future<void> move(int transactionId, String spaceId, {int? toCategoryId});
 
   /// The categories in [spaceId], to choose one for what moves there.
@@ -49,6 +53,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
     String spaceId, {
     int? toCategoryId,
   }) async {
+    if (await isSavingsLinked(_source, transactionId)) return;
     final tx = await (_source.select(
       _source.transactions,
     )..where((t) => t.id.equals(transactionId))).getSingle();

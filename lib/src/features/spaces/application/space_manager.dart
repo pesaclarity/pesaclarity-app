@@ -12,6 +12,7 @@ import '../../../data/database/connection.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/message_reads_repository.dart';
+import '../../../data/repositories/savings_links.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
 import '../../auth/application/auth_controller.dart';
@@ -33,6 +34,8 @@ const _keptOnClear = {
   'parser_packs',
   'reader_templates',
   'rate_snapshots',
+  // A savings account keeps its goals, as it is kept itself.
+  'savings_pockets',
 };
 
 /// Data kept for 30 days, newest first, from Personal's settings.
@@ -193,6 +196,7 @@ class SpaceManager {
                   q.at.isBiggerOrEqualValue(from) & q.at.isSmallerThanValue(to),
             ))
             .go();
+        await clearSavingsRange(db, from, to);
       });
 
   /// Deletes [space] and everything in it from this phone. With [keep], a
