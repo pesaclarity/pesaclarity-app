@@ -11,6 +11,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/message_reads_repository.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
@@ -151,6 +152,9 @@ class SpaceManager {
             if (_keptOnClear.contains(table.actualTableName)) continue;
             await db.delete(table).go();
           }
+          // The journal went with the records: post it again from the
+          // accounts kept, each with its opening balance.
+          await JournalRepository.markForRebuild(db);
         });
       } finally {
         await db.customStatement('PRAGMA foreign_keys = ON');

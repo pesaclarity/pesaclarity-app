@@ -510,13 +510,18 @@ class JournalRepository {
       }
     } on Object catch (error) {
       if (kDebugMode) debugPrint('Building the journal failed: $error');
-      await db
-          .into(db.journalDirty)
-          .insertOnConflictUpdate(
-            const JournalDirtyCompanion(accountId: Value(_rebuildAll)),
-          );
+      await markForRebuild(db);
     }
   }
+
+  /// Marks [db]'s whole journal to be posted again from the records at the
+  /// next [sync]. Clearing a space's data removes its journal with its
+  /// records; this starts it again from the accounts the space keeps.
+  static Future<void> markForRebuild(AppDatabase db) => db
+      .into(db.journalDirty)
+      .insertOnConflictUpdate(
+        const JournalDirtyCompanion(accountId: Value(_rebuildAll)),
+      );
 
   /// Marks the whole journal for a rebuild, when an account id cannot.
   static const _rebuildAll = -1;
