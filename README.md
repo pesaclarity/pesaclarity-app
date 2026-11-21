@@ -97,6 +97,7 @@ lib/
       reader/                message reader input, decoding, rules reader, saved layouts
       tags/                  tag names, filtering and totals by tag
       debts/                 payoff strategies, payday split, family loans, Fuliza tracker, repayment matching
+      savings/               savings apps the app knows (Chumz), their pockets, interest from typed balances
       health/                Financial Health Index: eight indicators, bands, best action
       forecast/              cash-flow forecast to month end: zero date, charges that may fail
       subscriptions/         recurring charges and their totals
@@ -182,6 +183,7 @@ Profile › Balances shows what each account holds now, and whether it matches i
 - **Set the balance** records the difference to what the account really holds as a balance correction. The correction shows in Activity, is never income or spending, and can be undone.
 - **Add an account** makes an account with no messages, such as Cash, with its currency and the balance today.
 - **Own transfers** pair with a fee allowance after every new transaction, and a matched pair shows as one line in Activity.
+- **Savings apps.** A savings app the app knows by the paybill its payments print (`savings_product.dart`; Chumz, paid through NABO CAPITAL LTD, is the first) can be kept as an account of the person's own: an ordinary savings account marked with the product (`accounts.product`, schema 41), in Personal only. Each payment into it stays on M-Pesa as its message has it and gets a mirror entry on the savings account, paired with it, so it is an own transfer, never spending, with its fee still a fee; money back from the app is the same the other way. Older payments become transfers when the app is added, new ones as they arrive, and the mirrors follow their payments through reading again, rechecks, copies and statement imports (`savings_links.dart`). Each paybill account code is a pocket, one goal in the app (`savings_pockets`), which a goal in Pesa Clarity can be saved in (`goals.saved_in_pocket_id`); it then shows what the pocket holds. The app sends no balance messages, so the person types each pocket's balance (`savings_readings`): what it shows above the money in and out is interest (income, under Interest, but never money arriving on Home), and anything else a correction. On the first balance a gap counts as interest only when it is at most 2% a month of what was paid in; otherwise it was there before the messages start. Interest and corrections are worked out again when older payments turn up (`settlePocket`). Money moved into any savings account, SACCO or money market, is filed under Savings unless the person or its payee chose another category, and counts as saved, so it meets a Savings line in Plan.
 
 ## iPhone
 
@@ -272,7 +274,7 @@ Each space has its own encrypted database; no data is shared or read across spac
 - **Profile › Spaces** lists every space, where the app opens, Recently deleted, and Delete all my data.
 - **A space's settings:** name, kind (any but Personal, after a warning of what comes in and goes away), what a business sells (products, services or both), and for the open space its accounts, base currency, day end, receipts and invoices, tax and backup. A space that is not open shows its name and kind, and opens for the rest.
 - **Moving transactions.** Transactions are never edited, only recategorised or moved. Long-press in Activity to choose several, then Move: they leave this space and go to the other, with the category chosen there, or matched for each one; payees stay.
-- **Clear data** removes a space's records (everything, or only a date range: its transactions, sales and quick records) and keeps its name, accounts, categories and settings. **Delete space** removes the space and its file (Personal cannot be deleted on its own; the name must be typed). Both can keep a locked copy for 30 days (`spaces.kept` in Personal's settings, the copy under `kept/`) and can also delete the space's backups in the vault and Google Drive.
+- **Clear data** removes a space's records (everything, or only a date range: its transactions, sales and quick records, and balances typed for savings apps) and keeps its name, accounts, categories, settings and the pockets of its savings apps. **Delete space** removes the space and its file (Personal cannot be deleted on its own; the name must be typed). Both can keep a locked copy for 30 days (`spaces.kept` in Personal's settings, the copy under `kept/`) and can also delete the space's backups in the vault and Google Drive.
 - **Recently deleted** restores a copy into its space, or deletes it now; copies past 30 days go when Spaces opens.
 - **Delete all my data** asks for the app lock PIN (or DELETE without one), can also delete online backups and the sign-in, then removes every file and secret the app keeps and closes the app, which opens again at setup.
 
