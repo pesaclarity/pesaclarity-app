@@ -1,6 +1,4 @@
-import 'dart:async';
-import 'dart:io';
-
+import '../../../core/network/connection_errors.dart';
 import '../domain/auth_models.dart';
 import 'auth_api.dart';
 import 'json_transport.dart';
@@ -27,14 +25,11 @@ class HttpAuthApi implements AuthApi {
         body: body,
         bearer: bearer,
       );
-    } on SocketException {
-      throw const AuthFailure(AuthFailureKind.network);
-    } on TimeoutException {
-      throw const AuthFailure(AuthFailureKind.network);
-    } on HttpException {
-      throw const AuthFailure(AuthFailureKind.network);
-    } on HandshakeException {
-      throw const AuthFailure(AuthFailureKind.network);
+    } on Object catch (error) {
+      if (isConnectionError(error)) {
+        throw const AuthFailure(AuthFailureKind.network);
+      }
+      rethrow;
     }
   }
 

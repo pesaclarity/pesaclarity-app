@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -254,12 +255,30 @@ void main() {
     );
   });
 
-  test('connection problems are network failures', () async {
-    transport.error = const SocketException('offline');
-    expect(
-      await _failureKind(api.startEmailSignIn('wanjiru@example.com')),
-      AuthFailureKind.network,
-    );
+  // What airplane mode, poor coverage and captive portals throw.
+  final offline = <String, Exception>{
+    'no address': const SocketException('Failed host lookup'),
+    'refused': const SocketException('Connection refused'),
+    'timeout': TimeoutException('timed out'),
+    'dropped': const HttpException('Connection closed'),
+    'handshake': const HandshakeException('captive portal'),
+    'TLS': const TlsException('bad record'),
+    'OS error': const OSError('Network is unreachable', 101),
+  };
+  for (final MapEntry(key: name, value: error) in offline.entries) {
+    test('a connection problem ($name) is a network failure', () async {
+      transport.error = error;
+      expect(
+        await _failureKind(api.startEmailSignIn('wanjiru@example.com')),
+        AuthFailureKind.network,
+      );
+      expect(await _failureKind(api.refresh('r')), AuthFailureKind.network);
+    });
+  }
+
+  test('other errors are not mistaken for being offline', () async {
+    transport.error = const FormatException('not a connection problem');
+    await expectLater(api.refresh('r'), throwsFormatException);
   });
 
   test('a garbled success body is a server failure', () async {

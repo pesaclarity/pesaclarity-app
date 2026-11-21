@@ -19,8 +19,9 @@ class JsonResponse {
   }
 }
 
-/// Sends JSON requests. Throws [SocketException], [TimeoutException] or
-/// [HttpException] when the server cannot be reached.
+/// Sends JSON requests. Throws an error that `isConnectionError` accepts
+/// (such as [SocketException], [TimeoutException] or [TlsException]) when
+/// the server cannot be reached.
 abstract interface class JsonTransport {
   Future<JsonResponse> send(
     String method,
