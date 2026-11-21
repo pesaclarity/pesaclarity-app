@@ -8,8 +8,8 @@ import '../application/categoriser_providers.dart';
 
 /// Checks whether on-phone learning is due once the app is unlocked and set
 /// up, and each time it comes back to the front. Nothing is read before
-/// then: opening the database while it is locked would fail for the whole
-/// session. Learning itself runs only with consent, while charging, and at
+/// then: a read while the app is locked would only wait for the key.
+/// Learning itself runs only with consent, while charging, and at
 /// most as often as the model allows.
 class LearnWhenDue extends ConsumerStatefulWidget {
   const LearnWhenDue({required this.child, super.key});
@@ -35,7 +35,8 @@ class _LearnWhenDueState extends ConsumerState<LearnWhenDue> {
 
   void _check() {
     if (_running || !mounted) return;
-    // Unlocked and onboarded; anything else and the database stays shut.
+    // Unlocked and onboarded; before then a read would only wait for the
+    // key.
     if (!(ref.read(launchGateProvider).value ?? false)) return;
     _running = true;
     unawaited(

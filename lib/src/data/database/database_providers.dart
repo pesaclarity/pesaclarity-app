@@ -8,23 +8,15 @@ import 'app_database.dart';
 import 'connection.dart';
 import 'database_key_store.dart';
 
-/// Holds the database key once app lock releases it.
-class ReleasedDatabaseKey {
-  String? _key;
-
-  String? get value => _key;
-
-  void release(String key) => _key = key;
-}
+export 'database_key_store.dart' show ReleasedDatabaseKey;
 
 final releasedDatabaseKeyProvider = Provider<ReleasedDatabaseKey>(
   (ref) => ReleasedDatabaseKey(),
 );
 
-final databaseKeyStoreProvider = Provider<DatabaseKeyStore>((ref) {
-  final released = ref.watch(releasedDatabaseKeyProvider);
-  return UnlockedDatabaseKeyStore(() => released.value);
-});
+final databaseKeyStoreProvider = Provider<DatabaseKeyStore>(
+  (ref) => UnlockedDatabaseKeyStore(ref.watch(releasedDatabaseKeyProvider)),
+);
 
 /// Coordinates replacing the database file while the app is running.
 final databaseFileLockProvider = Provider<DatabaseFileLock>(
