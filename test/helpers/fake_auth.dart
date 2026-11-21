@@ -115,6 +115,11 @@ class FakeAuthApi implements AuthApi {
   }
 
   /// Adds another phone to the account, as if signed in elsewhere.
+  /// Knows [refreshToken] as [deviceId]'s, as for a phone that signed in
+  /// before the test began.
+  void knowSession(String refreshToken, String deviceId) =>
+      _refreshTokens[refreshToken] = deviceId;
+
   void addOtherDevice(String id, String name, DateTime lastSeenAt) {
     devices[id] = SignedInDevice(
       id: id,

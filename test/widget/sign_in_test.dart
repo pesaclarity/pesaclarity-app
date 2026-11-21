@@ -352,7 +352,8 @@ void main() {
     await pumpApp(
       tester,
       db: openTestDatabase(),
-      auth: FakeAuthApi(),
+      // Signed in before: the server renews the session when the app opens.
+      auth: FakeAuthApi()..knowSession('refresh-0', 'device-1'),
       sessions: InMemorySessionStore(_signedIn(displayName: 'John Kamau')),
     );
     await finishOnboarding(tester);

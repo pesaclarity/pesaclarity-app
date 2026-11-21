@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/app_status/presentation/update_check_sheet.dart';
 import 'features/app_status/presentation/update_required_screen.dart';
+import 'features/auth/presentation/keep_session_fresh.dart';
 import 'features/categoriser/presentation/learn_when_due.dart';
 import 'features/crash_reports/presentation/crash_reports_on_start.dart';
 import 'features/look/application/look_providers.dart';
@@ -40,9 +41,11 @@ class PesaClarityApp extends ConsumerWidget {
             // A verified "update required" notice covers everything.
             child: UpdateRequiredGate(
               child: AppLockGate(
-                child: LearnWhenDue(
-                  child: AskBeforeUpdateCheck(
-                    child: CrashReportsOnStart(child: child!),
+                child: KeepSessionFresh(
+                  child: LearnWhenDue(
+                    child: AskBeforeUpdateCheck(
+                      child: CrashReportsOnStart(child: child!),
+                    ),
                   ),
                 ),
               ),

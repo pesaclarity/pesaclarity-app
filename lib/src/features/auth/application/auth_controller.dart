@@ -189,6 +189,7 @@ class AuthController extends AsyncNotifier<AccountSession?> {
       method: method,
       contact: contact,
       displayName: tokens.displayName,
+      refreshedAt: _now(),
     );
     await _store.write(stored);
     _keepAccessToken(tokens);
@@ -232,6 +233,34 @@ class AuthController extends AsyncNotifier<AccountSession?> {
     await future;
     if (_session == null) return null;
     return _validAccessToken();
+  }
+
+  /// How often [revalidate] asks the server at most.
+  static const revalidateEvery = Duration(hours: 4);
+
+  /// Renews the session with the server in the background, at most every
+  /// [revalidateEvery], so that a phone back online stays signed in.
+  ///
+  /// Never throws and never waits on anything the app needs. Offline, or
+  /// any other failure to get an answer, changes nothing: the next start or
+  /// return to the front tries again. Only the server saying the session
+  /// has ended (revoked, or signed out elsewhere) signs this phone out.
+  Future<void> revalidate() async {
+    try {
+      await future;
+      if (_session == null) return;
+      final last = (await _store.read())?.refreshedAt;
+      final now = _now();
+      if (last != null &&
+          !last.isAfter(now) &&
+          now.difference(last) < revalidateEvery) {
+        return;
+      }
+      await (_refreshing ??= _refresh().whenComplete(() => _refreshing = null));
+    } on Object {
+      // Offline or a passing problem: nothing to do until the next try. An
+      // ended session was already signed out by the refresh.
+    }
   }
 
   /// Runs [call] with a valid access token, refreshing once on a 401.
@@ -286,6 +315,7 @@ class AuthController extends AsyncNotifier<AccountSession?> {
     final updated = stored.copyWith(
       refreshToken: tokens.refreshToken,
       displayName: tokens.displayName,
+      refreshedAt: _now(),
     );
     await _store.write(updated);
     _keepAccessToken(tokens);

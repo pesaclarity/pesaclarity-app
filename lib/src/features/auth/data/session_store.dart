@@ -17,6 +17,7 @@ class StoredSession {
     this.method,
     this.contact,
     this.displayName,
+    this.refreshedAt,
   });
 
   factory StoredSession.fromJson(Map<String, Object?> json) => StoredSession(
@@ -26,6 +27,7 @@ class StoredSession {
     method: SignInMethod.fromName(json['method'] as String?),
     contact: json['contact'] as String?,
     displayName: json['displayName'] as String?,
+    refreshedAt: DateTime.tryParse(json['refreshedAt'] as String? ?? ''),
   );
 
   final String refreshToken;
@@ -38,15 +40,22 @@ class StoredSession {
 
   final String? displayName;
 
-  StoredSession copyWith({String? refreshToken, String? displayName}) =>
-      StoredSession(
-        refreshToken: refreshToken ?? this.refreshToken,
-        accountId: accountId,
-        deviceId: deviceId,
-        method: method,
-        contact: contact,
-        displayName: displayName ?? this.displayName,
-      );
+  /// When the server last renewed the session.
+  final DateTime? refreshedAt;
+
+  StoredSession copyWith({
+    String? refreshToken,
+    String? displayName,
+    DateTime? refreshedAt,
+  }) => StoredSession(
+    refreshToken: refreshToken ?? this.refreshToken,
+    accountId: accountId,
+    deviceId: deviceId,
+    method: method,
+    contact: contact,
+    displayName: displayName ?? this.displayName,
+    refreshedAt: refreshedAt ?? this.refreshedAt,
+  );
 
   Map<String, Object?> toJson() => {
     'refreshToken': refreshToken,
@@ -55,6 +64,7 @@ class StoredSession {
     'method': method?.name,
     'contact': contact,
     'displayName': displayName,
+    'refreshedAt': refreshedAt?.toUtc().toIso8601String(),
   };
 }
 
