@@ -101,12 +101,13 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     autoCategoryConfidence: const Value(null),
                   ),
             );
-        // Moving back undoes an earlier move away.
-        final hash = tx.messageHash;
-        if (hash != null) {
+        // Moving back undoes an earlier move away, for each message
+        // behind it.
+        final hashes = [?tx.messageHash, ?tx.twinMessageHash];
+        if (hashes.isNotEmpty) {
           await (target.delete(
             target.setAsideMessages,
-          )..where((m) => m.messageHash.equals(hash))).go();
+          )..where((m) => m.messageHash.isIn(hashes))).go();
         }
         if (key != null) {
           await (target.delete(target.movedTransactions)..where(

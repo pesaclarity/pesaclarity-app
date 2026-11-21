@@ -115,12 +115,14 @@ Future<void> mergeTwin(
   TransactionRecord stored,
   TransactionsCompanion incoming, {
   TwinMatch? match,
-}) {
+}) async {
   T? v<T>(Value<T?> value) => value.present ? value.value : null;
   final incomingHash = v(incoming.messageHash);
   if (match == TwinMatch.walletCredit) {
-    return _mergeWalletCredit(db, stored, incoming);
+    await _mergeWalletCredit(db, stored, incoming);
+    return;
   }
+  await _setAsideExtra(db, stored, incomingHash);
   final takeIncoming =
       (stored.receiptNo == null || stored.receiptNo!.isEmpty) &&
       (v(incoming.receiptNo)?.isNotEmpty ?? false);
@@ -165,7 +167,7 @@ Future<void> mergeTwin(
           owedDueAt: Value(stored.owedDueAt ?? v(incoming.owedDueAt)),
           twinMessageHash: Value(stored.twinMessageHash ?? incomingHash),
         );
-  return (db.update(
+  await (db.update(
     db.transactions,
   )..where((t) => t.id.equals(stored.id))).write(changes);
 }
@@ -242,6 +244,29 @@ Future<void> _mergeWalletCredit(
           : null,
     );
   }
+}
+
+/// A transaction keeps the hashes of two messages. A third about the same
+/// money, such as the same receipt sent again in other words, has no place
+/// on [stored]: its hash is set aside here, so it stays out when [stored]
+/// is later cleared or moved to another space.
+Future<void> _setAsideExtra(
+  AppDatabase db,
+  TransactionRecord stored,
+  String? incomingHash,
+) async {
+  final twin = stored.twinMessageHash;
+  if (incomingHash == null ||
+      twin == null ||
+      incomingHash == twin ||
+      incomingHash == stored.messageHash) {
+    return;
+  }
+  await db
+      .into(db.setAsideMessages)
+      .insertOnConflictUpdate(
+        SetAsideMessagesCompanion.insert(messageHash: incomingHash),
+      );
 }
 
 /// Undoes the own-transfer pair M-Pesa's message alone made for [stored]
