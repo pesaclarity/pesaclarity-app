@@ -297,7 +297,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   /// See [TransactionsRepository.ledgerEntries]; with [accountIds], only
-  /// those accounts' transactions.
+  /// those accounts' transactions, and with [ids], only those transactions.
   ///
   /// Read column by column from one query rather than through drift's typed
   /// join, which maps every column of both tables through a map per row:
@@ -309,20 +309,24 @@ class DriftTransactionsRepository implements TransactionsRepository {
     required DateTime to,
     int? tagId,
     Set<int>? accountIds,
+    Set<int>? ids,
   }) async {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
-    final ids = accountIds?.toList();
+    final accounts = accountIds?.toList();
+    final only = ids?.toList();
+    String any(List<int> list) => List.filled(list.length, '?').join(', ');
     final inRange = [
       't.occurred_at >= ? AND t.occurred_at < ?',
-      if (ids != null)
-        't.account_id IN (${List.filled(ids.length, '?').join(', ')})',
+      if (accounts != null) 't.account_id IN (${any(accounts)})',
+      if (only != null) 't.id IN (${any(only)})',
     ].join(' AND ');
     final rangeVariables = <Variable<Object>>[
       Variable<DateTime>(from),
       Variable<DateTime>(to),
-      for (final id in ids ?? const <int>[]) Variable<int>(id),
+      for (final id in accounts ?? const <int>[]) Variable<int>(id),
+      for (final id in only ?? const <int>[]) Variable<int>(id),
     ];
 
     final tags = <int, Set<int>>{};

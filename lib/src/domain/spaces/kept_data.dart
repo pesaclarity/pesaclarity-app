@@ -1,3 +1,4 @@
+import 'line_routing.dart';
 import 'space.dart';
 
 /// How long cleared or deleted data is kept when the person asks for it.
@@ -21,6 +22,7 @@ class KeptData {
     required this.space,
     required this.removedAt,
     required this.keyHex,
+    this.rules,
   });
 
   final String token;
@@ -30,6 +32,11 @@ class KeptData {
 
   /// The key of the copy. It is kept in Personal's locked settings only.
   final String keyHex;
+
+  /// For a deleted space: the rules that sent money to it, taken out of use
+  /// when it was deleted and put back if it is restored. They go for good
+  /// with the copy.
+  final RoutingRules? rules;
 
   /// When it goes for good.
   DateTime get until => removedAt.add(keepFor);
@@ -53,14 +60,28 @@ class KeptData {
         key is! String) {
       return null;
     }
+    final rules = json['rules'];
     return KeptData(
       token: token,
       kind: kind,
       space: space,
       removedAt: at,
       keyHex: key,
+      rules: rules is Map<String, Object?>
+          ? RoutingRules.fromJson(rules)
+          : null,
     );
   }
+
+  /// This copy, keeping [rules] for when its space is restored.
+  KeptData withRules(RoutingRules rules) => KeptData(
+    token: token,
+    kind: kind,
+    space: space,
+    removedAt: removedAt,
+    keyHex: keyHex,
+    rules: rules,
+  );
 
   Map<String, Object?> toJson() => {
     'token': token,
@@ -68,6 +89,7 @@ class KeptData {
     'space': space.toJson(),
     'removedAt': removedAt.toUtc().toIso8601String(),
     'key': keyHex,
+    if (rules != null && !rules!.isEmpty) 'rules': rules!.toJson(),
   };
 }
 

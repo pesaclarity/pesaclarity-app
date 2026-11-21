@@ -562,7 +562,10 @@ class MovedTransactions extends Table {
 
 /// Messages whose transaction the person removed (a copy, or records they
 /// cleared) or moved to another space, by message hash, so reading the
-/// messages again never brings them back here.
+/// messages again never brings them back here: every message behind the
+/// transaction, not only the first. A message merged into a transaction
+/// that already keeps two is noted here at once, since the row has no place
+/// for its hash (see `mergeTwin`).
 @DataClassName('SetAsideMessage')
 class SetAsideMessages extends Table {
   TextColumn get messageHash => text()();

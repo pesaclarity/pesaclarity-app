@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/spaces/space.dart';
 import '../database/app_database.dart';
-import '../database/connection.dart';
 import '../database/database_providers.dart';
+import '../database/space_databases.dart';
+import 'message_links.dart';
 import 'message_reads_repository.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
@@ -91,6 +91,11 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     id: const Value.absent(),
                     accountId: Value(accountId),
                     payeeId: const Value(null),
+                    // Its goal and debt stay in the space it leaves: in
+                    // this one the same ids name another goal or debt, or
+                    // none.
+                    goalId: const Value(null),
+                    debtId: const Value(null),
                     transferPairId: const Value(null),
                     transferAccountId: const Value(null),
                     categoryOverrideId: Value(
@@ -101,12 +106,13 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     autoCategoryConfidence: const Value(null),
                   ),
             );
-        // Moving back undoes an earlier move away.
-        final hash = tx.messageHash;
-        if (hash != null) {
+        // Moving back undoes an earlier move away, for each message
+        // behind it.
+        final hashes = [?tx.messageHash, ?tx.twinMessageHash];
+        if (hashes.isNotEmpty) {
           await (target.delete(
             target.setAsideMessages,
-          )..where((m) => m.messageHash.equals(hash))).go();
+          )..where((m) => m.messageHash.isIn(hashes))).go();
         }
         if (key != null) {
           await (target.delete(target.movedTransactions)..where(
@@ -133,6 +139,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
             );
       }
       await setAsideMessagesOf(_source, [transactionId]);
+      await unlinkLoanRepayment(_source, tx);
       // An own transfer's other half stays here, now on its own.
       await (_source.update(_source.transactions)
             ..where((t) => t.transferPairId.equals(transactionId)))
@@ -180,17 +187,10 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
   }
 }
 
-final spaceMoveRepositoryProvider = Provider<SpaceMoveRepository>((ref) {
-  final source = ref.watch(appDatabaseProvider);
-  return DriftSpaceMoveRepository(source, (spaceId) async {
-    if (spaceId == personalSpaceId) {
-      return (ref.read(personalDatabaseProvider), false);
-    }
-    final db = openEncryptedDatabase(
-      ref.read(databaseKeyStoreProvider),
-      beforeOpen: ref.read(databaseFileLockProvider).waitUntilFree,
-      spaceId: spaceId,
-    );
-    return (db, true);
-  });
-});
+final spaceMoveRepositoryProvider = Provider<SpaceMoveRepository>(
+  (ref) => DriftSpaceMoveRepository(
+    ref.watch(appDatabaseProvider),
+    // Only a space on the list: see [SpaceDatabases.open].
+    ref.watch(spaceDatabasesProvider).open,
+  ),
+);

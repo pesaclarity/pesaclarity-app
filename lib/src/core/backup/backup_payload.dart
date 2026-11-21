@@ -11,6 +11,7 @@ final class BackupManifest {
     required this.schemaVersion,
     required this.databaseKeyHex,
     required this.databaseBytes,
+    this.space,
   });
 
   factory BackupManifest._fromJson(Map<String, Object?> json) {
@@ -20,6 +21,10 @@ final class BackupManifest {
         schemaVersion: json['schemaVersion']! as int,
         databaseKeyHex: json['databaseKey']! as String,
         databaseBytes: json['databaseBytes']! as int,
+        space: switch (json['space']) {
+          final String id => id,
+          _ => null,
+        },
       );
     } on Object {
       throw const BackupTamperedException(
@@ -39,11 +44,16 @@ final class BackupManifest {
 
   final int databaseBytes;
 
+  /// The id of the space it is a copy of. Null in files made before it was
+  /// written.
+  final String? space;
+
   Map<String, Object?> _toJson() => {
     'createdAt': createdAt.toUtc().toIso8601String(),
     'schemaVersion': schemaVersion,
     'databaseKey': databaseKeyHex,
     'databaseBytes': databaseBytes,
+    'space': ?space,
   };
 
   @override

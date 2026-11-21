@@ -37,10 +37,15 @@ abstract interface class SmsSource {
   /// Messages from [senders] as they arrive, while listened to.
   Stream<SmsMessage> incoming(Set<String> senders);
 
-  /// Lets go of messages received before [before], once they are read.
-  /// Only sources that keep their own copy, such as [ShortcutSmsSource],
-  /// drop anything.
-  Future<void> release(DateTime before);
+  /// Lets go of the messages from [senders] received from [since] up to
+  /// [before]: what a scan has just read. Only sources that keep their own
+  /// copy, such as [ShortcutSmsSource], drop anything. Messages from other
+  /// senders stay, since another space may read them.
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  });
 }
 
 /// [SmsSource] backed by the Android platform channel in `SmsChannel.kt`.
@@ -95,7 +100,11 @@ class PlatformSmsSource implements SmsSource {
 
   /// The phone's inbox keeps its messages; nothing to let go of.
   @override
-  Future<void> release(DateTime before) async {}
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  }) async {}
 
   static SmsMessage _fromMap(Map<Object?, Object?> map) => SmsMessage(
     sender: map['sender']! as String,
@@ -127,10 +136,18 @@ class ShortcutSmsSource extends PlatformSmsSource
   static const _methods = MethodChannel('com.pesaclarity.app/sms');
 
   @override
-  Future<void> release(DateTime before) => _methods.invokeMethod<void>(
-    'release',
-    {'beforeMillis': before.millisecondsSinceEpoch},
-  );
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  }) async {
+    if (senders.isEmpty) return;
+    await _methods.invokeMethod<void>('release', {
+      'senders': senders.toList(),
+      'sinceMillis': since.millisecondsSinceEpoch,
+      'beforeMillis': before.millisecondsSinceEpoch,
+    });
+  }
 
   @override
   Future<DateTime?> lastArrival() async {

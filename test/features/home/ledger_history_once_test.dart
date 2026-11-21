@@ -30,13 +30,17 @@ class _CountingTransactions extends DriftTransactionsRepository {
     required DateTime to,
     int? tagId,
     Set<int>? accountIds,
+    Set<int>? ids,
   }) {
-    if (from.year == 1970 && to.year == 9999) wholeLedgerReads++;
+    if (from.year == 1970 && to.year == 9999 && ids == null) {
+      wholeLedgerReads++;
+    }
     return super.ledgerEntries(
       from: from,
       to: to,
       tagId: tagId,
       accountIds: accountIds,
+      ids: ids,
     );
   }
 }

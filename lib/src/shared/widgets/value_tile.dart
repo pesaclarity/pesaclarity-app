@@ -174,19 +174,16 @@ class _RenderTileBody extends RenderBox
     for (final slot in _Slot.values) ?childForSlot(slot),
   ];
 
-  /// Whether the title and subtitle keep their widest word beside the
-  /// trailing part at [width].
-  bool _beside(double width) {
-    final words = math.max(
-      _title.getMinIntrinsicWidth(double.infinity),
-      _subtitle?.getMinIntrinsicWidth(double.infinity) ?? 0,
-    );
-    final end = _trailing.getMaxIntrinsicWidth(double.infinity);
-    return words + math.max(end + _config.gap, 32) <= width + 0.5;
-  }
+  /// The widest word of the title and subtitle: how narrow they can be
+  /// with no word broken.
+  double get _words => math.max(
+    _title.getMinIntrinsicWidth(double.infinity),
+    _subtitle?.getMinIntrinsicWidth(double.infinity) ?? 0,
+  );
 
-  /// ListTile's layout when [beside], else the trailing part under the
-  /// text, at the end.
+  /// ListTile's layout while the title and subtitle keep their widest word
+  /// beside the trailing part, as laid out; else the trailing part under
+  /// the text, at the end.
   _Placed _place(
     BoxConstraints constraints,
     ChildLayouter layoutChild,
@@ -197,14 +194,14 @@ class _RenderTileBody extends RenderBox
     final ltr = c.textDirection == TextDirection.ltr;
     final pad = c.minVerticalPadding;
     final subtitle = _subtitle;
-    if (_beside(width)) {
-      final loose = BoxConstraints(maxWidth: width);
-      final trailingSize = layoutChild(
-        _trailing,
-        loose.enforce(
-          BoxConstraints(maxHeight: 56 + c.visualDensity.baseSizeAdjustment.dy),
-        ),
-      );
+    // As ListTile lays out its trailing part: no taller than a tile.
+    final trailingSize = layoutChild(
+      _trailing,
+      BoxConstraints(maxWidth: width).enforce(
+        BoxConstraints(maxHeight: 56 + c.visualDensity.baseSizeAdjustment.dy),
+      ),
+    );
+    if (_words + math.max(trailingSize.width + c.gap, 32) <= width) {
       final reserved = math.max(trailingSize.width + c.gap, 32.0);
       final text = BoxConstraints.tightFor(width: width - reserved);
       final titleHeight = layoutChild(_title, text).height;

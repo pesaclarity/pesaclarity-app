@@ -8,9 +8,10 @@ import 'package:path/path.dart' as p;
 
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/database/connection.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/message_reads_repository.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
@@ -18,6 +19,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../backup/data/local_database_backup.dart';
 import '../data/space_files.dart';
+import 'routing_providers.dart';
 import 'spaces_providers.dart';
 
 /// Tables a space keeps when its data is cleared: its settings, accounts and
@@ -37,7 +39,7 @@ const _keptOnClear = {
 
 /// Data kept for 30 days, newest first, from Personal's settings.
 class KeptDataController extends AsyncNotifier<List<KeptData>> {
-  static const settingsKey = 'spaces.kept';
+  static const settingsKey = keptSpacesKey;
 
   @override
   Future<List<KeptData>> build() async {
@@ -69,23 +71,10 @@ class SpaceManager {
 
   DateTime get _now => _ref.read(clockProvider)();
 
-  /// [space]'s database, and whether the caller must close it.
-  Future<(AppDatabase, bool)> _open(String spaceId) async {
-    if (spaceId == _ref.read(activeSpaceIdProvider)) {
-      return (_ref.read(appDatabaseProvider), false);
-    }
-    if (spaceId == personalSpaceId) {
-      return (_ref.read(personalDatabaseProvider), false);
-    }
-    return (
-      openEncryptedDatabase(
-        _ref.read(databaseKeyStoreProvider),
-        beforeOpen: _ref.read(databaseFileLockProvider).waitUntilFree,
-        spaceId: spaceId,
-      ),
-      true,
-    );
-  }
+  /// [space]'s database, and whether the caller must close it. Only a space
+  /// on the list: see [SpaceDatabases.open].
+  Future<(AppDatabase, bool)> _open(String spaceId) =>
+      _ref.read(spaceDatabasesProvider).open(spaceId);
 
   /// A locked copy of [space] for 30 days.
   Future<void> _keep(Space space, KeptKind kind) async {
@@ -106,6 +95,10 @@ class SpaceManager {
         space: space,
         removedAt: _now,
         keyHex: key,
+        // A deleted space's rules wait with its copy, out of use.
+        rules: kind == KeptKind.space
+            ? (await _ref.read(routingRulesProvider.future)).forSpace(space.id)
+            : null,
       ),
       ...kept,
     ]);
@@ -151,6 +144,9 @@ class SpaceManager {
             if (_keptOnClear.contains(table.actualTableName)) continue;
             await db.delete(table).go();
           }
+          // The journal went with the records: post it again from the
+          // accounts kept, each with its opening balance.
+          await JournalRepository.markForRebuild(db);
         });
       } finally {
         await db.customStatement('PRAGMA foreign_keys = ON');
@@ -216,6 +212,8 @@ class SpaceManager {
     }
     await _ref.read(spaceFilesProvider).deleteDatabase(space.id);
     await _ref.read(spacesProvider.notifier).remove(space.id);
+    // Its rules go with it, so nothing is sent to a space that is gone.
+    await _ref.read(routingRulesProvider.notifier).forgetSpace(space.id);
     if (deleteOnline) await _deleteOnline(space.id);
   }
 
@@ -227,11 +225,14 @@ class SpaceManager {
   Future<void> restore(KeptData kept) async {
     final file = await _file(kept);
     await _ref.read(spacesProvider.notifier).putBack(kept.space);
+    await _ref.read(routingRulesProvider.notifier).putBack(kept.rules);
     await _ref.read(activeSpaceIdProvider.notifier).switchTo(kept.space.id);
     // Restoring replaces the file, so it must not be needed afterwards.
     final staged = File('${file.path}.restoring');
     await file.copy(staged.path);
-    await _ref.read(localDataStoreProvider).replaceWith(staged, kept.keyHex);
+    await _ref
+        .read(localDataStoreProvider)
+        .replaceWith(staged, kept.keyHex, ofSpace: kept.space.id);
     await _forget(kept);
   }
 

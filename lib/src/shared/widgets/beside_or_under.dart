@@ -117,14 +117,15 @@ class RenderBesideOrUnder extends RenderBox
   ) {
     final width = constraints.maxWidth;
     final ltr = textDirection == TextDirection.ltr;
+    final loose = BoxConstraints(maxWidth: width);
+    final endSize = layoutChild(_end, loose);
+    // Beside, as laid out, while [lead] keeps its widest word.
     final beside =
         (leadMinWidth ?? _lead.getMinIntrinsicWidth(double.infinity)) +
             gap +
-            _end.getMaxIntrinsicWidth(double.infinity) <=
-        width + 0.5;
-    final loose = BoxConstraints(maxWidth: width);
+            endSize.width <=
+        width;
     if (beside) {
-      final endSize = layoutChild(_end, loose);
       final leadWidth = math.max(0.0, width - endSize.width - gap);
       final leadSize = layoutChild(
         _lead,
@@ -144,7 +145,6 @@ class RenderBesideOrUnder extends RenderBox
       );
     }
     final leadSize = layoutChild(_lead, BoxConstraints.tightFor(width: width));
-    final endSize = layoutChild(_end, loose);
     final endY = leadSize.height + underGap;
     return (
       size: constraints.constrain(Size(width, endY + endSize.height)),

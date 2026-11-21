@@ -61,3 +61,44 @@ SmsMessage equityReceived({
       'Equity account $account. Ref. $receipt on 12 Sep 2026 at 14:05 EAT',
   receivedAt: receivedAt ?? DateTime.utc(2026, 9, 12, 11, 5, 5),
 );
+
+/// A message from M-Pesa with [body], received at [receivedAt].
+SmsMessage mpesaSms(String body, DateTime receivedAt) =>
+    SmsMessage(sender: 'MPESA', body: body, receivedAt: receivedAt);
+
+/// A message from KCB with [body], received at [receivedAt].
+SmsMessage kcbSms(String body, DateTime receivedAt) =>
+    SmsMessage(sender: 'KCB', body: body, receivedAt: receivedAt);
+
+/// KCB's plain alert when a KES 8,000.00 PesaLink transfer starts. It
+/// prints no reference; [kcbPesalinkDone] is the same transfer.
+SmsMessage kcbPesalinkAlert() => kcbSms(
+  'Dear Customer, your acc 1234567890 has been debited KES 8,000.00 '
+  'Pesalink Outgoing at KCB DATA PROCESSING CENTRE at 10:12:30 on 06 NOV '
+  '2026. For any queries call KCB on  +254700000000',
+  DateTime.utc(2026, 11, 6, 7, 12, 35),
+);
+
+/// KCB's confirmation, with its reference, once that transfer completes.
+SmsMessage kcbPesalinkDone() => kcbSms(
+  '0001000720261106101500abcd1234 Completed. Your SEND TO PESALINK request '
+  'of KES 8,000.00 from 123****890 to 555****321 - JANE AKINYI DOE at '
+  '2026-11-06 10:15:00 AM has been processed successfully. Transaction cost '
+  'KES 15.00  Incl. Tax Amount KES 2.00. Pata extra cash with a flexible '
+  'Mobile Loan of up to KES 100K. Dial *000# or use the KCB App.',
+  DateTime.utc(2026, 11, 6, 7, 15, 5),
+);
+
+/// KCB taking a salary advance repayment of [amount], with what is [left]
+/// on the loan and when the next instalment is [due].
+SmsMessage kcbLoanRepaid(
+  String amount,
+  String left,
+  DateTime receivedAt, {
+  String due = '05/12/2026',
+}) => kcbSms(
+  'Dear JANE, KES $amount was debited from your KCB account to repay your '
+  'KCB Salary Advance 12345. The loan has been partially paid. Your loan '
+  'balance is KES $left, next instalment is due on $due.',
+  receivedAt,
+);

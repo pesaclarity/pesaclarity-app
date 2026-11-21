@@ -64,6 +64,73 @@ class RoutingRules {
   RoutingRules withPerson(String key, String spaceId) =>
       RoutingRules(sharedLines: sharedLines, people: {...people, key: spaceId});
 
+  bool get isEmpty => sharedLines.isEmpty && people.isEmpty;
+
+  /// These rules once the [lines] that Personal and [spaceId] both read are
+  /// left to Personal: a [business] shares each with Personal, so it asks
+  /// about its payments, unless the line is shared with another business
+  /// already. Any other space gets no rule.
+  RoutingRules readOnce(
+    Set<String> lines, {
+    required String spaceId,
+    required bool business,
+  }) {
+    if (!business) return this;
+    var next = this;
+    for (final line in lines) {
+      if ((sharedLines[line] ?? spaceId) == spaceId) {
+        next = next.withLine(line, spaceId);
+      }
+    }
+    return next;
+  }
+
+  /// Only the rules that send money to [spaceId]: the lines it shares with
+  /// Personal and the people learnt for it.
+  RoutingRules forSpace(String spaceId) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (value == spaceId) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value == spaceId) key: value,
+    },
+  );
+
+  /// These rules without those that send money to [spaceId].
+  RoutingRules withoutSpace(String spaceId) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (value != spaceId) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value != spaceId) key: value,
+    },
+  );
+
+  /// These rules without any that send money to a space outside
+  /// [spaceIds]. Personal is always there. Rules never outlive their space.
+  RoutingRules onlyFor(Set<String> spaceIds) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (spaceIds.contains(value)) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value == personalSpaceId || spaceIds.contains(value)) key: value,
+    },
+  );
+
+  /// These rules with [older] ones put back, for a space that returns.
+  /// Whatever was chosen since stays: a line shared with another business
+  /// now, or a person sent elsewhere, is not taken back.
+  RoutingRules withPutBack(RoutingRules older) => RoutingRules(
+    sharedLines: {...older.sharedLines, ...sharedLines},
+    people: {...older.people, ...people},
+  );
+
   /// How many people go to [businessId] and how many stay personal.
   ({int business, int personal}) learntFor(String businessId) {
     var business = 0;
@@ -96,7 +163,7 @@ LineChoice lineChoiceOf({
   if (shared) return LineChoice.both;
   if (inBusiness && !inPersonal) return LineChoice.thisBusiness;
   if (inPersonal && !inBusiness) return LineChoice.personal;
-  // Read in both without sharing reads every message twice; treat it as
-  // shared so the books count each payment once.
+  // Read in both without sharing is left to Personal and shared when the
+  // business next opens (`readOnce`); show it as shared until then.
   return inBusiness ? LineChoice.both : LineChoice.personal;
 }

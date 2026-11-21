@@ -61,11 +61,18 @@ final class MessageQueue {
       .sorted { $0.receivedAtMillis < $1.receivedAtMillis }
   }
 
-  /// Drops messages received before [beforeMillis], once they are read.
-  func release(beforeMillis: Int64) throws {
+  /// Drops the messages from [senders] received from [sinceMillis] up to
+  /// [beforeMillis], once a scan has read them. Other senders' messages
+  /// stay: another space may read them.
+  func release(senders: [String], sinceMillis: Int64, beforeMillis: Int64) throws {
+    let read = Set(senders.map(Self.normalise))
     try locked {
       let all = load()
-      let kept = all.filter { $0.receivedAtMillis >= beforeMillis }
+      let kept = all.filter {
+        !read.contains(Self.normalise($0.sender))
+          || $0.receivedAtMillis < sinceMillis
+          || $0.receivedAtMillis >= beforeMillis
+      }
       if kept.count != all.count { try save(kept) }
     }
   }

@@ -22,11 +22,16 @@ final ledgerHistoryAtGenerationProvider = FutureProvider.autoDispose
       final latest = ref.read(_latestHistoryProvider);
       final link = ref.keepAlive();
       final newest = latest.generation;
-      if (newest == null || generation >= newest) {
+      // Another repository is another space, whose generation starts at
+      // zero again: it is the newest.
+      if (newest == null ||
+          !identical(latest.transactions, transactions) ||
+          generation >= newest) {
         final older = latest.link;
         latest
           ..link = link
-          ..generation = generation;
+          ..generation = generation
+          ..transactions = transactions;
         older?.close();
       } else {
         link.close();
@@ -37,6 +42,7 @@ final ledgerHistoryAtGenerationProvider = FutureProvider.autoDispose
 class _LatestHistory {
   KeepAliveLink? link;
   int? generation;
+  TransactionsRepository? transactions;
 }
 
 final _latestHistoryProvider = Provider<_LatestHistory>(

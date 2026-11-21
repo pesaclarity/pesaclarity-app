@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
@@ -18,7 +19,7 @@ import '../../payees/application/payee_providers.dart';
 
 /// Every space on this phone, Personal first, kept in Personal's database.
 class SpacesController extends AsyncNotifier<List<Space>> {
-  static const settingsKey = 'spaces.list';
+  static const settingsKey = spacesListKey;
 
   @override
   Future<List<Space>> build() async => spacesFromJson(
@@ -106,6 +107,26 @@ class SpacesController extends AsyncNotifier<List<Space>> {
 final spacesProvider = AsyncNotifierProvider<SpacesController, List<Space>>(
   SpacesController.new,
 );
+
+/// Checks the space the app is about to open against the list, once the
+/// list can be read and before any screen opens that space's database. A
+/// space that is not on the list is never opened: no file is made for it
+/// and no message is read into it. The app opens in Personal instead, and
+/// "Open the app in" goes back to the last space used.
+final openSpaceCheckProvider = FutureProvider<void>((ref) async {
+  final listed = {
+    for (final space in await ref.read(spacesProvider.future)) space.id,
+  };
+  if (!listed.contains(ref.read(activeSpaceIdProvider))) {
+    await ref.read(activeSpaceIdProvider.notifier).switchTo(personalSpaceId);
+  }
+  final choice = ref.read(openSpaceChoiceProvider);
+  if (choice != openLastSpace &&
+      choice != askForSpace &&
+      !listed.contains(choice)) {
+    await ref.read(openSpaceChoiceProvider.notifier).choose(openLastSpace);
+  }
+});
 
 /// The open space, or Personal while the list loads.
 final activeSpaceProvider = Provider<Space>((ref) {

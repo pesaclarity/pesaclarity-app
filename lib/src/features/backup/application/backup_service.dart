@@ -78,6 +78,7 @@ class BackupService {
           output: outputPath,
           passphrase: passphrase,
           recoveryKeyBytes: recoveryBytes,
+          space: id,
           kdfParams: kdf,
         ),
       );
@@ -165,7 +166,12 @@ class BackupService {
           stagedDatabase: stagedPath,
         ),
       );
-      await _data.replaceWith(staged, manifest.databaseKeyHex);
+      // Only into the space it is a copy of (see [LocalDataStore.replaceWith]).
+      await _data.replaceWith(
+        staged,
+        manifest.databaseKeyHex,
+        ofSpace: manifest.space,
+      );
       return manifest;
     } finally {
       if (staged.existsSync()) await staged.delete();

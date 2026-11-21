@@ -54,6 +54,21 @@ void main() {
       expect(out, db);
     });
 
+    test(
+      'the manifest names the space it is a copy of; older ones none',
+      () async {
+        final ofShop = BackupManifest(
+          createdAt: manifest.createdAt,
+          schemaVersion: 7,
+          databaseKeyHex: _dbKey,
+          databaseBytes: 5000,
+          space: 'shop1',
+        );
+        expect((await _decode([await _encode(ofShop, db)])).$1.space, 'shop1');
+        expect((await _decode([await _encode(manifest, db)])).$1.space, isNull);
+      },
+    );
+
     test('a short database is reported as truncated', () async {
       final bytes = await _encode(manifest, db);
       expect(
