@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/data/database/database_providers.dart';
+import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/routing/app_router.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 
+import '../helpers/spaces_harness.dart';
 import '../helpers/test_app.dart';
 
 const _welcome = 'Know what you can spend today.';
@@ -62,6 +65,30 @@ void main() {
     await pumpApp(tester, db: db);
     expect(find.text(_welcome), findsNothing);
     expect(find.text('Safe to spend today'), findsOneWidget);
+  });
+
+  testAppWidgets('opens in Personal when the space it was to open is not '
+      'on the list', (tester) async {
+    final db = openTestDatabase();
+    await pumpApp(tester, db: db);
+    await finishOnboarding(tester);
+
+    // The next launch is told to open a space the list does not have.
+    await pumpApp(
+      tester,
+      db: db,
+      overrides: [
+        personalDatabaseProvider.overrideWithValue(db),
+        activeSpaceIdProvider.overrideWith(() => ActiveSpaceId('gone1')),
+        activeSpaceStoreProvider.overrideWithValue(const NoActiveSpaceStore()),
+      ],
+    );
+
+    expect(find.text('Safe to spend today'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Safe to spend today')),
+    );
+    expect(container.read(activeSpaceIdProvider), personalSpaceId);
   });
 
   testAppWidgets('shows onboarding again if it was left unfinished', (

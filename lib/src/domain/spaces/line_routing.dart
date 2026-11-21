@@ -64,6 +64,54 @@ class RoutingRules {
   RoutingRules withPerson(String key, String spaceId) =>
       RoutingRules(sharedLines: sharedLines, people: {...people, key: spaceId});
 
+  bool get isEmpty => sharedLines.isEmpty && people.isEmpty;
+
+  /// Only the rules that send money to [spaceId]: the lines it shares with
+  /// Personal and the people learnt for it.
+  RoutingRules forSpace(String spaceId) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (value == spaceId) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value == spaceId) key: value,
+    },
+  );
+
+  /// These rules without those that send money to [spaceId].
+  RoutingRules withoutSpace(String spaceId) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (value != spaceId) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value != spaceId) key: value,
+    },
+  );
+
+  /// These rules without any that send money to a space outside
+  /// [spaceIds]. Personal is always there. Rules never outlive their space.
+  RoutingRules onlyFor(Set<String> spaceIds) => RoutingRules(
+    sharedLines: {
+      for (final MapEntry(:key, :value) in sharedLines.entries)
+        if (spaceIds.contains(value)) key: value,
+    },
+    people: {
+      for (final MapEntry(:key, :value) in people.entries)
+        if (value == personalSpaceId || spaceIds.contains(value)) key: value,
+    },
+  );
+
+  /// These rules with [older] ones put back, for a space that returns.
+  /// Whatever was chosen since stays: a line shared with another business
+  /// now, or a person sent elsewhere, is not taken back.
+  RoutingRules withPutBack(RoutingRules older) => RoutingRules(
+    sharedLines: {...older.sharedLines, ...sharedLines},
+    people: {...older.people, ...people},
+  );
+
   /// How many people go to [businessId] and how many stay personal.
   ({int business, int personal}) learntFor(String businessId) {
     var business = 0;

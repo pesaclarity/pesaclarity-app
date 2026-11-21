@@ -9,9 +9,8 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_key_store.dart';
 import '../../../data/database/database_providers.dart';
-import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/database/space_databases.dart';
 import '../../../domain/spaces/space.dart';
-import '../../spaces/application/spaces_providers.dart';
 
 /// A consistent copy of the database, encrypted with its own random key.
 final class DatabaseSnapshot {
@@ -178,12 +177,7 @@ class SqlCipherLocalDataStore implements LocalDataStore {
 
   @override
   Future<List<String>> spaces() async => [
-    for (final s in spacesFromJson(
-      await _ref
-          .read(mainSettingsRepositoryProvider)
-          .readJson(SpacesController.settingsKey),
-    ))
-      s.id,
+    for (final s in await _ref.read(spaceDatabasesProvider).listed()) s.id,
   ];
 
   @override
@@ -192,21 +186,9 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     String? space,
   }) async {
     final id = space ?? openSpace;
-    final AppDatabase db;
-    var close = false;
-    if (id == openSpace) {
-      db = _ref.read(appDatabaseProvider);
-    } else if (id == personalSpaceId) {
-      db = _ref.read(personalDatabaseProvider);
-    } else {
-      // A space that is not open: open its file just for the copy.
-      db = openEncryptedDatabase(
-        _ref.read(databaseKeyStoreProvider),
-        beforeOpen: _ref.read(databaseFileLockProvider).waitUntilFree,
-        spaceId: id,
-      );
-      close = true;
-    }
+    // A space that is not open is opened just for the copy, and only when
+    // it is on the list.
+    final (db, close) = await _ref.read(spaceDatabasesProvider).open(id);
     try {
       final file = File(p.join(directory.path, 'snapshot-$id.sqlite'));
       final key = await exportDatabase(db, file);

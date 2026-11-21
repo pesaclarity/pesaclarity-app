@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
-import '../../../data/database/connection.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/institutions_repository.dart';
 import '../../../data/repositories/space_move_repository.dart';
+import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/line_routing.dart';
 import '../../../domain/spaces/space.dart';
+import 'space_manager.dart';
 import 'spaces_providers.dart';
 
 /// How far back the business asks about payments on a shared line.
@@ -27,8 +29,39 @@ class RoutingRulesController extends AsyncNotifier<RoutingRules> {
       ref.read(mainSettingsRepositoryProvider);
 
   @override
-  Future<RoutingRules> build() async =>
-      RoutingRules.fromJson(await _settings.readJson(settingsKey));
+  Future<RoutingRules> build() async => _withoutGoneSpaces(
+    RoutingRules.fromJson(await _settings.readJson(settingsKey)),
+  );
+
+  /// Rules never outlive their space. [saved] may still hold some for a
+  /// space deleted before its rules went with it: they join that space's
+  /// kept copy when there is one, so a restore puts them back, and are
+  /// dropped otherwise.
+  Future<RoutingRules> _withoutGoneSpaces(RoutingRules saved) async {
+    final listed = {
+      for (final space in await ref.read(spacesProvider.future)) space.id,
+    };
+    final rules = saved.onlyFor(listed);
+    if (rules.sharedLines.length == saved.sharedLines.length &&
+        rules.people.length == saved.people.length) {
+      return saved;
+    }
+    final kept = await ref.read(keptDataProvider.future);
+    final withRules = [
+      for (final k in kept)
+        k.kind == KeptKind.space &&
+                k.rules == null &&
+                !listed.contains(k.space.id) &&
+                !saved.forSpace(k.space.id).isEmpty
+            ? k.withRules(saved.forSpace(k.space.id))
+            : k,
+    ];
+    if (withRules.any((k) => !kept.contains(k))) {
+      await ref.read(keptDataProvider.notifier).save(withRules);
+    }
+    await _settings.writeJson(settingsKey, rules.toJson());
+    return rules;
+  }
 
   Future<RoutingRules> _current() async => state.value ?? await future;
 
@@ -68,6 +101,18 @@ class RoutingRulesController extends AsyncNotifier<RoutingRules> {
   /// Remembers that money from [key] goes to [spaceId].
   Future<void> rememberPerson(String key, String spaceId) async =>
       _save((await _current()).withPerson(key, spaceId));
+
+  /// Takes the rules that send money to [spaceId] out of use, as it is
+  /// deleted.
+  Future<void> forgetSpace(String spaceId) async =>
+      _save((await _current()).withoutSpace(spaceId));
+
+  /// Puts back the rules [older] of a deleted space that is restored. What
+  /// was chosen since stays.
+  Future<void> putBack(RoutingRules? older) async {
+    if (older == null || older.isEmpty) return;
+    await _save((await _current()).withPutBack(older));
+  }
 }
 
 final routingRulesProvider =
@@ -242,16 +287,11 @@ class SharedLineRouter {
 /// The router, moving out of Personal into whichever business is asked.
 final sharedLineRouterProvider = Provider<SharedLineRouter>((ref) {
   final personal = ref.watch(personalDatabaseProvider);
-  final active = ref.watch(activeSpaceIdProvider);
-  final mover = DriftSpaceMoveRepository(personal, (spaceId) async {
-    if (spaceId == active) return (ref.read(appDatabaseProvider), false);
-    final db = openEncryptedDatabase(
-      ref.read(databaseKeyStoreProvider),
-      beforeOpen: ref.read(databaseFileLockProvider).waitUntilFree,
-      spaceId: spaceId,
-    );
-    return (db, true);
-  });
+  final mover = DriftSpaceMoveRepository(
+    personal,
+    // Only a business still on the list: see [SpaceDatabases.open].
+    ref.watch(spaceDatabasesProvider).open,
+  );
   return SharedLineRouter(
     personal: personal,
     moveFromPersonal: mover,

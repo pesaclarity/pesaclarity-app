@@ -54,6 +54,7 @@ import '../features/sales/presentation/sell_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
+import '../features/spaces/application/spaces_providers.dart';
 import '../features/spaces/presentation/add_space_screen.dart';
 import '../features/spaces/presentation/business_or_personal_screen.dart';
 import '../features/spaces/presentation/business_setup_screens.dart';
@@ -78,6 +79,9 @@ final launchGateProvider = Provider<AsyncValue<bool>>((ref) {
     appLockControllerProvider.select((state) => state.keyReleased),
   );
   if (!released) return const AsyncLoading();
+  // Nothing opens the space to open until it is known to be on the list.
+  final checked = ref.watch(openSpaceCheckProvider);
+  if (checked.isLoading && !checked.hasValue) return const AsyncLoading();
   return ref.watch(onboardingControllerProvider);
 });
 

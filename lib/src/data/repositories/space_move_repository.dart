@@ -1,10 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/spaces/space.dart';
 import '../database/app_database.dart';
-import '../database/connection.dart';
 import '../database/database_providers.dart';
+import '../database/space_databases.dart';
 import 'message_links.dart';
 import 'message_reads_repository.dart';
 
@@ -188,17 +187,10 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
   }
 }
 
-final spaceMoveRepositoryProvider = Provider<SpaceMoveRepository>((ref) {
-  final source = ref.watch(appDatabaseProvider);
-  return DriftSpaceMoveRepository(source, (spaceId) async {
-    if (spaceId == personalSpaceId) {
-      return (ref.read(personalDatabaseProvider), false);
-    }
-    final db = openEncryptedDatabase(
-      ref.read(databaseKeyStoreProvider),
-      beforeOpen: ref.read(databaseFileLockProvider).waitUntilFree,
-      spaceId: spaceId,
-    );
-    return (db, true);
-  });
-});
+final spaceMoveRepositoryProvider = Provider<SpaceMoveRepository>(
+  (ref) => DriftSpaceMoveRepository(
+    ref.watch(appDatabaseProvider),
+    // Only a space on the list: see [SpaceDatabases.open].
+    ref.watch(spaceDatabasesProvider).open,
+  ),
+);
