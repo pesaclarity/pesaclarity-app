@@ -14,9 +14,7 @@ void main() {
     ('light', AppTheme.light),
     ('dark', AppTheme.dark),
   ]) {
-    testWidgets('$name: struggling is a stronger amber, never brand red', (
-      tester,
-    ) async {
+    testWidgets('$name: grey and red only, red for struggling', (tester) async {
       late Map<HealthBand, Color> band;
       await tester.pumpWidget(
         MaterialApp(
@@ -33,15 +31,15 @@ void main() {
         ),
       );
       final colors = theme.extension<PesaColors>()!;
-      expect(band[HealthBand.healthy], colors.success);
-      expect(band[HealthBand.coping], colors.warning);
-      expect(band[HealthBand.struggling], colors.warningStrong);
-      // The two warning bands stay apart, and neither is red.
-      expect(band[HealthBand.struggling], isNot(band[HealthBand.coping]));
+      // Healthy in the text colour, coping in muted grey, and struggling,
+      // the one band that is a problem, in red. No green or amber.
+      expect(band[HealthBand.healthy], theme.colorScheme.onSurface);
+      expect(band[HealthBand.coping], colors.textMuted);
+      expect(band[HealthBand.struggling], colors.link);
+      expect(band.values.toSet(), hasLength(3));
       for (final c in band.values) {
-        expect(c, isNot(theme.colorScheme.primary));
-        expect(c, isNot(theme.colorScheme.error));
-        expect(c, isNot(BrandTokens.brand));
+        expect(c, isNot(BrandTokens.success));
+        expect(c, isNot(BrandTokens.warning));
       }
     });
 
@@ -70,9 +68,8 @@ void main() {
         for (final bar in bars) {
           expect(
             bar.color,
-            isIn([colors.success, colors.warning, colors.warningStrong]),
+            isIn([theme.colorScheme.onSurface, colors.textMuted, colors.link]),
           );
-          expect(bar.color, isNot(theme.colorScheme.error));
         }
       }
     });

@@ -79,14 +79,15 @@ void main() {
     }
   });
 
-  test('the dark theme uses the dark link, success text and danger', () {
+  test('the dark theme uses the dark link, text and danger', () {
     final theme = AppTheme.dark;
     final colors = theme.extension<PesaColors>()!;
     expect(colors.link, token('dark', 'brandLink'));
-    expect(colors.successText, token('dark', 'successText'));
-    expect(colors.brandSoft, token('dark', 'brandSoft'));
+    // Good news is plain text and problems are the link red: the app no
+    // longer draws the success green, warning amber or soft tint tokens.
+    expect(colors.good, token('dark', 'text'));
+    expect(colors.problem, token('dark', 'brandLink'));
     expect(colors.border, token('dark', 'border'));
-    expect(colors.warning, token('dark', 'warning'));
     expect(colors.markPurple, token('dark', 'markPurple'));
     expect(colors.danger, token('dark', 'danger'));
     expect(theme.colorScheme.error, token('dark', 'dangerText'));

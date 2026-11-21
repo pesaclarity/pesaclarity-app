@@ -77,8 +77,10 @@ void main() {
     expect(p.accent, _pdf(BrandTokens.brand.toARGB32()));
     expect(p.text, _pdf(BrandTokens.text.toARGB32()));
     expect(p.muted, _pdf(PesaColors.light.textMuted.toARGB32()));
-    expect(p.headerFill, _pdf(PesaColors.light.selected.toARGB32()));
-    expect(p.success, _pdf(PesaColors.light.successText.toARGB32()));
+    // Paper keeps its colours: they come straight from the brand tokens
+    // now that the screen's theme has no tint or green.
+    expect(p.headerFill, _pdf(BrandTokens.selected.toARGB32()));
+    expect(p.success, _pdf(BrandTokens.successText.toARGB32()));
     // The brand tint is gone: text, lines, headers and boxes are pure greys.
     for (final c in [p.text, p.muted, p.line, p.headerFill!, p.panel!, p.bar]) {
       expect(c.red, c.green, reason: _key(c));

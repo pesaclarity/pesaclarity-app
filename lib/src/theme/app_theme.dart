@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../domain/look/look_settings.dart';
 import 'app_typography.dart';
 import 'brand_tokens.dart';
-import 'layout.dart';
 import 'pesa_colors.dart';
 
 /// Light and dark Material themes built from the brand tokens.
@@ -47,7 +46,12 @@ abstract final class AppTheme {
       secondary: BrandTokens.darkHcText,
       outline: BrandTokens.darkHcTextMuted,
       outlineVariant: BrandTokens.darkHcBorder,
+      surface: BrandTokens.darkHcBackground,
       surfaceContainerLowest: BrandTokens.darkHcBackground,
+      surfaceContainerLow: BrandTokens.darkHcBackground,
+      surfaceContainer: BrandTokens.darkHcBackground,
+      surfaceContainerHigh: BrandTokens.darkHcBackground,
+      surfaceContainerHighest: BrandTokens.darkHcBorder,
     ),
     background: BrandTokens.darkHcBackground,
     colors: PesaColors.darkHighContrast,
@@ -57,12 +61,13 @@ abstract final class AppTheme {
     brightness: Brightness.light,
     primary: BrandTokens.brand,
     onPrimary: BrandTokens.onBrand,
-    primaryContainer: BrandTokens.brandSoft,
+    // No tints: a container is the plain surface, told apart by its edge.
+    primaryContainer: BrandTokens.surface,
     onPrimaryContainer: BrandTokens.text,
     secondary: BrandTokens.text,
     onSecondary: BrandTokens.surface,
-    tertiary: BrandTokens.success,
-    onTertiary: BrandTokens.onBrand,
+    tertiary: BrandTokens.text,
+    onTertiary: BrandTokens.surface,
     error: BrandTokens.dangerText,
     onError: BrandTokens.onBrand,
     surface: BrandTokens.surface,
@@ -71,7 +76,8 @@ abstract final class AppTheme {
     surfaceContainerLowest: BrandTokens.surface,
     surfaceContainerLow: BrandTokens.surface,
     surfaceContainer: BrandTokens.surface,
-    surfaceContainerHigh: BrandTokens.background,
+    surfaceContainerHigh: BrandTokens.surface,
+    // Material's track behind a switch or a bar: a line, not a fill.
     surfaceContainerHighest: BrandTokens.border,
     outline: BrandTokens.textMuted,
     outlineVariant: BrandTokens.border,
@@ -81,22 +87,24 @@ abstract final class AppTheme {
     brightness: Brightness.dark,
     primary: BrandTokens.darkBrand,
     onPrimary: BrandTokens.darkOnBrand,
-    primaryContainer: BrandTokens.darkBrandSoft,
+    // One plain dark surface for the page, cards, sheets, fields and
+    // menus; they are told apart by their edges, not by lighter greys.
+    primaryContainer: BrandTokens.darkBackground,
     onPrimaryContainer: BrandTokens.darkText,
     secondary: BrandTokens.darkText,
     onSecondary: BrandTokens.darkSurface,
-    tertiary: BrandTokens.darkSuccess,
+    tertiary: BrandTokens.darkText,
     onTertiary: BrandTokens.darkBackground,
     error: BrandTokens.darkDangerText,
     onError: BrandTokens.darkBackground,
-    surface: BrandTokens.darkSurface,
+    surface: BrandTokens.darkBackground,
     onSurface: BrandTokens.darkText,
     onSurfaceVariant: BrandTokens.darkTextMuted,
     surfaceContainerLowest: BrandTokens.darkBackground,
-    surfaceContainerLow: BrandTokens.darkSurface,
-    surfaceContainer: BrandTokens.darkField,
-    surfaceContainerHigh: BrandTokens.darkFloating,
-    surfaceContainerHighest: BrandTokens.darkFloating,
+    surfaceContainerLow: BrandTokens.darkBackground,
+    surfaceContainer: BrandTokens.darkBackground,
+    surfaceContainerHigh: BrandTokens.darkBackground,
+    surfaceContainerHighest: BrandTokens.darkBorder,
     outline: BrandTokens.darkTextMuted,
     outlineVariant: BrandTokens.darkBorder,
   );
@@ -123,26 +131,18 @@ abstract final class AppTheme {
     );
   }
 
-  /// An iPhone field's outline: rounded, and only drawn when [side] is.
-  static OutlineInputBorder _row([BorderSide side = BorderSide.none]) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.fieldRadius),
-        borderSide: side,
-      );
-
   static ThemeData _build({
     required ColorScheme scheme,
     required Color background,
     required PesaColors colors,
   }) {
     final brightness = scheme.brightness;
-    final dark = brightness == Brightness.dark;
-    // Floating parts sit on a lighter surface in dark and on a soft shadow
-    // in light.
-    final floatingElevation = colors.floatingElevation;
+    // Menus, dialogs and sheets sit on the same plain surface as the page's
+    // cards, with no shadow: a thin edge sets them apart.
+    final edge = BorderSide(color: colors.border);
     final floatingShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(Layout.panelRadius),
-      side: BorderSide(color: colors.border),
+      borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
+      side: edge,
     );
     // Read when the theme is built, so tests can override the platform.
     final iPhone = defaultTargetPlatform == TargetPlatform.iOS;
@@ -158,8 +158,8 @@ abstract final class AppTheme {
       useMaterial3: true,
       // One design on Android and iPhone (decision 0011). iPhone keeps its
       // swipe-back page transition and takes the iOS conventions people
-      // expect: a 34 bold tab title, a back chevron with a centred title,
-      // and text fields drawn as filled rows.
+      // expect: a 34 bold tab title and a back chevron with a centred
+      // title. Text fields are drawn as on Android: underlined.
       platform: TargetPlatform.android,
       pageTransitionsTheme: iPhone
           ? const PageTransitionsTheme(
@@ -228,47 +228,88 @@ abstract final class AppTheme {
           textStyle: textTheme.labelLarge,
         ),
       ),
-      // Chips sit a step above the card; a selected one takes the soft
-      // brand tint. The theme's padded tap target keeps each
-      // one, and its ×, at least 48 dp tall.
+      // One chip: no fill, a plain edge, and a chosen one says so with its
+      // label in the link red, with no tick. Its icon is in the link red
+      // too. The theme's padded tap target keeps each one, and its ×, at
+      // least 48 dp tall.
       chipTheme: ChipThemeData(
-        backgroundColor: colors.field,
-        selectedColor: colors.brandSoft,
-        checkmarkColor: scheme.onSurface,
+        backgroundColor: Colors.transparent,
+        selectedColor: Colors.transparent,
+        disabledColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        selectedShadowColor: Colors.transparent,
+        elevation: 0,
+        pressElevation: 0,
+        showCheckmark: false,
         deleteIconColor: scheme.onSurfaceVariant,
-        side: BorderSide(color: colors.border),
+        side: edge,
         shape: const StadiumBorder(),
-        labelStyle: textTheme.labelMedium,
+        iconTheme: IconThemeData(color: colors.link, size: 18),
+        labelStyle: textTheme.labelMedium!.copyWith(
+          color: WidgetStateColor.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? scheme.onSurface.withValues(alpha: 0.38)
+                : states.contains(WidgetState.selected)
+                ? colors.link
+                : scheme.onSurface,
+          ),
+        ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: colors.floating,
+        color: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: floatingElevation,
-        shadowColor: colors.shadow,
+        elevation: 0,
+        shadowColor: Colors.transparent,
         shape: floatingShape,
       ),
       menuTheme: MenuThemeData(
         style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(colors.floating),
+          backgroundColor: WidgetStatePropertyAll(scheme.surface),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-          elevation: WidgetStatePropertyAll(floatingElevation),
-          shadowColor: WidgetStatePropertyAll(colors.shadow),
+          elevation: const WidgetStatePropertyAll(0),
+          shadowColor: const WidgetStatePropertyAll(Colors.transparent),
           shape: WidgetStatePropertyAll(floatingShape),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colors.floating,
-        modalBackgroundColor: colors.floating,
+        backgroundColor: scheme.surface,
+        modalBackgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: floatingElevation,
-        modalElevation: floatingElevation,
-        shadowColor: colors.shadow,
+        elevation: 0,
+        modalElevation: 0,
+        shadowColor: Colors.transparent,
+        // The page shows above a sheet behind no shade, so a thin edge
+        // along the sheet's top sets it apart.
+        modalBarrierColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(BrandTokens.cardRadius),
+          ),
+          side: edge,
+        ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: colors.floating,
+        backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: floatingElevation,
-        shadowColor: colors.shadow,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        barrierColor: Colors.transparent,
+        shape: floatingShape,
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: scheme.surface,
+        elevation: 0,
+        shape: floatingShape,
+      ),
+      // A note at the foot of the screen: the plain surface under a thin
+      // edge, as a sheet is, not a dark block on a shadow.
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: scheme.surface,
+        contentTextStyle: textTheme.bodyMedium,
+        actionTextColor: colors.link,
+        elevation: 0,
+        shape: Border(top: edge),
       ),
       dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
       listTileTheme: ListTileThemeData(
@@ -279,26 +320,20 @@ abstract final class AppTheme {
       ),
       // A focused field, the text cursor, a chosen radio or box and progress
       // take the link red: brand red in light, brightened in dark, where
-      // brand red is a fill only (2.9:1 on a card).
+      // brand red is a fill only (2.9:1 on the dark background).
+      //
+      // One field everywhere, iPhone too: underlined, with no fill, and
+      // its label above it (LabeledField).
       inputDecorationTheme: InputDecorationTheme(
-        // On iPhone a field is a filled row with no line under it.
-        filled: iPhone,
-        fillColor: iPhone ? colors.selected : null,
-        border: iPhone ? _row() : null,
-        enabledBorder: iPhone ? _row() : null,
-        disabledBorder: iPhone ? _row() : null,
-        contentPadding: iPhone
-            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 14)
-            : null,
-        focusedBorder: iPhone
-            ? _row(BorderSide(color: colors.link, width: 2))
-            : UnderlineInputBorder(
-                borderSide: BorderSide(color: colors.link, width: 2),
-              ),
-        errorBorder: iPhone ? _row(BorderSide(color: scheme.error)) : null,
-        focusedErrorBorder: iPhone
-            ? _row(BorderSide(color: scheme.error, width: 2))
-            : null,
+        filled: false,
+        border: UnderlineInputBorder(borderSide: edge),
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        disabledBorder: UnderlineInputBorder(borderSide: edge),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: colors.link, width: 2),
+        ),
         floatingLabelStyle: WidgetStateTextStyle.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.error)
@@ -326,7 +361,10 @@ abstract final class AppTheme {
               states.contains(WidgetState.selected) ? colors.link : null,
         ),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: colors.link),
+      // Progress is in the text colour: red is for actions and problems.
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.onSurface,
+      ),
       sliderTheme: SliderThemeData(
         activeTrackColor: colors.link,
         thumbColor: colors.link,
@@ -334,6 +372,14 @@ abstract final class AppTheme {
       // Today's ring in the calendar; the chosen day stays a brand-red fill
       // with white on it.
       datePickerTheme: DatePickerThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: floatingShape,
+        headerBackgroundColor: scheme.surface,
+        headerForegroundColor: scheme.onSurface,
+        dividerColor: colors.border,
         todayForegroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? scheme.onPrimary
@@ -343,20 +389,29 @@ abstract final class AppTheme {
         ),
         todayBorder: BorderSide(color: colors.link),
       ),
-      // On is calm green, so red stays for danger and the main action.
+      // On is a link-red track under a plain thumb, as a chosen option is
+      // red; off is a plain track inside a grey edge.
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? colors.success : null,
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+              ? colors.link
+              : scheme.surface,
         ),
         thumbColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? (dark ? BrandTokens.darkBackground : BrandTokens.surface)
-              : null,
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+              ? scheme.surface
+              : scheme.outline,
         ),
         trackOutlineColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? colors.success : null,
+          (states) => states.contains(WidgetState.disabled)
+              ? null
+              : states.contains(WidgetState.selected)
+              ? colors.link
+              : scheme.outline,
         ),
       ),
     );

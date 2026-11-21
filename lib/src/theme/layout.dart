@@ -16,22 +16,12 @@ abstract final class Layout {
   static const tileMinHeight = 96.0;
   static const rowMinHeight = 64.0;
 
-  /// The lead card keeps this much clear at its end for the eye, which sits
-  /// in the corner rather than taking a row.
-  static const heroEyeSpace = 56.0;
-  static const heroEyeInset = 4.0;
-
   /// Space above and below a section's header, on every screen.
   static const sectionTop = 24.0;
   static const sectionBottom = 8.0;
 
   /// The smallest tap area, even when the part drawn is smaller.
   static const minTouch = 48.0;
-
-  /// The soft shadow under floating parts in light.
-  static const shadowBlur = 24.0;
-  static const shadowDrop = 8.0;
-  static const floatingElevation = 3.0;
 
   /// Space below a tab's title row.
   static const titleGap = 16.0;
@@ -43,9 +33,10 @@ abstract final class Layout {
   static const screenBottom = 24.0;
 
   /// Corner of a box inside a screen: a note, a selectable tile, a badge
-  /// panel. Cards use `BrandTokens.cardRadius`.
-  static const panelRadius = 16.0;
+  /// panel. The same as a card's (`BrandTokens.cardRadius`): a card is
+  /// rounded at 20 and a control is a pill, and nothing else.
+  static const panelRadius = 20.0;
 
-  /// Corner of a small tag beside a name.
-  static const tagRadius = 8.0;
+  /// Corner of a small tag beside a name: a pill, as every control is.
+  static const tagRadius = 999.0;
 }

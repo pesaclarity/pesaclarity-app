@@ -1,98 +1,78 @@
 import 'package:flutter/material.dart';
 
 import 'brand_tokens.dart';
-import 'layout.dart';
 
 /// Brand colours that have no slot in Material's [ColorScheme].
+///
+/// The app is grey and red only, on plain backgrounds: no tints, no shades
+/// and no shadows. Red is for the main action, what is chosen and real
+/// problems; everything else is the text colour or the muted grey, and
+/// parts are told apart by a thin [border].
 @immutable
 class PesaColors extends ThemeExtension<PesaColors> {
   const PesaColors({
-    required this.brandSoft,
     required this.link,
     required this.border,
+    required this.text,
     required this.textMuted,
-    required this.success,
-    required this.successText,
-    required this.warning,
-    required this.warningStrong,
     required this.danger,
     required this.markBlue,
     required this.markPurple,
     required this.markTeal,
-    required this.selected,
-    required this.field,
-    required this.floating,
-    required this.shadow,
+    required this.isDark,
   });
 
   static const light = PesaColors(
-    brandSoft: BrandTokens.brandSoft,
     link: BrandTokens.brandLink,
     border: BrandTokens.border,
+    text: BrandTokens.text,
     textMuted: BrandTokens.textMuted,
-    success: BrandTokens.success,
-    successText: BrandTokens.successText,
-    warning: BrandTokens.warning,
-    warningStrong: BrandTokens.warningStrong,
     danger: BrandTokens.danger,
     markBlue: BrandTokens.markBlue,
     markPurple: BrandTokens.markPurple,
     markTeal: BrandTokens.markTeal,
-    selected: BrandTokens.selected,
-    field: BrandTokens.surface,
-    floating: BrandTokens.surface,
-    shadow: BrandTokens.shadow,
+    isDark: false,
   );
 
   /// [light] for the phone's high-contrast setting.
   static final lightHighContrast = light.copyWith(
-    link: BrandTokens.brandLink,
     border: BrandTokens.hcBorder,
+    text: BrandTokens.hcText,
     textMuted: BrandTokens.hcTextMuted,
   );
 
   static const dark = PesaColors(
-    brandSoft: BrandTokens.darkBrandSoft,
     link: BrandTokens.darkBrandLink,
     border: BrandTokens.darkBorder,
+    text: BrandTokens.darkText,
     textMuted: BrandTokens.darkTextMuted,
-    success: BrandTokens.darkSuccess,
-    successText: BrandTokens.darkSuccessText,
-    warning: BrandTokens.darkWarning,
-    warningStrong: BrandTokens.darkWarningStrong,
     danger: BrandTokens.darkDanger,
     markBlue: BrandTokens.darkMarkBlue,
     markPurple: BrandTokens.darkMarkPurple,
     markTeal: BrandTokens.darkMarkTeal,
-    selected: BrandTokens.darkSelected,
-    field: BrandTokens.darkField,
-    floating: BrandTokens.darkFloating,
-    // No shadows in dark: the floating surface is lighter instead.
-    shadow: BrandTokens.darkShadow,
+    isDark: true,
   );
 
   /// [dark] for the phone's high-contrast setting.
   static final darkHighContrast = dark.copyWith(
-    link: BrandTokens.darkBrandLink,
     border: BrandTokens.darkHcBorder,
+    text: BrandTokens.darkHcText,
     textMuted: BrandTokens.darkHcTextMuted,
   );
 
-  final Color brandSoft;
+  /// Red that reads on the plain background: a link, the current tab, a
+  /// chosen option, a focused field, and a real problem.
   final Color link;
   final Color border;
-  final Color textMuted;
-  final Color success;
-  final Color successText;
-  final Color warning;
 
-  /// The worse of two warnings, such as a struggling health score.
-  final Color warningStrong;
+  /// The body text colour, the colorScheme's `onSurface`.
+  final Color text;
+  final Color textMuted;
 
   /// A destructive button's fill: brand red in light and dark, with white
   /// text on it. Red text, including a large figure below zero, takes the
   /// colour scheme's `error`, and a red edge takes [link]; dark brightens
-  /// both to read on a card.
+  /// both to read on the dark background.
   final Color danger;
 
   /// Only for marking the parts of a message, each its own colour.
@@ -100,120 +80,79 @@ class PesaColors extends ThemeExtension<PesaColors> {
   final Color markPurple;
   final Color markTeal;
 
-  /// A selected chip or menu choice: a neutral tint.
-  final Color selected;
+  final bool isDark;
 
-  /// The fill of a chip or a field, a step above a card in dark.
-  final Color field;
+  /// Good news, money in, done: plain text, never green. Say it in words
+  /// or with a ✓ or a "+", not with a colour.
+  Color get good => text;
 
-  /// Parts that float over the page: the tab bar, sheets, menus, popups.
-  final Color floating;
-
-  /// The shadow under [floating] parts; clear in dark.
-  final Color shadow;
-
-  /// The Material elevation of a floating part: none in dark.
-  double get floatingElevation => shadow.a == 0 ? 0 : Layout.floatingElevation;
-
-  /// A soft shadow for a floating part, or none in dark.
-  List<BoxShadow> get floatingShadow => shadow.a == 0
-      ? const []
-      : [
-          BoxShadow(
-            color: shadow,
-            blurRadius: Layout.shadowBlur,
-            offset: const Offset(0, Layout.shadowDrop),
-          ),
-        ];
-
-  /// A light fill behind good news, such as a matched payment.
-  Color get successSoft => success.withValues(alpha: 0.10);
-
-  /// A light fill behind something to check, such as an item running low.
-  Color get warningSoft => warning.withValues(alpha: 0.12);
-
-  /// The second series beside a red [link] one: a deeper brand red (mixed
-  /// with black, never white) in light, and in dark a neutral grey, since
-  /// brand red is under 3:1 on a dark card.
-  Color get secondSeries => shadow.a == 0
-      ? BrandTokens.darkChartGrey
-      : Color.lerp(danger, const Color(0xFF000000), 0.45)!;
+  /// A real problem: over the plan, overdue, tax past due, running low,
+  /// below zero. The link red, on the plain background.
+  Color get problem => link;
 
   /// Muted small print (12 px) where [textMuted] measures under 4.5:1, such
   /// as a note under a button or a list: [textMuted] taken 45% of the way
   /// to [text], the body text colour.
   Color mutedSmall(Color text) => Color.lerp(textMuted, text, 0.45)!;
 
-  /// The series beside [secondSeries]: muted grey in light, and in dark a
-  /// blue, since [secondSeries] is already a grey there.
-  Color get thirdSeries =>
-      shadow.a == 0 ? BrandTokens.darkChartBlue : textMuted;
-
-  /// The Plan income bar's Living: [secondSeries] in light, and in dark a
-  /// cyan, since the dark grey and the red look alike without red cones.
-  Color get livingSeries =>
-      shadow.a == 0 ? BrandTokens.darkChartCyan : secondSeries;
+  /// The colours of a chart's series, told apart by lightness: five greys
+  /// from the text colour down, darkest first. Red is kept for a series
+  /// that is a problem, such as spending over the plan.
+  List<Color> get chartGreys => isDark
+      ? const [
+          BrandTokens.darkText,
+          Color(0xFFA3A3A3),
+          Color(0xFF777777),
+          Color(0xFF505050),
+          Color(0xFF333333),
+        ]
+      : const [
+          BrandTokens.text,
+          Color(0xFF525252),
+          Color(0xFF7A7A7A),
+          Color(0xFFA3A3A3),
+          Color(0xFFCCCCCC),
+        ];
 
   static PesaColors of(BuildContext context) =>
       Theme.of(context).extension<PesaColors>()!;
 
   @override
   PesaColors copyWith({
-    Color? brandSoft,
     Color? link,
     Color? border,
+    Color? text,
     Color? textMuted,
-    Color? success,
-    Color? successText,
-    Color? warning,
-    Color? warningStrong,
     Color? danger,
     Color? markBlue,
     Color? markPurple,
     Color? markTeal,
-    Color? selected,
-    Color? field,
-    Color? floating,
-    Color? shadow,
+    bool? isDark,
   }) => PesaColors(
-    brandSoft: brandSoft ?? this.brandSoft,
     link: link ?? this.link,
     border: border ?? this.border,
+    text: text ?? this.text,
     textMuted: textMuted ?? this.textMuted,
-    success: success ?? this.success,
-    successText: successText ?? this.successText,
-    warning: warning ?? this.warning,
-    warningStrong: warningStrong ?? this.warningStrong,
     danger: danger ?? this.danger,
     markBlue: markBlue ?? this.markBlue,
     markPurple: markPurple ?? this.markPurple,
     markTeal: markTeal ?? this.markTeal,
-    selected: selected ?? this.selected,
-    field: field ?? this.field,
-    floating: floating ?? this.floating,
-    shadow: shadow ?? this.shadow,
+    isDark: isDark ?? this.isDark,
   );
 
   @override
   PesaColors lerp(PesaColors? other, double t) {
     if (other == null) return this;
     return PesaColors(
-      brandSoft: Color.lerp(brandSoft, other.brandSoft, t)!,
       link: Color.lerp(link, other.link, t)!,
       border: Color.lerp(border, other.border, t)!,
+      text: Color.lerp(text, other.text, t)!,
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
-      success: Color.lerp(success, other.success, t)!,
-      successText: Color.lerp(successText, other.successText, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      warningStrong: Color.lerp(warningStrong, other.warningStrong, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
       markBlue: Color.lerp(markBlue, other.markBlue, t)!,
       markPurple: Color.lerp(markPurple, other.markPurple, t)!,
       markTeal: Color.lerp(markTeal, other.markTeal, t)!,
-      selected: Color.lerp(selected, other.selected, t)!,
-      field: Color.lerp(field, other.field, t)!,
-      floating: Color.lerp(floating, other.floating, t)!,
-      shadow: Color.lerp(shadow, other.shadow, t)!,
+      isDark: t < 0.5 ? isDark : other.isDark,
     );
   }
 }

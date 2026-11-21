@@ -42,13 +42,15 @@ class PdfPalette {
     // The screen's border is too faint to print; the high-contrast border
     // is the same neutral, one step darker.
     line: _pdf(PesaColors.lightHighContrast.border),
-    headerFill: _pdf(PesaColors.light.selected),
+    headerFill: _pdf(BrandTokens.selected),
     panel: _pdf(BrandTokens.background),
     bar: _pdf(BrandTokens.text),
-    barTrack: _pdf(PesaColors.light.selected),
-    success: _pdf(PesaColors.light.successText),
-    successFill: _pdf(PesaColors.light.successSoft),
-    warning: _pdf(PesaColors.light.warning),
+    barTrack: _pdf(BrandTokens.selected),
+    // Paper keeps its own colours: the screen's grey-and-red rule is for
+    // the app, and print still marks paid and due as it always has.
+    success: _pdf(BrandTokens.successText),
+    successFill: _pdf(BrandTokens.success.withValues(alpha: 0.10)),
+    warning: _pdf(BrandTokens.warning),
   );
 
   /// Grey and black: [light] with the accent in the text colour, for a

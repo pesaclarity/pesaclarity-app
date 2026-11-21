@@ -23,20 +23,23 @@ void main() {
 
     test('exposes brand colours outside the Material scheme', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(colors.brandSoft, const Color(0xFFEBEBEB));
-      // Links, progress and the current tab are in the brand's link red.
+      // Links, the current tab and real problems are in the link red.
       expect(colors.link, const Color(0xFFC8102E));
+      expect(colors.problem, colors.link);
       expect(colors.border, const Color(0xFFE5E5E5));
-      expect(colors.successText, const Color(0xFF047857));
-      expect(colors.warning, const Color(0xFFB45309));
+      // Good news is plain text: no green.
+      expect(colors.good, theme.colorScheme.onSurface);
     });
 
-    test('keeps a deeper brand red for the second chart series', () {
+    test('charts are greys told apart by lightness, never red', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(
-        colors.secondSeries,
-        Color.lerp(BrandTokens.danger, const Color(0xFF000000), 0.45),
-      );
+      final greys = colors.chartGreys;
+      expect(greys, hasLength(5));
+      for (final c in greys) {
+        expect(HSLColor.fromColor(c).saturation, 0, reason: '$c');
+      }
+      final lightness = [for (final c in greys) c.computeLuminance()];
+      expect(lightness, orderedEquals([...lightness]..sort()));
     });
   });
 
@@ -48,21 +51,25 @@ void main() {
       // The same red as light, with white text on it.
       expect(theme.colorScheme.primary, const Color(0xFFC8102E));
       expect(theme.colorScheme.onPrimary, const Color(0xFFFFFFFF));
-      // A soft dark: grey page and cards, not near black.
+      // One plain dark surface: the page and the cards are the same.
       expect(theme.scaffoldBackgroundColor, const Color(0xFF121212));
-      expect(theme.colorScheme.surface, const Color(0xFF1C1C1C));
+      expect(theme.colorScheme.surface, const Color(0xFF121212));
       expect(theme.colorScheme.onSurface, const Color(0xFFE0E0E0));
       expect(theme.colorScheme.onSurfaceVariant, const Color(0xFFA3A3A3));
     });
 
-    test('floats sheets and menus on a lighter surface, without shadows', () {
+    test('sheets and menus sit on the same plain surface, set apart by an '
+        'edge', () {
       final colors = theme.extension<PesaColors>()!;
-      expect(colors.field, const Color(0xFF222222));
-      expect(colors.floating, const Color(0xFF262626));
+      final surface = theme.scaffoldBackgroundColor;
       expect(colors.border, const Color(0xFF2E2E2E));
-      expect(colors.floatingShadow, isEmpty);
-      expect(theme.bottomSheetTheme.backgroundColor, colors.floating);
+      expect(theme.bottomSheetTheme.backgroundColor, surface);
       expect(theme.bottomSheetTheme.modalElevation, 0);
+      expect(theme.dialogTheme.backgroundColor, surface);
+      expect(theme.popupMenuTheme.color, surface);
+      expect(theme.menuTheme.style!.backgroundColor!.resolve({}), surface);
+      final sheet = theme.bottomSheetTheme.shape! as RoundedRectangleBorder;
+      expect(sheet.side.color, colors.border);
     });
   });
 
@@ -110,67 +117,6 @@ void main() {
       );
     });
 
-    test('the second chart series is a neutral grey, not brand red', () {
-      // Brand red is under 3:1 on a card, so the series beside the red one
-      // (spending's fourth, Plan's Living) is grey in dark.
-      expect(colors.secondSeries, const Color(0xFF737373));
-      expect(colors.secondSeries, BrandTokens.darkChartGrey);
-      final grey = HSLColor.fromColor(colors.secondSeries);
-      expect(grey.saturation, 0);
-      for (final surface in [
-        BrandTokens.darkBackground,
-        BrandTokens.darkSurface,
-        BrandTokens.darkFloating,
-      ]) {
-        expect(contrast(colors.secondSeries, surface), greaterThanOrEqualTo(3));
-      }
-      expect(
-        contrast(colors.secondSeries, BrandTokens.darkSurface),
-        closeTo(3.59, 0.01),
-      );
-      // Apart by lightness from its neighbours: the red series, muted text
-      // (the next series) and the border ("Other" and the bar's empty part).
-      expect(contrast(colors.secondSeries, colors.link), greaterThan(1.4));
-      expect(contrast(colors.secondSeries, colors.textMuted), greaterThan(1.8));
-      expect(contrast(colors.secondSeries, colors.border), greaterThan(2.5));
-    });
-
-    test('the third chart series is a blue, not a second grey', () {
-      // Plan's School sits beside the grey Living, so it takes a hue.
-      expect(colors.thirdSeries, BrandTokens.darkChartBlue);
-      expect(HSLColor.fromColor(colors.thirdSeries).saturation, greaterThan(0));
-      for (final surface in [
-        BrandTokens.darkBackground,
-        BrandTokens.darkSurface,
-        BrandTokens.darkFloating,
-      ]) {
-        expect(contrast(colors.thirdSeries, surface), greaterThanOrEqualTo(3));
-      }
-      expect(
-        contrast(colors.thirdSeries, BrandTokens.darkSurface),
-        closeTo(6.70, 0.01),
-      );
-      expect(
-        contrast(colors.thirdSeries, colors.secondSeries),
-        greaterThan(1.8),
-      );
-    });
-
-    test("Plan's Living is a cyan, not the chart grey", () {
-      expect(colors.livingSeries, BrandTokens.darkChartCyan);
-      expect(
-        HSLColor.fromColor(colors.livingSeries).saturation,
-        greaterThan(0),
-      );
-      for (final surface in [
-        BrandTokens.darkBackground,
-        BrandTokens.darkSurface,
-        BrandTokens.darkFloating,
-      ]) {
-        expect(contrast(colors.livingSeries, surface), greaterThanOrEqualTo(3));
-      }
-    });
-
     test('text keeps its contrast on the softer greys', () {
       expect(
         contrast(BrandTokens.darkText, BrandTokens.darkBackground),
@@ -183,9 +129,6 @@ void main() {
       for (final surface in [
         BrandTokens.darkBackground,
         BrandTokens.darkSurface,
-        BrandTokens.darkField,
-        BrandTokens.darkFloating,
-        BrandTokens.darkSelected,
       ]) {
         expect(
           contrast(BrandTokens.darkTextMuted, surface),
@@ -196,7 +139,8 @@ void main() {
 
     test('focus, cursor and chosen controls are in the link red', () {
       expect(theme.textSelectionTheme.cursorColor, colors.link);
-      expect(theme.progressIndicatorTheme.color, colors.link);
+      // Progress is in the text colour: red is for actions and problems.
+      expect(theme.progressIndicatorTheme.color, theme.colorScheme.onSurface);
       expect(
         theme.radioTheme.fillColor!.resolve({WidgetState.selected}),
         colors.link,
@@ -228,22 +172,30 @@ void main() {
       expect(text, isNot(const Color(0xFFFF6B7A)));
     });
 
-    test('tints behind red are neutral, not pink', () {
-      for (final tint in [colors.brandSoft, colors.selected]) {
-        final hsl = HSLColor.fromColor(tint);
-        // Not rose: no more red than green and blue together suggest.
-        expect(hsl.saturation, lessThan(0.06), reason: '$tint');
-        expect(tint.b, lessThanOrEqualTo(tint.g), reason: '$tint');
+    test('tints behind red are neutral, not pink: there are none', () {
+      // Containers that once took a tint are the plain surface now, in
+      // light and dark: nothing behind red is pink, or any tint at all.
+      for (final t in [AppTheme.light, AppTheme.dark]) {
+        final scheme = t.colorScheme;
+        for (final tint in [
+          scheme.primaryContainer,
+          scheme.surfaceContainer,
+          scheme.surfaceContainerHigh,
+        ]) {
+          expect(tint, scheme.surface, reason: '$tint');
+          final hsl = HSLColor.fromColor(tint);
+          expect(hsl.saturation, lessThan(0.06), reason: '$tint');
+          expect(tint.b, lessThanOrEqualTo(tint.g), reason: '$tint');
+        }
+        expect(t.chipTheme.backgroundColor, Colors.transparent);
+        expect(t.chipTheme.selectedColor, Colors.transparent);
       }
-      expect(colors.brandSoft, const Color(0xFF262626));
-      expect(colors.selected, const Color(0xFF333333));
     });
 
     test('light keeps its reds', () {
       final light = AppTheme.light;
       expect(light.colorScheme.error, const Color(0xFFC8102E));
       expect(light.extension<PesaColors>()!.danger, const Color(0xFFC8102E));
-      expect(light.extension<PesaColors>()!.brandSoft, const Color(0xFFEBEBEB));
     });
   });
 
@@ -272,19 +224,43 @@ void main() {
   });
 
   group('controls', () {
-    test('a switch that is on is green, not red', () {
+    test('a switch that is on is a link-red track under a plain thumb', () {
       for (final theme in [AppTheme.light, AppTheme.dark]) {
         final colors = theme.extension<PesaColors>()!;
-        final track = theme.switchTheme.trackColor!.resolve({
-          WidgetState.selected,
-        });
-        expect(track, colors.success);
-        expect(track, isNot(theme.colorScheme.primary));
+        final on = {WidgetState.selected};
+        expect(theme.switchTheme.trackColor!.resolve(on), colors.link);
+        expect(
+          theme.switchTheme.thumbColor!.resolve(on),
+          theme.colorScheme.surface,
+        );
+        // Off: a plain track inside a grey edge, no grey fill.
+        expect(
+          theme.switchTheme.trackColor!.resolve({}),
+          theme.colorScheme.surface,
+        );
       }
     });
 
-    test('the light tab bar and menus have a soft shadow', () {
-      expect(PesaColors.light.floatingShadow, isNotEmpty);
+    test('nothing floats on a shadow: menus, sheets and dialogs are flat', () {
+      for (final theme in [AppTheme.light, AppTheme.dark]) {
+        expect(theme.popupMenuTheme.elevation, 0);
+        expect(theme.menuTheme.style!.elevation!.resolve({}), 0);
+        expect(theme.bottomSheetTheme.elevation, 0);
+        expect(theme.bottomSheetTheme.modalElevation, 0);
+        expect(theme.dialogTheme.elevation, 0);
+        expect(theme.chipTheme.elevation, 0);
+      }
+    });
+
+    test('a chosen chip says so with its label in red, with no tick', () {
+      for (final theme in [AppTheme.light, AppTheme.dark]) {
+        final colors = theme.extension<PesaColors>()!;
+        final label = theme.chipTheme.labelStyle!.color! as WidgetStateColor;
+        expect(label.resolve({WidgetState.selected}), colors.link);
+        expect(label.resolve({}), theme.colorScheme.onSurface);
+        expect(theme.chipTheme.showCheckmark, isFalse);
+        expect(theme.chipTheme.iconTheme!.color, colors.link);
+      }
     });
   });
 
