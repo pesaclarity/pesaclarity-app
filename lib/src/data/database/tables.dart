@@ -26,6 +26,12 @@ class Accounts extends Table {
   /// digits at each end (`0170*****4321`). Tells two accounts at the same
   /// institution apart; null until a message shows one.
   TextColumn get reference => text().withLength(max: 40).nullable()();
+
+  /// The savings product this account is, by its id in the app's list of
+  /// savings products, such as `chumz`. The app keeps such an account
+  /// itself, from the payments into it (see [SavingsPockets]). Null for
+  /// every other account.
+  TextColumn get product => text().withLength(min: 1, max: 40).nullable()();
 }
 
 @TableIndex(name: 'categories_key', columns: {#key}, unique: true)
@@ -133,6 +139,11 @@ class DebtInstalments extends Table {
   IntColumn get amountMinor => integer()();
 }
 
+@TableIndex(
+  name: 'goals_saved_in_pocket',
+  columns: {#savedInPocketId},
+  unique: true,
+)
 class Goals extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 80)();
@@ -146,6 +157,86 @@ class Goals extends Table {
 
   /// What has been put aside so far, as the user last recorded it.
   IntColumn get savedMinor => integer().withDefault(const Constant(0))();
+
+  /// The savings pocket the goal's money is kept in. What is saved is then
+  /// what that pocket holds, not [savedMinor]. A pocket backs one goal.
+  IntColumn get savedInPocketId => integer().nullable().references(
+    SavingsPockets,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+}
+
+/// One part of a savings account the app keeps (an [Accounts] row with a
+/// `product`): the money paid in under one paybill account code, which the
+/// savings app shows as one goal. An account with no codes has one pocket
+/// with an empty [code].
+@DataClassName('SavingsPocketRow')
+class SavingsPockets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get accountId =>
+      integer().references(Accounts, #id, onDelete: KeyAction.cascade)();
+
+  /// The account code payments carry, such as `CH12345`; empty for money
+  /// that carries none.
+  TextColumn get code => text().withLength(max: 40)();
+  TextColumn get name => text().withLength(min: 1, max: 80)();
+
+  /// The start of the day the savings app unlocks it; null when it is open.
+  DateTimeColumn get lockedUntil => dateTime().nullable()();
+
+  /// The person said this code is not theirs: payments to it stay as they
+  /// were counted and it holds nothing.
+  BoolColumn get ignored => boolean().withDefault(const Constant(false))();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {accountId, code},
+  ];
+}
+
+/// The transactions on a savings account that the app keeps or the person
+/// typed there, and the pocket each belongs to.
+@DataClassName('SavingsEntryRow')
+@TableIndex(name: 'savings_entries_pocket', columns: {#pocketId})
+class SavingsEntries extends Table {
+  IntColumn get transactionId =>
+      integer().references(Transactions, #id, onDelete: KeyAction.cascade)();
+
+  /// Null while money in or out is in no pocket yet, and for interest and
+  /// corrections, which cover every pocket updated at their time.
+  IntColumn get pocketId => integer().nullable().references(
+    SavingsPockets,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get kind => textEnum<SavingsEntryKind>()();
+
+  @override
+  Set<Column> get primaryKey => {transactionId};
+}
+
+/// A balance the person typed for a pocket, as the savings app showed it.
+/// Interest and corrections are worked out from these and the money paid in
+/// and taken out, and worked out again whenever those change.
+@DataClassName('SavingsReadingRow')
+@TableIndex(
+  name: 'savings_readings_pocket',
+  columns: {#pocketId, #at},
+  unique: true,
+)
+class SavingsReadings extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get pocketId =>
+      integer().references(SavingsPockets, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get balanceMinor => integer()();
+
+  /// False once the person says what the balance shows beyond the records
+  /// is not interest. While true, the first balance typed for a pocket
+  /// still counts as interest only when the gap is small (see
+  /// `setupGapIsInterest`).
+  BoolColumn get gapIsInterest => boolean().withDefault(const Constant(true))();
 }
 
 /// Money the user lent to a friend or relative. Money borrowed from them is
