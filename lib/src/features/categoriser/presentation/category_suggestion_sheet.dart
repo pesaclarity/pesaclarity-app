@@ -135,7 +135,7 @@ class _CategorySuggestionSheetState
         if (suggestion != null && suggested != null) ...[
           DecoratedBox(
             decoration: BoxDecoration(
-              color: colors.brandSoft,
+              border: Border.all(color: colors.border),
               borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
             ),
             child: Padding(

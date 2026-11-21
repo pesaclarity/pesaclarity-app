@@ -35,7 +35,7 @@ class DeviceWarningCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.shield_outlined, color: colors.warning),
+                  Icon(Icons.shield_outlined, color: colors.problem),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

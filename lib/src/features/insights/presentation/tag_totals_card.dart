@@ -8,6 +8,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../export/application/export_service.dart';
@@ -93,7 +94,9 @@ class TagTotalsSection extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            BrandTokens.pillRadius,
+                          ),
                           child: LinearProgressIndicator(
                             value: s.totals.spendingMinor <= 0 || largest <= 0
                                 ? 0

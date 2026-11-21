@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 
@@ -63,8 +64,8 @@ class DebtRow extends StatelessWidget {
             LinearProgressIndicator(
               value: paidFraction,
               minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-              color: colors.link,
+              borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
+              color: Theme.of(context).colorScheme.onSurface,
               backgroundColor: colors.border,
               semanticsLabel: '${(paidFraction * 100).floor()}% paid',
             ),

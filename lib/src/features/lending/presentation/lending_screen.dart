@@ -222,7 +222,7 @@ class _LoanList extends StatelessWidget {
               subtitle: Text(
                 loans[i].caption,
                 style: theme.textTheme.bodySmall!.copyWith(
-                  color: loans[i].isOverdue ? colors.warning : null,
+                  color: loans[i].isOverdue ? colors.problem : null,
                 ),
               ),
               trailing: Text(

@@ -127,7 +127,7 @@ class _CrashReportSheetState extends ConsumerState<CrashReportSheet> {
                         children: [
                           DecoratedBox(
                             decoration: BoxDecoration(
-                              color: colors.selected,
+                              border: Border.all(color: colors.border),
                               borderRadius: BorderRadius.circular(
                                 Layout.panelRadius,
                               ),

@@ -13,7 +13,7 @@ import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
-import '../../../theme/pesa_colors.dart';
+import '../../../shared/widgets/sections.dart';
 import '../../activity/application/activity_providers.dart';
 import '../application/balances_providers.dart';
 import 'balance_text.dart';
@@ -138,8 +138,6 @@ class OwnMoneySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final colors = PesaColors.of(context);
     if (record.kind == TransactionKind.correction) {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
@@ -223,12 +221,7 @@ class OwnMoneySection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            BalanceText.ownMoney.toUpperCase(),
-            style: theme.textTheme.labelMedium!.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
+          const SectionLabel(BalanceText.ownMoney, padding: EdgeInsets.zero),
           const SizedBox(height: 6),
           Card(
             child: Column(

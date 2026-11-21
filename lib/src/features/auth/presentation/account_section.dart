@@ -90,17 +90,21 @@ class _Avatar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final colors = PesaColors.of(context);
     final initials = initialsOf(name);
+    // Plain, in a thin ring: the initials once signed in, a person before.
     return ExcludeSemantics(
-      child: CircleAvatar(
-        radius: 28,
-        backgroundColor: signedIn ? scheme.primary : colors.brandSoft,
-        foregroundColor: signedIn ? scheme.onPrimary : colors.link,
-        child: initials == null
-            ? const Icon(Icons.person_outline)
+      child: Container(
+        width: 56,
+        height: 56,
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          shape: CircleBorder(side: BorderSide(color: colors.border)),
+        ),
+        child: initials == null || !signedIn
+            ? Icon(Icons.person_outline, color: scheme.onSurface)
             : Text(
                 initials,
                 style: Theme.of(context).textTheme.titleMedium!
-                    .copyWith(color: scheme.onPrimary),
+                    .copyWith(color: scheme.onSurface),
               ),
       ),
     );

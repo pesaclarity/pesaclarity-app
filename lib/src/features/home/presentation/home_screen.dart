@@ -191,7 +191,6 @@ class HomeScreen extends ConsumerWidget {
                       caption:
                           'Shows once your messages have been read and Plan has '
                           'a day-to-day budget.',
-                      showEye: true,
                     )
                   else
                     _SafeToSpendCard(
@@ -370,6 +369,8 @@ class _Header extends ConsumerWidget {
             onPressed: () => context.go(AppRoutes.profile),
           ),
         ),
+        // The eye last in the header, never on the red card.
+        const AmountsEye(),
       ],
     );
   }
@@ -416,7 +417,6 @@ class _SafeToSpendCard extends StatelessWidget {
         label: '${(used * 100).round()}% of this month\'s spending plan used',
       ),
       // The figure is already masked while hidden: keep the eye to show it.
-      showEye: true,
       // Below zero is the one sign of trouble: a danger-coloured figure.
       belowZero: (result.onHandMinor ?? 0) < 0,
       onTap: onTap,
@@ -478,7 +478,6 @@ class _UntilNextMoneyCard extends StatelessWidget {
       label: result.pinned ? 'Your plan for today' : 'Safe to spend today',
       figure: _kes(context, result.leftTodayMinor),
       caption: '$when\n$onHand$setAside',
-      showEye: true,
       belowZero: result.belowZero,
       onTap: onTap,
     );
@@ -535,7 +534,7 @@ class _ForecastCard extends StatelessWidget {
             children: [
               Icon(
                 zero != null ? Icons.trending_down : Icons.trending_flat,
-                color: zero != null ? colors.warning : colors.successText,
+                color: zero != null ? colors.problem : colors.good,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -553,7 +552,7 @@ class _ForecastCard extends StatelessWidget {
                             child: Icon(
                               Icons.warning_amber_rounded,
                               size: 18,
-                              color: colors.warning,
+                              color: colors.problem,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -561,7 +560,7 @@ class _ForecastCard extends StatelessWidget {
                             child: Text(
                               warning,
                               style: theme.textTheme.bodyMedium!.copyWith(
-                                color: colors.warning,
+                                color: colors.problem,
                               ),
                             ),
                           ),
@@ -770,7 +769,7 @@ class _BillRow extends StatelessWidget {
       subtitle: Text(
         when,
         style: theme.textTheme.bodyMedium!.copyWith(
-          color: overdue ? colors.warning : colors.textMuted,
+          color: overdue ? colors.problem : colors.textMuted,
         ),
       ),
       trailing: Text(
@@ -802,7 +801,7 @@ class _WhatWasThisCard extends ConsumerWidget {
       child: Card(
         child: ListTile(
           key: const Key('home-what-was-this'),
-          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          leading: Icon(Icons.circle, size: 10, color: colors.text),
           minLeadingWidth: 10,
           title: const Text('What was this?'),
           subtitle: Text(
@@ -1041,12 +1040,10 @@ class _SalesTodayCard extends ConsumerWidget {
     final day = sales?.day;
     // Nothing sold yet today: say what will show instead of a nought.
     if (day == null || day.byWay.isEmpty) {
-      // No amount yet, so no eye to hide one.
       return const HeroFigureCard(
         key: Key('sales-today'),
         label: 'Sales today',
         caption: 'Sales show here as you sell.',
-        showEye: false,
       );
     }
     final ways = [
@@ -1063,7 +1060,6 @@ class _SalesTodayCard extends ConsumerWidget {
       label: 'Sales today',
       figure: _kes(context, day.totalMinor),
       caption: [ways, ?compared].join('\n'),
-      showEye: true,
     );
   }
 }
@@ -1119,11 +1115,9 @@ class _SpaceSummaryCard extends StatelessWidget {
       return HeroFigureCard(
         label: kind.label,
         caption: 'Shows once this space has transactions.',
-        showEye: true,
       );
     }
     final onSurface = Theme.of(context).colorScheme.onSurface;
-    final colors = PesaColors.of(context);
     final inLabel = switch (kind) {
       SpaceKind.business || SpaceKind.farm => 'Sales',
       SpaceKind.rentalProperty => 'Rent',
@@ -1174,7 +1168,6 @@ class _SpaceSummaryCard extends StatelessWidget {
             label: summary.headline,
             figure: _kes(context, summary.figureMinor),
             caption: [detail, ?since].join('\n'),
-            showEye: true,
             onTap: onTap,
           ),
         if (kind.makesProfit && summary.rows.isNotEmpty) ...[
@@ -1186,11 +1179,11 @@ class _SpaceSummaryCard extends StatelessWidget {
                   if (i > 0) const Divider(height: 1),
                   ListTile(
                     title: Text(row.name),
+                    // Money in says so with a "+", in the text colour.
                     trailing: Text(
-                      _plain(context, row.amountMinor),
-                      style: AppTypography.rowAmount(
-                        row.isIncome ? colors.successText : onSurface,
-                      ),
+                      '${row.isIncome ? '+' : ''}'
+                      '${_plain(context, row.amountMinor)}',
+                      style: AppTypography.rowAmount(onSurface),
                     ),
                   ),
                 ],

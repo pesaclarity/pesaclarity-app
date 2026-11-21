@@ -50,11 +50,7 @@ class PrivacyPromisesCard extends StatelessWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 2, right: 12),
-                      child: Icon(
-                        Icons.check,
-                        size: 18,
-                        color: colors.successText,
-                      ),
+                      child: Icon(Icons.check, size: 18, color: colors.good),
                     ),
                     Expanded(
                       child: Text(promise, style: theme.textTheme.bodyLarge),

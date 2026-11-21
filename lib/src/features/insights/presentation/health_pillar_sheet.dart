@@ -5,6 +5,7 @@ import '../../../domain/health/health_index.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/insights_report.dart';
 import '../application/month_labels.dart';
@@ -73,7 +74,7 @@ class HealthPillarSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
             child: LinearProgressIndicator(
               value: s.centipoints / indicatorMaxCentipoints,
               minHeight: 8,
@@ -95,7 +96,7 @@ class HealthPillarSheet extends StatelessWidget {
             Text(
               'Full marks',
               style: theme.textTheme.bodyMedium!.copyWith(
-                color: colors.successText,
+                color: colors.good,
                 fontWeight: FontWeight.w600,
               ),
             ),

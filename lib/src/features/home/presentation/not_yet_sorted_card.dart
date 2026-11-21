@@ -32,7 +32,7 @@ class NotYetSortedCard extends ConsumerWidget {
       child: Card(
         child: ListTile(
           key: const Key('home-review'),
-          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          leading: Icon(Icons.circle, size: 10, color: colors.text),
           minLeadingWidth: 10,
           title: Text(title),
           subtitle: sorted.hasAmount ? Text(parts.join(' · ')) : null,

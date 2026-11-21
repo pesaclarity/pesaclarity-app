@@ -21,7 +21,7 @@ class BusinessSetupCard extends ConsumerWidget {
       child: Card(
         child: ListTile(
           key: const Key('home-business-setup'),
-          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          leading: Icon(Icons.circle, size: 10, color: colors.text),
           minLeadingWidth: 10,
           title: const Text('Set up your business records'),
           subtitle: Text(

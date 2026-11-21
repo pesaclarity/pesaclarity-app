@@ -174,7 +174,14 @@ void main() {
     await tester.tap(find.text('Pending only'));
     await tester.pumpAndSettle();
     expect(find.text('Done'), findsNothing);
-    expect(find.text('Show all'), findsOneWidget);
+    // The filter stays as "Pending only", now chosen (its label red),
+    // rather than turning into a "Show all" button.
+    expect(
+      tester
+          .widget<FilterChip>(find.byKey(const Key('plan-pending-only')))
+          .selected,
+      isTrue,
+    );
   });
 
   testAppWidgets('draws the income bar at its full height', (tester) async {
@@ -218,10 +225,14 @@ void main() {
         for (final g in PlanGroup.values) planGroupColour(context, g),
       };
       expect(colours, hasLength(PlanGroup.values.length));
-      // Only one may be a neutral grey: two greys read as one group.
-      final greys = colours.where((c) => HSLColor.fromColor(c).saturation == 0);
-      expect(greys, hasLength(lessThanOrEqualTo(1)));
-      // And they stay apart with red-green colour blindness.
+      // Grey and red only: every group is a grey, told apart by lightness
+      // (no group is a problem, so none is red). This replaces "only one
+      // may be grey" from the multi-hue palette.
+      for (final c in colours) {
+        expect(HSLColor.fromColor(c).saturation, 0, reason: '$c');
+      }
+      // And they stay apart, by lightness, with red-green colour blindness
+      // too.
       for (final deficiency in [protanopia, deuteranopia]) {
         final seen = colours.map((c) => simulatedLab(c, deficiency)).toList();
         for (var i = 0; i < seen.length; i++) {

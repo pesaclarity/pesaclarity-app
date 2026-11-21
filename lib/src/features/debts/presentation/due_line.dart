@@ -6,7 +6,6 @@ import '../../../domain/debts/next_due.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
-import '../../../theme/pesa_colors.dart';
 
 /// What the due line says for [due] on [today], such as
 /// `Next KES 2,500 due 5 Dec`, or null once it was paid. [amount] is the
@@ -124,14 +123,13 @@ class IconLine extends StatelessWidget {
   }
 }
 
-/// The icon and colour for [state]: a calendar while there is time, an
-/// amber clock when close, a red alert when late. A null colour is the
-/// text's own.
+/// The icon and colour for [state]: a calendar while there is time, a
+/// clock when close, both in the text's own colour (a null colour), and a
+/// red alert when late, the one that is a problem.
 (IconData, Color?) dueLook(BuildContext context, DueState state) =>
     switch (state) {
       DueState.later || DueState.paid => (Icons.event_outlined, null),
-      DueState.soon ||
-      DueState.today => (Icons.schedule, PesaColors.of(context).warning),
+      DueState.soon || DueState.today => (Icons.schedule, null),
       DueState.late => (
         Icons.error_outline,
         Theme.of(context).colorScheme.error,

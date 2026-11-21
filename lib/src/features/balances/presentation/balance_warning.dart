@@ -30,8 +30,11 @@ class BalanceWarningLine extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: Layout.cardGap),
       child: Material(
-        color: colors.warningSoft,
-        borderRadius: BorderRadius.circular(Layout.panelRadius),
+        color: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Layout.panelRadius),
+          side: BorderSide(color: colors.border),
+        ),
         child: InkWell(
           key: const Key('home-balance-warning'),
           borderRadius: BorderRadius.circular(Layout.panelRadius),
@@ -51,7 +54,9 @@ class BalanceWarningLine extends ConsumerWidget {
                     children: [
                       Text(
                         BalanceText.doesNotAddUp(account.account.name),
-                        style: theme.textTheme.titleSmall,
+                        style: theme.textTheme.titleSmall!.copyWith(
+                          color: colors.problem,
+                        ),
                       ),
                       Text(
                         BalanceText.unaccounted(

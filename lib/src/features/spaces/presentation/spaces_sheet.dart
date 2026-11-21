@@ -6,6 +6,7 @@ import '../../../data/database/database_providers.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/spaces_providers.dart';
 
@@ -18,7 +19,6 @@ class SpacesSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final spaces = ref.watch(spacesProvider).value ?? const [Space.personal];
     final activeId = ref.watch(activeSpaceIdProvider);
@@ -41,22 +41,24 @@ class SpacesSheet extends ConsumerWidget {
                 if (i > 0) const Divider(height: 1),
                 ListTile(
                   key: Key('space-${space.id}'),
-                  leading: CircleAvatar(
-                    // The open space in the brand red.
-                    backgroundColor: space.id == activeId
-                        ? theme.colorScheme.primary
-                        : colors.border,
-                    foregroundColor: space.id == activeId
-                        ? theme.colorScheme.onPrimary
-                        : theme.colorScheme.onSurface,
-                    child: Text(space.initial),
+                  // The letter in a plain ring; the open space says so with
+                  // its name in red and a tick.
+                  leading: InitialsBadge(space.initial),
+                  title: Text(
+                    space.name,
+                    style: space.id == activeId
+                        ? TextStyle(color: colors.link)
+                        : null,
                   ),
-                  title: Text(space.name),
                   subtitle: space.name == space.kind.label
                       ? null
                       : Text(space.kind.label),
                   trailing: space.id == activeId
-                      ? const Icon(Icons.check, semanticLabel: 'Open now')
+                      ? Icon(
+                          Icons.check,
+                          semanticLabel: 'Open now',
+                          color: colors.link,
+                        )
                       : null,
                   onTap: () => open(space),
                 ),

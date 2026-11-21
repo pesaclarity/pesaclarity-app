@@ -107,12 +107,11 @@ class AppNoticeCard extends StatelessWidget {
               ),
               if (onUpdate != null) ...[
                 const SizedBox(height: 10),
-                FilledButton(
+                // The one secondary button: a grey edge and the text colour,
+                // so red stays for the lead card.
+                OutlinedButton(
                   onPressed: onUpdate,
-                  style: FilledButton.styleFrom(
-                    // Neutral, so red stays for the lead card.
-                    backgroundColor: colors.selected,
-                    foregroundColor: theme.colorScheme.onSurface,
+                  style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 44),
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                   ),

@@ -13,6 +13,7 @@ import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
@@ -145,8 +146,8 @@ class _BalanceCard extends StatelessWidget {
             LinearProgressIndicator(
               value: paidFraction,
               minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-              color: colors.link,
+              borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
+              color: Theme.of(context).colorScheme.onSurface,
               backgroundColor: colors.border,
               semanticsLabel: '$paid% paid',
             ),

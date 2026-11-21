@@ -32,7 +32,7 @@ class GiftRow extends ConsumerWidget {
       subtitle: Text([day, ?gift.code].join(' · ')),
       trailing: Text(
         giftAmount(context, gift),
-        style: AppTypography.rowAmount(PesaColors.of(context).successText),
+        style: AppTypography.rowAmount(PesaColors.of(context).good),
       ),
     );
   }

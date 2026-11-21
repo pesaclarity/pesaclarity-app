@@ -159,7 +159,7 @@ class _Body extends ConsumerWidget {
         Text(
           amount,
           style: AppTypography.headlineFigure(
-            isIn ? colors.successText : theme.colorScheme.onSurface,
+            isIn ? colors.good : theme.colorScheme.onSurface,
           ),
         ),
         BaseAmountLine(r),
@@ -194,7 +194,7 @@ class _Body extends ConsumerWidget {
                   subtitle: Text(
                     'Tap to name this payee',
                     style: theme.textTheme.bodySmall!.copyWith(
-                      color: colors.warning,
+                      color: colors.textMuted,
                     ),
                   ),
                   trailing: const Icon(Icons.chevron_right),

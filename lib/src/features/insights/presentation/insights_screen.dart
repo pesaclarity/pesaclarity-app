@@ -12,6 +12,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
@@ -96,26 +97,17 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
               'Insights',
               semanticsId: SemanticIds.titleInsights,
               actions: [
-                // Looks like the export button, but shares the report
+                // A header action, as every tab's is: it shares the report
                 // straight away.
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: Tooltip(
-                    message: 'Export monthly report as PDF',
-                    child: OutlinedButton.icon(
-                      onPressed: summary.hasValue && !_sharing
-                          ? _shareReport
-                          : null,
-                      icon: _sharing
-                          ? const SizedBox.square(
-                              dimension: 20,
-                              child: CircularProgressIndicator.adaptive(
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.file_download_outlined, size: 20),
-                      label: const Text('Report'),
-                    ),
+                  child: PillButton(
+                    label: 'Report',
+                    icon: Icons.file_download_outlined,
+                    tooltip: 'Export monthly report as PDF',
+                    onPressed: summary.hasValue && !_sharing
+                        ? _shareReport
+                        : null,
                   ),
                 ),
                 const AmountsEye(),
@@ -281,13 +273,8 @@ class _LeakageCard extends StatelessWidget {
       previousMonthName: previous == null ? null : monthName(previous.month),
     );
 
+    // A plain card, as every card is: no red edge.
     return Card(
-      // Picked out with a red edge: the link red, which keeps 3:1 on a
-      // dark card where brand red does not.
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        side: BorderSide(color: PesaColors.of(context).link),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: Column(
@@ -382,7 +369,7 @@ class _BarRow extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
             child: LinearProgressIndicator(
               value: fraction.clamp(0, 1),
               minHeight: 8,
@@ -478,7 +465,7 @@ class _HealthCard extends ConsumerWidget {
               const SizedBox(height: 16),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.selected,
+                  border: Border.all(color: colors.border),
                   borderRadius: BorderRadius.circular(Layout.panelRadius),
                 ),
                 child: Padding(

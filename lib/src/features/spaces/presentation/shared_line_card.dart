@@ -28,7 +28,7 @@ class SharedLineCard extends ConsumerWidget {
       child: Card(
         key: const Key('home-shared-line'),
         child: ListTile(
-          leading: Icon(Icons.circle, size: 10, color: colors.warning),
+          leading: Icon(Icons.circle, size: 10, color: colors.text),
           minLeadingWidth: 10,
           title: const Text('Was this for the business?'),
           subtitle: Text(

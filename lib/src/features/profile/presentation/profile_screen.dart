@@ -175,7 +175,7 @@ class ProfileScreen extends ConsumerWidget {
           key: const Key('profile-last-backup'),
           style: lastBackup == null
               ? null
-              : TextStyle(color: PesaColors.of(context).successText),
+              : TextStyle(color: PesaColors.of(context).good),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => context.go(AppRoutes.backup),

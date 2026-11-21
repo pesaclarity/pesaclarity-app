@@ -132,7 +132,6 @@ class _RemainingCard extends StatelessWidget {
       figure: shownMoney(context, overview.remainingMinor, withCurrency: true),
       caption: _planSummary(overview, overview.plan),
       // The app bar has the eye.
-      showEye: false,
     );
   }
 }
@@ -302,7 +301,7 @@ class _DebtItem extends StatelessWidget {
       caption: cleared == null
           ? '$details · needs more than the minimum'
           : details,
-      captionColor: cleared == null ? colors.warning : null,
+      captionColor: cleared == null ? colors.problem : null,
       footer: switch (debt.nextDue) {
         final due? when due.statusOn(today).state != DueState.paid => DueLine(
           due: due,

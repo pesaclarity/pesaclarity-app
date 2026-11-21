@@ -6,7 +6,6 @@ import '../../../domain/insights/leakage.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../theme/app_typography.dart';
-import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
@@ -143,12 +142,8 @@ class _Figure extends StatelessWidget {
     }
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    // A plain card, as every card is: no red edge.
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
-        // The link red keeps 3:1 on a dark card, where brand red does not.
-        side: BorderSide(color: colors.link),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(Layout.cardPadding),
         child: MergeSemantics(

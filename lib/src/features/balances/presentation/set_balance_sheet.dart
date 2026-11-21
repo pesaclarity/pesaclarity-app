@@ -118,7 +118,7 @@ class _SetBalanceSheetState extends ConsumerState<SetBalanceSheet> {
                     label: BalanceText.correction,
                     value: '${difference > 0 ? '+' : ''}${money(difference)}',
                     valueColor: difference > 0
-                        ? colors.successText
+                        ? colors.good
                         : theme.colorScheme.onSurface,
                     strong: true,
                   ),

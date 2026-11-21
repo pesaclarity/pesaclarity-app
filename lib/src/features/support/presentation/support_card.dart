@@ -115,11 +115,10 @@ Future<void> showSupportThanks(BuildContext context, Gift gift) =>
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: colors.successSoft,
-                  shape: BoxShape.circle,
+                decoration: ShapeDecoration(
+                  shape: CircleBorder(side: BorderSide(color: colors.border)),
                 ),
-                child: Icon(Icons.favorite_outline, color: colors.success),
+                child: Icon(Icons.favorite_outline, color: colors.good),
               ),
             ),
             const SizedBox(height: 16),

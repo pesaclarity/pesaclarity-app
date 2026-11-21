@@ -14,6 +14,7 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
@@ -48,15 +49,19 @@ Account likelyOtherAccount(List<Account> others, String body) {
 /// Below this, a suggested field is marked for checking.
 const _sureEnough = 0.7;
 
-/// The colour that marks [field] in the message and in its row, from the
-/// app's palette.
+/// The colour that marks [field] in the message and in its row: a key, each
+/// part its own colour, so the only place colours beyond grey and red
+/// stay (with the mark colours).
 Color fieldColor(BuildContext context, ReaderField field) {
   final colors = PesaColors.of(context);
+  final dark = colors.isDark;
   return switch (field) {
     ReaderField.amount => colors.link,
     ReaderField.counterparty => colors.markBlue,
-    ReaderField.date || ReaderField.time => colors.successText,
-    ReaderField.reference => colors.warning,
+    ReaderField.date || ReaderField.time =>
+      dark ? BrandTokens.darkSuccessText : BrandTokens.successText,
+    ReaderField.reference =>
+      dark ? BrandTokens.darkWarning : BrandTokens.warning,
     ReaderField.balance => colors.markPurple,
     ReaderField.fee => colors.markTeal,
     ReaderField.other => colors.textMuted,
@@ -636,7 +641,7 @@ class _FieldRow extends StatelessWidget {
             Text(
               'Check this',
               style: theme.textTheme.labelSmall!.copyWith(
-                color: colors.warning,
+                color: colors.problem,
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -7,6 +7,7 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/income_providers.dart';
@@ -84,7 +85,7 @@ class _Body extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _Figure('In', week.inMinor, color: colors.successText),
+                    _Figure('In', week.inMinor, color: colors.good),
                     const SizedBox(width: 24),
                     _Figure(
                       'Out',
@@ -151,11 +152,11 @@ class _Body extends ConsumerWidget {
                 if (target > 0) ...[
                   const SizedBox(height: 10),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
                     child: LinearProgressIndicator(
                       value: (fund / target).clamp(0, 1).toDouble(),
                       minHeight: 8,
-                      color: colors.link,
+                      color: theme.colorScheme.onSurface,
                       backgroundColor: colors.border,
                     ),
                   ),
@@ -187,7 +188,7 @@ class _Body extends ConsumerWidget {
                         style: theme.textTheme.titleMedium,
                       ),
                     ),
-                    _Key('In', colors.successText),
+                    _Key('In', colors.good),
                     const SizedBox(width: 10),
                     _Key('Out', colors.textMuted),
                   ],
@@ -292,8 +293,8 @@ class _WeekBars extends StatelessWidget {
                           bar(
                             w.inMinor,
                             i == weeks.length - 1
-                                ? colors.successText
-                                : colors.successText.withValues(alpha: 0.6),
+                                ? colors.good
+                                : colors.good.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 3),
                           bar(w.outMinor, colors.border),

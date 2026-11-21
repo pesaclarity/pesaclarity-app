@@ -22,18 +22,12 @@ import '../application/month_labels.dart';
 String _amount(BuildContext context, int minor) =>
     shownMoney(context, minor, withCurrency: false);
 
-/// Colours for chart series, from the theme, told apart by lightness as well
-/// as hue. The last is for "Other".
+/// Colours for chart series, from the theme: greys told apart by
+/// lightness, never red, which is kept for a problem. The last is for
+/// "Other".
 List<Color> chartSeries(BuildContext context) {
   final colors = PesaColors.of(context);
-  return [
-    colors.link,
-    colors.warning,
-    colors.success,
-    colors.secondSeries,
-    colors.textMuted,
-    colors.border,
-  ];
+  return [...colors.chartGreys, colors.border];
 }
 
 String _periodName(ChartPeriod period) => switch (period) {
@@ -339,11 +333,8 @@ class _SoFarCard extends StatelessWidget {
     final (changeText, changeColor) = switch (change) {
       null => (null, null),
       0 => ('Same as last $name', colors.textMuted),
-      < 0 => (
-        '${_amount(context, -change)} under last $name',
-        colors.successText,
-      ),
-      _ => ('${_amount(context, change)} over last $name', colors.warning),
+      < 0 => ('${_amount(context, -change)} under last $name', colors.good),
+      _ => ('${_amount(context, change)} over last $name', colors.problem),
     };
 
     final title = Text('This $name so far', style: theme.textTheme.titleSmall);

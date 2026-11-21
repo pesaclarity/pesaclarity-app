@@ -315,7 +315,7 @@ class _SummaryCard extends StatelessWidget {
                     : 'Matches the closing balance of '
                           '${formatMoney(Money(closing))}',
                 style: theme.textTheme.titleMedium!.copyWith(
-                  color: colors.successText,
+                  color: colors.good,
                 ),
               )
             else ...[
@@ -323,7 +323,7 @@ class _SummaryCard extends StatelessWidget {
                 '${formatMoney(Money(gap.abs()))} gap against the closing '
                 'balance${closing == null ? '' : ' of ${formatMoney(Money(closing))}'}',
                 style: theme.textTheme.titleMedium!.copyWith(
-                  color: colors.warning,
+                  color: colors.problem,
                 ),
               ),
               const SizedBox(height: 4),

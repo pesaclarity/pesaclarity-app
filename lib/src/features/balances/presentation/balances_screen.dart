@@ -96,7 +96,6 @@ class _Body extends ConsumerWidget {
             overview.needALook.length,
             overview.noMessagesCount,
           ),
-          showEye: false,
           belowZero: overview.totalMinor(base) < 0,
         ),
         if (dayToDay.isNotEmpty)
@@ -149,17 +148,15 @@ String whenLabel(DateTime at, CalendarDate today) {
       : dayHeading(day, today: today);
 }
 
-/// The initial of [name] in a soft square, like an Activity row's.
+/// The initial of [name] in a thin ring, like every row's badge.
 class AccountLetter extends StatelessWidget {
   const AccountLetter(this.name, {super.key});
 
   final String name;
 
   @override
-  Widget build(BuildContext context) => InitialsBadge(
-    name.trim().isEmpty ? '#' : name.trim()[0].toUpperCase(),
-    tinted: true,
-  );
+  Widget build(BuildContext context) =>
+      InitialsBadge(name.trim().isEmpty ? '#' : name.trim()[0].toUpperCase());
 }
 
 /// The badge an account's check earns.

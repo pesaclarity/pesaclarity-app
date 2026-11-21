@@ -168,7 +168,6 @@ class _DebtFreeCard extends StatelessWidget {
       figure: figure,
       caption: caption,
       // The tab's title row has the eye.
-      showEye: false,
       footer: hasDebts
           ? Semantics(
               label: '$percent% of debt paid',
@@ -345,7 +344,7 @@ class _GoalCard extends StatelessWidget {
             children: [
               ProgressRing(
                 value: goal.progress,
-                color: goal.isReached ? colors.successText : colors.link,
+                color: colors.good,
                 trackColor: colors.border,
                 semanticsLabel: '${goal.name} $percent%',
               ),
@@ -404,7 +403,7 @@ class _NetWorthCard extends StatelessWidget {
     final valueStyle = AppTypography.tileFigure(theme.colorScheme.onSurface);
     final changeStyle = theme.textTheme.labelMedium!.copyWith(
       fontWeight: FontWeight.w600,
-      color: change >= 0 ? colors.successText : theme.colorScheme.onSurface,
+      color: change >= 0 ? colors.good : theme.colorScheme.onSurface,
     );
     final figure = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -132,10 +132,7 @@ class _ItemTile extends ConsumerWidget {
           if (suggestion != null)
             Text(
               'Suggested: $suggestion',
-              style: TextStyle(
-                color: colors.successText,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(color: colors.good, fontWeight: FontWeight.w500),
             ),
         ],
       ),

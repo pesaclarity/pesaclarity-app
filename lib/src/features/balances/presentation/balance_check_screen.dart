@@ -738,10 +738,13 @@ class _AroundRow extends StatelessWidget {
         ),
     ].join('\n');
     final ink = inGap ? theme.colorScheme.onSurface : colors.textMuted;
+    // A flagged line says so with its name in red, on no fill.
     return ListTile(
-      tileColor: flagged ? colors.warningSoft : null,
       leading: AccountLetter(entryName(e)),
-      title: Text(entryName(e), style: TextStyle(color: ink)),
+      title: Text(
+        entryName(e),
+        style: TextStyle(color: flagged ? colors.problem : ink),
+      ),
       subtitle: Text(detail, style: theme.textTheme.bodySmall),
       trailing: Text(money(e.signedMinor), style: AppTypography.rowAmount(ink)),
     );

@@ -12,7 +12,6 @@ import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
 import 'package:pesaclarity/src/features/debts/presentation/due_line.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
-import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../helpers/app_fonts.dart';
 import '../helpers/goals_harness.dart' show settle;
@@ -137,7 +136,8 @@ void main() {
       ('light', AppTheme.light),
       ('dark', AppTheme.dark),
     ]) {
-      testWidgets('turns amber within three days ($name)', (tester) async {
+      testWidgets('shows a clock within three days, in the text colour '
+          '($name)', (tester) async {
         await kcbLoan();
         await pump(tester, _at(12, 3), theme: theme);
         expect(
@@ -145,9 +145,10 @@ void main() {
           findsOneWidget,
         );
         expect(find.byIcon(Icons.schedule), findsOneWidget);
+        // Due soon is not yet a problem: no amber, no red, only the clock.
         expect(
           lineText(tester).style!.color,
-          PesaColors.of(lineContext(tester)).warning,
+          Theme.of(lineContext(tester)).colorScheme.onSurface,
         );
       });
 

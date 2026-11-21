@@ -93,9 +93,12 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       _IncomeCard(view),
       SectionTitle(
         'By category',
-        action: PillButton(
-          label: _pendingOnly ? 'Show all' : 'Pending only',
-          onPressed: () => setState(() => _pendingOnly = !_pendingOnly),
+        // A filter, as the others are: its label turns red while on.
+        action: FilterChip(
+          key: const Key('plan-pending-only'),
+          label: const Text('Pending only'),
+          selected: _pendingOnly,
+          onSelected: (on) => setState(() => _pendingOnly = on),
         ),
       ),
       _CategoryList(
@@ -174,21 +177,11 @@ class _PaddedCard extends StatelessWidget {
   );
 }
 
-/// Colours for the income bar, told apart by lightness as well as hue, so
-/// neighbouring groups stay apart, with red-green colour blindness too (in
-/// dark, Living is a cyan and School a blue). The legend names each one. Debt and Tax
-/// reserve sit side by side, so Tax takes the amber beside Debt's red, as
-/// the spending charts do.
-Color planGroupColour(BuildContext context, PlanGroup group) {
-  final colors = PesaColors.of(context);
-  return switch (group) {
-    PlanGroup.debt => colors.link,
-    PlanGroup.tax => colors.warning,
-    PlanGroup.living => colors.livingSeries,
-    PlanGroup.school => colors.thirdSeries,
-    PlanGroup.savings => colors.success,
-  };
-}
+/// Colours for the income bar: greys told apart by lightness, so
+/// neighbouring groups stay apart for everyone, colour blind or not. The
+/// legend names each one. None is red: no group is a problem.
+Color planGroupColour(BuildContext context, PlanGroup group) =>
+    PesaColors.of(context).chartGreys[group.index];
 
 class _IncomeCard extends StatelessWidget {
   const _IncomeCard(this.view);
@@ -353,11 +346,16 @@ class _CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    // Over the plan is the problem, in red; done is in the text colour and
+    // in progress is muted. The bar is in the text colour unless over.
     final colour = switch (row.status) {
-      PlanStatus.done => colors.successText,
-      PlanStatus.over => colors.warning,
-      PlanStatus.inProgress => colors.link,
+      PlanStatus.done => colors.good,
+      PlanStatus.over => colors.problem,
+      PlanStatus.inProgress => colors.textMuted,
     };
+    final bar = row.status == PlanStatus.over
+        ? colors.problem
+        : theme.colorScheme.onSurface;
     final progress = row.plannedMinor <= 0
         ? 1.0
         : (row.actualMinor / row.plannedMinor).clamp(0.0, 1.0);
@@ -382,9 +380,9 @@ class _CategoryTile extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              color: colour,
+              color: bar,
               backgroundColor: colors.border,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
             ),
           ),
           const SizedBox(height: 10),
