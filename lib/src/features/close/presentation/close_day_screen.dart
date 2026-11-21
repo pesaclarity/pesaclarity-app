@@ -360,7 +360,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                                 '${methodLabel(key)} ${_plain(value)}',
                             ].join(' · '),
                       value: _plain(sales.totalMinor),
-                      valueColor: colors.successText,
+                      valueColor: colors.good,
                     ),
                   ),
                 ],

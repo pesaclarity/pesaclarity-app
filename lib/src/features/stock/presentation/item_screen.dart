@@ -200,7 +200,7 @@ class ItemScreen extends ConsumerWidget {
                       ),
                       trailing: Text(
                         _plain(context, profit),
-                        style: AppTypography.rowAmount(colors.successText),
+                        style: AppTypography.rowAmount(colors.good),
                       ),
                     ),
                   ],
@@ -330,7 +330,7 @@ class _MoveRow extends StatelessWidget {
       trailing: Text(
         '${up ? '+' : '-'}$amount',
         style: AppTypography.rowAmount(
-          up ? colors.successText : theme.colorScheme.onSurface,
+          up ? colors.good : theme.colorScheme.onSurface,
         ),
       ),
     );

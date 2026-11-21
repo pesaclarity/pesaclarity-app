@@ -398,10 +398,11 @@ void main() {
       await settleFrames(tester);
     }
 
-    testAppWidgets('tiles in a row stay as tall as each other at 2x text', (
+    // Two to a row up to 1.3x text (at 2x they go one to a row, below).
+    testAppWidgets('tiles in a row stay as tall as each other at 1.3x text', (
       tester,
     ) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await pump(tester);
       tester.view.physicalSize = const Size(390, 1600);
@@ -420,6 +421,32 @@ void main() {
       expect(rects, hasLength(3));
       expect(rects[0].top, rects[1].top);
       expect(rects[0].height, rects[1].height);
+      expect(tester.takeException(), isNull);
+    });
+
+    testAppWidgets('at 2x text tiles go one to a row, so names show whole', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pump(tester);
+      tester.view.physicalSize = const Size(390, 1600);
+      await tester.pumpAndSettle();
+      final tiles = find.byWidgetPredicate(
+        (w) =>
+            w is Card &&
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('tile-'),
+      );
+      final rects = [
+        for (final e in tiles.evaluate())
+          tester.getRect(find.byWidget(e.widget)),
+      ];
+      expect(rects, hasLength(3));
+      for (var i = 1; i < rects.length; i++) {
+        expect(rects[i].top, greaterThan(rects[i - 1].bottom));
+        expect(rects[i].width, rects[0].width);
+      }
       expect(tester.takeException(), isNull);
     });
 

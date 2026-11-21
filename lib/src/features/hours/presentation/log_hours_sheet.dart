@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/hours_providers.dart';
 
@@ -389,12 +390,12 @@ class _SuggestState extends State<_Suggest> {
     ),
     optionsViewBuilder: (context, onSelected, options) => Align(
       alignment: Alignment.topLeft,
+      // The sheet's own plain surface, set apart by its edge, not a shadow.
       child: Material(
-        elevation: 4,
         color: Theme.of(context).colorScheme.surface,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandTokens.cardRadius),
           side: BorderSide(color: PesaColors.of(context).border),
         ),
         child: ConstrainedBox(

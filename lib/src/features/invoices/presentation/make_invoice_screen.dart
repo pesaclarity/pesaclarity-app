@@ -727,7 +727,7 @@ class _MakeInvoiceScreenState extends ConsumerState<MakeInvoiceScreen> {
                     value: _plain(totals.toPayMinor),
                     key: const Key('invoice-to-pay'),
                     strong: true,
-                    valueColor: colors.successText,
+                    valueColor: colors.good,
                   ),
                 ],
               ),
@@ -851,14 +851,10 @@ class _WithholdingSheetState extends State<_WithholdingSheet> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Card(
+                    // The radio says which is chosen; the card stays plain.
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(Layout.panelRadius),
-                      side: BorderSide(
-                        color: _value == value
-                            ? PesaColors.of(context).link
-                            : colors.border,
-                        width: _value == value ? 2 : 1,
-                      ),
+                      side: BorderSide(color: colors.border),
                     ),
                     child: RadioListTile<Withholding>(
                       key: Key('withholding-${value.name}'),

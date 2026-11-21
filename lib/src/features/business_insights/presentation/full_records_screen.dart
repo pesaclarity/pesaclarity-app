@@ -218,7 +218,7 @@ class _ProfitAndLoss extends StatelessWidget {
                 detail: l.name == salesCategoryName && ways.isNotEmpty
                     ? ways
                     : null,
-                valueColor: colors.successText,
+                valueColor: colors.good,
               ),
             for (final l in pnl.costs)
               LabelValueRow(label: l.name, value: _cost(l.amountMinor)),
@@ -229,7 +229,7 @@ class _ProfitAndLoss extends StatelessWidget {
                   ? '-${plain(-pnl.profitMinor)}'
                   : plain(pnl.profitMinor),
               strong: true,
-              valueColor: pnl.profitMinor >= 0 ? colors.successText : null,
+              valueColor: pnl.profitMinor >= 0 ? colors.good : null,
             ),
           ],
         ),
@@ -244,7 +244,7 @@ class _ProfitAndLoss extends StatelessWidget {
             LabelValueRow(
               label: 'Customers owe you',
               value: plain(b.owedToYouMinor),
-              valueColor: colors.successText,
+              valueColor: colors.good,
             ),
             if (b.stockMinor != 0)
               LabelValueRow(

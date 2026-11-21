@@ -203,7 +203,8 @@ class _Customers extends ConsumerWidget {
           ),
         if (dueCustomers(owing, today: today).isNotEmpty) ...[
           const SizedBox(height: 16),
-          OutlinedButton(
+          // The tab's main action, as Bought on credit is on Suppliers.
+          FilledButton(
             key: const Key('remind-all'),
             onPressed: () => remindAllDue(context, owing, today: today),
             child: const Text('Remind all who are due'),

@@ -168,10 +168,13 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
       children: [
         Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: colors.successSoft,
-              child: Icon(Icons.check, color: colors.successText),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: ShapeDecoration(
+                shape: CircleBorder(side: BorderSide(color: colors.border)),
+              ),
+              child: Icon(Icons.check, color: colors.good),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -300,7 +303,7 @@ class ReceiptCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Layout.panelRadius),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -340,10 +343,11 @@ class ReceiptCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: r.blackAndWhite ? null : colors.successSoft,
-              border: r.blackAndWhite
-                  ? Border.all(color: theme.colorScheme.onSurface)
-                  : null,
+              border: Border.all(
+                color: r.blackAndWhite
+                    ? theme.colorScheme.onSurface
+                    : colors.border,
+              ),
               borderRadius: BorderRadius.circular(Layout.tagRadius),
             ),
             child: Text(
@@ -351,7 +355,7 @@ class ReceiptCard extends StatelessWidget {
               style: small.copyWith(
                 color: r.blackAndWhite
                     ? theme.colorScheme.onSurface
-                    : colors.successText,
+                    : colors.good,
               ),
             ),
           ),

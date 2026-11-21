@@ -14,6 +14,7 @@ import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../sales/presentation/pay_sheet.dart';
@@ -260,12 +261,14 @@ class _HowPeoplePay extends StatelessWidget {
                     ),
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(
+                          BrandTokens.pillRadius,
+                        ),
                         child: LinearProgressIndicator(
                           value: total <= 0 ? 0 : value / total,
                           minHeight: 8,
                           backgroundColor: colors.border,
-                          color: colors.link,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -413,9 +416,11 @@ class _SalesByDay extends StatelessWidget {
                                   ? 4
                                   : 4 + 92 * byWeekday[i] / most,
                               decoration: BoxDecoration(
+                                // The best day in the text colour, the
+                                // rest grey: red is for actions.
                                 color: i == best
-                                    ? colors.link
-                                    : colors.brandSoft,
+                                    ? theme.colorScheme.onSurface
+                                    : colors.border,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                             ),

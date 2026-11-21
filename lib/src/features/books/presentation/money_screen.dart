@@ -265,7 +265,7 @@ class CashBookRow extends StatelessWidget {
       inflow ? '+${plain(signedMinor)}' : '-${plain(-signedMinor)}',
       style: AppTypography.rowAmount(
         inflow && !borrowed
-            ? colors.successText
+            ? colors.good
             : Theme.of(context).colorScheme.onSurface,
       ),
     );

@@ -265,7 +265,7 @@ class _Statement extends ConsumerWidget {
                         : '-${plain(-line.amountMinor)}',
                     style: AppTypography.rowAmount(
                       line.amountMinor < 0
-                          ? colors.successText
+                          ? colors.good
                           : theme.colorScheme.onSurface,
                     ),
                   ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -243,12 +245,13 @@ class _Keypad extends StatelessWidget {
       childAspectRatio: 1.9,
       children: [
         for (final key in _keys)
+          // An outlined key on the plain background, as every control is.
           Material(
-            color: colors.border,
-            borderRadius: BorderRadius.circular(Layout.panelRadius),
+            color: Colors.transparent,
+            shape: StadiumBorder(side: BorderSide(color: colors.border)),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               key: Key('sell-key-$key'),
-              borderRadius: BorderRadius.circular(Layout.panelRadius),
               onTap: () => onPress(key),
               child: Center(
                 child: key == '⌫'
@@ -306,8 +309,12 @@ class _PayBar extends StatelessWidget {
     final fg = enabled ? scheme.onPrimary : PesaColors.of(context).textMuted;
     return Material(
       key: const Key('sell-pay'),
-      color: enabled ? scheme.primary : scheme.surfaceContainerHighest,
-      shape: const StadiumBorder(),
+      color: enabled ? scheme.primary : scheme.surface,
+      shape: StadiumBorder(
+        side: enabled
+            ? BorderSide.none
+            : BorderSide(color: PesaColors.of(context).border),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPay,
@@ -602,24 +609,37 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
             ],
             const SizedBox(height: 12),
             // Two to a row, each row as tall as its tallest tile, so tiles
-            // grow with large text and a row stays even.
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < tiles.length; i += 2) ...[
-                  if (i > 0) const SizedBox(height: Layout.cardGap),
-                  FigureRow(
-                    children: [
-                      tiles[i],
-                      if (i + 1 < tiles.length)
-                        tiles[i + 1]
-                      else
-                        const SizedBox.shrink(),
-                    ],
-                  ),
+            // grow with large text and a row stays even. From one and a
+            // half times the text size, one to a row, so a name such as
+            // "Avocados" shows whole rather than ending in "...".
+            if (MediaQuery.textScalerOf(context).scale(10) >= 15)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (i, tile) in tiles.indexed) ...[
+                    if (i > 0) const SizedBox(height: Layout.cardGap),
+                    tile,
+                  ],
                 ],
-              ],
-            ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < tiles.length; i += 2) ...[
+                    if (i > 0) const SizedBox(height: Layout.cardGap),
+                    FigureRow(
+                      children: [
+                        tiles[i],
+                        if (i + 1 < tiles.length)
+                          tiles[i + 1]
+                        else
+                          const SizedBox.shrink(),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
           ],
         ),
       ),
@@ -633,15 +653,10 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
                 onPay: total > 0 ? _toTab : null,
               )
             : _SellBar(
+                // The one secondary button: the theme's grey edge and text
+                // colour.
                 addToTab: OutlinedButton(
                   key: const Key('sell-add-to-tab'),
-                  style: OutlinedButton.styleFrom(
-                    shape: const StadiumBorder(),
-                    side: BorderSide(
-                      color: PesaColors.of(context).link,
-                      width: 1.5,
-                    ),
-                  ),
                   onPressed: total > 0 ? _toTab : null,
                   child: const Text('Add to a tab'),
                 ),
@@ -715,7 +730,10 @@ class _TileBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => ConstrainedBox(
-      constraints: BoxConstraints(minHeight: constraints.maxWidth / 1.45),
+      // No taller than two-to-a-row tiles are, when one fills the row.
+      constraints: BoxConstraints(
+        minHeight: math.min(constraints.maxWidth / 1.45, 128),
+      ),
       child: child,
     ),
   );
@@ -767,12 +785,11 @@ class _Tile extends StatelessWidget {
     return _TileBox(
       child: Card(
         key: Key('tile-${item.id}'),
+        // A plain card whether picked or not: how many are in the sale
+        // shows as red figures by the name.
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Layout.panelRadius),
-          side: BorderSide(
-            color: picked ? colors.link : colors.border,
-            width: picked ? 2 : 1,
-          ),
+          side: BorderSide(color: colors.border),
         ),
         child: InkWell(
           onTap: onTap,
@@ -790,11 +807,31 @@ class _Tile extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Two lines at large text before it shortens.
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ),
+                            if (picked) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '×${quantityText(count)}',
+                                key: Key('tile-count-${item.id}'),
+                                semanticsLabel:
+                                    '${quantityText(count)} in the sale',
+                                style: theme.textTheme.titleMedium!.copyWith(
+                                  color: colors.link,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(_price(), style: theme.textTheme.titleSmall),
@@ -814,22 +851,6 @@ class _Tile extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (picked)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: CircleAvatar(
-                      radius: 13,
-                      backgroundColor: theme.colorScheme.primary,
-                      child: Text(
-                        quantityText(count),
-                        semanticsLabel: '${quantityText(count)} in the sale',
-                        style: theme.textTheme.labelMedium!.copyWith(
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
