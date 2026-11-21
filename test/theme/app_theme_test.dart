@@ -15,7 +15,8 @@ void main() {
       expect(theme.brightness, Brightness.light);
       expect(theme.colorScheme.primary, const Color(0xFFC8102E));
       expect(theme.colorScheme.onPrimary, const Color(0xFFFFFFFF));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFFF5F5F5));
+      // A plain white page, the same white as the cards.
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFFFFFFF));
       expect(theme.colorScheme.surface, const Color(0xFFFFFFFF));
       expect(theme.colorScheme.onSurface, const Color(0xFF171717));
       expect(theme.colorScheme.onSurfaceVariant, const Color(0xFF525252));
@@ -220,6 +221,7 @@ void main() {
       expect(theme.colorScheme.onSurface, const Color(0xFF0A0A0A));
       expect(colors.textMuted, const Color(0xFF404040));
       expect(colors.border, const Color(0xFFC4C4C4));
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFFFFFFF));
     });
   });
 

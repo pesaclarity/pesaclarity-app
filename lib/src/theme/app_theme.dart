@@ -9,9 +9,11 @@ import 'pesa_colors.dart';
 
 /// Light and dark Material themes built from the brand tokens.
 abstract final class AppTheme {
+  // The light page is plain white, as the cards are: they stand apart by
+  // their edges, not by a grey page behind them.
   static ThemeData get light => _build(
     scheme: _lightScheme,
-    background: BrandTokens.background,
+    background: BrandTokens.surface,
     colors: PesaColors.light,
   );
 
@@ -32,7 +34,7 @@ abstract final class AppTheme {
       outline: BrandTokens.hcTextMuted,
       outlineVariant: BrandTokens.hcBorder,
     ),
-    background: BrandTokens.background,
+    background: BrandTokens.surface,
     colors: PesaColors.lightHighContrast,
   );
 
