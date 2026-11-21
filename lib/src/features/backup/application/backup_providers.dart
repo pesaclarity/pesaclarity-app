@@ -254,29 +254,58 @@ class BackupController extends AsyncNotifier<BackupSettings> {
       if (settings.enabled.contains(id)) ?locationFor(id, settings),
   ];
 
-  /// Deletes every online copy of [spaceId]'s backups (the vault and Google
-  /// Drive). Returns how many locations could not be reached.
-  Future<int> deleteOnlineBackups(String spaceId) async {
+  /// Deletes the online copies (the vault and Google Drive) of [spaceId]'s
+  /// backups, those made up to [madeBy] when given. Returns the places
+  /// that could not be reached or refused; it never throws for them.
+  Future<Set<BackupLocationId>> deleteOnlineBackups(
+    String spaceId, {
+    DateTime? madeBy,
+  }) async {
     final settings = await future;
-    var failed = 0;
+    final failed = <BackupLocationId>{};
     for (final id in const [BackupLocationId.vault, BackupLocationId.drive]) {
       final location = locationFor(id, settings);
       if (location == null) continue;
       try {
         for (final entry in await location.list()) {
-          if (entry.space == spaceId) await location.delete(entry);
+          if (entry.space != spaceId) continue;
+          if (madeBy != null && entry.createdAt.isAfter(madeBy)) continue;
+          await location.delete(entry);
         }
-      } on BackupLocationException {
-        failed++;
+      } on Object {
+        // Offline, signed out or refused: the other place is still tried.
+        failed.add(id);
       }
     }
     return failed;
   }
 
-  /// Does what had to wait for a connection, once the phone has one: the
-  /// vault's copy of a backup made offline. Quiet, and cheap while still
-  /// offline: one request finds that out before any backup is made.
+  /// Deletes the online copies of [spaceId]'s backups now, or, when a place
+  /// cannot be reached, remembers to once the phone is online (see
+  /// [catchUp]). Returns whether they wait.
+  Future<bool> deleteOnlineCopies(String spaceId) async {
+    final asked = ref.read(clockProvider)();
+    if ((await deleteOnlineBackups(spaceId, madeBy: asked)).isEmpty) {
+      return false;
+    }
+    final current = await _repo.load();
+    await _save(
+      current.copyWith(
+        pendingOnlineDeletes: {
+          ...current.pendingOnlineDeletes,
+          spaceId: current.pendingOnlineDeletes[spaceId] ?? asked,
+        },
+      ),
+    );
+    return true;
+  }
+
+  /// Does what had to wait for a connection, once the phone has one:
+  /// deleting the online copies asked for offline, then the vault's copy
+  /// of a backup made offline. Quiet, and cheap while still offline: one
+  /// request finds that out before any backup is made.
   Future<void> catchUp() async {
+    await _deleteWaitingOnlineCopies();
     final settings = await future;
     if (!settings.vaultPending ||
         !settings.enabled.contains(BackupLocationId.vault)) {
@@ -291,6 +320,30 @@ class BackupController extends AsyncNotifier<BackupSettings> {
     }
     await ref.read(backupServiceProvider).backUp([vault]);
     state = AsyncData(await _repo.load());
+  }
+
+  Future<void> _deleteWaitingOnlineCopies() async {
+    final waiting = (await future).pendingOnlineDeletes;
+    if (waiting.isEmpty) return;
+    final done = <String>{};
+    for (final MapEntry(key: space, value: asked) in waiting.entries) {
+      if ((await deleteOnlineBackups(space, madeBy: asked)).isEmpty) {
+        done.add(space);
+      } else {
+        break; // Still offline: the rest wait too.
+      }
+    }
+    if (done.isEmpty) return;
+    final current = await _repo.load();
+    await _save(
+      current.copyWith(
+        pendingOnlineDeletes: {
+          for (final MapEntry(:key, :value)
+              in current.pendingOnlineDeletes.entries)
+            if (!done.contains(key)) key: value,
+        },
+      ),
+    );
   }
 
   /// Backs up to every switched-on location.

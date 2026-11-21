@@ -12,6 +12,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
+import '../../../shared/offline_messages.dart';
 import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
@@ -22,7 +23,9 @@ import '../../../shared/widgets/value_tile.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../backup/application/backup_labels.dart';
 import '../../backup/application/backup_providers.dart';
+import '../../backup/application/backup_service.dart';
 import '../../close/application/business_day_providers.dart';
 import '../../security/application/app_lock_controller.dart';
 import '../application/business_setup_providers.dart';
@@ -419,12 +422,17 @@ class SpaceSettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref, Space space) async {
-    final done = await showAppSheet<bool>(
+    final deleted = await showAppSheet<_Deleted>(
       context: context,
       builder: (_) => _DeleteSpaceSheet(space),
     );
-    if ((done ?? false) && context.mounted) {
-      showNote(context, '${space.name} is deleted.');
+    if (deleted != null && context.mounted) {
+      showNote(
+        context,
+        deleted.onlineLater
+            ? OfflineMessages.onlineCopyDeletedLater
+            : '${space.name} is deleted.',
+      );
       Navigator.of(context).pop();
     }
   }
@@ -434,6 +442,10 @@ String _article(SpaceKind kind) {
   final word = kind.label.toLowerCase();
   return '${'aeiou'.contains(word[0]) ? 'an' : 'a'} $word';
 }
+
+/// A space deleted on this phone; [onlineLater] when its online copies wait
+/// for a connection.
+typedef _Deleted = ({bool onlineLater});
 
 class _DeleteSpaceSheet extends ConsumerStatefulWidget {
   const _DeleteSpaceSheet(this.space);
@@ -492,10 +504,15 @@ class _DeleteSpaceSheetState extends ConsumerState<_DeleteSpaceSheet> {
               : () async {
                   setState(() => _busy = true);
                   final navigator = Navigator.of(context);
-                  await ref
-                      .read(spaceManagerProvider)
-                      .delete(space, keep: _keep, deleteOnline: _online);
-                  navigator.pop(true);
+                  try {
+                    final later = await ref
+                        .read(spaceManagerProvider)
+                        .delete(space, keep: _keep, deleteOnline: _online);
+                    navigator.pop<_Deleted>((onlineLater: later));
+                  } finally {
+                    // Never left greyed out, whatever happened.
+                    if (mounted) setState(() => _busy = false);
+                  }
                 },
           child: Text('Delete ${space.name}'),
         ),
@@ -516,13 +533,17 @@ Future<void> _backUp(BuildContext context, WidgetRef ref) async {
     await context.push(AppRoutes.backup);
     return;
   }
-  final report = await ref.read(backupControllerProvider.notifier).backUpNow();
-  if (context.mounted) {
-    showNote(
-      context,
-      report.failed.isEmpty ? 'Backed up.' : 'The backup did not finish.',
+  String message;
+  try {
+    message = backupRunMessage(
+      await ref.read(backupControllerProvider.notifier).backUpNow(),
     );
+  } on BackupNotSetUpException {
+    message = 'Set up backups first.';
+  } on Object {
+    message = 'The backup did not finish.';
   }
+  if (context.mounted) showNote(context, message);
 }
 
 /// "Keep for 30 days" and "Also delete the online backup".
@@ -678,7 +699,7 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
                     );
                     if (!yes || !context.mounted) return;
                     setState(() => _busy = true);
-                    await ref
+                    final later = await ref
                         .read(spaceManagerProvider)
                         .clear(
                           space,
@@ -700,7 +721,12 @@ class _ClearSpaceScreenState extends ConsumerState<ClearSpaceScreen> {
                                 ).addDays(1).startInstant,
                         );
                     if (!context.mounted) return;
-                    showNote(context, '${space.name} is cleared.');
+                    showNote(
+                      context,
+                      later
+                          ? OfflineMessages.onlineCopyDeletedLater
+                          : '${space.name} is cleared.',
+                    );
                     Navigator.of(context).pop();
                   },
             child: Text('Clear ${space.name}'),
@@ -903,10 +929,24 @@ class _DeleteAllScreenState extends ConsumerState<DeleteAllScreen> {
         return;
       }
     }
+    if (!mounted) return;
     setState(() => _busy = true);
-    await ref
+    final messenger = ScaffoldMessenger.of(context);
+    final restarter = ref.read(appRestarterProvider);
+    final result = await ref
         .read(spaceManagerProvider)
         .deleteEverything(deleteOnline: _online, deleteSignIn: _signIn);
-    await ref.read(appRestarterProvider).restart();
+    // Nothing is left on the phone to finish this later, so say what is
+    // left online before the app closes.
+    final left = [
+      if (result.onlineCopiesLeft) OfflineMessages.deleteOnlineCopyLater,
+      if (result.signInLeft case final failure?) failure.message,
+    ];
+    if (left.isNotEmpty) {
+      await messenger
+          .showSnackBar(SnackBar(content: Text(left.join('\n'))))
+          .closed;
+    }
+    await restarter.restart();
   }
 }

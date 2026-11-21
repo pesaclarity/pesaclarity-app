@@ -51,6 +51,7 @@ final class BackupSettings {
     this.lastSuccessAt,
     this.lastSuccessTo = const {},
     this.vaultPending = false,
+    this.pendingOnlineDeletes = const {},
   });
 
   /// Whether a passphrase and recovery key exist on this phone.
@@ -64,6 +65,10 @@ final class BackupSettings {
   /// connection, so it goes there once the phone is online.
   final bool vaultPending;
 
+  /// Spaces whose online copies are still to be deleted, by space id, with
+  /// when that was asked: copies made afterwards stay.
+  final Map<String, DateTime> pendingOnlineDeletes;
+
   BackupSettings copyWith({
     bool? isSetUp,
     Set<BackupLocationId>? enabled,
@@ -71,6 +76,7 @@ final class BackupSettings {
     DateTime? lastSuccessAt,
     Set<BackupLocationId>? lastSuccessTo,
     bool? vaultPending,
+    Map<String, DateTime>? pendingOnlineDeletes,
   }) => BackupSettings(
     isSetUp: isSetUp ?? this.isSetUp,
     enabled: enabled ?? this.enabled,
@@ -78,6 +84,7 @@ final class BackupSettings {
     lastSuccessAt: lastSuccessAt ?? this.lastSuccessAt,
     lastSuccessTo: lastSuccessTo ?? this.lastSuccessTo,
     vaultPending: vaultPending ?? this.vaultPending,
+    pendingOnlineDeletes: pendingOnlineDeletes ?? this.pendingOnlineDeletes,
   );
 }
 
@@ -123,6 +130,11 @@ class BackupSettingsRepository {
       lastSuccessAt: lastAt == null ? null : DateTime.tryParse(lastAt),
       lastSuccessTo: ids(json['lastSuccessTo']),
       vaultPending: json['vaultPending'] == true,
+      pendingOnlineDeletes: {
+        if (json['pendingOnlineDeletes'] case final Map<String, Object?> map)
+          for (final MapEntry(:key, :value) in map.entries)
+            key: ?DateTime.tryParse(value is String ? value : ''),
+      },
     );
   }
 
@@ -135,6 +147,11 @@ class BackupSettingsRepository {
       'lastSuccessAt': settings.lastSuccessAt?.toUtc().toIso8601String(),
       'lastSuccessTo': [for (final id in settings.lastSuccessTo) id.name],
       'vaultPending': settings.vaultPending,
+      'pendingOnlineDeletes': {
+        for (final MapEntry(:key, :value)
+            in settings.pendingOnlineDeletes.entries)
+          key: value.toUtc().toIso8601String(),
+      },
     }),
   );
 

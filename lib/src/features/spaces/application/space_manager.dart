@@ -17,6 +17,7 @@ import '../../../data/repositories/savings_links.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../auth/domain/auth_models.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../backup/data/local_database_backup.dart';
 import '../data/space_files.dart';
@@ -122,7 +123,10 @@ class SpaceManager {
   ///
   /// With [from] and [to], only what happened in that range goes: its
   /// transactions, sales and quick records; everything else stays.
-  Future<void> clear(
+  ///
+  /// Returns whether the online copies, with [deleteOnline], wait for a
+  /// connection; being offline never stops what happens on the phone.
+  Future<bool> clear(
     Space space, {
     required bool keep,
     bool deleteOnline = false,
@@ -134,7 +138,7 @@ class SpaceManager {
     try {
       if (from != null && to != null) {
         await _clearRange(db, from, to);
-        return;
+        return false;
       }
       await db.customStatement('PRAGMA foreign_keys = OFF');
       try {
@@ -157,7 +161,7 @@ class SpaceManager {
     } finally {
       if (close) await db.close();
     }
-    if (deleteOnline) await _deleteOnline(space.id);
+    return deleteOnline && await _deleteOnline(space.id);
   }
 
   /// Removes what happened from [from] up to [to] in [db]. Rows that point
@@ -197,7 +201,10 @@ class SpaceManager {
 
   /// Deletes [space] and everything in it from this phone. With [keep], a
   /// locked copy stays for 30 days. Personal is never deleted on its own.
-  Future<void> delete(
+  ///
+  /// Returns whether the online copies, with [deleteOnline], wait for a
+  /// connection; being offline never stops what happens on the phone.
+  Future<bool> delete(
     Space space, {
     required bool keep,
     bool deleteOnline = false,
@@ -218,11 +225,13 @@ class SpaceManager {
     await _ref.read(spacesProvider.notifier).remove(space.id);
     // Its rules go with it, so nothing is sent to a space that is gone.
     await _ref.read(routingRulesProvider.notifier).forgetSpace(space.id);
-    if (deleteOnline) await _deleteOnline(space.id);
+    return deleteOnline && await _deleteOnline(space.id);
   }
 
-  Future<void> _deleteOnline(String spaceId) =>
-      _ref.read(backupControllerProvider.notifier).deleteOnlineBackups(spaceId);
+  /// Deletes [spaceId]'s online copies now or once online; true if they
+  /// wait.
+  Future<bool> _deleteOnline(String spaceId) =>
+      _ref.read(backupControllerProvider.notifier).deleteOnlineCopies(spaceId);
 
   /// Puts [kept] back: a cleared space gets its records again, a deleted
   /// space comes back as it was. The space opens.
@@ -271,23 +280,38 @@ class SpaceManager {
   );
 
   /// Deletes every space and everything the app keeps on this phone, at
-  /// once. Online backups and the sign-in go too when asked.
-  Future<void> deleteEverything({
+  /// once. Online backups and the sign-in go too when asked, if the server
+  /// can be reached; nothing is kept to do it later, so what could not be
+  /// done online is returned. Being offline never stops the deleting here.
+  Future<DeleteEverythingResult> deleteEverything({
     required bool deleteOnline,
     required bool deleteSignIn,
   }) async {
+    var onlineCopiesLeft = false;
     if (deleteOnline) {
+      final backups = _ref.read(backupControllerProvider.notifier);
       for (final space in await _ref.read(spacesProvider.future)) {
-        await _deleteOnline(space.id);
+        if ((await backups.deleteOnlineBackups(space.id)).isNotEmpty) {
+          onlineCopiesLeft = true;
+        }
       }
     }
+    AuthFailure? signInLeft;
     if (deleteSignIn) {
-      await _ref.read(authControllerProvider.notifier).deleteAccount();
+      try {
+        await _ref.read(authControllerProvider.notifier).deleteAccount();
+      } on AuthFailure catch (failure) {
+        signInLeft = failure;
+      }
     }
     final lock = _ref.read(databaseFileLockProvider);
     await lock.close(_ref.read(appDatabaseProvider));
     await lock.close(_ref.read(personalDatabaseProvider));
     await _ref.read(spaceFilesProvider).eraseEverything();
+    return DeleteEverythingResult(
+      onlineCopiesLeft: onlineCopiesLeft,
+      signInLeft: signInLeft,
+    );
   }
 
   static String _token() {
@@ -300,3 +324,17 @@ class SpaceManager {
 }
 
 final spaceManagerProvider = Provider<SpaceManager>(SpaceManager.new);
+
+/// What [SpaceManager.deleteEverything] could not do online.
+final class DeleteEverythingResult {
+  const DeleteEverythingResult({
+    this.onlineCopiesLeft = false,
+    this.signInLeft,
+  });
+
+  /// Whether online backups could not all be deleted.
+  final bool onlineCopiesLeft;
+
+  /// Why the sign-in could not be deleted, when asked and it failed.
+  final AuthFailure? signInLeft;
+}
