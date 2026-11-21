@@ -405,9 +405,9 @@ class PillDestination {
   final String label;
 }
 
-/// The floating pill from the design: icons over labels, the current tab in
-/// the text colour and bold, with no indicator behind it. A
-/// [selectedIndex] of -1 shows no tab as current.
+/// The tab bar: a pill on the plain background with a thin grey edge and no
+/// shadow, icons over labels, and the current tab in red and bold, with no
+/// indicator behind it. A [selectedIndex] of -1 shows no tab as current.
 class PillNavigationBar extends StatelessWidget {
   const PillNavigationBar({
     required this.destinations,
@@ -466,16 +466,14 @@ class PillNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = PesaColors.of(context);
+    final surface = Theme.of(context).colorScheme.surface;
     const shape = StadiumBorder();
 
     final bar = Container(
       height: height,
       decoration: ShapeDecoration(
-        color: glass
-            ? colors.floating.withValues(alpha: 0.72)
-            : colors.floating,
+        color: glass ? surface.withValues(alpha: 0.72) : surface,
         shape: StadiumBorder(side: BorderSide(color: colors.border)),
-        shadows: colors.floatingShadow,
       ),
       child: Material(
         type: MaterialType.transparency,

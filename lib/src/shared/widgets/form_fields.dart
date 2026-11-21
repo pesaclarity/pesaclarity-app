@@ -138,37 +138,39 @@ class DateField extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final date = value;
     final today = CalendarDate.local(ref.watch(clockProvider)());
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () async {
-        DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
-        final initial = date ?? firstDate;
-        final picked = await pickDate(
-          context,
-          initialDate: asDay(
-            initial.isAfter(lastDate)
-                ? lastDate
-                : (initial.isBefore(firstDate) ? firstDate : initial),
+    // The one field style: its label above, the value on an underline.
+    return LabeledField(
+      label: label,
+      child: InkWell(
+        onTap: () async {
+          DateTime asDay(CalendarDate d) => DateTime(d.year, d.month, d.day);
+          final initial = date ?? firstDate;
+          final picked = await pickDate(
+            context,
+            initialDate: asDay(
+              initial.isAfter(lastDate)
+                  ? lastDate
+                  : (initial.isBefore(firstDate) ? firstDate : initial),
+            ),
+            firstDate: asDay(firstDate),
+            lastDate: asDay(lastDate),
+          );
+          if (picked != null) {
+            onChanged(CalendarDate(picked.year, picked.month, picked.day));
+          }
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(
+            suffixIcon: clearable && date != null
+                ? IconButton(
+                    tooltip: 'Clear date',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => onChanged(null),
+                  )
+                : const Icon(Icons.calendar_today_outlined),
           ),
-          firstDate: asDay(firstDate),
-          lastDate: asDay(lastDate),
-        );
-        if (picked != null) {
-          onChanged(CalendarDate(picked.year, picked.month, picked.day));
-        }
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: clearable && date != null
-              ? IconButton(
-                  tooltip: 'Clear date',
-                  icon: const Icon(Icons.close),
-                  onPressed: () => onChanged(null),
-                )
-              : const Icon(Icons.calendar_today_outlined),
+          child: Text(date == null ? emptyText : _say(date, today)),
         ),
-        child: Text(date == null ? emptyText : _say(date, today)),
       ),
     );
   }

@@ -14,6 +14,7 @@ class ChoiceMenu<T> extends StatelessWidget {
     required this.onChanged,
     this.name,
     this.highlight = false,
+    this.fill,
     this.expand = false,
     this.itemKey,
     super.key,
@@ -27,8 +28,14 @@ class ChoiceMenu<T> extends StatelessWidget {
   /// What is being chosen, such as `Account`, for screen readers.
   final String? name;
 
-  /// Fills the pill, for a filter that is narrowing what shows.
+  /// Marks a filter that is narrowing what shows: its label turns red.
   final bool highlight;
+
+  /// A fill for the pill at rest, for Activity's filters, which keep the
+  /// look they had: filled, and filled with brand red while narrowing,
+  /// with the chosen menu row in the text colour. Without it the pill is
+  /// plain, with a grey edge, and says what is chosen in red.
+  final Color? fill;
 
   /// Takes the full width, for a form field.
   final bool expand;
@@ -46,9 +53,19 @@ class ChoiceMenu<T> extends StatelessWidget {
         .map((o) => o.$2)
         .firstOrNull;
     final text = current ?? '';
-    // A choice that narrows the list is filled with the brand red.
-    final fill = highlight ? scheme.primary : colors.field;
-    final ink = highlight ? scheme.onPrimary : scheme.onSurface;
+    final filled = fill != null;
+    // A choice that narrows the list says so in red: as a red label on the
+    // plain pill, or, where the pill is [fill]ed, as a brand-red pill.
+    final background = !filled
+        ? Colors.transparent
+        : highlight
+        ? scheme.primary
+        : fill!;
+    final ink = !highlight
+        ? scheme.onSurface
+        : filled
+        ? scheme.onPrimary
+        : colors.link;
     return MenuAnchor(
       alignmentOffset: const Offset(0, 4),
       menuChildren: [
@@ -61,7 +78,12 @@ class ChoiceMenu<T> extends StatelessWidget {
               color: option == value ? colors.link : Colors.transparent,
             ),
             onPressed: () => onChanged(option),
-            child: Text(label),
+            child: Text(
+              label,
+              style: option == value && !filled
+                  ? TextStyle(color: colors.link)
+                  : null,
+            ),
           ),
       ],
       builder: (context, menu, _) => Semantics(
@@ -69,9 +91,11 @@ class ChoiceMenu<T> extends StatelessWidget {
         label: '${name == null ? '' : '$name: '}$text. Change',
         excludeSemantics: true,
         child: Material(
-          color: fill,
+          color: background,
           shape: StadiumBorder(
-            side: BorderSide(color: highlight ? fill : colors.border),
+            side: BorderSide(
+              color: filled && highlight ? background : colors.border,
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(

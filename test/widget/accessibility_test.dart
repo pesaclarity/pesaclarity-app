@@ -305,7 +305,6 @@ void main() {
                 child: HeroFigureCard(
                   label: 'Safe to spend today · Weekday',
                   figure: 'KES 1,000',
-                  showEye: true,
                 ),
               ),
             ),
@@ -486,10 +485,9 @@ void main() {
         final small = colors.mutedSmall(theme.colorScheme.onSurface);
         for (final ground in [
           theme.scaffoldBackgroundColor,
+          // Cards, sheets and menus share the one plain surface now; there
+          // are no lifted or tinted grounds left to check.
           theme.colorScheme.surface,
-          colors.floating,
-          // A tinted card, such as "The drawer matches the records."
-          Color.alphaBlend(colors.successSoft, theme.scaffoldBackgroundColor),
         ]) {
           expect(contrast(small, ground), greaterThanOrEqualTo(4.5));
           // Darker than the usual muted text, lighter than body text.

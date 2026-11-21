@@ -105,19 +105,20 @@ void main() {
       );
     });
 
-    testOnIPhone('the theme follows iOS: large title, back chevron, rows', (
-      tester,
-    ) async {
+    testOnIPhone('the theme follows iOS: large title, back chevron; fields '
+        'are underlined, as on Android', (tester) async {
       final theme = AppTheme.light;
       expect(theme.textTheme.headlineLarge!.fontSize, 34);
       expect(theme.textTheme.headlineLarge!.fontWeight, FontWeight.w700);
       expect(theme.appBarTheme.centerTitle, isTrue);
       expect(theme.appBarTheme.titleTextStyle!.fontSize, 17);
       expect(theme.appBarTheme.titleTextStyle!.fontWeight, FontWeight.w600);
-      expect(theme.inputDecorationTheme.filled, isTrue);
+      // One field style everywhere: underlined with no fill, where iPhone
+      // fields were once filled rows.
+      expect(theme.inputDecorationTheme.filled, isFalse);
       expect(
-        theme.inputDecorationTheme.enabledBorder!.borderSide,
-        BorderSide.none,
+        theme.inputDecorationTheme.enabledBorder,
+        isA<UnderlineInputBorder>(),
       );
 
       await tester.pumpWidget(

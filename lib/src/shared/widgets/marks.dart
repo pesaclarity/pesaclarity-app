@@ -3,19 +3,32 @@ import 'package:flutter/material.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 
-/// What a [Tag] or [Notice] is about, which sets its colour.
+/// What a [Tag] or [Notice] is about, which sets its colour: grey, the
+/// text colour, or red. Never a fill.
 enum Tone {
-  /// Plain information.
+  /// Plain information, in muted grey.
   info,
 
-  /// Good news, such as a payment that matched.
+  /// Good news, such as a payment that matched: in the text colour, said
+  /// in words.
   success,
 
-  /// Something to check, such as an item running low.
+  /// A real problem, such as an item running low: in red.
   warning,
 }
 
-/// A small tag beside a name: "Running low", "Service", "Paid".
+/// The colour a [Tone] is written in.
+Color toneColor(BuildContext context, Tone tone) {
+  final colors = PesaColors.of(context);
+  return switch (tone) {
+    Tone.info => colors.textMuted,
+    Tone.success => colors.good,
+    Tone.warning => colors.problem,
+  };
+}
+
+/// A small tag beside a name: "Running low", "Service", "Paid". Its words
+/// on the plain background inside a thin grey edge.
 class Tag extends StatelessWidget {
   const Tag(this.text, {this.tone = Tone.info, super.key});
 
@@ -25,67 +38,49 @@ class Tag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = PesaColors.of(context);
-    final (fill, ink) = switch (tone) {
-      Tone.info => (colors.border, colors.textMuted),
-      Tone.success => (colors.successSoft, colors.successText),
-      Tone.warning => (colors.warningSoft, colors.warning),
-    };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(Layout.tagRadius),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: ShapeDecoration(
+        shape: StadiumBorder(side: BorderSide(color: colors.border)),
       ),
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelSmall!.copyWith(color: ink),
+        style: Theme.of(context).textTheme.labelSmall!
+            .copyWith(color: toneColor(context, tone)),
       ),
     );
   }
 }
 
-/// A short note in a tinted box, such as "Each one matches on its own when
-/// the message comes."
+/// A short note in a box with a thin edge, such as "Each one matches on
+/// its own when the message comes."
 class Notice extends StatelessWidget {
   const Notice(this.text, {this.tone = Tone.info, this.icon, super.key});
 
   final String text;
   final Tone tone;
 
-  /// Shown before the text.
+  /// Shown before the text, in the [tone]'s colour.
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
-    final (fill, edge, ink) = switch (tone) {
-      Tone.info => (theme.colorScheme.surface, colors.border, colors.textMuted),
-      Tone.success => (
-        colors.successSoft,
-        colors.success.withValues(alpha: 0.25),
-        colors.successText,
-      ),
-      Tone.warning => (
-        colors.warningSoft,
-        colors.warning.withValues(alpha: 0.25),
-        colors.warning,
-      ),
-    };
     return Container(
       padding: const EdgeInsets.all(Layout.cardPadding),
       decoration: BoxDecoration(
-        color: fill,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(Layout.panelRadius),
-        border: Border.all(color: edge),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 20, color: ink),
+            Icon(icon, size: 20, color: toneColor(context, tone)),
             const SizedBox(width: 12),
           ],
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
@@ -95,66 +90,59 @@ class Notice extends StatelessWidget {
   }
 }
 
-/// A row's leading icon in a soft square, such as on Home's cards.
+/// A row's leading icon in a thin grey ring, such as on Home's cards: the
+/// icon on the plain background, never on a fill.
 class IconBadge extends StatelessWidget {
   const IconBadge(this.icon, {super.key});
 
   final IconData icon;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: colors.border,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(
-        icon,
-        size: 22,
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _Badge(
+    child: Icon(icon, size: 22, color: Theme.of(context).colorScheme.onSurface),
+  );
 }
 
-/// A name's initials in a square the size and shape of an [IconBadge]:
-/// neutral, as an Activity row's are, or [tinted] with the brand, as an
-/// account's letter on Balances is.
+/// A name's initials in a ring the size and shape of an [IconBadge], in the
+/// text colour on the plain background.
 class InitialsBadge extends StatelessWidget {
-  const InitialsBadge(this.text, {this.tinted = false, super.key});
+  const InitialsBadge(this.text, {super.key});
 
   final String text;
-  final bool tinted;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = PesaColors.of(context);
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tinted ? colors.brandSoft : colors.border,
-        borderRadius: BorderRadius.circular(12),
+  Widget build(BuildContext context) => _Badge(
+    // Initials shrink to fit the badge at larger text rather than wrap.
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        text,
+        softWrap: false,
+        style: Theme.of(context).textTheme.labelLarge!
+            .copyWith(color: Theme.of(context).colorScheme.onSurface),
       ),
-      // Initials shrink to fit the badge at larger text rather than wrap.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          text,
-          softWrap: false,
-          style: Theme.of(context).textTheme.labelLarge!.copyWith(
-            color: tinted
-                ? colors.link
-                : Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
+    ),
+  );
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 44,
+    height: 44,
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(4),
+    decoration: ShapeDecoration(
+      shape: CircleBorder(
+        side: BorderSide(color: PesaColors.of(context).border),
       ),
-    );
-  }
+    ),
+    child: child,
+  );
 }
 
 /// An action word at the end of a row, such as "Edit" or "Change", in the

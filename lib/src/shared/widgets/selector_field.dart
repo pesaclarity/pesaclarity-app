@@ -29,58 +29,37 @@ class SelectorField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    // The one field style: the label above, the value on an underline, no
+    // box and no fill.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
-          ),
-        ),
+        ExcludeSemantics(child: Text(label, style: theme.textTheme.bodyMedium)),
         Semantics(
           button: true,
           label: '$label: $value. Change',
           excludeSemantics: true,
-          child: Material(
-            color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: colors.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 56),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(value, style: theme.textTheme.bodyLarge),
-                            if (detail != null)
-                              Text(
-                                detail!,
-                                style: theme.textTheme.bodySmall!.copyWith(
-                                  color: colors.textMuted,
-                                ),
-                              ),
-                          ],
-                        ),
+          child: InkWell(
+            onTap: onTap,
+            child: InputDecorator(
+              decoration: InputDecoration(
+                enabled: onTap != null,
+                suffixIcon: Icon(Icons.chevron_right, color: colors.textMuted),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(value, style: theme.textTheme.bodyLarge),
+                  if (detail != null)
+                    Text(
+                      detail!,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: colors.textMuted,
                       ),
-                      Icon(Icons.chevron_right, color: colors.textMuted),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
             ),
           ),
