@@ -37,7 +37,11 @@ class TaxScreen extends ConsumerWidget {
         moneyOrHidden(minor, hidden: hidden, withCurrency: false);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tax')),
+      appBar: AppBar(
+        title: const Text('Tax'),
+        // The eye last in the bar, never on the red card.
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: view == null
           ? loaded.hasError
                 ? ErrorView(
@@ -75,7 +79,6 @@ class TaxScreen extends ConsumerWidget {
     TaxView view,
     String Function(int) plain,
   ) {
-    final colors = PesaColors.of(context);
     final e = view.income;
     final f = e.figures;
     final count = view.withheld.length;
@@ -146,7 +149,7 @@ class TaxScreen extends ConsumerWidget {
             label: 'Left to pay',
             value: plain(e.leftMinor),
             strong: true,
-            valueColor: e.leftMinor > 0 ? colors.warning : colors.successText,
+            // An estimate for the year, not yet due: plain text.
           ),
         ],
       ),
@@ -226,9 +229,10 @@ class TaxScreen extends ConsumerWidget {
             value: plain(last.leftMinor),
             detail: 'Due ${shortDate(last.due)}',
             strong: true,
-            valueColor: last.leftMinor > 0
-                ? colors.warning
-                : colors.successText,
+            // Red only once it is past due, a real problem.
+            valueColor: last.leftMinor > 0 && last.due.isBefore(view.today)
+                ? colors.problem
+                : null,
           ),
         ],
       ),
@@ -355,8 +359,9 @@ class TaxScreen extends ConsumerWidget {
                         width: 8,
                         height: 8,
                         margin: const EdgeInsets.only(top: 6, right: 12),
+                        // A plain grey bullet: these are notes, not problems.
                         decoration: BoxDecoration(
-                          color: PesaColors.of(context).link,
+                          color: PesaColors.of(context).textMuted,
                           shape: BoxShape.circle,
                         ),
                       ),

@@ -275,13 +275,16 @@ void main() {
     // Only the red card's figure carries the currency code.
     expect(find.textContaining('KES'), findsOneWidget);
 
-    // The eye on the card hides every amount on Home.
-    await tester.tap(
+    // The eye, last in Home's header (never on the red card), hides every
+    // amount on Home.
+    expect(
       find.descendant(
         of: find.byKey(const Key('until-next-money')),
         matching: find.byKey(const Key('amounts-eye')),
       ),
+      findsNothing,
     );
+    await tester.tap(find.byKey(const Key('amounts-eye')));
     await tester.pumpAndSettle();
     expect(find.text('KES 300'), findsNothing);
     expect(

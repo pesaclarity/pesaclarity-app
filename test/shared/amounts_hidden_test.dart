@@ -22,9 +22,8 @@ void main() {
     expect(moneyOrHidden(5000, hidden: true, currency: 'USD'), 'USD •••••');
   });
 
-  testWidgets('one eye: the same look on a lead card and on a title row', (
-    tester,
-  ) async {
+  testWidgets('one eye: the same look on every title row, never on the '
+      'lead card', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -33,6 +32,12 @@ void main() {
             child: Scaffold(
               body: Column(
                 children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text('Today')),
+                      AmountsEye(),
+                    ],
+                  ),
                   HeroFigureCard(label: 'Sales today', figure: 'KES 4,850'),
                   Row(
                     children: [
@@ -50,6 +55,14 @@ void main() {
     );
     final eyes = find.byKey(const Key('amounts-eye'));
     expect(eyes, findsNWidgets(2));
+    // The red card has no eye of its own: the header's eye hides it too.
+    expect(
+      find.descendant(
+        of: find.byType(HeroFigureCard),
+        matching: find.byType(AmountsEye),
+      ),
+      findsNothing,
+    );
     expect(find.byIcon(Icons.visibility_outlined), findsNWidgets(2));
     expect(find.text('KES 4,850'), findsOneWidget);
     expect(find.text('1,200'), findsOneWidget);

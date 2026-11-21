@@ -11,8 +11,9 @@ import 'figures.dart';
 /// white. Every red card is this one, so they all look and behave the
 /// same. In dark it keeps the same red, never a pink.
 ///
-/// Amounts in [figure] and [caption] are masked while balances are hidden,
-/// and the card then offers the eye button that shows or hides them.
+/// Amounts in [figure] and [caption] are masked while balances are hidden.
+/// The eye that shows or hides them is never on the card: it sits last in
+/// the screen's header or app bar.
 class HeroFigureCard extends StatelessWidget {
   const HeroFigureCard({
     required this.label,
@@ -20,7 +21,6 @@ class HeroFigureCard extends StatelessWidget {
     this.caption,
     this.footer,
     this.onTap,
-    this.showEye,
     this.belowZero = false,
     super.key,
   });
@@ -39,9 +39,6 @@ class HeroFigureCard extends StatelessWidget {
   final Widget? footer;
   final VoidCallback? onTap;
 
-  /// Whether the eye shows; by default, when the card shows an amount.
-  final bool? showEye;
-
   /// Whether the person is below zero. On the red card the figure stays
   /// white and its minus sign shows it; say why in [caption].
   final bool belowZero;
@@ -52,108 +49,47 @@ class HeroFigureCard extends StatelessWidget {
     final textTheme = theme.textTheme;
     final hidden = AmountsHidden.of(context);
     final figure = this.figure;
-    final hasAmount =
-        (figure != null && containsAmount(figure)) ||
-        (caption != null && containsAmount(caption!));
-    final eye = showEye ?? hasAmount;
     final scheme = theme.colorScheme;
     final onCard = scheme.onPrimary;
     final figureColor = onCard;
+    final shown = figure == null ? null : maskAmountsIf(hidden, figure);
+    final figureStyle = AppTypography.leadFigure(figureColor);
 
     return Card(
       color: scheme.primary,
       child: InkWell(
         onTap: onTap,
         // The card starts at its minimum height and grows with its text.
-        child: Stack(
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final shown = figure == null
-                    ? null
-                    : maskAmountsIf(hidden, figure);
-                final figureStyle = AppTypography.leadFigure(figureColor);
-                // The eye keeps its corner clear. A figure too wide to
-                // sit beside it takes the card's full width on a line
-                // below the eye, rather than splitting.
-                final underEye =
-                    eye &&
-                    shown != null &&
-                    FigureText.numberWidth(context, shown, figureStyle) >
-                        constraints.maxWidth -
-                            Layout.heroPadding -
-                            Layout.heroEyeSpace;
-                final besideEye = eye && !underEye;
-                final labelText = Text(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: Layout.heroMinHeight,
+            minWidth: double.infinity,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(Layout.heroPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
                   label,
                   style: textTheme.labelLarge!.copyWith(color: onCard),
-                );
-                return ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: Layout.heroMinHeight,
-                    minWidth: double.infinity,
+                ),
+                if (shown != null) ...[
+                  const SizedBox(height: 4),
+                  _LeadFigure(shown, style: figureStyle),
+                ],
+                if (caption != null) ...[
+                  SizedBox(height: figure == null ? 6 : 8),
+                  Text(
+                    maskAmountsIf(hidden, caption!.replaceAll('\n', ' · ')),
+                    style: textTheme.bodyMedium!.copyWith(color: onCard),
                   ),
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(
-                      Layout.heroPadding,
-                      Layout.heroPadding,
-                      besideEye ? Layout.heroEyeSpace : Layout.heroPadding,
-                      Layout.heroPadding,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (underEye)
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              minHeight:
-                                  Layout.heroEyeInset +
-                                  Layout.minTouch -
-                                  Layout.heroPadding,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.only(
-                                end: Layout.heroEyeSpace - Layout.heroPadding,
-                              ),
-                              child: labelText,
-                            ),
-                          )
-                        else
-                          labelText,
-                        if (shown != null) ...[
-                          const SizedBox(height: 4),
-                          FigureText(shown, style: figureStyle),
-                        ],
-                        if (caption != null) ...[
-                          SizedBox(height: figure == null ? 6 : 8),
-                          Text(
-                            maskAmountsIf(
-                              hidden,
-                              caption!.replaceAll('\n', ' · '),
-                            ),
-                            style: textTheme.bodyMedium!.copyWith(
-                              color: onCard,
-                            ),
-                          ),
-                        ],
-                        if (footer != null) ...[
-                          const SizedBox(height: 12),
-                          footer!,
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
+                ],
+                if (footer != null) ...[const SizedBox(height: 12), footer!],
+              ],
             ),
-            if (eye)
-              PositionedDirectional(
-                top: Layout.heroEyeInset,
-                end: Layout.heroEyeInset,
-                child: AmountsEye(color: onCard),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -182,7 +118,7 @@ class HeroProgress extends StatelessWidget {
             value: value,
             minHeight: 8,
             color: onCard,
-            backgroundColor: const Color(0x33000000),
+            backgroundColor: _track,
           ),
         ),
         if (label != null) ...[
@@ -195,4 +131,38 @@ class HeroProgress extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The empty part of a bar on the red card: brand red one step deeper, an
+/// opaque colour (as the card has always drawn it) rather than a shade
+/// laid over the card.
+const _track = Color(0xFFA00D25);
+
+/// The card's figure on one line, or, when it is too wide for the card (as
+/// at large text), its currency code on the line above the number, so the
+/// number shows whole rather than fading at the card's edge. One text, so
+/// it reads as one amount.
+class _LeadFigure extends StatelessWidget {
+  const _LeadFigure(this.value, {required this.style});
+
+  final String value;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final space = value.lastIndexOf(' ');
+      if (space < 0 ||
+          FigureText.numberWidth(context, value, style) <=
+              constraints.maxWidth ||
+          FigureText.numberWidth(context, value.substring(space + 1), style) >
+              constraints.maxWidth) {
+        return FigureText(value, style: style);
+      }
+      return readAsAmount(
+        value,
+        Text(value, style: style, textScaler: figureTextScaler(context, style)),
+      );
+    },
+  );
 }

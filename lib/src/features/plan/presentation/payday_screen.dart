@@ -21,7 +21,11 @@ class PaydayScreen extends ConsumerWidget {
     final proposal = ref.watch(paydayProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Payday')),
+      appBar: AppBar(
+        title: const Text('Payday'),
+        // The eye last in the bar, never on the red card.
+        actions: const [AmountsEye(), SizedBox(width: 8)],
+      ),
       body: switch (proposal) {
         AsyncData(value: final p?) => _Checklist(p),
         AsyncData() => const Padding(

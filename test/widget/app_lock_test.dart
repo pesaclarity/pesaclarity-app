@@ -282,15 +282,19 @@ void main() {
     expect(container.read(balancesHiddenProvider), isTrue);
   });
 
-  testWidgets('the hero card masks amounts and toggles them', (tester) async {
+  testWidgets('the hero card masks amounts; the eye in the bar toggles them', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
           theme: AppTheme.light,
           // The app puts the eye's state over every screen.
           builder: (context, child) => AmountsHiddenScope(child: child!),
-          home: const Scaffold(
-            body: HeroFigureCard(
+          // The eye sits in the screen's bar, never on the red card.
+          home: Scaffold(
+            appBar: AppBar(actions: const [AmountsEye()]),
+            body: const HeroFigureCard(
               label: 'Safe to spend today',
               figure: 'KES 1,200',
               caption: 'Weekdays KES 950, weekends KES 1,500.',

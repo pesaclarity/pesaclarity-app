@@ -54,6 +54,8 @@ class SubscriptionsScreen extends ConsumerWidget {
             tooltip: 'Add a subscription',
             onPressed: () => showSubscriptionSheet(context),
           ),
+          // The eye last, never on the red card.
+          const AmountsEye(),
           const SizedBox(width: 8),
         ],
       ),
@@ -136,7 +138,7 @@ class _Body extends ConsumerWidget {
                                 '${shortDate(line.nextDate)}',
                       style: line.previousAmountMinor == null
                           ? null
-                          : TextStyle(color: colors.warning),
+                          : TextStyle(color: colors.problem),
                     ),
                     trailing: Text(
                       _amount(context, line.amountMinor),
