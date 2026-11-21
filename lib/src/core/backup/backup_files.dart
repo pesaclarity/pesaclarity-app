@@ -18,6 +18,7 @@ abstract final class BackupFiles {
     required String output,
     required String passphrase,
     required List<int> recoveryKeyBytes,
+    String? space,
     KdfParams kdfParams = KdfParams.recommended,
   }) async {
     final source = File(snapshot);
@@ -26,6 +27,7 @@ abstract final class BackupFiles {
       schemaVersion: schemaVersion,
       databaseKeyHex: snapshotKeyHex,
       databaseBytes: await source.length(),
+      space: space,
     );
     final codec = BackupCodec(kdfParams: kdfParams);
     final sink = File(output).openWrite();

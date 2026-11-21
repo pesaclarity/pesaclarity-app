@@ -47,10 +47,15 @@ abstract interface class LocalDataStore {
   /// [directory].
   Future<DatabaseSnapshot> snapshot(Directory directory, {String? space});
 
-  /// Checks [staged] (keyed with [stagedKeyHex]) and, only if it is sound,
-  /// makes it the app's data. The current data stays in place if any step
-  /// fails.
-  Future<void> replaceWith(File staged, String stagedKeyHex);
+  /// Checks [staged] (keyed with [stagedKeyHex]) and, only if it is sound
+  /// and a copy of the open space, makes it the open space's data. The
+  /// current data stays in place if any step fails.
+  ///
+  /// [ofSpace] is the space the copy was made of; one of another space is
+  /// refused. A file made before backups named their space has none: then
+  /// a copy of Personal is refused in any other space and the other way
+  /// round, which the copy's own kind tells.
+  Future<void> replaceWith(File staged, String stagedKeyHex, {String? ofSpace});
 }
 
 /// Copies [db] into [file] with `sqlcipher_export`, under a fresh random key.
@@ -81,8 +86,16 @@ Future<String> exportDatabase(AppDatabase db, File file) async {
   return key;
 }
 
+/// Why a backup of one space cannot replace another.
+const anotherSpaceMessage =
+    'This backup is of another space. Open that space, then restore it '
+    'there.';
+
 /// Opens [path] with [stagedKeyHex], checks it is a sound Pesa Clarity
 /// database no newer than [maxSchemaVersion], then re-keys it to [deviceKeyHex].
+///
+/// With [personal], it must also be a copy of Personal (true) or of another
+/// space (false), as its own `space.kind` setting says.
 ///
 /// Synchronous so it can run in a background isolate.
 void checkAndRekeyDatabase({
@@ -90,6 +103,7 @@ void checkAndRekeyDatabase({
   required String stagedKeyHex,
   required String deviceKeyHex,
   required int maxSchemaVersion,
+  bool? personal,
 }) {
   final db = sqlite3.open(path);
   try {
@@ -124,6 +138,23 @@ void checkAndRekeyDatabase({
       throw const RestoredDataException(
         'This file does not hold Pesa Clarity data.',
       );
+    }
+    if (personal != null) {
+      // Older files may have no settings table: they are all Personal's.
+      final hasSettings = db
+          .select(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'app_settings'",
+          )
+          .isNotEmpty;
+      final kind = hasSettings
+          ? db.select("SELECT value FROM app_settings WHERE key = 'space.kind'")
+          : const <Row>[];
+      final isPersonal =
+          kind.isEmpty || kind.first.values.first == '"personal"';
+      if (isPersonal != personal) {
+        throw const RestoredDataException(anotherSpaceMessage);
+      }
     }
     if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(deviceKeyHex)) {
       throw ArgumentError('Device key must be 64 lowercase hex characters');
@@ -203,7 +234,16 @@ class SqlCipherLocalDataStore implements LocalDataStore {
   }
 
   @override
-  Future<void> replaceWith(File staged, String stagedKeyHex) async {
+  Future<void> replaceWith(
+    File staged,
+    String stagedKeyHex, {
+    String? ofSpace,
+  }) async {
+    final open = _ref.read(activeSpaceIdProvider);
+    if (ofSpace != null && ofSpace != open) {
+      throw const RestoredDataException(anotherSpaceMessage);
+    }
+    final personal = ofSpace == null ? open == personalSpaceId : null;
     final deviceKey = await _ref
         .read(databaseKeyStoreProvider)
         .readOrCreateKey();
@@ -216,6 +256,7 @@ class SqlCipherLocalDataStore implements LocalDataStore {
         stagedKeyHex: stagedKeyHex,
         deviceKeyHex: deviceKey,
         maxSchemaVersion: maxSchema,
+        personal: personal,
       ),
     );
 

@@ -226,7 +226,9 @@ class SpaceManager {
     // Restoring replaces the file, so it must not be needed afterwards.
     final staged = File('${file.path}.restoring');
     await file.copy(staged.path);
-    await _ref.read(localDataStoreProvider).replaceWith(staged, kept.keyHex);
+    await _ref
+        .read(localDataStoreProvider)
+        .replaceWith(staged, kept.keyHex, ofSpace: kept.space.id);
     await _forget(kept);
   }
 
