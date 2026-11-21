@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/exchange_rates.dart';
+import '../../domain/categories/default_categories.dart';
+import '../../domain/ledger/balances.dart';
 import '../../domain/ledger/cross_currency_transfers.dart';
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_transfers.dart';
@@ -44,6 +46,11 @@ abstract interface class TransactionsRepository {
   /// Transactions with time in `[from, to)` as ledger entries, oldest first,
   /// with their payee applied (see `applyPayee`) and their tags. Only those
   /// tagged [tagId] when given.
+  ///
+  /// Money out of a day-to-day account that the person, or its message,
+  /// says went to one of their savings accounts (SACCO or money market) is
+  /// filed under the seeded Savings category, unless they chose a category
+  /// for it or its payee has one.
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
@@ -319,6 +326,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
+    final savings = await _intoSavings(categories.values);
     final accounts = accountIds?.toList();
     final only = ids?.toList();
     String any(List<int> list) => List.filled(list.length, '?').join(', ');
@@ -374,6 +382,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           categories,
           tags,
           _converter,
+          savings: savings,
         ),
     ];
     return _withExchangeCosts(entries, records, categories);
@@ -446,6 +455,26 @@ class DriftTransactionsRepository implements TransactionsRepository {
         else
           e,
     ];
+  }
+
+  /// The person's savings accounts and the seeded Savings category, which
+  /// money moved into them is filed under. Null when that category is gone
+  /// or there is no savings account.
+  Future<_IntoSavings?> _intoSavings(Iterable<Category> categories) async {
+    final category = categories
+        .where((c) => c.key == savingsCategoryKey)
+        .firstOrNull;
+    if (category == null) return null;
+    final a = _db.accounts;
+    final accounts =
+        await (_db.selectOnly(a)
+              ..addColumns([a.id])
+              ..where(a.type.isInValues(savingsAccountTypes)))
+            .map((row) => row.read(a.id)!)
+            .get();
+    return accounts.isEmpty
+        ? null
+        : _IntoSavings(accounts.toSet(), category.id);
   }
 
   @override
@@ -765,13 +794,29 @@ Converted? convertRecord(
   gotRate: record.fxRateMicros == null ? null : record.fxRateMicros! / 1e6,
 );
 
+/// The person's savings accounts, and the category money moved into them is
+/// filed under.
+class _IntoSavings {
+  const _IntoSavings(this.accountIds, this.categoryId);
+
+  final Set<int> accountIds;
+  final int categoryId;
+
+  /// Whether [record] moved money from a day-to-day account into savings.
+  bool takes(TransactionRecord record) =>
+      record.direction == TransactionDirection.outflow &&
+      accountIds.contains(record.transferAccountId) &&
+      !accountIds.contains(record.accountId);
+}
+
 LedgerEntry _toLedgerEntry(
   TransactionRecord record,
   Payee? payee,
   Map<int, Category> categories,
   Map<int, Set<int>> tags,
-  CurrencyConverter? converter,
-) {
+  CurrencyConverter? converter, {
+  _IntoSavings? savings,
+}) {
   // Amounts in another currency are converted into the base one, at the
   // rate the person got or else the rates of their day; with no rate they
   // keep their own currency, so totals in the base leave them out.
@@ -801,7 +846,13 @@ LedgerEntry _toLedgerEntry(
     autoCategoryId: record.autoCategoryId,
     isInflow: record.direction == TransactionDirection.inflow,
   );
-  final categoryId = applied.categoryId;
+  // Money moved into savings is saved, whatever was suggested for it: only
+  // the person's own choice or the payee's category says otherwise.
+  final saved =
+      savings != null &&
+      savings.takes(record) &&
+      (applied.categoryId == null || applied.isCategoryAuto);
+  final categoryId = saved ? savings.categoryId : applied.categoryId;
   final category = categoryId == null ? null : categories[categoryId];
   return LedgerEntry(
     id: record.id,
@@ -816,7 +867,7 @@ LedgerEntry _toLedgerEntry(
     categoryId: categoryId,
     categoryType: category?.type,
     isDailySpending: category?.isDailySpending ?? false,
-    categoryIsAuto: applied.isCategoryAuto,
+    categoryIsAuto: !saved && applied.isCategoryAuto,
     needsPurpose: applied.needsPurpose,
     transferPairId: record.transferPairId,
     transferAccountId: record.transferAccountId,

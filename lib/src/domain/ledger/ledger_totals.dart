@@ -25,8 +25,9 @@ class LedgerTotals {
   /// every entry (own transfers too, since moving money still costs), what
   /// an own transfer across currencies cost to exchange (on the day the
   /// money arrived; a gain lowers fees) and the fee share of Fuliza
-  /// repayments; the rest of a repayment counts as debt
-  /// repayment. Own transfers are counted once, by their outflow half.
+  /// repayments; the rest of a repayment counts as debt repayment. Own
+  /// transfers are counted once, by their outflow half; one that moved
+  /// money into savings (see [isSavedByTransfer]) counts as saving instead.
   factory LedgerTotals.of(
     Iterable<LedgerEntry> history, {
     required DateTime from,
@@ -70,7 +71,11 @@ class LedgerTotals {
         case LedgerRole.borrowing:
           borrowing += amount;
         case LedgerRole.ownTransfer:
-          if (entry.isOutflow) transfers += amount;
+          if (isSavedByTransfer(entry)) {
+            saving += amount;
+          } else if (entry.isOutflow) {
+            transfers += amount;
+          }
         case LedgerRole.awaitingPayee:
           awaiting += amount;
         case LedgerRole.correction:
@@ -102,11 +107,16 @@ class LedgerTotals {
   final int spendingMinor;
   final int feesMinor;
   final int taxMinor;
+
+  /// Money put into savings: paid to a savings payee, or moved into one of
+  /// the person's own savings accounts.
   final int savingMinor;
 
   /// Debt repayments excluding the Fuliza fee share.
   final int debtRepaymentMinor;
   final int borrowingMinor;
+
+  /// Moves between the person's own accounts, other than into savings.
   final int ownTransferMinor;
 
   /// Received from people not yet named; neutral until they are.

@@ -123,6 +123,9 @@ const defaultCategories = <CategorySeed>[
   CategorySeed('own_transfer', 'Own transfer', CategoryType.transfer),
 ];
 
+/// The key of the seeded category money moved into savings counts under.
+const savingsCategoryKey = 'savings';
+
 /// An existing category as seeding sees it.
 typedef ExistingCategory = ({String? key, String name});
 

@@ -113,6 +113,17 @@ LedgerRole roleOf(LedgerEntry entry) {
   };
 }
 
+/// Whether [entry] is money moved into the person's own savings: an own
+/// transfer out under a savings category, such as one into a savings
+/// account of theirs (see `TransactionsRepository.ledgerEntries`) or a
+/// payment to M-Shwari they said went to an account of their own. It is
+/// still an own transfer, never spending, but it counts as saved, as it did
+/// before it was matched, so a planned Savings line is met by it.
+bool isSavedByTransfer(LedgerEntry entry) =>
+    entry.isOutflow &&
+    entry.categoryType == CategoryType.savings &&
+    roleOf(entry) == LedgerRole.ownTransfer;
+
 /// Whether Activity should ask the user to name this entry's payee.
 ///
 /// Only person-to-person money with no payee yet; own transfers never ask.
