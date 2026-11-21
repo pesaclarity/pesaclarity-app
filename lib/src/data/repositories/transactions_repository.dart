@@ -17,6 +17,7 @@ import '../database/database_providers.dart';
 import 'message_links.dart';
 import 'message_twins_store.dart';
 import 'payees_repository.dart';
+import 'savings_links.dart';
 
 /// The ledger of transactions from SMS, statements and manual entry.
 abstract interface class TransactionsRepository {
@@ -24,7 +25,9 @@ abstract interface class TransactionsRepository {
   Stream<List<TransactionRecord>> watchRecent({int limit = 50, int? tagId});
 
   /// Stores [transaction]. Without a payee id, a counterparty (normalised
-  /// with `PayeeIdentifier`) is resolved to its named payee, if any.
+  /// with `PayeeIdentifier`) is resolved to its named payee, if any. One on
+  /// a savings account the app keeps, or said to have moved to or from one,
+  /// joins that account's entries (see `linkSavingsPayments`).
   Future<int> add(TransactionsCompanion transaction);
 
   /// Stores each of [transactions] whose account has no transaction with the
@@ -36,7 +39,10 @@ abstract interface class TransactionsRepository {
   /// transfer, or two messages with the same reference) is merged into that
   /// transaction instead of stored again. A new transaction whose message
   /// names one of the person's other accounts as where it went counts as an
-  /// own transfer, and a loan repayment is recorded against its debt.
+  /// own transfer, and a loan repayment is recorded against its debt. A
+  /// payment into a savings account the app keeps, or money back from it,
+  /// gets its entry there and counts as an own transfer (see
+  /// `linkSavingsPayments`).
   Future<int> addNew(Iterable<TransactionsCompanion> transactions);
 
   /// Finds an existing transaction with the same receipt, for dedupe between
@@ -74,11 +80,15 @@ abstract interface class TransactionsRepository {
   Future<void> match(int outflowId, int inflowId);
 
   /// Undoes the own transfer [id] is half of, so both count as they were
-  /// and pairing never matches them again.
+  /// and pairing never matches them again. A payment into or out of a
+  /// savings account the app keeps stays matched with its entry there.
   Future<void> unmatch(int id);
 
   /// Marks [id] as money moved to or from the person's own [accountId], or
-  /// clears that with null, then pairs it if its other side is here.
+  /// clears that with null, then pairs it if its other side is here. Naming
+  /// a savings account the app keeps writes the other side there at once,
+  /// since no message will bring it; an entry on such an account names no
+  /// other account.
   Future<void> setTransferAccount(int id, int? accountId);
 
   /// Pairs the person unmatched.
@@ -159,9 +169,13 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<int> add(TransactionsCompanion transaction) async => _db
-      .into(_db.transactions)
-      .insert(_withPayee(transaction, await payeeDirectory(_db)));
+  Future<int> add(TransactionsCompanion transaction) async {
+    final id = await _db
+        .into(_db.transactions)
+        .insert(_withPayee(transaction, await payeeDirectory(_db)));
+    await linkSavingsPayments(_db, [id]);
+    return id;
+  }
 
   @override
   Future<int> addNew(Iterable<TransactionsCompanion> transactions) =>
@@ -177,6 +191,8 @@ class DriftTransactionsRepository implements TransactionsRepository {
         }
 
         final inserted = <int>[];
+        // Stored transactions a second message changed.
+        final changed = <int>[];
         for (final transaction in transactions) {
           final key = transaction.dedupeKey.present
               ? transaction.dedupeKey.value
@@ -186,7 +202,10 @@ class DriftTransactionsRepository implements TransactionsRepository {
             // M-Pesa's own and KCB's confirmation of one payment: keep what
             // only the new one says, such as M-Pesa's balance and fee.
             final same = await _storedTwinByKey(transaction, key);
-            if (same != null) await mergeTwin(_db, same, transaction);
+            if (same != null) {
+              await mergeTwin(_db, same, transaction);
+              changed.add(same.id);
+            }
             continue;
           }
           final row = _withPayee(transaction, directory);
@@ -194,6 +213,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           final twin = await findTwin(_db, row);
           if (twin != null) {
             await mergeTwin(_db, twin.record, row, match: twin.match);
+            changed.add(twin.record.id);
             merged++;
             touched(twin.record.occurredAt);
             touched(row.occurredAt.value);
@@ -203,6 +223,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           final card = await findCardTwin(_db, row, _converter);
           if (card != null) {
             await mergeCardTwin(_db, card, row);
+            changed.add(card.id);
             merged++;
             touched(card.occurredAt);
             continue;
@@ -217,6 +238,11 @@ class DriftTransactionsRepository implements TransactionsRepository {
             await markTransferToOwnAccount(_db, id, accounts: accounts);
             await linkLoanRepayment(_db, id);
           }
+        }
+        // Before pairing, so a payment into savings is never paired with
+        // something unrelated first.
+        if (inserted.isNotEmpty || changed.isNotEmpty) {
+          await linkSavingsPayments(_db, [...inserted, ...changed]);
         }
         if (added > 0 || merged > 0) {
           await pairOwnTransfers(from: earliest, to: latest);
@@ -591,6 +617,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> unmatch(int id) => _db.transaction(() async {
+    if (await isSavingsLinked(_db, id)) return;
     final row = await (_db.select(
       _db.transactions,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
@@ -617,13 +644,17 @@ class DriftTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> setTransferAccount(int id, int? accountId) async {
+    if (await isSavingsEntry(_db, id)) return;
     final row =
         await (_db.update(
           _db.transactions,
         )..where((t) => t.id.equals(id))).writeReturning(
           TransactionsCompanion(transferAccountId: Value(accountId)),
         );
-    if (accountId == null || row.isEmpty) return;
+    if (row.isEmpty) return;
+    // A savings account the app keeps gets, or loses, its side at once.
+    await linkSavingsPayments(_db, [id]);
+    if (accountId == null) return;
     final at = row.single.occurredAt;
     await pairOwnTransfers(from: at, to: at);
   }
@@ -926,6 +957,9 @@ Stream<void> ledgerTableUpdates(AppDatabase db) => db.tableUpdates(
     db.invoices,
     db.invoiceLines,
     db.etimsCosts,
+    db.savingsPockets,
+    db.savingsEntries,
+    db.savingsReadings,
   ]),
 );
 
