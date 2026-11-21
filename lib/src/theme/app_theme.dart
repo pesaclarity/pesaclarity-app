@@ -312,9 +312,8 @@ abstract final class AppTheme {
         elevation: 0,
         modalElevation: 0,
         shadowColor: Colors.transparent,
-        // The page shows above a sheet behind no shade, so a thin edge
-        // along the sheet's top sets it apart.
-        modalBarrierColor: Colors.transparent,
+        // The screen behind keeps its plain dark dim, so it reads as
+        // paused; the thin edge along the top sets the sheet apart too.
         shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.vertical(
             top: Radius.circular(BrandTokens.cardRadius),
@@ -327,7 +326,7 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
-        barrierColor: Colors.transparent,
+        // The usual plain dim behind, so the screen reads as paused.
         shape: floatingShape,
       ),
       timePickerTheme: TimePickerThemeData(

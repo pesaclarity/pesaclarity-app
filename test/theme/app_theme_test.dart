@@ -251,6 +251,10 @@ void main() {
         expect(theme.bottomSheetTheme.modalElevation, 0);
         expect(theme.dialogTheme.elevation, 0);
         expect(theme.chipTheme.elevation, 0);
+        // Sheets and dialogs keep the default plain dim behind them (no
+        // shadow), so the screen behind reads as paused.
+        expect(theme.bottomSheetTheme.modalBarrierColor, isNull);
+        expect(theme.dialogTheme.barrierColor, isNull);
       }
     });
 
