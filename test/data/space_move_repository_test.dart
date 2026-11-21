@@ -5,9 +5,11 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/debts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/review_inbox_repository.dart';
+import 'package:pesaclarity/src/data/repositories/savings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/space_move_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/debts/debt.dart';
+import 'package:pesaclarity/src/domain/savings/savings_product.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/accounts/domain/institution.dart';
@@ -426,5 +428,44 @@ void main() {
       expect(await personal.select(personal.transactions).get(), isEmpty);
       expect(await business.select(business.transactions).get(), hasLength(1));
     });
+  });
+
+  test('a payment into a savings account the app keeps stays, with its '
+      'entry there', () async {
+    // A made-up payment to the Chumz paybill, and Chumz added.
+    final paid = await DriftTransactionsRepository(personal).add(
+      TransactionsCompanion.insert(
+        accountId: mpesa,
+        occurredAt: DateTime.utc(2026, 11, 3, 9),
+        amountMinor: 100000,
+        direction: TransactionDirection.outflow,
+        kind: const Value(TransactionKind.paybill),
+        source: TransactionSource.sms,
+        counterpartyKind: const Value(PayeeIdentifierKind.paybill),
+        counterpartyValue: const Value('NABO CAPITAL LTD C2B#CH12345'),
+        counterpartyName: const Value('NABO CAPITAL LTD C2B'),
+        receiptNo: const Value('QK3'),
+        dedupeKey: const Value('QK3|100000|t'),
+      ),
+    );
+    final savings = DriftSavingsRepository(personal);
+    addTearDown(savings.dispose);
+    final chumzId = (await savings.add(
+      chumz,
+      at: DateTime.utc(2026, 11, 4),
+    )).accountId;
+    final mirror = await (personal.select(
+      personal.transactions,
+    )..where((t) => t.accountId.equals(chumzId))).getSingle();
+    final before = await personal.select(personal.transactions).get();
+
+    // Neither the payment nor its entry on Chumz goes on its own.
+    await moves.move(paid, 'abc123');
+    await moves.move(mirror.id, 'abc123');
+
+    expect(await personal.select(personal.transactions).get(), before);
+    expect(await personal.select(personal.movedTransactions).get(), isEmpty);
+    expect(await business.select(business.transactions).get(), isEmpty);
+    expect((await savings.account(chumzId))!.balanceMinor, 100000);
   });
 }

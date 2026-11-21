@@ -6,6 +6,7 @@ import '../database/database_providers.dart';
 import '../database/space_databases.dart';
 import 'message_links.dart';
 import 'message_reads_repository.dart';
+import 'savings_links.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
 /// shared M-Pesa line that belongs to the business.
@@ -20,6 +21,9 @@ abstract interface class SpaceMoveRepository {
   /// the space that reads the account, the copy arrives with no reported or
   /// claimed balance and no Fuliza total, so the other space's account adds
   /// up from its own records only.
+  ///
+  /// A payment into or out of a savings account the app keeps stays where
+  /// it is, with its entry there (see `isSavingsLinked`).
   Future<void> move(int transactionId, String spaceId, {int? toCategoryId});
 
   /// The categories in [spaceId], to choose one for what moves there.
@@ -55,6 +59,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
     String spaceId, {
     int? toCategoryId,
   }) async {
+    if (await isSavingsLinked(_source, transactionId)) return;
     final tx = await (_source.select(
       _source.transactions,
     )..where((t) => t.id.equals(transactionId))).getSingle();
