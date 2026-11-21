@@ -28,6 +28,7 @@ import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../accounts/domain/institution.dart';
@@ -299,6 +300,7 @@ class _Filters extends StatelessWidget {
                 ? filter.accountId
                 : null,
             highlight: accounts.containsKey(filter.accountId),
+            fill: PesaColors.of(context).field,
             itemKey: (id) => Key('activity-account-${id ?? 'all'}'),
             onChanged: (id) =>
                 onChanged((f) => f.copyWith(accountId: () => id)),
@@ -309,12 +311,14 @@ class _Filters extends StatelessWidget {
           options: [for (final t in ActivityType.values) (t, t.label)],
           value: filter.type,
           highlight: filter.type != ActivityType.all,
+          fill: PesaColors.of(context).field,
           itemKey: (t) => Key('activity-type-${t.name}'),
           onChanged: (t) => onChanged((f) => f.copyWith(type: t)),
         ),
         if (filter.hasCategory)
           InputChip(
             key: const Key('activity-category'),
+            backgroundColor: PesaColors.of(context).field,
             label: Text(
               filter.categoryId == null
                   ? 'Uncategorised'
@@ -325,6 +329,7 @@ class _Filters extends StatelessWidget {
           ),
         if (filter.hasDateRange)
           InputChip(
+            backgroundColor: PesaColors.of(context).field,
             label: Text(
               from == null
                   ? 'Up to ${shortDate(to!)}'
@@ -579,7 +584,7 @@ class _ActivityRow extends StatelessWidget {
       ),
       DailyNoiseLine() && final noise => _row(
         context,
-        avatar: const IconBadge(Icons.layers_outlined),
+        avatar: _Avatar.icon(Icons.layers_outlined, colors: colors),
         title: noiseTitle(noise.group),
         subtitle: DetailLine(
           '${noise.count} ${noise.count == 1 ? 'entry' : 'entries'}',
@@ -1001,4 +1006,17 @@ class _Choosable extends StatelessWidget {
       to: to == null ? null : formatCalendarDate(to),
     ),
   );
+}
+
+/// Activity keeps the colours it had before the rest of the app went grey
+/// and red only, as its owner asked: money in in green, a payee to name in
+/// amber, and its filters and chips filled a step above the page.
+extension on PesaColors {
+  Color get successText =>
+      isDark ? BrandTokens.darkSuccessText : BrandTokens.successText;
+  Color get success => isDark ? BrandTokens.darkSuccess : BrandTokens.success;
+  Color get warning => isDark ? BrandTokens.darkWarning : BrandTokens.warning;
+  Color get successSoft => success.withValues(alpha: 0.10);
+  Color get warningSoft => warning.withValues(alpha: 0.12);
+  Color get field => isDark ? BrandTokens.darkField : BrandTokens.surface;
 }

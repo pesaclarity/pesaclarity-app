@@ -10,6 +10,7 @@ import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
+import 'package:pesaclarity/src/theme/brand_tokens.dart';
 import 'package:pesaclarity/src/theme/pesa_colors.dart';
 
 import '../../domain/fixtures.dart';
@@ -144,7 +145,16 @@ void main() {
       find.descendant(of: row.first, matching: find.textContaining('+')).first,
     );
     final context = tester.element(find.text('Fuliza draws'));
-    expect(amount.style?.color, isNot(PesaColors.of(context).successText));
+    // Activity keeps its own green for money in (its look is unchanged);
+    // a Fuliza draw is borrowed, so never that green.
+    expect(
+      amount.style?.color,
+      isNot(
+        PesaColors.of(context).isDark
+            ? BrandTokens.darkSuccessText
+            : BrandTokens.successText,
+      ),
+    );
     await tester.pump(const Duration(seconds: 10));
   });
 
