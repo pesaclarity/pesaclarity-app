@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/links.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
-import '../../onboarding/application/onboarding_controller.dart';
+import '../../onboarding/presentation/setup_parts.dart';
 import '../application/sms_capture_providers.dart';
 import 'explain_text.dart';
 
@@ -19,7 +19,7 @@ class SmsScanScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(smsScanControllerProvider);
     final controller = ref.read(smsScanControllerProvider.notifier);
-    void finish() => ref.read(onboardingControllerProvider.notifier).complete();
+    void finish() => finishSetup(context, ref);
     final busy =
         state.stage == SmsScanStage.asking ||
         state.stage == SmsScanStage.scanning;

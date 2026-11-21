@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +17,10 @@ import '../data/rates_client.dart';
 final deviceRegionProvider = Provider<String?>(
   (ref) => PlatformDispatcher.instance.locale.countryCode,
 );
+
+/// How long setup waits for the saved currency settings before it saves
+/// the choice over the defaults.
+const choiceWait = Duration(seconds: 2);
 
 /// How long fetched rates stay fresh.
 const ratesMaxAge = Duration(hours: 12);
@@ -94,21 +100,25 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
       await _history.keep(CalendarDate.local(rates.fetchedAt), rates);
       history = await _history.read();
     }
-    return _settingsOf(json, rates, history);
+    return settingsFrom(json, rates: rates, history: history);
   }
 
-  /// The settings saved as [json], with [rates] and [history].
-  static CurrencySettings _settingsOf(
-    Map<String, Object?>? json,
+  /// The settings saved as [json] (null before any are), with [rates] and
+  /// [history].
+  static CurrencySettings settingsFrom(
+    Map<String, Object?>? json, {
     ExchangeRates? rates,
-    RateHistory history,
-  ) {
+    RateHistory? history,
+  }) {
     final base = json?['base'];
     final own = json?['ownRates'];
+    // Amounts saved before a currency was chosen are in KES, so that stays
+    // the base until the person picks one; setup suggests their region's.
+    final code = base is String && isKnownCurrency(base)
+        ? base
+        : BaseCurrency.code;
     return CurrencySettings(
-      // Amounts saved before a currency was chosen are in KES, so that stays
-      // the base until the person picks one; setup suggests their region's.
-      base: base is String && isKnownCurrency(base) ? base : BaseCurrency.code,
+      base: code,
       chosen: json?['chosen'] == true,
       ownRates: {
         if (own is Map)
@@ -173,10 +183,10 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
         DayRates(CalendarDate.local(rates.fetchedAt), rates),
       ]);
     }
-    return _settingsOf(
+    return settingsFrom(
       await settings.readJson(settingsKey),
-      rates,
-      history,
+      rates: rates,
+      history: history,
     ).converter;
   }
 
@@ -188,17 +198,39 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
   }
 
   /// Saves [code] as chosen during setup, when nothing is counted yet.
+  ///
+  /// It waits at most [choiceWait] for the saved settings: on a new phone
+  /// there are none, so when they are slow or cannot be read it starts from
+  /// the defaults and only the write has to work. A failed write throws, and
+  /// nothing changes.
   Future<void> choose(String code) async {
-    final current = await _current();
-    await _save(
-      CurrencySettings(
-        base: code,
-        chosen: true,
-        ownRates: _rebaseOwn(current, code),
-        rates: current.rates,
-        history: current.history,
-      ),
+    var current = state.value;
+    var stillLoading = false;
+    if (current == null) {
+      try {
+        current = await future.timeout(choiceWait);
+      } on TimeoutException {
+        stillLoading = true;
+      } on Object {
+        // Unreadable: the defaults, as on a new phone.
+      }
+    }
+    final from = current ?? settingsFrom(null);
+    final next = CurrencySettings(
+      base: code,
+      chosen: true,
+      ownRates: _rebaseOwn(from, code),
+      rates: from.rates,
+      history: from.history,
     );
+    await _settings.writeJson(settingsKey, next.toJson());
+    if (stillLoading) {
+      // The read still under way would bring back what was there before:
+      // read again, which finds what was just saved.
+      ref.invalidateSelf();
+    } else {
+      state = AsyncData(next);
+    }
   }
 
   /// Switches the base currency, converting the plan, goals, debts, loans

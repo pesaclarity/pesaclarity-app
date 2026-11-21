@@ -12,7 +12,7 @@ import '../../../theme/pesa_colors.dart';
 import '../../insights/application/insights_providers.dart';
 import '../../sms/application/scan_range_provider.dart';
 import '../../sms/domain/scan_range.dart';
-import '../application/onboarding_controller.dart';
+import 'setup_parts.dart';
 
 /// Onboarding, after the first scan: what the messages read show,
 /// before any setup.
@@ -22,7 +22,7 @@ class FirstInsightScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final insight = ref.watch(firstInsightProvider);
-    void finish() => ref.read(onboardingControllerProvider.notifier).complete();
+    void finish() => finishSetup(context, ref);
 
     return Scaffold(
       appBar: AppBar(

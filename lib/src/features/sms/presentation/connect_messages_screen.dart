@@ -11,6 +11,7 @@ import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../onboarding/application/onboarding_controller.dart';
+import '../../onboarding/presentation/setup_parts.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../data/sms_source.dart';
 
@@ -78,13 +79,14 @@ class _ConnectMessagesScreenState extends ConsumerState<ConnectMessagesScreen> {
     super.dispose();
   }
 
-  void _finish() => ref.read(onboardingControllerProvider.notifier).complete();
+  void _finish() => finishSetup(context, ref);
 
   /// Ends setup and opens the statement import, so past months come in too:
   /// Shortcuts only passes messages as they arrive.
   Future<void> _importPastMonths() async {
     final router = GoRouter.of(context);
-    await ref.read(onboardingControllerProvider.notifier).complete();
+    await finishSetup(context, ref);
+    if (!(ref.read(onboardingControllerProvider).value ?? false)) return;
     router
       ..go(AppRoutes.home)
       ..push(AppRoutes.importStatement).ignore();
