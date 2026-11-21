@@ -177,7 +177,9 @@ class _ItemRow extends StatelessWidget {
     final theme = Theme.of(context);
     final sells = item.priceMinor == null
         ? 'Price varies'
-        : 'Sells ${priceText(item, (m) => shownMoney(context, m, withCurrency: false))}';
+        // The price and its unit stay together at large text, never
+        // "150 /" on one line and "bunch" on the next.
+        : 'Sells ${priceText(item, (m) => shownMoney(context, m, withCurrency: false)).replaceAll(' / ', '\u00A0/\u00A0')}';
     return ValueTile(
       key: Key('item-${item.id}'),
       onTap: () => context.push(AppRoutes.item(item.id)),
