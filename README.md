@@ -415,7 +415,7 @@ tool/accessibility.sh                      # into build/accessibility/
 tool/accessibility.sh --shots /tmp/a11y    # and save each screen as a PNG
 ```
 
-The full `tool/check` runs it. Screen-reader labels, headers, live regions and less motion have widget tests in `test/widget/accessibility_test.dart`.
+The full `tool/check` runs it. Screen-reader labels, headers, live regions and less motion have widget tests in `test/widget/accessibility_test.dart`; rows with a drop-down, Security's Lock after among them, have theirs in `test/widget/choice_tile_test.dart`.
 
 ## Branches and releases
 
