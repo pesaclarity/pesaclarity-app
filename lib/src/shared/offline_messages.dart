@@ -25,9 +25,35 @@ abstract final class OfflineMessages {
       'Deleted on this phone. The online copy will be deleted when you are '
       'online.';
 
-  /// Data deleted here whose online copy could not be deleted, and cannot
-  /// be remembered (Delete all my data leaves nothing behind).
-  static const deleteOnlineCopyLater =
-      'Deleted on this phone. Delete the online copy from Backups when you '
-      'are online.';
+  /// Delete all my data with its online options ticked, and no
+  /// connection: asked before anything is deleted.
+  static String deleteAllNeedsConnection({
+    required bool backup,
+    required bool signIn,
+  }) => switch ((backup, signIn)) {
+    (true, true) =>
+      'Deleting your online backup and sign-in needs a connection.',
+    (true, false) => 'Deleting your online backup needs a connection.',
+    _ => 'Deleting your sign-in needs a connection.',
+  };
+
+  /// Erases the phone and skips the online steps.
+  static const deleteOnPhoneOnly = 'Delete on this phone only';
+
+  /// Closes the question; nothing is deleted.
+  static const waitUntilOnline = "Wait until I'm online";
+
+  /// Online, Delete all my data deleted the phone but an online step
+  /// failed partway.
+  static String deleteAllLeftOnline({
+    required bool backup,
+    required bool signIn,
+  }) => switch ((backup, signIn)) {
+    (true, true) =>
+      'Deleted on this phone. Your online backup and sign-in could not be '
+          'deleted.',
+    (true, false) =>
+      'Deleted on this phone. Your online backup could not be deleted.',
+    _ => 'Deleted on this phone. Your sign-in could not be deleted.',
+  };
 }

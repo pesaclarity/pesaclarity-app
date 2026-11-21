@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
+import 'package:pesaclarity/src/core/network/reachability.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
@@ -121,6 +122,8 @@ void main() {
   late _Vault vault;
   late MemoryKeyValueStore backupStore;
   late FakeDocumentStorage documents;
+  late bool reachable;
+  late FakeAuthApi authApi;
 
   setUp(() {
     db = openTestDatabase();
@@ -128,6 +131,9 @@ void main() {
     vault = _Vault();
     backupStore = MemoryKeyValueStore();
     documents = FakeDocumentStorage();
+    reachable = false;
+    authApi = _OfflineAuthApi();
+    _restarter = null;
   });
 
   List<Override> overrides({_Restarter? restarter, bool signedIn = false}) => [
@@ -140,7 +146,8 @@ void main() {
     spaceFilesProvider.overrideWithValue(files),
     backupKeyValueStoreProvider.overrideWithValue(backupStore),
     ...vault.overrides,
-    authApiProvider.overrideWithValue(_OfflineAuthApi()),
+    authApiProvider.overrideWithValue(authApi),
+    serverReachableProvider.overrideWithValue(() async => reachable),
     sessionStoreProvider.overrideWithValue(
       InMemorySessionStore(
         signedIn
@@ -313,24 +320,95 @@ void main() {
     );
   });
 
-  testAppWidgets('Delete everything offline erases the phone and says what '
-      'is left online', (tester) async {
+  /// Opens Delete all my data, signed in, ticks [online] and [signIn],
+  /// and confirms.
+  Future<void> deleteAll(
+    WidgetTester tester, {
+    bool online = true,
+    bool signIn = true,
+  }) async {
     _restarter = _Restarter();
     await show(tester, const DeleteAllScreen(), signedIn: true);
-    await tester.tap(find.byKey(const Key('delete-all-online')));
-    await tester.tap(find.byKey(const Key('delete-all-sign-in')));
+    if (online) await tester.tap(find.byKey(const Key('delete-all-online')));
+    if (signIn) await tester.tap(find.byKey(const Key('delete-all-sign-in')));
     await tester.enterText(find.byKey(const Key('delete-all-check')), 'DELETE');
     await tester.pump();
     await tester.tap(find.byKey(const Key('delete-all-confirm')));
     await settleFrames(tester);
-
     expect(tester.takeException(), isNull);
-    expect(files.erased, isTrue, reason: 'offline never blocks this');
+  }
+
+  for (final (online, signIn, title) in [
+    (true, true, 'Deleting your online backup and sign-in needs a connection.'),
+    (true, false, 'Deleting your online backup needs a connection.'),
+    (false, true, 'Deleting your sign-in needs a connection.'),
+  ]) {
+    testAppWidgets('offline, Delete all my data asks first: $title', (
+      tester,
+    ) async {
+      await deleteAll(tester, online: online, signIn: signIn);
+      expect(find.text(title), findsOneWidget);
+      expect(files.erased, isFalse, reason: 'nothing before the answer');
+    });
+  }
+
+  testAppWidgets("Wait until I'm online deletes nothing", (tester) async {
+    await deleteAll(tester);
+    await tester.tap(find.text("Wait until I'm online"));
+    await settleFrames(tester);
+
+    expect(files.erased, isFalse);
+    expect(_restarter!.restarted, isFalse);
+    expect(authApi.calls, isEmpty);
+    expect(find.byType(SnackBar), findsNothing);
+    final confirm = tester.widget<FilledButton>(
+      find.byKey(const Key('delete-all-confirm')),
+    );
+    expect(confirm.onPressed, isNotNull, reason: 'can be tried again');
+  });
+
+  testAppWidgets('Delete on this phone only erases the phone and skips the '
+      'online steps', (tester) async {
+    await deleteAll(tester);
+    await tester.tap(find.text('Delete on this phone only'));
+    await settleFrames(tester);
+
+    expect(files.erased, isTrue);
+    expect(_restarter!.restarted, isTrue);
+    expect(authApi.calls, isEmpty, reason: 'no online steps');
+    expect(vault.deleted, isEmpty);
+    expect(find.byType(SnackBar), findsNothing, reason: 'no later-delete note');
+  });
+
+  testAppWidgets('online, Delete all my data deletes the online copies and '
+      'the sign-in too', (tester) async {
+    reachable = true;
+    vault.online = true;
+    authApi = FakeAuthApi()
+      ..knowSession('refresh-made-up-0001', 'device-test-1');
+    await deleteAll(tester);
+
+    expect(find.byType(AlertDialog), findsNothing, reason: 'nothing to ask');
+    expect(vault.deleted, unorderedEquals(['p1', 's1', 's2']));
+    expect(authApi.accountDeleted, isTrue);
+    expect(files.erased, isTrue);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(_restarter!.restarted, isTrue);
+  });
+
+  testAppWidgets('online, a step that fails partway is named plainly', (
+    tester,
+  ) async {
+    reachable = true; // The phone has a connection, but the vault fails.
+    authApi = FakeAuthApi()
+      ..knowSession('refresh-made-up-0001', 'device-test-1');
+    await deleteAll(tester);
+
+    expect(files.erased, isTrue);
+    expect(authApi.accountDeleted, isTrue);
     expect(
       find.text(
-        'Deleted on this phone. Delete the online copy from Backups when you '
-        'are online.\n'
-        'Could not reach Pesa Clarity. Check your connection and try again.',
+        'Deleted on this phone. Your online backup could not be deleted.',
       ),
       findsOneWidget,
     );

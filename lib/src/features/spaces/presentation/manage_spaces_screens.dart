@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/reachability.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../domain/spaces/business_setup.dart';
@@ -930,23 +931,76 @@ class _DeleteAllScreenState extends ConsumerState<DeleteAllScreen> {
       }
     }
     if (!mounted) return;
+    var online = _online;
+    var signIn = _signIn && ref.read(authControllerProvider).value != null;
     setState(() => _busy = true);
+    // Nothing is left on the phone to finish online steps later, so ask
+    // first when they cannot be done now.
+    if ((online || signIn) && !await ref.read(serverReachableProvider)()) {
+      if (!mounted) return;
+      final phoneOnly = await _askOffline(backup: online, signIn: signIn);
+      if (!mounted) return;
+      if (!phoneOnly) {
+        setState(() => _busy = false);
+        return;
+      }
+      online = false;
+      signIn = false;
+    }
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final restarter = ref.read(appRestarterProvider);
     final result = await ref
         .read(spaceManagerProvider)
-        .deleteEverything(deleteOnline: _online, deleteSignIn: _signIn);
-    // Nothing is left on the phone to finish this later, so say what is
-    // left online before the app closes.
-    final left = [
-      if (result.onlineCopiesLeft) OfflineMessages.deleteOnlineCopyLater,
-      if (result.signInLeft case final failure?) failure.message,
-    ];
-    if (left.isNotEmpty) {
+        .deleteEverything(deleteOnline: online, deleteSignIn: signIn);
+    // Online, but a step failed partway: say what was not deleted before
+    // the app closes.
+    final backupLeft = result.onlineCopiesLeft;
+    final signInLeft = result.signInLeft != null;
+    if (backupLeft || signInLeft) {
       await messenger
-          .showSnackBar(SnackBar(content: Text(left.join('\n'))))
+          .showSnackBar(
+            SnackBar(
+              content: Text(
+                OfflineMessages.deleteAllLeftOnline(
+                  backup: backupLeft,
+                  signIn: signInLeft,
+                ),
+              ),
+            ),
+          )
           .closed;
     }
     await restarter.restart();
+  }
+
+  /// Whether to delete on this phone only, the online steps needing a
+  /// connection there is not.
+  Future<bool> _askOffline({required bool backup, required bool signIn}) async {
+    final phoneOnly = await showAdaptiveDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog.adaptive(
+        title: Text(
+          OfflineMessages.deleteAllNeedsConnection(
+            backup: backup,
+            signIn: signIn,
+          ),
+        ),
+        actions: [
+          DialogAction(
+            key: const Key('delete-all-wait'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(OfflineMessages.waitUntilOnline),
+          ),
+          DialogAction(
+            key: const Key('delete-all-phone-only'),
+            destructive: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(OfflineMessages.deleteOnPhoneOnly),
+          ),
+        ],
+      ),
+    );
+    return phoneOnly ?? false;
   }
 }

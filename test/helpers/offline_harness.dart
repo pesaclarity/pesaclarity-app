@@ -15,6 +15,7 @@ import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/config/server_config.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
 import 'package:pesaclarity/src/core/network/pinned_http_client.dart';
+import 'package:pesaclarity/src/core/network/reachability.dart';
 import 'package:pesaclarity/src/core/network/trusted_roots.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
@@ -275,6 +276,7 @@ List<Override> _overrides(OfflinePhone phone, {required bool vault}) => [
     Uri.parse('https://api.pesaclarity.test'),
   ),
   httpClientFactoryProvider.overrideWithValue(_OfflineFactory(phone.log)),
+  serverReachableProvider.overrideWithValue(() async => false),
   // A build with a version and a pinned app-status key, so the check runs.
   buildVersionProvider.overrideWithValue('0.5.2'),
   appStatusPublicKeysProvider.overrideWithValue([
