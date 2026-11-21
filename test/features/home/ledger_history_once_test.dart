@@ -31,6 +31,7 @@ class _CountingTransactions extends DriftTransactionsRepository {
     int? tagId,
     Set<int>? accountIds,
     Set<int>? ids,
+    bool dayToDayOnly = false,
   }) {
     if (from.year == 1970 && to.year == 9999 && ids == null) {
       wholeLedgerReads++;
@@ -41,6 +42,7 @@ class _CountingTransactions extends DriftTransactionsRepository {
       tagId: tagId,
       accountIds: accountIds,
       ids: ids,
+      dayToDayOnly: dayToDayOnly,
     );
   }
 }
