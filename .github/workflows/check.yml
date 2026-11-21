@@ -1,0 +1,49 @@
+name: Check
+
+# Runs the project's full local check (tool/check: format, analyse, every
+# test and the accessibility check) on each pull request into dev, so
+# branches can be checked side by side instead of one at a time on one
+# machine. A pull request into dev merges only when this passes.
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  check:
+    name: tool/check
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # tool/check compares with origin/dev to decide whether the UI
+          # flows changed.
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Fetch dev to compare with
+        run: git fetch --no-tags origin dev:refs/remotes/origin/dev
+
+      # Format, analyse, all tests and the accessibility check. The
+      # dependency scan and UI flows skip themselves here (no osv-scanner,
+      # no device), as they do on a machine without them.
+      - name: Run tool/check
+        run: tool/check
