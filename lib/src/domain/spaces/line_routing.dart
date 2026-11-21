@@ -66,6 +66,25 @@ class RoutingRules {
 
   bool get isEmpty => sharedLines.isEmpty && people.isEmpty;
 
+  /// These rules once the [lines] that Personal and [spaceId] both read are
+  /// left to Personal: a [business] shares each with Personal, so it asks
+  /// about its payments, unless the line is shared with another business
+  /// already. Any other space gets no rule.
+  RoutingRules readOnce(
+    Set<String> lines, {
+    required String spaceId,
+    required bool business,
+  }) {
+    if (!business) return this;
+    var next = this;
+    for (final line in lines) {
+      if ((sharedLines[line] ?? spaceId) == spaceId) {
+        next = next.withLine(line, spaceId);
+      }
+    }
+    return next;
+  }
+
   /// Only the rules that send money to [spaceId]: the lines it shares with
   /// Personal and the people learnt for it.
   RoutingRules forSpace(String spaceId) => RoutingRules(
@@ -144,7 +163,7 @@ LineChoice lineChoiceOf({
   if (shared) return LineChoice.both;
   if (inBusiness && !inPersonal) return LineChoice.thisBusiness;
   if (inPersonal && !inBusiness) return LineChoice.personal;
-  // Read in both without sharing reads every message twice; treat it as
-  // shared so the books count each payment once.
+  // Read in both without sharing is left to Personal and shared when the
+  // business next opens (`readOnce`); show it as shared until then.
   return inBusiness ? LineChoice.both : LineChoice.personal;
 }

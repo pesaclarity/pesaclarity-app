@@ -82,20 +82,58 @@ class RoutingRulesController extends AsyncNotifier<RoutingRules> {
     required InstitutionsRepository personal,
   }) async {
     final current = await _current();
-    await business.setSelected(
-      institutionId,
-      selected: choice == LineChoice.thisBusiness,
-    );
-    await personal.setSelected(
-      institutionId,
-      selected: choice != LineChoice.thisBusiness,
-    );
+    // Off where it goes off first: an account is read in one space, so it
+    // cannot be switched on in the other while this one still reads it.
+    if (choice == LineChoice.thisBusiness) {
+      await personal.setSelected(institutionId, selected: false);
+      await business.setSelected(institutionId, selected: true);
+      if (!(await business.selectedIds()).contains(institutionId)) {
+        // Another business reads it: it stays with Personal.
+        await personal.setSelected(institutionId, selected: true);
+        return;
+      }
+    } else {
+      await business.setSelected(institutionId, selected: false);
+      await personal.setSelected(institutionId, selected: true);
+    }
     await _save(
       current.withLine(
         institutionId,
         choice == LineChoice.both ? businessId : null,
       ),
     );
+  }
+
+  /// Leaves to Personal each account [space] has switched on while Personal
+  /// reads it too, so no message is read into both: a business shares it
+  /// with Personal, as Business or personal already showed it ("Used for
+  /// both"), unless another business shares it already; any other space
+  /// just stops reading it. Returns whether anything changed.
+  ///
+  /// A second space could switch on an account Personal read before each
+  /// account was kept to one space, and a restored copy can bring such a
+  /// choice back.
+  Future<bool> readOnce(
+    Space space, {
+    required InstitutionsRepository here,
+    required InstitutionsRepository personal,
+  }) async {
+    if (space.id == personalSpaceId) return false;
+    final both = (await here.selectedIds()).intersection(
+      await personal.selectedIds(),
+    );
+    if (both.isEmpty) return false;
+    final current = await _current();
+    final next = current.readOnce(
+      both,
+      spaceId: space.id,
+      business: space.kind == SpaceKind.business,
+    );
+    for (final line in both) {
+      await here.setSelected(line, selected: false);
+    }
+    await _save(next);
+    return true;
   }
 
   /// Remembers that money from [key] goes to [spaceId].

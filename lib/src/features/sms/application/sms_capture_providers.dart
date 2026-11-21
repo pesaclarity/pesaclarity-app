@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
+import '../../../data/repositories/institutions_repository.dart';
 import '../../../data/repositories/message_reads_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
@@ -18,6 +19,7 @@ import '../../accounts/domain/institution.dart';
 import '../../categoriser/application/auto_categoriser.dart';
 import '../../categoriser/application/categoriser_providers.dart';
 import '../../spaces/application/routing_providers.dart';
+import '../../spaces/application/spaces_providers.dart';
 import '../data/sms_source.dart';
 import 'message_recheck.dart';
 import 'read_again.dart';
@@ -77,6 +79,30 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   final scan = ref.watch(smsScanServiceProvider);
   final ingestor = ref.watch(smsIngestorProvider);
   if (selected.isEmpty || await source.access() != SmsAccess.granted) return;
+  // The space may have changed while access was asked: this capture is
+  // then over.
+  if (!ref.mounted) return;
+  // Each account is read in one space: one this space has on while
+  // Personal reads it too is left to Personal. The selection then changes
+  // and the capture starts again with it.
+  final spaceId = ref.read(activeSpaceIdProvider);
+  if (spaceId != personalSpaceId) {
+    final space = (await ref.read(spacesProvider.future))
+        .where((s) => s.id == spaceId)
+        .firstOrNull;
+    if (space != null &&
+        await ref
+            .read(routingRulesProvider.notifier)
+            .readOnce(
+              space,
+              here: ref.read(institutionsRepositoryProvider),
+              personal: DriftInstitutionsRepository(
+                ref.read(personalDatabaseProvider),
+              ),
+            )) {
+      return;
+    }
+  }
 
   void triggerAutoCategorise() {
     final suggester = ref.read(categorySuggesterProvider);
@@ -92,6 +118,7 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
         .firstDay(CalendarDate.local(ref.read(clockProvider)()))
         ?.startInstant,
   );
+  if (!ref.mounted) return;
   if (initial.added > 0) triggerAutoCategorise();
   // Amounts read before a pack knew an account's currency or number move
   // to the right ones, once per pack version.
@@ -123,6 +150,8 @@ final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   if (initial.added > 0) await sortShared();
   await for (final message in source.incoming(senders)) {
     final summary = await ingestor.ingest([message], selected);
+    // Another space opened meanwhile: its own capture takes over.
+    if (!ref.mounted) return;
     if (summary.added > 0) {
       triggerAutoCategorise();
       await sortShared();

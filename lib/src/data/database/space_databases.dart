@@ -74,6 +74,28 @@ class SpaceDatabases {
       true,
     );
   }
+
+  /// The other space on the list that reads [institutionId] (has it
+  /// switched on), Personal first; null when the open space is the only one
+  /// that could. Each account is read in one space, so a second never
+  /// switches it on.
+  Future<Space?> readerOf(String institutionId) async {
+    final open = _ref.read(activeSpaceIdProvider);
+    for (final space in await listed()) {
+      if (space.id == open) continue;
+      final (db, close) = await this.open(space.id);
+      try {
+        final row =
+            await (db.select(db.selectedInstitutions)
+                  ..where((s) => s.institutionId.equals(institutionId)))
+                .getSingleOrNull();
+        if (row != null) return space;
+      } finally {
+        if (close) await db.close();
+      }
+    }
+    return null;
+  }
 }
 
 final spaceDatabasesProvider = Provider<SpaceDatabases>(SpaceDatabases.new);

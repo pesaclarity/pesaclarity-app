@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/institutions_repository.dart';
+import '../../../domain/spaces/space.dart';
+import '../../../routing/app_routes.dart';
+import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../spaces/application/spaces_providers.dart';
 import '../application/my_accounts_providers.dart';
 import '../domain/institution.dart';
 
@@ -30,14 +36,74 @@ class InstitutionList extends ConsumerWidget {
               control: control,
               selected: selected?.contains(institution.id) ?? false,
               enabled: selected != null,
-              onChanged: (value) => ref
-                  .read(institutionsRepositoryProvider)
-                  .setSelected(institution.id, selected: value),
+              onChanged: (value) => value
+                  ? _switchOn(context, ref, institution)
+                  : ref
+                        .read(institutionsRepositoryProvider)
+                        .setSelected(institution.id, selected: false),
             ),
           ],
         ],
       ),
     );
+  }
+}
+
+/// Switches [institution] on in the open space, unless another space reads
+/// it: each account is read in one space. Then it says where, and in a
+/// business leads to Business or personal, where it can be shared.
+Future<void> _switchOn(
+  BuildContext context,
+  WidgetRef ref,
+  Institution institution,
+) async {
+  final reader = await ref
+      .read(spaceDatabasesProvider)
+      .readerOf(institution.id);
+  if (reader == null) {
+    await ref
+        .read(institutionsRepositoryProvider)
+        .setSelected(institution.id, selected: true);
+    return;
+  }
+  if (!context.mounted) return;
+  final here = ref.read(activeSpaceProvider);
+  final share = reader.id == personalSpaceId && here.kind == SpaceKind.business;
+  final body = share
+      ? 'Each account is read in one space. Choose in Business or personal '
+            'whether its money is for ${here.name}, Personal or both.'
+      : here.id == personalSpaceId && reader.kind == SpaceKind.business
+      ? 'Each account is read in one space. To use it for both, open '
+            '${reader.name} and choose in Business or personal.'
+      : 'Each account is read in one space. Switch it off in ${reader.name} '
+            'first to read it here.';
+  final choose = await showAdaptiveDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: Text('${reader.name} reads ${institution.name}'),
+      content: Text(body),
+      actions: [
+        if (share) ...[
+          DialogAction(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('Not now'),
+          ),
+          DialogAction(
+            key: const Key('institution-choose-line'),
+            filled: true,
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: const Text('Choose'),
+          ),
+        ] else
+          DialogAction(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('OK'),
+          ),
+      ],
+    ),
+  );
+  if ((choose ?? false) && context.mounted) {
+    await context.push(AppRoutes.businessOrPersonal);
   }
 }
 
