@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:pesaclarity/src/features/security/application/app_lock_controller.dart';
 import 'package:pesaclarity/src/features/security/data/biometric_authenticator.dart';
 import 'package:pesaclarity/src/features/security/data/key_vault.dart';
+import 'package:pesaclarity/src/features/security/data/screen_capture_blocker.dart';
 import 'package:pesaclarity/src/features/security/data/secure_store.dart';
 import 'package:pesaclarity/src/features/security/domain/pin_hasher.dart';
 
@@ -21,6 +22,21 @@ class FakeBiometricAuthenticator implements BiometricAuthenticator {
   Future<bool> authenticate() async {
     prompts++;
     return available && accept;
+  }
+}
+
+/// The phone's screenshot block stand-in: [asked] lists what the app asked
+/// for, `allow` or `block`, and [works] says whether the phone does it.
+class FakeScreenCaptureBlocker implements ScreenCaptureBlocker {
+  FakeScreenCaptureBlocker({this.works = true});
+
+  bool works;
+  final asked = <String>[];
+
+  @override
+  Future<bool> setAllowed(bool allowed) async {
+    asked.add(allowed ? 'allow' : 'block');
+    return works;
   }
 }
 

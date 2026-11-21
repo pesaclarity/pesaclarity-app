@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import 'beside_or_under.dart';
 
 /// The space around every section header: [Layout.sectionTop] above and
 /// [Layout.sectionBottom] below. Pass another padding only for a title
@@ -89,12 +90,9 @@ class SectionTitle extends StatelessWidget {
       padding: padding,
       child: action == null
           ? title
-          : Row(
-              children: [
-                Expanded(child: title),
-                action!,
-              ],
-            ),
+          // The action moves under the title at larger text, where the
+          // title would otherwise break a word.
+          : BesideOrUnder(lead: title, end: action!),
     );
   }
 }

@@ -140,10 +140,17 @@ class InitialsBadge extends StatelessWidget {
         color: tinted ? colors.brandSoft : colors.border,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelLarge!.copyWith(
-          color: tinted ? colors.link : Theme.of(context).colorScheme.onSurface,
+      // Initials shrink to fit the badge at larger text rather than wrap.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          softWrap: false,
+          style: Theme.of(context).textTheme.labelLarge!.copyWith(
+            color: tinted
+                ? colors.link
+                : Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );
@@ -274,6 +281,26 @@ class RowName extends StatelessWidget {
   final TextStyle? style;
 
   static const maxLines = 2;
+
+  /// The widest word of [name] in [style] at the phone's text size: how
+  /// narrow it can be with no word broken.
+  static double widestWord(
+    BuildContext context,
+    String name,
+    TextStyle? style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: name,
+        style: DefaultTextStyle.of(context).style.merge(style),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.minIntrinsicWidth;
+    painter.dispose();
+    return width;
+  }
 
   @override
   Widget build(BuildContext context) => Text(

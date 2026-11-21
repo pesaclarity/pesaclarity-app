@@ -31,14 +31,18 @@ class _CountingTransactions extends DriftTransactionsRepository {
     int? tagId,
     Set<int>? accountIds,
     bool dayToDayOnly = false,
+    Set<int>? ids,
   }) {
-    if (from.year == 1970 && to.year == 9999) wholeLedgerReads++;
+    if (from.year == 1970 && to.year == 9999 && ids == null) {
+      wholeLedgerReads++;
+    }
     return super.ledgerEntries(
       from: from,
       to: to,
       tagId: tagId,
       accountIds: accountIds,
       dayToDayOnly: dayToDayOnly,
+      ids: ids,
     );
   }
 }

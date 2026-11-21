@@ -9,9 +9,8 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/connection.dart';
 import '../../../data/database/database_key_store.dart';
 import '../../../data/database/database_providers.dart';
-import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/database/space_databases.dart';
 import '../../../domain/spaces/space.dart';
-import '../../spaces/application/spaces_providers.dart';
 
 /// A consistent copy of the database, encrypted with its own random key.
 final class DatabaseSnapshot {
@@ -48,10 +47,15 @@ abstract interface class LocalDataStore {
   /// [directory].
   Future<DatabaseSnapshot> snapshot(Directory directory, {String? space});
 
-  /// Checks [staged] (keyed with [stagedKeyHex]) and, only if it is sound,
-  /// makes it the app's data. The current data stays in place if any step
-  /// fails.
-  Future<void> replaceWith(File staged, String stagedKeyHex);
+  /// Checks [staged] (keyed with [stagedKeyHex]) and, only if it is sound
+  /// and a copy of the open space, makes it the open space's data. The
+  /// current data stays in place if any step fails.
+  ///
+  /// [ofSpace] is the space the copy was made of; one of another space is
+  /// refused. A file made before backups named their space has none: then
+  /// a copy of Personal is refused in any other space and the other way
+  /// round, which the copy's own kind tells.
+  Future<void> replaceWith(File staged, String stagedKeyHex, {String? ofSpace});
 }
 
 /// Copies [db] into [file] with `sqlcipher_export`, under a fresh random key.
@@ -82,8 +86,16 @@ Future<String> exportDatabase(AppDatabase db, File file) async {
   return key;
 }
 
+/// Why a backup of one space cannot replace another.
+const anotherSpaceMessage =
+    'This backup is of another space. Open that space, then restore it '
+    'there.';
+
 /// Opens [path] with [stagedKeyHex], checks it is a sound Pesa Clarity
 /// database no newer than [maxSchemaVersion], then re-keys it to [deviceKeyHex].
+///
+/// With [personal], it must also be a copy of Personal (true) or of another
+/// space (false), as its own `space.kind` setting says.
 ///
 /// Synchronous so it can run in a background isolate.
 void checkAndRekeyDatabase({
@@ -91,6 +103,7 @@ void checkAndRekeyDatabase({
   required String stagedKeyHex,
   required String deviceKeyHex,
   required int maxSchemaVersion,
+  bool? personal,
 }) {
   final db = sqlite3.open(path);
   try {
@@ -126,10 +139,67 @@ void checkAndRekeyDatabase({
         'This file does not hold Pesa Clarity data.',
       );
     }
+    if (personal != null) {
+      // Older files may have no settings table: they are all Personal's.
+      final hasSettings = db
+          .select(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'app_settings'",
+          )
+          .isNotEmpty;
+      final kind = hasSettings
+          ? db.select("SELECT value FROM app_settings WHERE key = 'space.kind'")
+          : const <Row>[];
+      final isPersonal =
+          kind.isEmpty || kind.first.values.first == '"personal"';
+      if (isPersonal != personal) {
+        throw const RestoredDataException(anotherSpaceMessage);
+      }
+    }
     if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(deviceKeyHex)) {
       throw ArgumentError('Device key must be 64 lowercase hex characters');
     }
     db.execute("PRAGMA rekey = \"x'$deviceKeyHex'\"");
+  } finally {
+    db.close();
+  }
+}
+
+/// Writes [settings] over the same keys in the database at [path] (keyed
+/// with [keyHex]), and removes those of [keys] that [settings] lacks, so
+/// they read as they did before the file was restored.
+///
+/// Synchronous so it can run in a background isolate.
+void keepSettings({
+  required String path,
+  required String keyHex,
+  required Set<String> keys,
+  required Map<String, String> settings,
+}) {
+  final db = sqlite3.open(path);
+  try {
+    applyCipherKey(db, keyHex);
+    final hasSettings = db
+        .select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'app_settings'",
+        )
+        .isNotEmpty;
+    // A file from before the settings table, long before spaces: there is
+    // nothing of theirs to keep in it.
+    if (!hasSettings) return;
+    db.execute('BEGIN');
+    for (final key in keys) {
+      db.execute('DELETE FROM app_settings WHERE key = ?', [key]);
+      final value = settings[key];
+      if (value != null) {
+        db.execute('INSERT INTO app_settings (key, value) VALUES (?, ?)', [
+          key,
+          value,
+        ]);
+      }
+    }
+    db.execute('COMMIT');
   } finally {
     db.close();
   }
@@ -178,12 +248,7 @@ class SqlCipherLocalDataStore implements LocalDataStore {
 
   @override
   Future<List<String>> spaces() async => [
-    for (final s in spacesFromJson(
-      await _ref
-          .read(mainSettingsRepositoryProvider)
-          .readJson(SpacesController.settingsKey),
-    ))
-      s.id,
+    for (final s in await _ref.read(spaceDatabasesProvider).listed()) s.id,
   ];
 
   @override
@@ -192,21 +257,9 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     String? space,
   }) async {
     final id = space ?? openSpace;
-    final AppDatabase db;
-    var close = false;
-    if (id == openSpace) {
-      db = _ref.read(appDatabaseProvider);
-    } else if (id == personalSpaceId) {
-      db = _ref.read(personalDatabaseProvider);
-    } else {
-      // A space that is not open: open its file just for the copy.
-      db = openEncryptedDatabase(
-        _ref.read(databaseKeyStoreProvider),
-        beforeOpen: _ref.read(databaseFileLockProvider).waitUntilFree,
-        spaceId: id,
-      );
-      close = true;
-    }
+    // A space that is not open is opened just for the copy, and only when
+    // it is on the list.
+    final (db, close) = await _ref.read(spaceDatabasesProvider).open(id);
     try {
       final file = File(p.join(directory.path, 'snapshot-$id.sqlite'));
       final key = await exportDatabase(db, file);
@@ -221,7 +274,16 @@ class SqlCipherLocalDataStore implements LocalDataStore {
   }
 
   @override
-  Future<void> replaceWith(File staged, String stagedKeyHex) async {
+  Future<void> replaceWith(
+    File staged,
+    String stagedKeyHex, {
+    String? ofSpace,
+  }) async {
+    final open = _ref.read(activeSpaceIdProvider);
+    if (ofSpace != null && ofSpace != open) {
+      throw const RestoredDataException(anotherSpaceMessage);
+    }
+    final personal = ofSpace == null ? open == personalSpaceId : null;
     final deviceKey = await _ref
         .read(databaseKeyStoreProvider)
         .readOrCreateKey();
@@ -234,6 +296,7 @@ class SqlCipherLocalDataStore implements LocalDataStore {
         stagedKeyHex: stagedKeyHex,
         deviceKeyHex: deviceKey,
         maxSchemaVersion: maxSchema,
+        personal: personal,
       ),
     );
 
@@ -241,12 +304,32 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     final release = lock.hold();
     try {
       final spaceId = _ref.read(activeSpaceIdProvider);
+      // Restoring Personal's records must not change which spaces exist:
+      // its settings about every space stay as they are now.
+      final Map<String, String>? everySpace = spaceId == personalSpaceId
+          ? {
+              for (final row in await (current.select(
+                current.appSettings,
+              )..where((s) => s.key.isIn(everySpaceSettingKeys))).get())
+                row.key: row.value,
+            }
+          : null;
       _ref.invalidate(
         spaceId == personalSpaceId
             ? personalDatabaseProvider
             : appDatabaseProvider,
       );
       await lock.close(current);
+      if (everySpace != null) {
+        await Isolate.run(
+          () => keepSettings(
+            path: path,
+            keyHex: deviceKey,
+            keys: everySpaceSettingKeys,
+            settings: everySpace,
+          ),
+        );
+      }
       await swapDatabaseFiles(
         live: await databaseFile(spaceId),
         staged: staged,

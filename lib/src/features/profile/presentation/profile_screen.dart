@@ -223,7 +223,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     final businessDay =
         ref.watch(businessDayProvider).value ?? BusinessDay.midnight;
-    final dayEnds = ListTile(
+    final dayEnds = ChoiceTile<int>(
       key: const Key('profile-day-ends'),
       leading: const RowIcon(Icons.nights_stay_outlined),
       title: const Text('Day ends at'),
@@ -315,7 +315,7 @@ class ProfileScreen extends ConsumerWidget {
           return SheetBody(
             title: 'Look',
             children: [
-              ListTile(
+              ChoiceTile<ThemeChoice>(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Theme'),
                 subtitle: const Text('System follows your phone.'),

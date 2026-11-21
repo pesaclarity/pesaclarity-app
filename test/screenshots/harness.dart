@@ -10,8 +10,9 @@
 // each at the phone's larger text sizes, in light, dark and high contrast,
 // failing on anything that overflows, an amount cut short, a field's label
 // cut short, a row name in Activity or Money cut before its second line, a
-// tap target that is too small or a button with no label. Text contrast is
-// only reported, apart from the screens in tool/accessibility.sh's list.
+// word drawn across two lines in any text, a tap target that is too small
+// or a button with no label. Text contrast is only reported, apart from the
+// screens in tool/accessibility.sh's list.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -32,6 +33,7 @@ import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../helpers/app_fonts.dart';
 import '../helpers/test_app.dart';
+import '../helpers/whole_words.dart';
 
 /// Set by tool/screenshots.sh; without it every screenshot test is skipped.
 const generateScreenshots = bool.fromEnvironment('SCREENSHOTS');
@@ -295,7 +297,7 @@ Future<void> _loadFonts() async {
 
 /// The accessibility checks on what is on screen now, as [screen]: nothing
 /// overflowing (Flutter reports that as an error, which fails the test), no
-/// amount cut short, tap targets big enough on Android and iPhone, and a
+/// amount cut short, no word broken across two lines, tap targets big enough on Android and iPhone, and a
 /// label on everything that can be tapped. Text contrast is written to the
 /// report, not failed on.
 Future<void> _check(WidgetTester tester, String screen) async {
@@ -325,13 +327,15 @@ final _amount = RegExp(
 /// Fails when an amount on screen is cut short: ellipsized, clipped or
 /// narrower than its number, as amounts are always shown whole. Fails too
 /// when a field's label is cut short (labels sit above their field and
-/// wrap), or when a row name in Activity or Money ends in "..." before it
-/// has used its second line. Other text that runs out of its lines, such as
-/// a long name ellipsized after two lines, is written to the report.
+/// wrap), when a row name in Activity or Money ends in "..." before it
+/// has used its second line, or when any text draws a word across two
+/// lines. Other text that runs out of its lines, such as a long name
+/// ellipsized after two lines, is written to the report.
 void _expectNothingCut(WidgetTester tester, String screen) {
   final cut = <String>[];
   final labels = <String>[];
   final names = <String>[];
+  final broken = <String>[];
   final shortened = <String>[];
   void visit(RenderObject object) {
     if (object is RenderParagraph &&
@@ -359,6 +363,9 @@ void _expectNothingCut(WidgetTester tester, String screen) {
           object.didExceedMaxLines &&
           _lineCount(object) < RowName.maxLines) {
         names.add('"$text" is cut on one line, in ${_creator(object)}');
+      }
+      for (final word in brokenWords(object)) {
+        broken.add('"$word" is drawn across two lines, in ${_creator(object)}');
       }
       if (object.didExceedMaxLines) {
         (hasAmount ? cut : shortened).add(
@@ -407,6 +414,11 @@ void _expectNothingCut(WidgetTester tester, String screen) {
     names,
     isEmpty,
     reason: 'A row name is cut before its second line at ${_scale}x text',
+  );
+  expect(
+    broken,
+    isEmpty,
+    reason: 'A word is broken across two lines at ${_scale}x text',
   );
 }
 

@@ -14,6 +14,7 @@ import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../shared/widgets/value_tile.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../application/stock_providers.dart';
 import 'item_sheet.dart';
@@ -177,7 +178,7 @@ class _ItemRow extends StatelessWidget {
     final sells = item.priceMinor == null
         ? 'Price varies'
         : 'Sells ${priceText(item, (m) => shownMoney(context, m, withCurrency: false))}';
-    return ListTile(
+    return ValueTile(
       key: Key('item-${item.id}'),
       onTap: () => context.push(AppRoutes.item(item.id)),
       // The tag beside the name while it fits, else under it, as with a

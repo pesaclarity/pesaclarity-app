@@ -25,6 +25,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../shared/widgets/value_tile.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../activity/application/activity_providers.dart';
@@ -306,7 +307,7 @@ class _CloseDayScreenState extends ConsumerState<CloseDayScreen> {
                       children: [
                         for (final (i, e) in unmatched.indexed) ...[
                           if (i > 0) const Divider(height: 1),
-                          ListTile(
+                          ValueTile(
                             key: Key('unmatched-${e.id}'),
                             title: Text(
                               e.payeeName ?? e.counterpartyName ?? 'Payment',

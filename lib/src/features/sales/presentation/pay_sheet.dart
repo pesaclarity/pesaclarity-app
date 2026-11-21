@@ -17,6 +17,7 @@ import '../../../domain/time/date_labels.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
@@ -588,53 +589,58 @@ class _LineRow extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(line.name, style: theme.textTheme.bodyLarge)),
-          if (change != null) ...[
-            step(Icons.remove, 'One fewer', -milli),
-            Semantics(
-              button: true,
-              label: 'How many',
-              value: quantityText(line.quantityMilli),
-              hint: 'Type how many',
-              excludeSemantics: true,
-              child: InkWell(
-                onTap: () async {
-                  final text = await _askQuantity(context, line);
-                  final q = text == null ? null : quantityFrom(text);
-                  if (q != null) change(q);
-                },
-                // At least a finger's width and height to tap.
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: kMinInteractiveDimension,
-                    minHeight: kMinInteractiveDimension,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Center(
-                      widthFactor: 1,
-                      child: Text(
-                        quantityText(line.quantityMilli),
-                        style: theme.textTheme.titleMedium,
+      // The buttons and total move under the name at larger text, where the
+      // name would otherwise break a word.
+      child: BesideOrUnder(
+        lead: Text(line.name, style: theme.textTheme.bodyLarge),
+        end: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (change != null) ...[
+              step(Icons.remove, 'One fewer', -milli),
+              Semantics(
+                button: true,
+                label: 'How many',
+                value: quantityText(line.quantityMilli),
+                hint: 'Type how many',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: () async {
+                    final text = await _askQuantity(context, line);
+                    final q = text == null ? null : quantityFrom(text);
+                    if (q != null) change(q);
+                  },
+                  // At least a finger's width and height to tap.
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: kMinInteractiveDimension,
+                      minHeight: kMinInteractiveDimension,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text(
+                          quantityText(line.quantityMilli),
+                          style: theme.textTheme.titleMedium,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+              step(Icons.add, 'One more', milli),
+            ],
+            SizedBox(
+              width: 72,
+              child: Text(
+                formatMoney(Money(line.totalMinor), withCurrency: false),
+                textAlign: TextAlign.end,
+                style: theme.textTheme.bodyLarge,
+              ),
             ),
-            step(Icons.add, 'One more', milli),
           ],
-          SizedBox(
-            width: 72,
-            child: Text(
-              formatMoney(Money(line.totalMinor), withCurrency: false),
-              textAlign: TextAlign.end,
-              style: theme.textTheme.bodyLarge,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

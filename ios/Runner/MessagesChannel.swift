@@ -38,9 +38,12 @@ final class MessagesChannel: NSObject, FlutterStreamHandler {
         DispatchQueue.main.async { result(rows) }
       }
     case "release":
+      let senders = args["senders"] as? [String] ?? []
+      let since = (args["sinceMillis"] as? NSNumber)?.int64Value ?? 0
       let before = (args["beforeMillis"] as? NSNumber)?.int64Value ?? 0
       do {
-        try MessageQueue.shared.release(beforeMillis: before)
+        try MessageQueue.shared.release(
+          senders: senders, sinceMillis: since, beforeMillis: before)
         result(nil)
       } catch {
         result(FlutterError(code: "io_failed", message: error.localizedDescription, details: nil))

@@ -7,6 +7,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../data/biometric_authenticator.dart';
 import '../data/key_vault.dart';
+import '../data/screen_capture_blocker.dart';
 import '../data/secure_store.dart';
 import '../domain/lock_settings.dart';
 import '../domain/unlock_delay.dart';
@@ -83,7 +84,9 @@ class AppLockController extends Notifier<AppLockState> {
 
   Future<void> _load() async {
     try {
-      final settings = await _vault.readSettings();
+      final settings = await _applyScreenCaptureSetting(
+        await _vault.readSettings(),
+      );
       final attempts = await _vault.readAttempts();
       if (settings.pinSet) {
         state = AppLockState(
@@ -104,6 +107,19 @@ class AppLockController extends Notifier<AppLockState> {
       debugPrint('App lock settings could not be read: $error\n$stack');
       state = const AppLockState(status: LockStatus.failed);
     }
+  }
+
+  /// At startup, lets screenshots through when the person has allowed them.
+  ///
+  /// The window starts blocked (`MainActivity.kt`) and is left that way
+  /// otherwise. When the phone does not open up, [settings] come back as
+  /// blocked, so the switch shows what is in force.
+  Future<LockSettings> _applyScreenCaptureSetting(LockSettings settings) async {
+    if (!settings.allowScreenCapture) return settings;
+    if (!ref.read(canBlockScreenCaptureProvider)) return settings;
+    final blocker = ref.read(screenCaptureBlockerProvider);
+    final allowed = await blocker.setAllowed(true);
+    return allowed ? settings : settings.copyWith(allowScreenCapture: false);
   }
 
   void _release(String key, LockSettings settings) {
@@ -201,6 +217,25 @@ class AppLockController extends Notifier<AppLockState> {
   Future<void> setHideBalancesOnOpen(bool hide) async {
     await _saveSettings(state.settings.copyWith(hideBalancesOnOpen: hide));
     ref.read(balancesHiddenProvider.notifier).set(hide);
+  }
+
+  /// Allows or blocks screenshots and screen recording of the app, at once.
+  ///
+  /// Returns whether the phone took the change. When it does not, the
+  /// setting ends up blocked either way: an allow is put back, and a block
+  /// still holds from the next start.
+  Future<bool> setAllowScreenCapture(bool allow) async {
+    // Where the app cannot block them there is nothing to switch.
+    if (!ref.read(canBlockScreenCaptureProvider)) return false;
+    final blocker = ref.read(screenCaptureBlockerProvider);
+    // Saved before the window changes, so a block is kept even if the app
+    // stops here.
+    await _saveSettings(state.settings.copyWith(allowScreenCapture: allow));
+    final taken = await blocker.setAllowed(allow);
+    if (allow && !taken) {
+      await _saveSettings(state.settings.copyWith(allowScreenCapture: false));
+    }
+    return taken;
   }
 
   Future<void> _saveSettings(LockSettings settings) async {

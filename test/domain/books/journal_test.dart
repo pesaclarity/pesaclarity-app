@@ -504,4 +504,133 @@ void main() {
     expect(BookAccount.parse('money'), isNull);
     expect(BookAccount.parse('notYetSorted:4'), isNull);
   });
+
+  group('a paired own transfer clears Money in transit', () {
+    // KCB sends; M-Pesa gets [arrived] a minute later.
+    List<LedgerEntry> transfer(int left, int arrived, {int fee = 0}) => [
+      tx(
+        1,
+        eat(2026, 11, 3, 10),
+        left,
+        account: kcb,
+        kind: TransactionKind.bank,
+        fee: fee,
+        pair: 2,
+      ),
+      tx(
+        2,
+        eat(2026, 11, 3, 10, 1),
+        arrived,
+        inflow: true,
+        kind: TransactionKind.received,
+        pair: 1,
+      ),
+    ];
+    Map<BookAccount, int> lines(List<JournalEntry> journal, int id) => {
+      for (final l
+          in journal
+              .singleWhere(
+                (e) =>
+                    e.source == JournalSource.transaction && e.sourceId == id,
+              )
+              .lines)
+        l.account: l.amountMinor,
+    };
+    int left(List<JournalEntry> journal, BookAccount a, {String c = 'KES'}) =>
+        journalBalance(journal, a, currency: c, at: monthEnd);
+
+    test("less arriving than left: the difference is the transfer's fee, "
+        "in the money out's entry", () {
+      final journal = postJournal(
+        accounts: accounts,
+        history: transfer(kes(2030), kes(2000), fee: kes(20)),
+        categories: categories,
+      );
+      expect(lines(journal, 1), {
+        const BookAccount.money(kcb): -kes(2050),
+        BookAccount.moneyInTransit: kes(2000),
+        BookAccount.fees: kes(50),
+      });
+      expect(lines(journal, 2), {
+        const BookAccount.money(mpesa): kes(2000),
+        BookAccount.moneyInTransit: -kes(2000),
+      });
+      expect(left(journal, BookAccount.moneyInTransit), 0);
+    });
+
+    test('more arriving than left: transit clears, the rest is not yet '
+        'sorted', () {
+      final journal = postJournal(
+        accounts: accounts,
+        history: transfer(kes(2000), kes(2030)),
+        categories: categories,
+      );
+      expect(lines(journal, 1), {
+        const BookAccount.money(kcb): -kes(2000),
+        BookAccount.moneyInTransit: kes(2030),
+        BookAccount.notYetSorted: -kes(30),
+      });
+      expect(left(journal, BookAccount.moneyInTransit), 0);
+      expect(left(journal, BookAccount.notYetSorted), kes(30));
+    });
+
+    test('posting the money out alone takes what arrived from partners; '
+        'without it the money waits in transit', () {
+      final both = transfer(kes(2030), kes(2000));
+      final whole = postJournal(
+        accounts: accounts,
+        history: both,
+        categories: categories,
+      );
+      final alone = postJournal(
+        accounts: [accounts[1]],
+        history: [both.first],
+        categories: categories,
+        partners: {2: both.last},
+      );
+      expect(lines(alone, 1), lines(whole, 1));
+      final waiting = postJournal(
+        accounts: [accounts[1]],
+        history: [both.first],
+        categories: categories,
+      );
+      expect(lines(waiting, 1)[BookAccount.moneyInTransit], kes(2030));
+      expect(lines(waiting, 1)[BookAccount.fees], isNull);
+    });
+
+    test('a transfer between two currencies stays in transit, each side in '
+        'its own currency', () {
+      const usd = 4;
+      final journal = postJournal(
+        accounts: [
+          ...accounts,
+          AccountOpening(
+            id: usd,
+            type: AccountType.bank,
+            currency: 'USD',
+            openingBalanceMinor: 100000,
+            openingDate: eat(2026, 10, 31),
+          ),
+        ],
+        history: [
+          LedgerEntry(
+            id: 1,
+            accountId: usd,
+            occurredAt: eat(2026, 11, 3, 10),
+            amountMinor: 10000,
+            direction: TransactionDirection.outflow,
+            kind: TransactionKind.bank,
+            currency: 'USD',
+            transferPairId: 2,
+          ),
+          transfer(kes(2000), kes(12900)).last,
+        ],
+        categories: categories,
+      );
+      expect(left(journal, BookAccount.moneyInTransit, c: 'USD'), 10000);
+      expect(left(journal, BookAccount.moneyInTransit), -kes(12900));
+      expect(left(journal, BookAccount.fees, c: 'USD'), 0);
+      expect(left(journal, BookAccount.notYetSorted), 0);
+    });
+  });
 }

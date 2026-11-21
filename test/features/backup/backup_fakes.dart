@@ -22,6 +22,9 @@ class FakeLocalDataStore implements LocalDataStore {
 
   List<int> contents;
   int replacements = 0;
+
+  /// The space each restored copy said it was of.
+  final restoredOf = <String?>[];
   Object? failReplaceWith;
 
   /// The spaces a backup covers.
@@ -50,8 +53,13 @@ class FakeLocalDataStore implements LocalDataStore {
   }
 
   @override
-  Future<void> replaceWith(File staged, String stagedKeyHex) async {
+  Future<void> replaceWith(
+    File staged,
+    String stagedKeyHex, {
+    String? ofSpace,
+  }) async {
     if (failReplaceWith case final error?) throw error;
+    restoredOf.add(ofSpace);
     if (stagedKeyHex != fakeSnapshotKey) throw StateError('wrong key');
     contents = staged.readAsBytesSync();
     replacements++;

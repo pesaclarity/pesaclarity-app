@@ -9,6 +9,7 @@ import '../../../domain/plan/plan_groups.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
@@ -369,14 +370,12 @@ class _CategoryTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(name, style: theme.textTheme.bodyLarge)),
-              Text(
-                row.status.label,
-                style: theme.textTheme.labelLarge!.copyWith(color: colour),
-              ),
-            ],
+          BesideOrUnder(
+            lead: Text(name, style: theme.textTheme.bodyLarge),
+            end: Text(
+              row.status.label,
+              style: theme.textTheme.labelLarge!.copyWith(color: colour),
+            ),
           ),
           const SizedBox(height: 10),
           ExcludeSemantics(

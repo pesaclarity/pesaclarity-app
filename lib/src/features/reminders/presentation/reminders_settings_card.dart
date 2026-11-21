@@ -61,7 +61,7 @@ class RemindersSettingsCard extends ConsumerWidget {
                   onChanged: (on) => set((s) => s.copyWith(payday: on)),
                 ),
                 const Divider(height: 1),
-                ListTile(
+                ChoiceTile<int>(
                   title: const Text('Remind me'),
                   trailing: ChoiceMenu<int>(
                     key: const Key('reminders-lead-days'),

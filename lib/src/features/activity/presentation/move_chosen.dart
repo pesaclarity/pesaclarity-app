@@ -100,7 +100,7 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
         ),
         const SizedBox(height: 16),
         Card(
-          child: ListTile(
+          child: ChoiceTile<Space>(
             title: const Text('Move to'),
             trailing: ChoiceMenu<Space>(
               key: const Key('move-chosen-to'),
@@ -121,7 +121,7 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
           builder: (context, snapshot) {
             final list = snapshot.data ?? const [];
             return Card(
-              child: ListTile(
+              child: ChoiceTile<int?>(
                 title: const Text('Category there'),
                 subtitle: Text('Chosen in ${_to.name}'),
                 trailing: ChoiceMenu<int?>(

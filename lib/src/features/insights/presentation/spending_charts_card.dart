@@ -12,6 +12,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
@@ -248,19 +249,22 @@ class _BreakdownCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              // Long names get a second line before
-                              // they shorten.
-                              child: Text(
-                                sliceLabel(s.key, names),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                            Text(
-                              _amount(context, s.amountMinor),
-                              style: theme.textTheme.bodySmall!.copyWith(
-                                fontWeight: FontWeight.w600,
+                              // Long names get a second line before they
+                              // shorten; the amount moves under the name
+                              // where it would otherwise break a word.
+                              child: BesideOrUnder(
+                                lead: Text(
+                                  sliceLabel(s.key, names),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                                end: Text(
+                                  _amount(context, s.amountMinor),
+                                  style: theme.textTheme.bodySmall!.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                             Icon(
@@ -342,31 +346,27 @@ class _SoFarCard extends StatelessWidget {
       _ => ('${_amount(context, change)} over last $name', colors.warning),
     };
 
+    final title = Text('This $name so far', style: theme.textTheme.titleSmall);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'This $name so far',
-                    style: theme.textTheme.titleSmall,
+            if (changeText == null)
+              title
+            else
+              BesideOrUnder(
+                lead: title,
+                end: Text(
+                  changeText,
+                  key: const Key('chart-change'),
+                  style: theme.textTheme.labelMedium!.copyWith(
+                    color: changeColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (changeText != null)
-                  Text(
-                    changeText,
-                    key: const Key('chart-change'),
-                    style: theme.textTheme.labelMedium!.copyWith(
-                      color: changeColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
+              ),
             const SizedBox(height: 12),
             Semantics(
               label:

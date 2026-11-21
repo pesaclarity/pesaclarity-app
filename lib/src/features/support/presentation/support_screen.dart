@@ -126,7 +126,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
           const SectionLabel('Buy us a coffee'),
           if (config.takesAmount) ...[
             Card(
-              child: ListTile(
+              child: ChoiceTile<int?>(
                 title: const Text('Amount'),
                 trailing: ChoiceMenu<int?>(
                   key: const Key('support-amount'),

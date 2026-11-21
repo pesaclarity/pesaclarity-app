@@ -347,7 +347,7 @@ class DocumentSettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
-              ListTile(
+              ChoiceTile<ReceiptFormat>(
                 title: const Text('Send receipts as'),
                 subtitle: Text('Picture, PDF or text', style: muted),
                 trailing: ChoiceMenu<ReceiptFormat>(
@@ -364,7 +364,7 @@ class DocumentSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           GroupedSection(
             children: [
-              ListTile(
+              ChoiceTile<ReceiptColour>(
                 title: const Text('Receipt colour'),
                 subtitle: Text(
                   'Black and white suits a till printer',
@@ -379,7 +379,7 @@ class DocumentSettingsScreen extends ConsumerWidget {
                   onChanged: (c) => _save(ref, s.copyWith(receiptColour: c)),
                 ),
               ),
-              ListTile(
+              ChoiceTile<InvoiceHeader>(
                 title: const Text('Invoice header'),
                 subtitle: Text(
                   'Across the top of the first page',

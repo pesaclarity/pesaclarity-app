@@ -11,6 +11,7 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
@@ -219,32 +220,35 @@ class CashBookRow extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        // The amount moves under the name at larger text, where the name
+        // would otherwise break a word.
+        child: BesideOrUnder(
+          gap: 12,
+          leadMinWidth: RowName.widestWord(
+            context,
+            title,
+            theme.textTheme.titleMedium,
+          ),
+          lead: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RowName(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  RowName(title, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Flexible(child: Tag(account)),
-                      const SizedBox(width: 8),
-                      Text(
-                        when,
-                        style: theme.textTheme.bodyMedium!.copyWith(
-                          color: colors.textMuted,
-                        ),
-                      ),
-                    ],
+                  Flexible(child: Tag(account)),
+                  const SizedBox(width: 8),
+                  Text(
+                    when,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: colors.textMuted,
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            amount,
-          ],
+            ],
+          ),
+          end: amount,
         ),
       ),
     );
