@@ -71,11 +71,15 @@ class FakeSmsSource implements SmsSource {
     );
   }
 
-  /// The cut-offs passed to [release], in order.
-  final releases = <DateTime>[];
+  /// What [release] was asked to let go of, in order.
+  final releases = <({Set<String> senders, DateTime since, DateTime before})>[];
 
   @override
-  Future<void> release(DateTime before) async => releases.add(before);
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  }) async => releases.add((senders: senders, since: since, before: before));
 
   Future<void> close() => _incoming.close();
 }
@@ -87,7 +91,7 @@ class FakeSmsSource implements SmsSource {
 class PhoneInbox implements SmsSource {
   final inbox = <SmsMessage>[];
   final listenedSenders = <Set<String>>[];
-  final releases = <DateTime>[];
+  final releases = <({Set<String> senders, DateTime since, DateTime before})>[];
   StreamController<SmsMessage>? _listener;
   Set<String> _watched = const {};
 
@@ -135,7 +139,82 @@ class PhoneInbox implements SmsSource {
   }
 
   @override
-  Future<void> release(DateTime before) async => releases.add(before);
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  }) async => releases.add((senders: senders, since: since, before: before));
+
+  Future<void> close() async => _listener?.close();
+}
+
+/// The iPhone's message queue as `MessageQueue.swift` and
+/// `MessagesChannel.swift` keep it: one list for the whole app, which the
+/// Shortcuts automation appends to; `readInbox` filters it by sender and
+/// time, and `release` drops what a scan read, by sender and time.
+class ShortcutQueue implements SmsSource {
+  final queue = <SmsMessage>[];
+
+  /// The senders of the messages each [release] dropped.
+  final released = <String>[];
+  StreamController<SmsMessage>? _listener;
+  Set<String> _watched = const {};
+
+  /// The Shortcuts automation hands a message over.
+  void append(SmsMessage message) {
+    queue.add(message);
+    if (_watched.contains(SenderFilter.normalise(message.sender))) {
+      _listener?.add(message);
+    }
+  }
+
+  @override
+  Future<SmsAccess> access() async => SmsAccess.granted;
+
+  @override
+  Future<SmsAccess> requestAccess() async => SmsAccess.granted;
+
+  @override
+  Future<void> openSettings() async {}
+
+  @override
+  Future<List<SmsMessage>> readInbox({
+    required Set<String> senders,
+    required DateTime since,
+  }) async {
+    final watched = senders.map(SenderFilter.normalise).toSet();
+    return [
+      for (final m in queue)
+        if (watched.contains(SenderFilter.normalise(m.sender)) &&
+            !m.receivedAt.isBefore(since))
+          m,
+    ]..sort((a, b) => a.receivedAt.compareTo(b.receivedAt));
+  }
+
+  @override
+  Stream<SmsMessage> incoming(Set<String> senders) {
+    _listener = StreamController<SmsMessage>();
+    _watched = senders.map(SenderFilter.normalise).toSet();
+    return _listener!.stream;
+  }
+
+  @override
+  Future<void> release({
+    required Set<String> senders,
+    required DateTime since,
+    required DateTime before,
+  }) async {
+    final read = senders.map(SenderFilter.normalise).toSet();
+    bool goes(SmsMessage m) =>
+        read.contains(SenderFilter.normalise(m.sender)) &&
+        !m.receivedAt.isBefore(since) &&
+        m.receivedAt.isBefore(before);
+    released.addAll([
+      for (final m in queue)
+        if (goes(m)) m.sender,
+    ]);
+    queue.removeWhere(goes);
+  }
 
   Future<void> close() async => _listener?.close();
 }

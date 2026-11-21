@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:ujumbe/ujumbe.dart';
+
 import '../../../data/repositories/sms_scan_marks_repository.dart';
 import '../../accounts/domain/institution.dart';
 import '../data/sms_source.dart';
@@ -58,25 +60,27 @@ class SmsScanService {
     required bool again,
   }) async {
     final startedAt = _clock().toUtc();
-    final inboxes = [
-      for (final institution in selected)
-        (
-          institution,
-          await _source.readInbox(
-            senders: institution.senderIds.toSet(),
-            since:
-                (again ? null : await _marks.scannedUntil(institution.id)) ??
-                from ??
-                _beginning,
-          ),
+    final inboxes = <(Institution, DateTime, List<SmsMessage>)>[];
+    for (final institution in selected) {
+      final since =
+          (again ? null : await _marks.scannedUntil(institution.id)) ??
+          from ??
+          _beginning;
+      inboxes.add((
+        institution,
+        since,
+        await _source.readInbox(
+          senders: institution.senderIds.toSet(),
+          since: since,
         ),
-    ];
+      ));
+    }
 
-    final total = inboxes.fold(0, (sum, inbox) => sum + inbox.$2.length);
+    final total = inboxes.fold(0, (sum, inbox) => sum + inbox.$3.length);
     var done = 0;
     onProgress?.call(done, total);
     var summary = const SmsIngestSummary();
-    for (final (institution, messages) in inboxes) {
+    for (final (institution, since, messages) in inboxes) {
       for (var i = 0; i < messages.length; i += batchSize) {
         final batch = messages.sublist(i, min(i + batchSize, messages.length));
         summary += await _ingestor.ingest(batch, [institution], again: again);
@@ -84,9 +88,15 @@ class SmsScanService {
         onProgress?.call(done, total);
       }
       await _marks.markScanned(institution.id, startedAt);
+      // Only what this scan read: this institution's messages from where it
+      // started up to the scan's start. Messages of accounts this space
+      // does not read wait for the space that does.
+      await _source.release(
+        senders: institution.senderIds.toSet(),
+        since: since,
+        before: startedAt,
+      );
     }
-    // Everything before the start has now been read for every institution.
-    if (selected.isNotEmpty) await _source.release(startedAt);
     return summary;
   }
 }
