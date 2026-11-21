@@ -21,8 +21,8 @@ import '../domain/crash_report.dart';
 /// What to do with a crash report (ADR 0024). The on/off crash report
 /// consent becomes this: off is [ask], on is [always].
 enum CrashReportChoice {
-  /// Show the report on the next start and send it only on Send report.
-  /// The default.
+  /// Show the report on the next start and send it only on Send report:
+  /// at once, or without asking again once online. The default.
   ask,
 
   /// Send it on the next start without asking.
@@ -58,7 +58,9 @@ class CrashReportChoiceController extends AsyncNotifier<CrashReportChoice> {
       'changedAt': ref.read(clockProvider)().toUtc().toIso8601String(),
     });
     if (choice == CrashReportChoice.never) {
-      await ref.read(pendingCrashStoreProvider).clear();
+      final store = ref.read(pendingCrashStoreProvider);
+      await store.clear();
+      await store.keepToSend(const []);
     }
     state = AsyncData(choice);
   }
@@ -165,14 +167,19 @@ class CrashCapture {
 /// What happened to the reports waiting from the last run.
 enum PendingOutcome { none, sent, deleted, waitingForAnswer, notYet }
 
-/// On start: with Never send, deletes waiting reports; with Always send,
-/// sends them (at most three) once the person has agreed to a policy that
-/// describes crash reports (2.4 or later); with Ask each time, leaves them
-/// for the sheet that asks.
+/// On start: first sends the reports the person already chose to send
+/// (Send report while offline). Then, with Never send, deletes waiting
+/// reports; with Always send, sends them (at most three) once the person
+/// has agreed to a policy that describes crash reports (2.4 or later);
+/// with Ask each time, leaves them for the sheet that asks.
 Future<PendingOutcome> handlePendingCrashReports(Ref ref) async {
   final store = ref.read(pendingCrashStoreProvider);
+  final chosen = await sendChosenCrashReports(
+    store,
+    ref.read(crashReportSenderProvider),
+  );
   final pending = await store.read();
-  if (pending.isEmpty) return PendingOutcome.none;
+  if (pending.isEmpty) return chosen;
   final choice = await ref.read(crashReportChoiceProvider.future);
   switch (choice) {
     case CrashReportChoice.never:
@@ -203,16 +210,50 @@ Future<PendingOutcome> sendCrashReports(
   CrashReportSender sender,
   List<CrashReport> reports,
 ) async {
-  final left = <CrashReport>[];
-  for (final report in reports.take(PendingCrashStore.maxPending)) {
-    if (!await sender.send(report)) left.add(report);
-  }
+  final left = await _send(sender, reports);
   await store.clear();
   for (final report in left) {
     await store.add(report);
   }
   return left.isEmpty ? PendingOutcome.sent : PendingOutcome.notYet;
 }
+
+/// Send report: sends [reports] now, and keeps the ones that cannot go
+/// yet (offline, or a build without a server) to go without asking again.
+Future<PendingOutcome> sendCrashReportsAsChosen(
+  PendingCrashStore store,
+  CrashReportSender? sender,
+  List<CrashReport> reports,
+) async {
+  final left = sender == null ? reports : await _send(sender, reports);
+  await store.clear();
+  if (left.isNotEmpty) {
+    await store.keepToSend([...await store.readToSend(), ...left]);
+  }
+  return left.isEmpty ? PendingOutcome.sent : PendingOutcome.notYet;
+}
+
+/// Sends the reports the person chose to send that waited for a
+/// connection; quietly keeps them while still offline.
+Future<PendingOutcome> sendChosenCrashReports(
+  PendingCrashStore store,
+  CrashReportSender? sender,
+) async {
+  final waiting = await store.readToSend();
+  if (waiting.isEmpty) return PendingOutcome.none;
+  if (sender == null) return PendingOutcome.notYet;
+  final left = await _send(sender, waiting);
+  await store.keepToSend(left);
+  return left.isEmpty ? PendingOutcome.sent : PendingOutcome.notYet;
+}
+
+Future<List<CrashReport>> _send(
+  CrashReportSender sender,
+  List<CrashReport> reports,
+) async => [
+  for (final report in reports.take(PendingCrashStore.maxPending))
+    if (!await sender.send(report)) report,
+];
 
 /// Runs [handlePendingCrashReports] once per start.
 final pendingCrashReportsProvider = FutureProvider<PendingOutcome>(

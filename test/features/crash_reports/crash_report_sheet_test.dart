@@ -29,10 +29,13 @@ const report = CrashReport(
 class FakeSender implements CrashReportSender {
   final sent = <CrashReport>[];
 
+  /// Whether the server can be reached.
+  var online = true;
+
   @override
   Future<bool> send(CrashReport report) async {
-    sent.add(report);
-    return true;
+    if (online) sent.add(report);
+    return online;
   }
 }
 
@@ -129,6 +132,18 @@ void main() {
       'always',
     );
     expect(find.text(CrashReportSheet.title), findsNothing);
+  });
+
+  testWidgets('Send report offline sends it later without asking again', (
+    tester,
+  ) async {
+    sender.online = false;
+    await open(tester);
+    await tap(tester, CrashReportSheet.send);
+    expect(find.text(CrashReportSheet.title), findsNothing);
+    expect(store.reports, isEmpty, reason: 'not asked about again');
+    expect(store.toSend, [report]);
+    expect(settings.values[CrashReportChoiceController.settingsKey], isNull);
   });
 
   testWidgets("Don't send deletes it; Do the same makes it Never send", (

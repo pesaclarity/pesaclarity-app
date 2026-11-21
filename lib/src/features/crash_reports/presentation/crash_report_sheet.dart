@@ -48,9 +48,10 @@ class _CrashReportSheetState extends ConsumerState<CrashReportSheet> {
     try {
       final store = ref.read(pendingCrashStoreProvider);
       final sender = ref.read(crashReportSenderProvider);
-      if (send && sender != null) {
-        await sendCrashReports(store, sender, widget.reports);
-      } else if (!send) {
+      if (send) {
+        // Now, or without asking again once online.
+        await sendCrashReportsAsChosen(store, sender, widget.reports);
+      } else {
         await store.clear();
       }
       if (_same) {

@@ -288,6 +288,8 @@ void main() {
       );
       addTearDown(c.dispose);
       if (choice != null) {
+        // Loaded first, as the Privacy screen has it before a choice.
+        await c.read(crashReportChoiceProvider.future);
         await c.read(crashReportChoiceProvider.notifier).choose(choice);
       }
       return c;
@@ -341,6 +343,60 @@ void main() {
         PendingOutcome.notYet,
       );
       expect(sender.sent, isEmpty);
+    });
+
+    test(
+      'Send report offline: they go on a later start without asking',
+      () async {
+        sender.works = false;
+        final pending = await store.read();
+        expect(
+          await sendCrashReportsAsChosen(store, sender, pending),
+          PendingOutcome.notYet,
+        );
+        expect(store.reports, isEmpty, reason: 'the sheet does not ask again');
+        expect(store.toSend, pending);
+
+        // The next start, still offline: nothing to ask, nothing lost.
+        var c = await container();
+        expect(
+          await c.read(pendingCrashReportsProvider.future),
+          PendingOutcome.notYet,
+        );
+        expect(store.toSend, pending);
+        c.dispose();
+
+        // Online at last.
+        sender.works = true;
+        c = await container();
+        expect(
+          await c.read(pendingCrashReportsProvider.future),
+          PendingOutcome.sent,
+        );
+        expect(sender.sent, pending);
+        expect(store.toSend, isEmpty);
+      },
+    );
+
+    test('a new crash after Send report is still asked about', () async {
+      sender.works = false;
+      await sendCrashReportsAsChosen(store, sender, await store.read());
+      final later = buildCrashReport(ArgumentError('y'), obfuscated, context)!;
+      await store.add(later);
+
+      final c = await container();
+      expect(
+        await c.read(pendingCrashReportsProvider.future),
+        PendingOutcome.waitingForAnswer,
+      );
+      expect(store.reports, [later]);
+    });
+
+    test('Never send also drops the ones waiting to be sent', () async {
+      sender.works = false;
+      await sendCrashReportsAsChosen(store, sender, await store.read());
+      await container(choice: CrashReportChoice.never);
+      expect(store.toSend, isEmpty);
     });
 
     test('offline: they wait for the next start', () async {

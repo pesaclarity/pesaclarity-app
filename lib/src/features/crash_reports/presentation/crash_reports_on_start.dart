@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../routing/app_router.dart';
 import '../../app_status/application/update_check_choice.dart';
 import '../application/crash_reports.dart';
+import '../data/crash_report_sender.dart';
 import '../data/pending_crash_store.dart';
 import 'crash_report_sheet.dart';
 
 /// Starts crash capture, and once the app is unlocked and onboarded deals
 /// with the reports waiting from the last run (ADR 0024). It shows nothing:
-/// with Ask each time, reports wait for the sheet that asks.
+/// with Ask each time, reports wait for the sheet that asks. Reports the
+/// person chose to send while offline go when the app returns online.
 class CrashReportsOnStart extends ConsumerStatefulWidget {
   const CrashReportsOnStart({required this.child, super.key});
 
@@ -24,11 +26,14 @@ class CrashReportsOnStart extends ConsumerStatefulWidget {
 
 class _CrashReportsOnStartState extends ConsumerState<CrashReportsOnStart> {
   bool _handled = false;
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
     super.initState();
     unawaited(_install());
+    // Reports the person chose to send while offline go once online.
+    _lifecycle = AppLifecycleListener(onResume: _sendChosen);
     ref.listenManual(launchGateProvider, (_, gate) {
       if ((gate.value ?? false) && !_handled) {
         _handled = true;
@@ -59,6 +64,22 @@ class _CrashReportsOnStartState extends ConsumerState<CrashReportsOnStart> {
         .currentContext;
     if (navigator == null || !navigator.mounted) return;
     await showCrashReportSheet(navigator, reports);
+  }
+
+  void _sendChosen() {
+    if (!_handled || !mounted) return;
+    unawaited(
+      sendChosenCrashReports(
+        ref.read(pendingCrashStoreProvider),
+        ref.read(crashReportSenderProvider),
+      ).then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   Future<void> _install() async {
