@@ -857,6 +857,187 @@ void main() {
       expect(await columns(db, 'debts'), contains('next_due_day'));
     });
 
+    /// Takes the current schema in [old] back to version 40, before savings
+    /// accounts.
+    Future<void> toVersion40(AppDatabase old) async {
+      await old.customStatement('DROP INDEX goals_saved_in_pocket');
+      await old.customStatement(
+        'ALTER TABLE goals DROP COLUMN saved_in_pocket_id',
+      );
+      for (final table in [
+        'savings_readings',
+        'savings_entries',
+        'savings_pockets',
+      ]) {
+        await old.customStatement('DROP TABLE $table');
+      }
+      await old.customStatement('ALTER TABLE accounts DROP COLUMN product');
+      await old.customStatement('PRAGMA user_version = 40');
+    }
+
+    test('migrates a version 40 database: savings accounts', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final wallet = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026),
+            ),
+          );
+      await old
+          .into(old.goals)
+          .insert(
+            GoalsCompanion.insert(
+              name: 'Christmas',
+              targetMinor: 1000000,
+              savedMinor: const Value(320000),
+            ),
+          );
+      await toVersion40(old);
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(db.schemaVersion, 41);
+      expect((await columns(db, 'accounts'))['product'], isFalse);
+      expect((await columns(db, 'goals'))['saved_in_pocket_id'], isFalse);
+      expect(
+        await tableNames(db),
+        containsAll(['savings_pockets', 'savings_entries', 'savings_readings']),
+      );
+      final indexes = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
+          .map((r) => r.read<String>('name'))
+          .get();
+      expect(
+        indexes,
+        containsAll([
+          'goals_saved_in_pocket',
+          'savings_entries_pocket',
+          'savings_readings_pocket',
+        ]),
+      );
+
+      // What was there stays, and nothing becomes a savings account by
+      // itself.
+      final account = await db.select(db.accounts).getSingle();
+      expect(account.name, 'M-Pesa');
+      expect(account.product, isNull);
+      var goal = await db.select(db.goals).getSingle();
+      expect(goal.savedMinor, 320000);
+      expect(goal.savedInPocketId, isNull);
+      expect(await db.select(db.savingsPockets).get(), isEmpty);
+
+      // The new tables hold together as the app uses them.
+      final savings = await db
+          .into(db.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'Chumz',
+              type: AccountType.moneyMarket,
+              openingDate: DateTime.utc(2026, 11),
+              product: const Value('chumz'),
+            ),
+          );
+      Future<int> pocket(String code) => db
+          .into(db.savingsPockets)
+          .insert(
+            SavingsPocketsCompanion.insert(
+              accountId: savings,
+              code: code,
+              name: code,
+            ),
+          );
+      final first = await pocket('CH12345');
+      final second = await pocket('CH67890');
+      // One pocket per code on an account.
+      await expectLater(pocket('CH12345'), throwsA(isA<SqliteException>()));
+      final paidIn = await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: savings,
+              occurredAt: DateTime.utc(2026, 11, 21, 9),
+              amountMinor: 5000,
+              direction: TransactionDirection.inflow,
+              source: TransactionSource.manual,
+              transferAccountId: Value(wallet),
+            ),
+          );
+      await db
+          .into(db.savingsEntries)
+          .insert(
+            SavingsEntriesCompanion.insert(
+              transactionId: Value(paidIn),
+              pocketId: Value(first),
+              kind: SavingsEntryKind.paidIn,
+            ),
+          );
+      Future<int> reading(int pocketId) => db
+          .into(db.savingsReadings)
+          .insert(
+            SavingsReadingsCompanion.insert(
+              pocketId: pocketId,
+              at: DateTime.utc(2026, 11, 21, 10),
+              balanceMinor: 320000,
+            ),
+          );
+      await reading(first);
+      await reading(second);
+      // One balance per pocket at a time.
+      await expectLater(reading(first), throwsA(isA<SqliteException>()));
+      expect(
+        (await db.select(db.savingsReadings).get()).every(
+          (r) => r.gapIsInterest,
+        ),
+        isTrue,
+      );
+
+      // A pocket backs one goal, and a goal lets go of a pocket that goes.
+      await db
+          .update(db.goals)
+          .write(GoalsCompanion(savedInPocketId: Value(first)));
+      await expectLater(
+        db
+            .into(db.goals)
+            .insert(
+              GoalsCompanion.insert(
+                name: 'Second',
+                targetMinor: 100,
+                savedInPocketId: Value(first),
+              ),
+            ),
+        throwsA(isA<SqliteException>()),
+      );
+      // An entry goes with its transaction; pockets, their balances and
+      // the goal's link go with the account.
+      await (db.delete(
+        db.transactions,
+      )..where((t) => t.id.equals(paidIn))).go();
+      expect(await db.select(db.savingsEntries).get(), isEmpty);
+      await (db.delete(db.accounts)..where((a) => a.id.equals(savings))).go();
+      expect(await db.select(db.savingsPockets).get(), isEmpty);
+      expect(await db.select(db.savingsReadings).get(), isEmpty);
+      goal = await db.select(db.goals).getSingle();
+      expect(goal.savedInPocketId, isNull);
+      expect(goal.savedMinor, 320000);
+    });
+
+    test('the version 41 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 40');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await columns(db, 'accounts'), contains('product'));
+      expect(await columns(db, 'goals'), contains('saved_in_pocket_id'));
+      expect(await db.select(db.savingsPockets).get(), isEmpty);
+    });
+
     test('migrates a version 17 database: moved transactions', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE moved_transactions');
