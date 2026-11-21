@@ -79,13 +79,17 @@ AppDatabase openEncryptedDatabase(
       final file = await databaseFile(spaceId);
       final key = await keyStore.readOrCreateKey();
       StartupTimeline.mark('database key read');
-      return NativeDatabase.createInBackground(
-        file,
-        setup: (db) => applyCipherKey(db, key),
-      );
+      return NativeDatabase.createInBackground(file, setup: _cipherSetup(key));
     }),
   );
 }
+
+/// The setup [NativeDatabase.createInBackground] sends to its isolate. Made
+/// here so the closure holds only [hexKey]: one made inside
+/// [openEncryptedDatabase] would carry the key store with it, which holds a
+/// completer while it waits for the key and cannot be sent to an isolate.
+void Function(Database) _cipherSetup(String hexKey) =>
+    (db) => applyCipherKey(db, hexKey);
 
 /// Applies a raw 256-bit [hexKey] to [db], refusing to continue without SQLCipher.
 ///
