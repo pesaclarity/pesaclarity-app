@@ -560,9 +560,14 @@ void main() {
       'Kale',
       'Kale',
     ]) {
+      // At large text the tiles go one to a row, below the fold.
+      await tester.ensureVisible(find.text(name));
+      await tester.pump();
       await tester.tap(find.text(name));
       await tester.pump();
     }
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+    await settleFrames(tester);
     await snap(tester);
     await tester.tap(find.byKey(const Key('sell-pay')));
     await settleFrames(tester);

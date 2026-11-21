@@ -398,14 +398,16 @@ void main() {
       await settleFrames(tester);
     }
 
-    // Two to a row up to 1.3x text (at 2x they go one to a row, below).
+    // Two to a row while every name fits a half-width tile: here on a wide
+    // screen, as the test font's square letters are wide. Where a name does
+    // not fit, they go one to a row (below).
     testAppWidgets('tiles in a row stay as tall as each other at 1.3x text', (
       tester,
     ) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await pump(tester);
-      tester.view.physicalSize = const Size(390, 1600);
+      tester.view.physicalSize = const Size(800, 1600);
       await tester.pumpAndSettle();
       final tiles = find.byWidgetPredicate(
         (w) =>
@@ -424,9 +426,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testAppWidgets('at 2x text tiles go one to a row, so names show whole', (
-      tester,
-    ) async {
+    testAppWidgets('when a name would not fit, tiles go one to a row, so it '
+        'shows whole', (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await pump(tester);

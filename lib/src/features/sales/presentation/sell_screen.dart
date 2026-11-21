@@ -519,6 +519,15 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
     if (saved == true && mounted) Navigator.of(context).pop();
   }
 
+  /// Whether a name's longest word would not fit a half-width tile, beside
+  /// room for its count, at the phone's text size.
+  bool _oneToARow(BuildContext context, List<Item> shown) {
+    final width = MediaQuery.sizeOf(context).width - 2 * Layout.gutter;
+    final room = (width - Layout.cardGap) / 2 - 2 * Layout.cardPadding - 40;
+    final style = Theme.of(context).textTheme.titleMedium;
+    return shown.any((i) => RowName.widestWord(context, i.name, style) > room);
+  }
+
   @override
   Widget build(BuildContext context) {
     final groups = {
@@ -609,10 +618,10 @@ class _TilesSellState extends ConsumerState<_TilesSell> {
             ],
             const SizedBox(height: 12),
             // Two to a row, each row as tall as its tallest tile, so tiles
-            // grow with large text and a row stays even. From one and a
-            // half times the text size, one to a row, so a name such as
-            // "Avocados" shows whole rather than ending in "...".
-            if (MediaQuery.textScalerOf(context).scale(10) >= 15)
+            // grow with large text and a row stays even. When a name's
+            // longest word would not fit a half-width tile beside its count
+            // (as at large text), one to a row, so "Avocados" shows whole.
+            if (_oneToARow(context, shown))
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
