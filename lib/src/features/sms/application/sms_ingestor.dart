@@ -201,7 +201,9 @@ class SmsIngestor {
     final hashes = {
       for (final result in results)
         if (result
-            case ParsedTransaction(:final rawHash) || Unmatched(:final rawHash))
+            case ParsedTransaction(:final rawHash) ||
+                Unmatched(:final rawHash) ||
+                KnownNotice(:final rawHash))
           rawHash,
     };
     final reads = _reads;
@@ -282,6 +284,11 @@ class SmsIngestor {
             reason: result.reason,
           );
           if (added) forReview++;
+        case KnownNotice(:final rawHash):
+          // Known not to be a transaction, such as a declined card payment.
+          // An older pack may have queued it for review: take it out.
+          leaveReview(rawHash);
+          ignored++;
         case Ignored():
           ignored++;
       }

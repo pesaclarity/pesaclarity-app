@@ -4,6 +4,7 @@ import 'package:pesaclarity/src/core/money/exchange_rates.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/debts_repository.dart';
+import 'package:pesaclarity/src/data/repositories/message_reads_repository.dart';
 import 'package:pesaclarity/src/data/repositories/review_inbox_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
@@ -349,8 +350,44 @@ void main() {
         ),
       ], _kcb);
       expect(summary.added, 0);
+      expect(summary.forReview, 0, reason: 'a known notice, not a question');
       expect(await rows(), isEmpty);
     });
+
+    test(
+      'a declined payment an older pack queued leaves the review inbox',
+      () async {
+        final declined = _kcbSms(
+          'KES 1,250.00 transaction made on KCB card 4111***0007 at EXAMPLE '
+          'GROCERS on 02/11/2026 09:05am has been declined. Reason - '
+          'Insufficient funds.Balance KES 120.00. Queries call +254711087000.',
+          DateTime.utc(2026, 11, 2, 6, 5),
+        );
+        final inbox = DriftReviewInboxRepository(
+          db,
+          clock: () => DateTime.utc(2026, 11, 7),
+        );
+        await inbox.addIfNew(
+          institutionId: 'kcb',
+          sender: 'KCB',
+          receivedAt: declined.receivedAt,
+          messageHash: hashMessageBody(declined.body),
+          body: declined.body,
+          reason: 'No rule matched',
+        );
+        expect(await inbox.watchPending().first, hasLength(1));
+
+        final summary = await SmsIngestor(
+          accounts: DriftAccountsRepository(db),
+          transactions: transactionsRepo,
+          reviewInbox: inbox,
+          reads: MessageReadsRepository(db),
+        ).ingest([declined], _kcb);
+        expect(summary.forReview, 0);
+        expect(await inbox.watchPending().first, isEmpty);
+        expect(await rows(), isEmpty);
+      },
+    );
 
     SmsMessage card() => _kcbSms(
       'USD 42.50 transaction made on KCB card 4111***0007 at '
