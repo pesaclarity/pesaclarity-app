@@ -107,6 +107,90 @@ void main() {
     expect(moved.categoryOverrideId, isNull);
   });
 
+  // The balance a message reported is the balance of the space that reads
+  // its account (decision 0027, alternative D).
+  group('the balance the message reported', () {
+    TransactionsCompanion withBalances(int accountId) =>
+        sale(accountId).copyWith(
+          balanceAfterMinor: const Value(3846900),
+          claimedBalanceMinor: const Value(3846900),
+          owedAfterMinor: const Value(30300),
+          owedDueAt: Value(DateTime.utc(2026, 12, 3)),
+        );
+
+    Future<void> reads(AppDatabase db) => db
+        .into(db.selectedInstitutions)
+        .insert(
+          SelectedInstitutionsCompanion.insert(
+            institutionId: 'mpesa',
+            selectedAt: DateTime.utc(2026),
+          ),
+        );
+
+    void expectNoBalance(TransactionRecord moved) {
+      expect(moved.balanceAfterMinor, isNull);
+      expect(moved.claimedBalanceMinor, isNull);
+      expect(moved.owedAfterMinor, isNull);
+      expect(moved.owedDueAt, isNull);
+    }
+
+    test('stays behind when the payment moves out of the space that reads '
+        'its account', () async {
+      await reads(personal);
+      final id = await DriftTransactionsRepository(personal)
+          .add(withBalances(mpesa));
+
+      await moves.move(id, 'shop1');
+
+      final moved = await business.select(business.transactions).getSingle();
+      expect(moved.amountMinor, 150000);
+      expect(moved.receiptNo, 'QK1');
+      expectNoBalance(moved);
+    });
+
+    test('stays behind when neither space reads the account', () async {
+      final id = await DriftTransactionsRepository(personal)
+          .add(withBalances(mpesa));
+
+      await moves.move(id, 'shop1');
+
+      expectNoBalance(await business.select(business.transactions).getSingle());
+    });
+
+    test('comes along when the payment moves into the space that reads its '
+        'account', () async {
+      // A payment moved into the shop before balances stayed behind, moved
+      // back to Personal, which reads the line.
+      await reads(personal);
+      final shopMpesa = await business
+          .into(business.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026),
+              institutionId: const Value('mpesa'),
+            ),
+          );
+      final id = await DriftTransactionsRepository(business)
+          .add(withBalances(shopMpesa));
+
+      await DriftSpaceMoveRepository(
+        business,
+        (_) async => (personal, false),
+      ).move(id, personalSpaceId);
+
+      final back = await personal.select(personal.transactions).getSingle();
+      expect(back.balanceAfterMinor, 3846900);
+      expect(back.claimedBalanceMinor, 3846900);
+      expect(back.owedAfterMinor, 30300);
+      expect(
+        back.owedDueAt?.isAtSameMomentAs(DateTime.utc(2026, 12, 3)),
+        isTrue,
+      );
+    });
+  });
+
   // A debt or goal belongs to its own space: its row id means another debt
   // or goal, or none, in any other. Synthetic messages only.
   group('a payment linked to a debt or goal', () {
