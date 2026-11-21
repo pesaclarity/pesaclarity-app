@@ -30,6 +30,7 @@ class _CountingTransactions extends DriftTransactionsRepository {
     required DateTime to,
     int? tagId,
     Set<int>? accountIds,
+    bool dayToDayOnly = false,
   }) {
     if (from.year == 1970 && to.year == 9999) wholeLedgerReads++;
     return super.ledgerEntries(
@@ -37,6 +38,7 @@ class _CountingTransactions extends DriftTransactionsRepository {
       to: to,
       tagId: tagId,
       accountIds: accountIds,
+      dayToDayOnly: dayToDayOnly,
     );
   }
 }

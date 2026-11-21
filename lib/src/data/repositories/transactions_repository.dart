@@ -54,10 +54,13 @@ abstract interface class TransactionsRepository {
   /// says went to one of their savings accounts (SACCO or money market) is
   /// filed under the seeded Savings category, unless they chose a category
   /// for it or its payee has one.
+  ///
+  /// With [dayToDayOnly], entries on savings accounts are left out.
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
     int? tagId,
+    bool dayToDayOnly = false,
   });
 
   /// Stores own-transfer pairs so both halves point at each other.
@@ -342,6 +345,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
     required DateTime to,
     int? tagId,
     Set<int>? accountIds,
+    bool dayToDayOnly = false,
   }) async {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
@@ -352,11 +356,16 @@ class DriftTransactionsRepository implements TransactionsRepository {
       't.occurred_at >= ? AND t.occurred_at < ?',
       if (ids != null)
         't.account_id IN (${List.filled(ids.length, '?').join(', ')})',
+      if (dayToDayOnly)
+        't.account_id NOT IN (SELECT a.id FROM accounts a WHERE a.type IN '
+            '(${List.filled(savingsAccountTypes.length, '?').join(', ')}))',
     ].join(' AND ');
     final rangeVariables = <Variable<Object>>[
       Variable<DateTime>(from),
       Variable<DateTime>(to),
       for (final id in ids ?? const <int>[]) Variable<int>(id),
+      if (dayToDayOnly)
+        for (final type in savingsAccountTypes) Variable<String>(type.name),
     ];
 
     final tags = <int, Set<int>>{};

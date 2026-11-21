@@ -80,17 +80,28 @@ final rainyDayFundProvider =
       RainyDayFundController.new,
     );
 
-/// This week against a usual one, with the fund.
+/// The entries with time in `[from, to)` on day-to-day accounts. Money on a
+/// savings account (SACCO or money market) is left out: interest there is
+/// income, but it is not money arriving that the days ahead can spend.
+Future<List<LedgerEntry>> _dayToDayEntries(
+  Ref ref, {
+  required DateTime from,
+  required DateTime to,
+}) => ref
+    .watch(transactionsRepositoryProvider)
+    .ledgerEntries(from: from, to: to, dayToDayOnly: true);
+
+/// This week against a usual one, with the fund. Savings accounts are left
+/// out (see [_dayToDayEntries]).
 final weekByWeekProvider = FutureProvider<WeekByWeek>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
   final from = weekStartOf(today).addDays(-7 * usualWeeksCount);
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(
-        from: from.addDays(-incomePatternDays).startInstant,
-        to: today.addDays(1).startInstant,
-      );
+  final entries = await _dayToDayEntries(
+    ref,
+    from: from.addDays(-incomePatternDays).startInstant,
+    to: today.addDays(1).startInstant,
+  );
   return WeekByWeek.of(
     entries,
     today: today,
@@ -104,16 +115,15 @@ final makeItLastProvider =
     );
 
 /// The newest money that arrived as income, from the last
-/// [incomePatternDays].
+/// [incomePatternDays]. Interest on a savings account is not an arrival.
 final latestArrivalProvider = FutureProvider<LedgerEntry?>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(
-        from: today.addDays(-incomePatternDays).startInstant,
-        to: today.addDays(1).startInstant,
-      );
+  final entries = await _dayToDayEntries(
+    ref,
+    from: today.addDays(-incomePatternDays).startInstant,
+    to: today.addDays(1).startInstant,
+  );
   LedgerEntry? latest;
   for (final e in entries) {
     final role = roleOf(e);
@@ -132,16 +142,16 @@ final incomeSourcesProvider =
       IncomeSourcesController.new,
     );
 
-/// The pattern of money arriving, learnt from the last [incomePatternDays].
+/// The pattern of money arriving, learnt from the last [incomePatternDays]
+/// on day-to-day accounts.
 final incomePatternProvider = FutureProvider<IncomePattern>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
-  final entries = await ref
-      .watch(transactionsRepositoryProvider)
-      .ledgerEntries(
-        from: today.addDays(-incomePatternDays).startInstant,
-        to: today.addDays(1).startInstant,
-      );
+  final entries = await _dayToDayEntries(
+    ref,
+    from: today.addDays(-incomePatternDays).startInstant,
+    to: today.addDays(1).startInstant,
+  );
   return IncomePattern.of(entries, today: today);
 });
 
