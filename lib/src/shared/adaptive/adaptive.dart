@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/layout.dart';
@@ -165,23 +167,31 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
           ),
         )
       : LayoutBuilder(
-          builder: (context, constraints) => SegmentedButton<T>(
-            // Side by side while every word of every label fits its half;
-            // otherwise one above the other, so no word breaks.
-            direction: _fitsSideBySide(context, constraints.maxWidth)
-                ? Axis.horizontal
-                : Axis.vertical,
-            showSelectedIcon: showSelectedIcon,
-            segments: [
-              for (final (value, label) in segments)
-                ButtonSegment(
-                  value: value,
-                  label: Text(label, key: segmentKey?.call(value)),
-                ),
-            ],
-            selected: {selected},
-            onSelectionChanged: (values) => onChanged(values.single),
-          ),
+          builder: (context, constraints) {
+            final scaler = _sideBySideScaler(context, constraints.maxWidth);
+            final button = SegmentedButton<T>(
+              // Side by side while every word of every label fits its half,
+              // at the phone's text size or a little under it; otherwise
+              // one above the other, so no word breaks.
+              direction: scaler != null ? Axis.horizontal : Axis.vertical,
+              showSelectedIcon: showSelectedIcon,
+              segments: [
+                for (final (value, label) in segments)
+                  ButtonSegment(
+                    value: value,
+                    label: Text(label, key: segmentKey?.call(value)),
+                  ),
+              ],
+              selected: {selected},
+              onSelectionChanged: (values) => onChanged(values.single),
+            );
+            final base = MediaQuery.textScalerOf(context);
+            if (scaler == null || scaler == base) return button;
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: scaler),
+              child: button,
+            );
+          },
         );
 
   /// Room a segment takes beyond its label: its padding, its border and,
@@ -189,23 +199,49 @@ class AdaptiveSegmented<T extends Object> extends StatelessWidget {
   static const _segmentChrome = 40.0;
   static const _tick = 26.0;
 
-  bool _fitsSideBySide(BuildContext context, double width) {
-    if (!width.isFinite) return true;
+  /// The smallest share of the phone's text size the labels may take to
+  /// stay side by side: at twice the size, no smaller than 1.5 times. As the
+  /// tab bar does, every label takes the one size.
+  static const _minShare = 0.75;
+
+  /// The text size at which the segments fit side by side in [width]: the
+  /// phone's when they fit at it, otherwise the largest at which they do,
+  /// down to [_minShare] of it (never under the usual size). Null when they
+  /// do not fit even then, and so go one above the other.
+  TextScaler? _sideBySideScaler(BuildContext context, double width) {
+    final base = MediaQuery.textScalerOf(context);
+    if (!width.isFinite) return base;
     final style = Theme.of(context).textTheme.labelLarge!;
-    final scaler = MediaQuery.textScalerOf(context);
     final each = width / segments.length;
-    final extra = _segmentChrome + (showSelectedIcon ? _tick : 0);
-    for (final (_, label) in segments) {
-      final painter = TextPainter(
-        text: TextSpan(text: label, style: style),
-        textDirection: Directionality.of(context),
-        textScaler: scaler,
-      )..layout();
-      final word = painter.minIntrinsicWidth;
-      painter.dispose();
-      if (word + extra > each) return false;
+    final room = each - _segmentChrome - (showSelectedIcon ? _tick : 0);
+    double widestWord(TextScaler scaler) {
+      var widest = 0.0;
+      for (final (_, label) in segments) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: scaler,
+        )..layout();
+        widest = math.max(widest, painter.minIntrinsicWidth);
+        painter.dispose();
+      }
+      return widest;
     }
-    return true;
+
+    final size = style.fontSize ?? 14;
+    final full = base.scale(size) / size;
+    final floor = math.max(1.0, full * _minShare);
+    var factor = full;
+    // Width is not quite in proportion to size, so narrow it in a few steps.
+    for (var i = 0; i < 4; i++) {
+      final scaler = factor == full ? base : TextScaler.linear(factor);
+      final w = widestWord(scaler);
+      if (w <= room) return scaler;
+      if (factor <= floor || room <= 0) return null;
+      factor = math.max(floor, factor * room / w * 0.99);
+    }
+    final last = TextScaler.linear(factor);
+    return widestWord(last) <= room ? last : null;
   }
 }
 

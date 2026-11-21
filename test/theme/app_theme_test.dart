@@ -283,6 +283,42 @@ void main() {
       }
     });
 
+    test('a chosen segment is red text on the plain background', () {
+      double contrast(Color a, Color b) {
+        final la = a.computeLuminance();
+        final lb = b.computeLuminance();
+        return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+      }
+
+      for (final theme in [
+        AppTheme.light,
+        AppTheme.dark,
+        AppTheme.lightHighContrast,
+        AppTheme.darkHighContrast,
+      ]) {
+        final colors = theme.extension<PesaColors>()!;
+        final style = theme.segmentedButtonTheme.style!;
+        const on = {WidgetState.selected};
+        // No fill, chosen or not: never a solid black, grey or red block.
+        expect(style.backgroundColor!.resolve(on), Colors.transparent);
+        expect(style.backgroundColor!.resolve({}), Colors.transparent);
+        expect(style.foregroundColor!.resolve(on), colors.link);
+        expect(style.foregroundColor!.resolve({}), theme.colorScheme.onSurface);
+        // Red text reads at 4.5:1 on the page, a card and a sheet.
+        for (final surface in [
+          theme.scaffoldBackgroundColor,
+          theme.colorScheme.surface,
+          colors.floating,
+        ]) {
+          expect(
+            contrast(colors.link, surface),
+            greaterThanOrEqualTo(4.5),
+            reason: '${theme.brightness} on $surface',
+          );
+        }
+      }
+    });
+
     test('the light tab bar and menus have a soft shadow', () {
       expect(PesaColors.light.floatingShadow, isNotEmpty);
     });

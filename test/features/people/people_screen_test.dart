@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,7 @@ import 'package:pesaclarity/src/routing/app_routes.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
 import '../../domain/fixtures.dart';
+import '../../helpers/app_fonts.dart';
 import '../../helpers/test_app.dart';
 
 class _Sharer implements ReminderSharer {
@@ -61,6 +63,9 @@ void main() {
   late _Sharer sharer;
   late _Launcher launcher;
   final now = eat(2026, 11, 5, 10);
+
+  // The real fonts, so a row's text measures as on a phone.
+  setUpAll(loadAppFonts);
 
   setUp(() {
     db = openTestDatabase();
@@ -100,8 +105,10 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     String path = AppRoutes.people,
+    double width = 900,
+    double scale = 1,
   }) async {
-    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.physicalSize = Size(width, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final c = ProviderContainer(overrides: overrides());
@@ -134,7 +141,15 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: c,
-        child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
+        child: MaterialApp.router(
+          theme: AppTheme.light,
+          routerConfig: router,
+          builder: (context, child) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: scale,
+            maxScaleFactor: scale,
+            child: child!,
+          ),
+        ),
       ),
     );
     await settleFrames(tester);
@@ -164,6 +179,28 @@ void main() {
       sharer.shared.single,
       'Hi Otieno, KES 1,200 is due today. Thank you!',
     );
+  });
+
+  testAppWidgets('at twice the text size a name never breaks inside a word: '
+      'the amount and Remind go under it', (tester) async {
+    await pump(tester, width: 360, scale: 2);
+    expect(tester.takeException(), isNull);
+    final name = tester.renderObject<RenderParagraph>(find.text('Otieno'));
+    expect(
+      name.getMaxIntrinsicWidth(double.infinity),
+      lessThanOrEqualTo(name.size.width + 0.5),
+    );
+    final remind = tester.getRect(find.byKey(const Key('remind-Otieno')));
+    expect(remind.top, greaterThan(tester.getRect(find.text('Otieno')).bottom));
+    expect(remind.right, lessThanOrEqualTo(360));
+  });
+
+  testAppWidgets('at the usual text size the amount and Remind sit beside '
+      'the name', (tester) async {
+    await pump(tester, width: 390);
+    final remind = tester.getRect(find.byKey(const Key('remind-Otieno')));
+    final name = tester.getRect(find.text('Otieno'));
+    expect(remind.top, lessThan(name.bottom));
   });
 
   testAppWidgets('Remind with a contact opens WhatsApp to their number', (

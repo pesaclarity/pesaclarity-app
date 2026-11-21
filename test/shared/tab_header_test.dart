@@ -21,6 +21,7 @@ import 'package:pesaclarity/src/features/plan/presentation/plan_screen.dart';
 import 'package:pesaclarity/src/features/spaces/application/business_setup_providers.dart';
 import 'package:pesaclarity/src/features/stock/presentation/stock_screen.dart';
 import 'package:pesaclarity/src/shared/widgets/amounts_hidden.dart';
+import 'package:pesaclarity/src/shared/widgets/marks.dart';
 import 'package:pesaclarity/src/shared/widgets/sections.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -157,6 +158,31 @@ void main() {
           if (iPhone) {
             expect(at.dy + box.size.height, lessThanOrEqualTo(rect.top + 0.5));
           }
+        }
+        // The eye is never on a line of its own: beside the title, or
+        // beside the other actions.
+        final eye = find.descendant(
+          of: header,
+          matching: find.byType(AmountsEye),
+        );
+        if (!iPhone && eye.evaluate().isNotEmpty) {
+          final at = tester.getRect(eye);
+          final others = find
+              .descendant(
+                of: header,
+                matching: find.byWidgetPredicate(
+                  (w) => w is PillButton || w is IconButton,
+                ),
+              )
+              .evaluate()
+              .map((e) => e.renderObject! as RenderBox)
+              .map((b) => b.localToGlobal(Offset.zero) & b.size)
+              .where((r) => !at.contains(r.center));
+          final besideTitle = at.top < rect.bottom && at.bottom > rect.top;
+          final besideAction = others.any(
+            (r) => r.top < at.bottom && r.bottom > at.top,
+          );
+          expect(besideTitle || besideAction || others.isEmpty, isTrue);
         }
         // Before the test ends, so Flutter's debug check passes.
         debugDefaultTargetPlatformOverride = null;

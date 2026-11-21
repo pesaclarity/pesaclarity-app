@@ -240,6 +240,37 @@ abstract final class AppTheme {
         shape: const StadiumBorder(),
         labelStyle: textTheme.labelMedium,
       ),
+      // The chosen segment has no fill: its label is in the link red (brand
+      // red in light, brightened in dark) on the same plain background as
+      // the others, whose labels are in the text colour. Red only ever sits
+      // on a plain background; the outline and divider stay as they are.
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? scheme.onSurface.withValues(alpha: 0.38)
+                : states.contains(WidgetState.selected)
+                ? colors.link
+                : scheme.onSurface,
+          ),
+          iconColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? colors.link
+                : scheme.onSurface,
+          ),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed) ||
+                states.contains(WidgetState.focused)) {
+              return scheme.onSurface.withValues(alpha: 0.1);
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return scheme.onSurface.withValues(alpha: 0.08);
+            }
+            return null;
+          }),
+        ),
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: colors.floating,
         surfaceTintColor: Colors.transparent,
