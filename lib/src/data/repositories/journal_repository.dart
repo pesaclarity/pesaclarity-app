@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -47,6 +48,11 @@ class JournalSync {
 /// transfer matched or unmatched) or is gone gets a reversal and then the
 /// new entry. Nothing is edited or deleted, and running either again
 /// changes nothing.
+///
+/// An own transfer's money out clears what the transfer lost on the way,
+/// so its entry depends on the money in too: when the money in's entry
+/// changes and the money out is on an account not being reposted, [sync]
+/// reposts that account as well.
 class JournalRepository {
   JournalRepository(this._db, {DateTime Function()? clock, this._changes})
     : _clock = clock ?? DateTime.now;
@@ -74,29 +80,56 @@ class JournalRepository {
   void dispose() => _counting?.cancel();
 
   /// The records of [accountIds], or of every account, read as balances
-  /// read them but in their own currency.
+  /// read them but in their own currency, and the money in of their own
+  /// transfers' money out where that is on another account, by id.
   Future<
     ({
       List<AccountOpening> accounts,
       List<LedgerEntry> history,
       Map<int, BookCategory> categories,
+      Map<int, LedgerEntry> partners,
     })
   >
-  _records([Set<int>? accountIds]) async => (
-    accounts: [
-      for (final a in await DriftAccountsRepository(_db).openings())
-        if (accountIds == null || accountIds.contains(a.id)) a,
-    ],
-    history: await DriftTransactionsRepository(_db).ledgerEntries(
+  _records([Set<int>? accountIds]) async {
+    final transactions = DriftTransactionsRepository(_db);
+    final history = await transactions.ledgerEntries(
       from: DateTime.utc(1970),
       to: DateTime.utc(9999),
       accountIds: accountIds,
-    ),
-    categories: {
-      for (final c in await _db.select(_db.categories).get())
-        c.id: (key: c.key, type: c.type),
-    },
-  );
+    );
+    final partners = <int, LedgerEntry>{};
+    if (accountIds != null) {
+      final here = {for (final e in history) e.id};
+      final away = [
+        for (final e in history)
+          if (e.isOutflow)
+            if (e.transferPairId case final id? when !here.contains(id)) id,
+      ];
+      // A few at a time, well inside SQLite's limit on variables.
+      for (var i = 0; i < away.length; i += 500) {
+        final ids = away.sublist(i, min(i + 500, away.length)).toSet();
+        for (final e in await transactions.ledgerEntries(
+          from: DateTime.utc(1970),
+          to: DateTime.utc(9999),
+          ids: ids,
+        )) {
+          partners[e.id] = e;
+        }
+      }
+    }
+    return (
+      accounts: [
+        for (final a in await DriftAccountsRepository(_db).openings())
+          if (accountIds == null || accountIds.contains(a.id)) a,
+      ],
+      history: history,
+      categories: {
+        for (final c in await _db.select(_db.categories).get())
+          c.id: (key: c.key, type: c.type),
+      },
+      partners: partners,
+    );
+  }
 
   /// Reposts the accounts marked as changed since the last sync.
   Future<JournalSync> sync() => _db.transaction(() async {
@@ -118,13 +151,34 @@ class JournalRepository {
     return done;
   });
 
-  /// Reposts [accountIds], or everything.
+  /// Reposts [accountIds], or everything, and then the accounts of the
+  /// money out of own transfers whose money in's entry changed.
   Future<JournalSync> _repost(Set<int>? accountIds) async {
+    var posted = 0;
+    var reversed = 0;
+    final done = {...?accountIds};
+    var next = accountIds;
+    while (true) {
+      final (sync, others) = await _repostOnce(next);
+      posted += sync.posted;
+      reversed += sync.reversed;
+      if (next == null) break;
+      next = others.difference(done);
+      if (next.isEmpty) break;
+      done.addAll(next);
+    }
+    return JournalSync(posted: posted, reversed: reversed);
+  }
+
+  /// Reposts [accountIds], or everything. Also says which other accounts
+  /// hold the money out of own transfers whose money in's entry changed.
+  Future<(JournalSync, Set<int>)> _repostOnce(Set<int>? accountIds) async {
     final r = await _records(accountIds);
     final wanted = postJournal(
       accounts: r.accounts,
       history: r.history,
       categories: r.categories,
+      partners: r.partners,
     );
     final rates = {
       for (final t in await (_db.select(
@@ -141,6 +195,8 @@ class JournalRepository {
     }
     var posted = 0;
     var reversed = 0;
+    // Transactions whose entries were posted or reversed.
+    final changed = <int>{};
     final now = _clock();
     final writes = _JournalWrites();
     for (final e in wanted) {
@@ -155,18 +211,38 @@ class JournalRepository {
         } else {
           writes.reverse(s, now);
           reversed++;
+          if (e.source == JournalSource.transaction) changed.add(e.sourceId);
         }
       }
       if (kept) continue;
       writes.post(e, rateOf(e), now);
       posted++;
+      if (e.source == JournalSource.transaction) changed.add(e.sourceId);
     }
     for (final gone in byKey.values.expand((s) => s)) {
       writes.reverse(gone, now);
       reversed++;
     }
     await writes.flush(_db);
-    return JournalSync(posted: posted, reversed: reversed);
+    final here = {for (final e in r.history) e.id};
+    final away = [
+      for (final e in r.history)
+        if (e.isInflow && changed.contains(e.id))
+          if (e.transferPairId case final id? when !here.contains(id)) id,
+    ];
+    final others = <int>{};
+    for (var i = 0; accountIds != null && i < away.length; i += 500) {
+      final ids = away.sublist(i, min(i + 500, away.length));
+      final t = _db.transactions;
+      others.addAll(
+        await (_db.selectOnly(t, distinct: true)
+              ..addColumns([t.accountId])
+              ..where(t.id.isIn(ids)))
+            .map((row) => row.read(t.accountId)!)
+            .get(),
+      );
+    }
+    return (JournalSync(posted: posted, reversed: reversed), others);
   }
 
   /// Entries that are neither reversed nor reversals, with their postings:

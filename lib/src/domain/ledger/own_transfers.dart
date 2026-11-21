@@ -94,6 +94,26 @@ TransferFit? transferFit(LedgerEntry outflow, LedgerEntry inflow) {
   return difference <= loose * 2 ? TransferFit.loose : null;
 }
 
+/// What the own transfer [out] and [into] are the two sides of lost on the
+/// way: how much more left [out] than arrived in [into]. Above zero it is
+/// the transfer's fee, on top of any fee [out]'s message printed (that one
+/// is [out]'s own [LedgerEntry.feeMinor], already a fee); below zero more
+/// arrived than left.
+///
+/// Null unless [out] is money out and [into] money in, paired with each
+/// other, in one currency. A transfer between two currencies is not one
+/// amount less a fee, so it is left to a rule of its own.
+int? transferShortfall(LedgerEntry out, LedgerEntry into) {
+  if (!out.isOutflow || !into.isInflow) return null;
+  if (out.transferPairId != into.id || into.transferPairId != out.id) {
+    return null;
+  }
+  if (out.currency != into.currency || _movedIn(out) != _movedIn(into)) {
+    return null;
+  }
+  return out.amountMinor - into.amountMinor;
+}
+
 /// Whether [entry] may be one half of an own transfer: an unpaired move of
 /// a kind transfers come as, not put in a non-transfer category.
 bool _canPair(LedgerEntry entry) {

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/balances_repository.dart';
 import 'package:pesaclarity/src/data/repositories/journal_repository.dart';
+import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/books/book_account.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 
@@ -160,6 +161,99 @@ void main() {
     expect(rebuilt.changed, isFalse, reason: '$rebuilt');
     expect(await journal.balances(), incremental);
     expect(await journal.unbalanced(), isEmpty);
+  });
+
+  test('incremental syncs end where a full rebuild does with own transfers '
+      'paired, unpaired and changed on one side, and balances set', () async {
+    final r = Random(11);
+    final accounts = [
+      await account('M-Pesa', AccountType.mpesa, balance: 100000),
+      await account('KCB', AccountType.bank, balance: 500000),
+      await account('Cash', AccountType.cash, balance: 20000),
+    ];
+    final transactions = DriftTransactionsRepository(db);
+    final balances = DriftBalancesRepository(db);
+    final pairs = <(int, int)>[];
+    var matched = 0;
+    var changedSides = 0;
+    var at = DateTime.utc(2026, 11, 1, 8);
+    var n = 0;
+    TransactionsCompanion move(
+      int accountId,
+      int amount, {
+      bool inflow = false,
+      int fee = 0,
+    }) => TransactionsCompanion.insert(
+      accountId: accountId,
+      occurredAt: at,
+      amountMinor: amount,
+      direction: inflow
+          ? TransactionDirection.inflow
+          : TransactionDirection.outflow,
+      kind: Value(inflow ? TransactionKind.received : TransactionKind.bank),
+      feeMinor: Value(fee),
+      source: TransactionSource.sms,
+      dedupeKey: Value('t${n++}'),
+    );
+    for (var step = 0; step < 80; step++) {
+      at = at.add(Duration(minutes: const [2, 45, 400][r.nextInt(3)]));
+      switch (r.nextInt(7)) {
+        case 0 || 1:
+          // A transfer: what arrived is what left, less a fee on the way,
+          // sometimes more; some with a fee the message printed.
+          final from = accounts[r.nextInt(3)];
+          final to = (accounts.toList()..remove(from))[r.nextInt(2)];
+          final left = (r.nextInt(40) + 5) * 10000;
+          final lost = const [0, 0, 3000, 5000, -2000][r.nextInt(5)];
+          final fee = const [0, 0, 2500][r.nextInt(3)];
+          final out = await transactions.add(move(from, left, fee: fee));
+          at = at.add(const Duration(minutes: 1));
+          final into = await transactions.add(
+            move(to, left - lost, inflow: true),
+          );
+          if (r.nextBool()) {
+            await transactions.match(out, into);
+            pairs.add((out, into));
+            matched++;
+          }
+        case 2 when pairs.isNotEmpty:
+          final (out, _) = pairs.removeAt(r.nextInt(pairs.length));
+          await transactions.unmatch(out);
+        case 3 || 4 when pairs.isNotEmpty:
+          // One side read again: only its account is marked.
+          final (out, into) = pairs[r.nextInt(pairs.length)];
+          final side = r.nextBool() ? out : into;
+          changedSides++;
+          await (db.update(
+            db.transactions,
+          )..where((t) => t.id.equals(side))).write(
+            TransactionsCompanion(
+              amountMinor: Value((r.nextInt(40) + 5) * 10000),
+            ),
+          );
+        case 5:
+          await balances.setBalance(
+            accounts[r.nextInt(3)],
+            statedMinor: r.nextInt(500) * 1000,
+            differenceMinor: (r.nextInt(20) - 10) * 1000,
+            at: at,
+            currency: 'KES',
+          );
+        case _:
+          await transactions.add(move(accounts[r.nextInt(3)], 15000));
+      }
+      await journal.sync();
+    }
+    expect(matched, greaterThan(5));
+    expect(changedSides, greaterThan(5));
+    final incremental = await journal.balances();
+    final rebuilt = await journal.rebuild();
+    expect(rebuilt.changed, isFalse, reason: '$rebuilt');
+    expect(await journal.balances(), incremental);
+    expect(await journal.unbalanced(), isEmpty);
+    // Every pair met in one currency, and nothing was named: none of it is
+    // still in transit.
+    expect(incremental[(BookAccount.moneyInTransit, 'KES')] ?? 0, 0);
   });
 
   test('a reported balance the records do not reach sits in Not yet sorted '

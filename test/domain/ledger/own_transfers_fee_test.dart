@@ -190,4 +190,57 @@ void main() {
       expect(suggestTransferPartners(paired, [out(2, kes(5000))]), isEmpty);
     });
   });
+
+  group('what a transfer lost on the way', () {
+    (LedgerEntry, LedgerEntry) paired(LedgerEntry o, LedgerEntry i) =>
+        (o.copyWith(transferPairId: i.id), i.copyWith(transferPairId: o.id));
+
+    test('less arrived than left: the difference', () {
+      final (o, i) = paired(out(1, kes(5030)), into(2, kes(5000)));
+      expect(transferShortfall(o, i), kes(30));
+    });
+
+    test('a fee the message printed is already a fee, not counted again', () {
+      final (o, i) = paired(
+        out(1, kes(5000), fee: kes(30)),
+        into(2, kes(5000)),
+      );
+      expect(transferShortfall(o, i), 0);
+      final (o2, i2) = paired(
+        out(3, kes(5030), fee: kes(20)),
+        into(4, kes(5000)),
+      );
+      expect(transferShortfall(o2, i2), kes(30));
+    });
+
+    test('more arrived than left: below zero', () {
+      final (o, i) = paired(out(1, kes(5000)), into(2, kes(5040)));
+      expect(transferShortfall(o, i), -kes(40));
+    });
+
+    test('nothing unless the two are paired with each other, out then in', () {
+      final (o, i) = paired(out(1, kes(5030)), into(2, kes(5000)));
+      expect(transferShortfall(i, o), isNull);
+      expect(transferShortfall(out(1, kes(5030)), into(2, kes(5000))), isNull);
+      expect(
+        transferShortfall(o, into(2, kes(5000)).copyWith(transferPairId: 7)),
+        isNull,
+      );
+    });
+
+    test('nothing across two currencies', () {
+      final usd = LedgerEntry(
+        id: 1,
+        accountId: kcb,
+        occurredAt: eat(2026, 11, 14, 10),
+        amountMinor: 10000,
+        direction: TransactionDirection.outflow,
+        kind: TransactionKind.bank,
+        currency: 'USD',
+        transferPairId: 2,
+      );
+      final kesIn = into(2, kes(12900)).copyWith(transferPairId: 1);
+      expect(transferShortfall(usd, kesIn), isNull);
+    });
+  });
 }
