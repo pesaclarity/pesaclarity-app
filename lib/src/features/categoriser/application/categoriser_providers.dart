@@ -6,6 +6,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/category_suggestions_repository.dart';
+import '../../../domain/categoriser/categoriser.dart';
 import '../../../domain/categoriser/learning.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/categoriser/trainable.dart';
@@ -67,8 +68,17 @@ final loadedCategoriserProvider = FutureProvider<LoadedCategoriser>((
     openRuntime: ref.watch(categoriserRuntimeOpenerProvider),
     tuned: tuned,
   );
-  ref.onDispose(loaded.categoriser.close);
-  return loaded;
+  // Reloading (after on-phone learning) closes it while a run may still
+  // be categorising with it; shared, it stays open until that run ends.
+  final shared = SharedCategoriser(loaded.categoriser);
+  ref.onDispose(shared.close);
+  return LoadedCategoriser(
+    shared,
+    loaded.status,
+    loaded.reasons,
+    loaded.fineTunable,
+    loaded.tuned,
+  );
 });
 
 /// The person's categories, by name.
@@ -82,7 +92,12 @@ final _correctionsProvider = StreamProvider<Map<String, int>>(
 
 /// Suggests categories for uncategorised transactions; null while loading.
 final categorySuggesterProvider = Provider<CategorySuggester?>((ref) {
-  final loaded = ref.watch(loadedCategoriserProvider).value;
+  // While the model reloads, the last one is closing: none until the new
+  // one is ready.
+  final loaded = switch (ref.watch(loadedCategoriserProvider)) {
+    AsyncData(:final value) => value,
+    _ => null,
+  };
   final categories = ref.watch(categoryListProvider).value;
   final corrections = ref.watch(_correctionsProvider).value;
   if (loaded == null || categories == null || corrections == null) {

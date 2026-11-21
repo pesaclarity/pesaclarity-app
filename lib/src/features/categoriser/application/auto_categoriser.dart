@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
+import '../../../domain/categoriser/categoriser.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 
@@ -17,7 +18,34 @@ class AutoCategoriser {
   ///
   /// Can be constrained to specific [transactionIds] or a specific [payeeId].
   /// Processes transactions in batches of 200 within atomic transactions.
+  ///
+  /// The model stays open for the whole run even if it is reloaded
+  /// meanwhile; one already replaced categorises nothing (0), and its
+  /// replacement takes the next run.
   Future<int> autoCategorise(
+    CategorySuggester suggester, {
+    Iterable<int>? transactionIds,
+    int? payeeId,
+  }) async {
+    final categoriser = suggester.categoriser;
+    if (categoriser is SharedCategoriser) {
+      return await categoriser.borrow(
+            () => _autoCategorise(
+              suggester,
+              transactionIds: transactionIds,
+              payeeId: payeeId,
+            ),
+          ) ??
+          0;
+    }
+    return _autoCategorise(
+      suggester,
+      transactionIds: transactionIds,
+      payeeId: payeeId,
+    );
+  }
+
+  Future<int> _autoCategorise(
     CategorySuggester suggester, {
     Iterable<int>? transactionIds,
     int? payeeId,

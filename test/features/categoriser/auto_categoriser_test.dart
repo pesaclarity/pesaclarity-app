@@ -2,9 +2,34 @@ import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
+import 'package:pesaclarity/src/domain/categoriser/categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/rule_categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/suggester.dart';
 import 'package:pesaclarity/src/features/categoriser/application/auto_categoriser.dart';
+
+/// A model that, like rayo's, cannot run once closed, and is closed by
+/// [onScore] partway through a run, as a reload after on-phone learning
+/// would.
+class _ReloadedModel implements Categoriser {
+  _ReloadedModel(this.onScore);
+
+  final void Function(int scored) onScore;
+  var scored = 0;
+  var closed = false;
+
+  @override
+  SuggestionSource get source => SuggestionSource.model;
+
+  @override
+  List<CategoryScore> score(CategoriserInput input) {
+    if (closed) throw StateError('closed');
+    onScore(++scored);
+    return const [CategoryScore('groceries', 0.95)];
+  }
+
+  @override
+  void close() => closed = true;
+}
 
 void main() {
   late AppDatabase db;
@@ -71,6 +96,46 @@ void main() {
       expect(tx.autoCategoryConfidence, greaterThanOrEqualTo(0.6));
     },
   );
+
+  test('a model reloaded mid-run stays open until the run ends', () async {
+    for (var i = 0; i < 5; i++) {
+      await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: 1,
+              occurredAt: DateTime(2026, 10, 15, 12, i),
+              amountMinor: 50000,
+              direction: TransactionDirection.outflow,
+              counterpartyName: Value('DUKA LA MAMA $i'),
+              source: TransactionSource.sms,
+            ),
+          );
+    }
+    final categories = await db.select(db.categories).get();
+    late SharedCategoriser loaded;
+    final model = _ReloadedModel((scored) {
+      // The provider disposes the model it loaded, between two rows.
+      if (scored == 2) loaded.close();
+    });
+    loaded = SharedCategoriser(model);
+    final suggester = CategorySuggester(
+      categoriser: loaded,
+      categories: [
+        for (final c in categories)
+          CategoryOption(id: c.id, type: c.type, key: c.key),
+      ],
+      corrections: const {},
+    );
+
+    final changed = await autoCategoriser.autoCategorise(suggester);
+
+    expect(changed, 5, reason: 'every row was categorised');
+    expect(model.closed, isTrue, reason: 'closed once the run ended');
+    // A run that starts after the reload leaves it to the new model.
+    expect(await autoCategoriser.autoCategorise(suggester), 0);
+    expect(model.scored, 5);
+  });
 
   test(
     'auto-categorise respects manual overrides and payee defaults',

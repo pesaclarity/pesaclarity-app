@@ -56,6 +56,56 @@ abstract interface class Categoriser {
   void close();
 }
 
+/// A categoriser shared by its owner and the runs that borrow it, such as
+/// categorising a batch of new transactions.
+///
+/// The owner closes it when the model is replaced (after on-phone
+/// learning, say); a run still borrowing it keeps it open until the run
+/// ends, so the model is never used after it has closed.
+class SharedCategoriser implements Categoriser {
+  SharedCategoriser(this._inner);
+
+  final Categoriser _inner;
+  var _borrowers = 0;
+  var _closing = false;
+  var _closed = false;
+
+  /// Whether it has been closed, or is closing once its runs end.
+  bool get isClosing => _closing;
+
+  @override
+  SuggestionSource get source => _inner.source;
+
+  @override
+  List<CategoryScore> score(CategoriserInput input) => _inner.score(input);
+
+  /// Runs [work] with this categoriser held open. Returns null, without
+  /// running it, when the categoriser is already closing: its replacement
+  /// is the one to use.
+  Future<T?> borrow<T>(Future<T> Function() work) async {
+    if (_closing) return null;
+    _borrowers++;
+    try {
+      return await work();
+    } finally {
+      _borrowers--;
+      _closeIfDone();
+    }
+  }
+
+  @override
+  void close() {
+    _closing = true;
+    _closeIfDone();
+  }
+
+  void _closeIfDone() {
+    if (!_closing || _closed || _borrowers > 0) return;
+    _closed = true;
+    _inner.close();
+  }
+}
+
 /// A loaded categoriser model, kept behind this interface so the domain does
 /// not depend on a runtime: `categoriser.weights` on rayo, or the same
 /// network in Dart, with weights fine-tuned on the phone or where rayo
