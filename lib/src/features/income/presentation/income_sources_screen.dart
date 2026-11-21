@@ -6,6 +6,7 @@ import '../../../domain/income/income_sources.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../onboarding/presentation/setup_parts.dart';
 import '../application/income_providers.dart';
 
 /// "How does money usually come to you?": several answers, at setup and in
@@ -24,10 +25,25 @@ class IncomeSourcesScreen extends ConsumerStatefulWidget {
 class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
   Set<IncomeSource>? _picked;
   var _saving = false;
+  var _failed = false;
 
   Future<void> _continue(Set<IncomeSource> picked) async {
-    setState(() => _saving = true);
-    await ref.read(incomeSourcesProvider.notifier).choose(picked);
+    setState(() {
+      _saving = true;
+      _failed = false;
+    });
+    try {
+      await ref.read(incomeSourcesProvider.notifier).choose(picked);
+    } on Object catch (error) {
+      debugPrint('How money comes in could not be saved: $error');
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _failed = true;
+        });
+      }
+      return;
+    }
     if (!mounted) return;
     if (widget.onboarding) {
       context.go(AppRoutes.onboardingAccounts);
@@ -40,6 +56,8 @@ class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
+    // Only what is already read: answers saved earlier show once read, and
+    // a read that fails or never ends keeps nobody from going on.
     final saved = ref.watch(incomeSourcesProvider).value;
     final picked = _picked ?? saved?.picked ?? const <IncomeSource>{};
 
@@ -96,16 +114,16 @@ class _IncomeSourcesScreenState extends ConsumerState<IncomeSourcesScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            MergeSemantics(
-              child: Semantics(
-                identifier: SemanticIds.onboardingIncomeContinue,
-                child: FilledButton(
-                  onPressed: saved == null || _saving || picked.isEmpty
-                      ? null
-                      : () => _continue(picked),
-                  child: Text(widget.onboarding ? 'Continue' : 'Save'),
-                ),
-              ),
+            SetupAction(
+              identifier: SemanticIds.onboardingIncomeContinue,
+              label: widget.onboarding ? 'Continue' : 'Save',
+              busy: _saving,
+              problem: _failed ? 'Your answer could not be saved.' : null,
+              // In Profile, saving before the answers are read would drop
+              // the ones not shown.
+              onPressed: picked.isEmpty || (!widget.onboarding && saved == null)
+                  ? null
+                  : () => _continue(picked),
             ),
             const SizedBox(height: 8),
             Text(

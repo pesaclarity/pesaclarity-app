@@ -8,6 +8,7 @@ import '../../../domain/spaces/space.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/states.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/my_accounts_providers.dart';
 import '../domain/institution.dart';
@@ -24,7 +25,17 @@ class InstitutionList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catalogue = ref.watch(institutionCatalogueProvider);
-    final selected = ref.watch(selectedInstitutionIdsProvider).value;
+    final loaded = ref.watch(selectedInstitutionIdsProvider);
+    final selected = loaded.value;
+    if (selected == null && loaded.hasError) {
+      // Never a list of greyed-out boxes with no word of why.
+      return Card(
+        child: ErrorView(
+          'Your accounts could not load.',
+          onRetry: () => ref.invalidate(selectedInstitutionIdsProvider),
+        ),
+      );
+    }
 
     return Card(
       child: Column(
@@ -36,16 +47,32 @@ class InstitutionList extends ConsumerWidget {
               control: control,
               selected: selected?.contains(institution.id) ?? false,
               enabled: selected != null,
-              onChanged: (value) => value
-                  ? _switchOn(context, ref, institution)
-                  : ref
-                        .read(institutionsRepositoryProvider)
-                        .setSelected(institution.id, selected: false),
+              onChanged: (value) => _saving(
+                context,
+                value
+                    ? _switchOn(context, ref, institution)
+                    : ref
+                          .read(institutionsRepositoryProvider)
+                          .setSelected(institution.id, selected: false),
+              ),
             ),
           ],
         ],
       ),
     );
+  }
+}
+
+/// Waits for [change]; when it fails, says so rather than leaving the box
+/// as it was with no word of why.
+Future<void> _saving(BuildContext context, Future<void> change) async {
+  try {
+    await change;
+  } on Object catch (error) {
+    debugPrint('An account choice could not be saved: $error');
+    if (context.mounted) {
+      showNote(context, 'That could not be saved. Try again.');
+    }
   }
 }
 

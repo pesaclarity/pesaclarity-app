@@ -42,7 +42,8 @@ class LookSettingsController extends AsyncNotifier<LookSettings> {
     final released = ref.watch(
       appLockControllerProvider.select((s) => s.keyReleased),
     );
-    // Opening the database while it is locked would fail for the session.
+    // A read while the app is locked would wait for the key; until then the
+    // copy read at startup shows.
     if (!released) return ref.watch(startupLookProvider);
     final saved = LookSettings.fromJson(
       await ref.watch(mainSettingsRepositoryProvider).readJson(settingsKey),

@@ -7,10 +7,15 @@ import '../../../core/money/money.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../onboarding/presentation/setup_parts.dart';
 import '../application/currency_controller.dart';
 import 'currency_picker.dart';
 
 /// Onboarding: the currency the person counts in, their region's suggested.
+///
+/// It never waits on the saved settings: on a new phone there are none, so
+/// the suggested currency shows and Continue works from the first frame.
+/// Saved settings (someone coming back to this step) take over once read.
 class SetupCurrencyScreen extends ConsumerStatefulWidget {
   const SetupCurrencyScreen({super.key});
 
@@ -21,15 +26,26 @@ class SetupCurrencyScreen extends ConsumerStatefulWidget {
 
 class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
   String? _picked;
+
   var _saving = false;
+  var _failed = false;
 
   Future<void> _continue(String code) async {
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _failed = false;
+    });
     try {
       await ref.read(currencyControllerProvider.notifier).choose(code);
-    } on Object {
-      if (mounted) setState(() => _saving = false);
-      rethrow;
+    } on Object catch (error) {
+      debugPrint('The currency could not be saved: $error');
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _failed = true;
+        });
+      }
+      return;
     }
     if (mounted) context.go(AppRoutes.onboardingIncome);
   }
@@ -37,7 +53,10 @@ class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
     final region = ref.watch(deviceRegionProvider);
+    // Only what is already read; a read that fails or never ends changes
+    // nothing here.
     final settings = ref.watch(currencyControllerProvider).value;
     final suggested = currencyOfRegion(region);
     final picked =
@@ -71,7 +90,7 @@ class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
                     'Totals, budgets and goals show in this one. Money in '
                     "other currencies is converted at today's rate.",
                     style: theme.textTheme.bodyLarge!.copyWith(
-                      color: PesaColors.of(context).textMuted,
+                      color: colors.textMuted,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -83,16 +102,14 @@ class _SetupCurrencyScreenState extends ConsumerState<SetupCurrencyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  MergeSemantics(
-                    child: Semantics(
-                      identifier: SemanticIds.onboardingCurrencyContinue,
-                      child: FilledButton(
-                        onPressed: settings == null || _saving
-                            ? null
-                            : () => _continue(picked),
-                        child: Text('Continue with $picked'),
-                      ),
-                    ),
+                  SetupAction(
+                    identifier: SemanticIds.onboardingCurrencyContinue,
+                    label: 'Continue with $picked',
+                    busy: _saving,
+                    problem: _failed
+                        ? 'Your currency could not be saved.'
+                        : null,
+                    onPressed: () => _continue(picked),
                   ),
                   const SizedBox(height: 8),
                   Text(

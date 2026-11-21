@@ -293,15 +293,26 @@ class SmsScanController extends Notifier<SmsScanState> {
   /// Asks for access and, once granted, scans.
   Future<void> allowAndScan() async {
     state = const SmsScanState(SmsScanStage.asking);
-    await _afterAccess(await _source.requestAccess());
+    await _afterAccess(_source.requestAccess);
   }
 
   /// Checks access again, after the person comes back from settings.
-  Future<void> checkAgain() async => _afterAccess(await _source.access());
+  Future<void> checkAgain() => _afterAccess(_source.access);
 
   Future<void> openSettings() => _source.openSettings();
 
-  Future<void> _afterAccess(SmsAccess access) async {
+  /// Acts on what [ask] says about access. When asking fails (the phone's
+  /// side of it threw), the step offers Try again and Continue without
+  /// messages rather than waiting on an answer that will not come.
+  Future<void> _afterAccess(Future<SmsAccess> Function() ask) async {
+    final SmsAccess access;
+    try {
+      access = await ask();
+    } on Object catch (error) {
+      if (kDebugMode) debugPrint('SMS access could not be checked: $error');
+      state = const SmsScanState(SmsScanStage.failed);
+      return;
+    }
     switch (access) {
       case SmsAccess.granted:
         await _scan();

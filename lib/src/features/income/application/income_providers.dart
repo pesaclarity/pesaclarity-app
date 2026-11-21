@@ -26,12 +26,19 @@ class IncomeSourcesController extends AsyncNotifier<IncomeSources> {
     await ref.watch(appSettingsRepositoryProvider).readJson(settingsKey),
   );
 
+  /// Saves [picked]; a failed write throws and changes nothing.
   Future<void> choose(Set<IncomeSource> picked) async {
     final sources = IncomeSources(picked);
     await ref
         .read(appSettingsRepositoryProvider)
         .writeJson(settingsKey, sources.toJson());
-    state = AsyncData(sources);
+    if (state.isLoading) {
+      // The read still under way would bring back what was there before:
+      // read again, which finds what was just saved.
+      ref.invalidateSelf();
+    } else {
+      state = AsyncData(sources);
+    }
   }
 }
 
