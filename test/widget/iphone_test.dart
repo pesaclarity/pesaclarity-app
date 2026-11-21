@@ -209,7 +209,8 @@ void main() {
     ) async {
       await toConnectStep(tester);
       await scrollTo(tester, find.byKey(const Key('connect-import-past')));
-      expect(find.text('Past months'), findsOneWidget);
+      // A group's label is the app's one small-capitals label now.
+      expect(find.text('PAST MONTHS'), findsOneWidget);
       await tester.tap(find.byKey(const Key('connect-import-past')));
       await tester.pumpAndSettle();
       expect(find.byType(StatementImportScreen), findsOneWidget);

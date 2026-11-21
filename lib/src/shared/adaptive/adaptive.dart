@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
 import '../widgets/choice_menu.dart';
+import '../widgets/sections.dart';
 
 // iPhone uses the same design as Android (decision 0011): these helpers
 // keep one place for dialogs, pickers, choices and grouped rows.
@@ -231,15 +232,16 @@ class GroupedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // The app's one small label over a group, as SectionLabel draws it.
         if (header != null)
-          Padding(
+          SectionLabel(
+            header!,
             padding: const EdgeInsetsDirectional.fromSTEB(
               4,
               Layout.sectionTop,
               16,
               Layout.sectionBottom,
             ),
-            child: Semantics(header: true, child: Text(header!, style: note)),
           ),
         Card(
           child: Column(
