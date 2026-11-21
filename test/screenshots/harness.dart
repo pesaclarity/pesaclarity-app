@@ -239,11 +239,12 @@ Future<void> _draw(
   } finally {
     debugDisableShadows = true;
     _dark = false;
+    // Unmount, so Drift's stream queries close inside the fake clock. Even
+    // when a check fails: left open, they hang the file's next test.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+    debugDefaultTargetPlatformOverride = null;
   }
-  // Unmount, so Drift's stream queries close inside the fake clock.
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pump(Duration.zero);
-  debugDefaultTargetPlatformOverride = null;
 }
 
 var _scale = 1.0;
