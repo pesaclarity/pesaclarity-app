@@ -5,9 +5,13 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/debts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/goals_repository.dart';
 import 'package:pesaclarity/src/data/repositories/lending_repository.dart';
+import 'package:pesaclarity/src/data/repositories/savings_repository.dart';
+import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/debts/debt.dart';
 import 'package:pesaclarity/src/domain/goals/savings_goal.dart';
 import 'package:pesaclarity/src/domain/lending/lent_loan.dart';
+import 'package:pesaclarity/src/domain/savings/savings_product.dart';
+import 'package:pesaclarity/src/domain/savings/savings_prompt.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
 void main() {
@@ -76,6 +80,135 @@ void main() {
       await goals.remove(id);
       expect((await db.select(db.transactions).getSingle()).goalId, isNull);
     });
+
+    test(
+      'a goal saved in a savings pocket reads what the pocket holds',
+      () async {
+        // Made-up payments from M-Pesa to two Chumz goals, then Chumz added.
+        final mpesa = await db
+            .into(db.accounts)
+            .insert(
+              AccountsCompanion.insert(
+                name: 'M-Pesa',
+                type: AccountType.mpesa,
+                openingDate: DateTime.utc(2026),
+              ),
+            );
+        TransactionsCompanion paid(String code, int day, int minor) =>
+            TransactionsCompanion.insert(
+              accountId: mpesa,
+              occurredAt: DateTime.utc(2026, 10, day, 6),
+              amountMinor: minor,
+              direction: TransactionDirection.outflow,
+              kind: const Value(TransactionKind.paybill),
+              source: TransactionSource.sms,
+              counterpartyKind: const Value(PayeeIdentifierKind.paybill),
+              counterpartyValue: Value('NABO CAPITAL LTD C2B#$code'),
+              counterpartyName: const Value('NABO CAPITAL LTD C2B'),
+            );
+        final transactions = DriftTransactionsRepository(db);
+        await transactions.addNew([
+          paid('CH12345', 1, 300000),
+          paid('CH67890', 2, 50000),
+        ]);
+        final savings = DriftSavingsRepository(db);
+        addTearDown(savings.dispose);
+        final chumzId = (await savings.add(
+          chumz,
+          at: DateTime.utc(2026, 11),
+          pockets: [
+            SavingsPocketDraft(
+              code: 'CH12345',
+              name: 'Christmas',
+              lockedUntil: CalendarDate(2026, 12, 15).startInstant,
+            ),
+            const SavingsPocketDraft(code: 'CH67890', name: 'School fees'),
+          ],
+        )).accountId;
+        final [christmas, school] = (await savings.account(chumzId))!.pockets;
+
+        final goals = DriftGoalsRepository(db);
+        final id = await goals.add(
+          name: 'Christmas',
+          targetMinor: 1000000,
+          savedMinor: 120000,
+        );
+        final other = await goals.add(name: 'Fees', targetMinor: 400000);
+        await goals.setPocket(id, christmas.id);
+
+        var goal = (await goals.goals()).first;
+        expect(goal.savedMinor, 300000);
+        expect(goal.backing!.accountId, chumzId);
+        expect(goal.backing!.accountName, 'Chumz');
+        expect(goal.backing!.pocketId, christmas.id);
+        expect(goal.backing!.pocketName, 'Christmas');
+        expect(goal.backing!.lockedUntil, CalendarDate(2026, 12, 15));
+        expect(goal.backing!.isLockedOn(CalendarDate(2026, 12, 14)), isTrue);
+        expect(goal.backing!.isLockedOn(CalendarDate(2026, 12, 15)), isFalse);
+        expect((await goals.goals()).last.backing, isNull);
+        // The pocket's page knows the goal it backs.
+        expect(
+          (await savings.account(chumzId))!.pockets.first.goalTargetMinor,
+          1000000,
+        );
+
+        // New money in the pocket shows on the goal; editing the goal keeps
+        // the amount typed before, for when it lets go of the pocket.
+        await transactions.addNew([paid('CH12345', 20, 750000)]);
+        goal = (await goals.goals()).first;
+        expect(goal.savedMinor, 1050000);
+        expect(goal.status, GoalStatus.achieved);
+        await goals.update(
+          SavingsGoal(
+            id: id,
+            name: 'December',
+            targetMinor: 2000000,
+            savedMinor: goal.savedMinor,
+          ),
+        );
+        goal = (await goals.goals()).first;
+        expect(goal.name, 'December');
+        expect(goal.savedMinor, 1050000);
+        expect(goal.status, GoalStatus.active);
+
+        // A pocket backs one goal: taking it lets the first go.
+        await goals.setPocket(other, christmas.id);
+        final [first, second] = await goals.goals();
+        expect(first.backing, isNull);
+        expect(first.savedMinor, 120000);
+        expect(second.backing!.pocketId, christmas.id);
+        await goals.setPocket(other, null);
+        expect((await goals.goals()).last.backing, isNull);
+
+        // A pocket that is not one, or not the person's, or in another
+        // currency than the goal, cannot back it.
+        await expectLater(goals.setPocket(id, 999), throwsArgumentError);
+        await savings.savePocket(
+          school.id,
+          name: school.name,
+          lockedUntil: null,
+          ignored: true,
+        );
+        await expectLater(goals.setPocket(id, school.id), throwsArgumentError);
+        final dollars = await db
+            .into(db.goals)
+            .insert(
+              GoalsCompanion.insert(
+                name: 'Trip',
+                targetMinor: 100000,
+                currency: const Value('USD'),
+              ),
+            );
+        await expectLater(
+          goals.setPocket(dollars, christmas.id),
+          throwsArgumentError,
+        );
+        await expectLater(
+          goals.setPocket(9999, christmas.id),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 
   group('lent', () {

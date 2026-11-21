@@ -943,6 +943,10 @@ void main() {
       await history();
       final added = await addChumz();
       final school = await pocketId('CH67890');
+      final goals = DriftGoalsRepository(db);
+      final goal = await goals.add(name: 'Fees', targetMinor: kes(20000));
+      await goals.setPocket(goal, school);
+      expect((await goals.goals()).single.backing, isNotNull);
 
       await savings.savePocket(
         school,
@@ -967,6 +971,8 @@ void main() {
       expect((await totals()).spendingMinor, kes(2500));
       expect(await rowsOn(added.accountId), hasLength(4));
       expect(account.putInMinor, kes(3115));
+      // A goal cannot be saved in it.
+      expect((await goals.goals()).single.backing, isNull);
       // A new payment to it is spending too, and makes no second pocket.
       await transactions.addNew([
         paid(eat(2026, 11, 25), 300, code: 'CH67890'),
@@ -1441,6 +1447,9 @@ void main() {
       final mpesaBefore = await held(BookAccount.money(mpesa));
 
       final added = await addChumz(prompted: before.last.id);
+      final goals = DriftGoalsRepository(db);
+      final goal = await goals.add(name: 'Christmas', targetMinor: kes(10000));
+      await goals.setPocket(goal, await pocketId('CH12345'));
       await savings.updateBalances(
         added.accountId,
         balanceByPocket: {
@@ -1473,6 +1482,10 @@ void main() {
       expect(sums.awaitingPayeeMinor, kes(1000));
       expect(sums.incomeMinor, 0);
       expect(sums.savingMinor, 0);
+      // The goal stays, with what the person had typed for it.
+      final kept = (await goals.goals()).single;
+      expect(kept.backing, isNull);
+      expect(kept.savedMinor, 0);
       // Only the Interest category it made is left behind.
       expect(
         (await db.select(db.categories).get()).length,
