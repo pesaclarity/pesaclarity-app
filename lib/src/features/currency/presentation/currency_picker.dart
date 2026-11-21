@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../shared/semantic_ids.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../theme/pesa_colors.dart';
 
@@ -63,11 +64,12 @@ class _CurrencyPickerState extends State<CurrencyPicker> {
           child: RadioListTile<String>(
             key: Key('currency-$code'),
             value: code,
-            title: Text(currencyCatalogue[code]!.name),
-            subtitle: subtitle == null ? null : Text(subtitle),
-            secondary: SizedBox(
-              width: 44,
-              child: Text(
+            // The code at the end, or under the name at larger text, so no
+            // word of either is broken over two lines.
+            title: BesideOrUnder(
+              gap: 12,
+              lead: Text(currencyCatalogue[code]!.name),
+              end: Text(
                 code,
                 style: theme.textTheme.labelLarge!.copyWith(
                   color: colors.textMuted,
@@ -75,6 +77,7 @@ class _CurrencyPickerState extends State<CurrencyPicker> {
                 ),
               ),
             ),
+            subtitle: subtitle == null ? null : Text(subtitle),
           ),
         ),
       );
