@@ -175,6 +175,62 @@ void main() {
       expect(totals.taxMinor, kes(900));
     });
 
+    test('money moved into savings is an own transfer counted as saved', () {
+      final inMonth = eat(2026, 10, 9);
+      // M-Pesa to the person's own Chumz account, both halves.
+      final out = entry(
+        kind: TransactionKind.paybill,
+        at: inMonth,
+        amount: kes(1500),
+        fee: kes(10),
+        categoryType: CategoryType.savings,
+        transferPairId: 2,
+      );
+      final into = inflow(
+        kind: TransactionKind.bank,
+        at: inMonth,
+        amount: kes(1500),
+        accountId: 2,
+      ).copyWith(transferPairId: out.id);
+      // Money back out of savings, and a move between day-to-day accounts.
+      final back = inflow(
+        at: inMonth,
+        amount: kes(400),
+        categoryType: CategoryType.savings,
+      ).copyWith(transferPairId: 9);
+      final moved = entry(
+        kind: TransactionKind.bank,
+        at: inMonth,
+        amount: kes(700),
+        transferPairId: 8,
+      );
+
+      expect(roleOf(out), LedgerRole.ownTransfer);
+      expect(isSavedByTransfer(out), isTrue);
+      expect(isSavedByTransfer(into), isFalse);
+      expect(isSavedByTransfer(back), isFalse);
+      expect(isSavedByTransfer(moved), isFalse);
+      // Paid to a savings payee, it was saving already.
+      expect(
+        isSavedByTransfer(
+          entry(at: inMonth, amount: 1, categoryType: CategoryType.savings),
+        ),
+        isFalse,
+      );
+
+      final totals = LedgerTotals.of(
+        [out, into, back, moved],
+        from: october.startInstant,
+        to: october.endInstant,
+      );
+      expect(totals.savingMinor, kes(1500));
+      expect(totals.ownTransferMinor, kes(700));
+      expect(totals.spendingMinor, 0);
+      expect(totals.incomeMinor, 0);
+      // Moving money still costs.
+      expect(totals.feesMinor, kes(10));
+    });
+
     test('an empty ledger is all zeros', () {
       final totals = LedgerTotals.of(
         [],

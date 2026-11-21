@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
+import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
+import 'package:pesaclarity/src/domain/ledger/ledger_totals.dart';
 
 import '../domain/fixtures.dart';
 import '../helpers/test_app.dart';
@@ -160,5 +162,96 @@ void main() {
       accountIds: {mpesa},
     );
     expect(mpesaOnly.map((e) => e.id), [sameTime, later]);
+  });
+
+  test('money moved into a savings account is filed under Savings unless '
+      'the person or its payee chose otherwise', () async {
+    final sacco = await db
+        .into(db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            name: 'Sacco',
+            type: AccountType.sacco,
+            openingDate: eat(2026, 1, 1, 0),
+          ),
+        );
+    Future<Category> category(String key) =>
+        (db.select(db.categories)..where((c) => c.key.equals(key))).getSingle();
+    final savings = await category('savings');
+    final food = await category('groceries');
+    final rent = await category('rent');
+    final landlord = await db
+        .into(db.payees)
+        .insert(
+          PayeesCompanion.insert(
+            displayName: 'Example Landlord',
+            defaultCategoryId: Value(rent.id),
+          ),
+        );
+    Future<int> moved(
+      int from,
+      int? to, {
+      TransactionDirection direction = TransactionDirection.outflow,
+      int? suggested,
+      int? chosen,
+      int? payee,
+    }) => db
+        .into(db.transactions)
+        .insert(
+          TransactionsCompanion.insert(
+            accountId: from,
+            occurredAt: eat(2026, 6, 5),
+            amountMinor: 100000,
+            direction: direction,
+            kind: const Value(TransactionKind.paybill),
+            source: TransactionSource.sms,
+            transferAccountId: Value(to),
+            autoCategoryId: Value(suggested),
+            categoryOverrideId: Value(chosen),
+            payeeId: Value(payee),
+          ),
+        );
+    final intoSacco = await moved(mpesa, sacco, suggested: food.id);
+    final plain = await moved(mpesa, sacco);
+    final chosen = await moved(mpesa, sacco, chosen: food.id);
+    final byPayee = await moved(mpesa, sacco, payee: landlord);
+    final toBank = await moved(mpesa, bank);
+    final back = await moved(
+      mpesa,
+      sacco,
+      direction: TransactionDirection.inflow,
+    );
+    final outOfSacco = await moved(sacco, mpesa);
+
+    final entries = {
+      for (final e in await repo.ledgerEntries(
+        from: eat(2026, 6, 1),
+        to: eat(2026, 7, 1),
+      ))
+        e.id: e,
+    };
+    for (final id in [intoSacco, plain]) {
+      final e = entries[id]!;
+      expect(e.categoryId, savings.id);
+      expect(e.categoryType, CategoryType.savings);
+      expect(e.categoryIsAuto, isFalse);
+      expect(roleOf(e), LedgerRole.ownTransfer);
+      expect(isSavedByTransfer(e), isTrue);
+    }
+    expect(entries[chosen]!.categoryId, food.id);
+    expect(entries[byPayee]!.categoryId, rent.id);
+    for (final id in [toBank, back, outOfSacco]) {
+      expect(entries[id]!.categoryId, isNull, reason: '$id');
+      expect(isSavedByTransfer(entries[id]!), isFalse);
+    }
+
+    final totals = LedgerTotals.of(
+      entries.values,
+      from: eat(2026, 6, 1),
+      to: eat(2026, 7, 1),
+      currency: 'KES',
+    );
+    expect(totals.savingMinor, 200000);
+    expect(totals.spendingMinor, 0);
   });
 }

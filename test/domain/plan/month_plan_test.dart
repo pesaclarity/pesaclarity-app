@@ -167,6 +167,51 @@ void main() {
       expect(progressOf(review, savings).status, PlanStatus.done);
     });
 
+    test('money moved into a savings account meets the Savings line', () {
+      // Out of M-Pesa into the person's own savings account, both halves:
+      // an own transfer, filed under Savings by where it went.
+      final out = entry(
+        kind: TransactionKind.paybill,
+        at: eat(2026, 10, 26),
+        amount: kes(8000),
+        categoryId: savings,
+        categoryType: CategoryType.savings,
+        transferPairId: 2,
+      );
+      final into = inflow(
+        kind: TransactionKind.bank,
+        at: eat(2026, 10, 26),
+        amount: kes(8000),
+        accountId: 2,
+      ).copyWith(transferPairId: out.id);
+      final review = MonthReview.of(octoberPlan(), [out, into]);
+      final line = progressOf(review, savings);
+      expect(line.actualMinor, kes(8000));
+      expect(line.status, PlanStatus.done);
+      // Nothing else moves: the money arriving in savings is no line's.
+      expect(
+        review.categories.where((c) => c.categoryId != savings),
+        everyElement(
+          predicate<CategoryProgress>((c) => c.actualMinor == 0, 'unmet'),
+        ),
+      );
+      expect(review.categories.where((c) => c.categoryId == null), isEmpty);
+    });
+
+    test('money taken back out of savings leaves the line as it was', () {
+      final review = MonthReview.of(octoberPlan(), [
+        paid(savings, 3000, type: CategoryType.savings),
+        // Back from the savings account to M-Pesa, as an own transfer.
+        inflow(
+          at: eat(2026, 10, 27),
+          amount: kes(1000),
+          categoryId: savings,
+          categoryType: CategoryType.savings,
+        ).copyWith(transferPairId: 99),
+      ]);
+      expect(progressOf(review, savings).actualMinor, kes(3000));
+    });
+
     test('shows unplanned spending as Over, including Uncategorised', () {
       final review = MonthReview.of(octoberPlan(), [
         paid(school, 1200),
