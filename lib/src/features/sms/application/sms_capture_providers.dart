@@ -52,7 +52,12 @@ final smsScanServiceProvider = Provider<SmsScanService>(
 
 /// The institutions switched on in My accounts, in catalogue order.
 final selectedInstitutionsProvider = Provider<List<Institution>>((ref) {
-  final selected = ref.watch(selectedInstitutionIdsProvider).value ?? const {};
+  final ids = ref.watch(selectedInstitutionIdsProvider);
+  // While another space's database opens, the ids still loading are the
+  // last space's: reading them would read that space's accounts into this
+  // one.
+  if (ids.isLoading) return const [];
+  final selected = ids.value ?? const {};
   return [
     for (final institution in ref.watch(institutionCatalogueProvider))
       if (selected.contains(institution.id)) institution,
