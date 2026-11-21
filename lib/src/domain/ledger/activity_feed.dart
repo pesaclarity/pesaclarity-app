@@ -15,7 +15,8 @@ enum ActivityType {
   /// Spending in day-to-day categories, the money behind safe to spend.
   dayToDay('Day-to-day'),
 
-  /// Fees, and anything that carried a transaction cost.
+  /// Fees, and anything that carried a transaction cost, an own transfer
+  /// across currencies included.
   fees('Fees'),
 
   /// Money in, other than own transfers.
@@ -35,7 +36,10 @@ enum ActivityType {
       all => true,
       spending => role == LedgerRole.spending || role == LedgerRole.fee,
       dayToDay => entry.isDailySpending && role == LedgerRole.spending,
-      fees => role == LedgerRole.fee || entry.feeMinor > 0,
+      fees =>
+        role == LedgerRole.fee ||
+            entry.feeMinor > 0 ||
+            (entry.exchangeCostMinor ?? 0) != 0,
       moneyIn => entry.isInflow && role != LedgerRole.ownTransfer,
       transfers => role == LedgerRole.ownTransfer,
     };

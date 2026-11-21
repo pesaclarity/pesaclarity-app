@@ -598,8 +598,12 @@ void main() {
       expect(lines(waiting, 1)[BookAccount.fees], isNull);
     });
 
-    test('a transfer between two currencies stays in transit, each side in '
-        'its own currency', () {
+    // Currencies stage 2 changed this on purpose: a pair in two currencies
+    // used to stay in transit, each side in its own currency. Now each
+    // currency's exchange entry clears it through Currency exchange (see
+    // journal_exchange_test.dart); with no rates the cost is not known.
+    test('a transfer between two currencies clears transit in each currency '
+        'through Currency exchange', () {
       const usd = 4;
       final journal = postJournal(
         accounts: [
@@ -627,8 +631,11 @@ void main() {
         ],
         categories: categories,
       );
-      expect(left(journal, BookAccount.moneyInTransit, c: 'USD'), 10000);
-      expect(left(journal, BookAccount.moneyInTransit), -kes(12900));
+      expect(left(journal, BookAccount.moneyInTransit, c: 'USD'), 0);
+      expect(left(journal, BookAccount.moneyInTransit), 0);
+      expect(left(journal, BookAccount.currencyExchange, c: 'USD'), 10000);
+      expect(left(journal, BookAccount.currencyExchange), -kes(12900));
+      expect(left(journal, BookAccount.exchangeCost, c: 'USD'), 0);
       expect(left(journal, BookAccount.fees, c: 'USD'), 0);
       expect(left(journal, BookAccount.notYetSorted), 0);
     });

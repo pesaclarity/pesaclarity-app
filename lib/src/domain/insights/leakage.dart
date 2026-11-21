@@ -53,6 +53,8 @@ class LeakageBreakdown {
       if (journal == null || entry.kind != TransactionKind.fulizaDraw) {
         fees += entry.feeMinor;
       }
+      // What an own transfer across currencies cost to exchange.
+      fees += entry.exchangeCostMinor ?? 0;
       switch (roleOf(entry)) {
         case LedgerRole.fee:
           fees += entry.amountMinor;

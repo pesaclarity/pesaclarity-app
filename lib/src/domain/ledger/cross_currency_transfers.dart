@@ -569,6 +569,65 @@ bool _numberedApart(
         ) ==
         false;
 
+/// Whether [out] and [into] are the two sides of one own transfer across
+/// currencies: money out and money in, paired with each other, that moved
+/// in two currencies.
+bool isCrossCurrencyPair(LedgerEntry out, LedgerEntry into) =>
+    out.isOutflow &&
+    into.isInflow &&
+    out.transferPairId == into.id &&
+    into.transferPairId == out.id &&
+    _currency(out) != _currency(into);
+
+/// What the own transfer across currencies [out] and [into] cost to
+/// exchange, read with both in one currency (the base, each side at the
+/// rate of its own day): the money out less the money in. Negative when
+/// more came in. Null unless they are such a pair read in one currency.
+///
+/// A fee [out]'s message printed is its own [LedgerEntry.feeMinor], on
+/// top of this.
+int? exchangeCostOf(LedgerEntry out, LedgerEntry into) {
+  if (!isCrossCurrencyPair(out, into) || out.currency != into.currency) {
+    return null;
+  }
+  return out.amountMinor - into.amountMinor;
+}
+
+/// [exchangeCostOf] as a share of the money out, in hundredths of a
+/// percent: 100 is 1% lost to the exchange. Null when the cost is.
+int? exchangeCostBasisPoints(LedgerEntry out, LedgerEntry into) {
+  final cost = exchangeCostOf(out, into);
+  if (cost == null || out.amountMinor <= 0) return null;
+  return (cost * 10000 / out.amountMinor).round();
+}
+
+/// The rate the person got: how much of [into]'s currency one unit of
+/// [out]'s bought, from the two amounts each in its own currency.
+double rateGotOf(LedgerEntry out, LedgerEntry into) =>
+    (_amount(into) / _pow10(minorUnitDigits(_currency(into)))) /
+    (_amount(out) / _pow10(minorUnitDigits(_currency(out))));
+
+/// What the money in of the own transfer [out] and [into] was worth in the
+/// money out's currency, at the rate of the day it arrived ([rateOn]): the
+/// money out less this is what the exchange cost, as the journal posts
+/// it. Null when that day has no rate, or only an approximate one: the
+/// cost is then not known.
+int? arrivedInOutCurrency(LedgerEntry out, LedgerEntry into, DayRate rateOn) {
+  final quote = rateOn(_currency(into), _currency(out), into.occurredAt);
+  if (quote == null ||
+      quote.approximate ||
+      quote.rate <= 0 ||
+      !quote.rate.isFinite) {
+    return null;
+  }
+  return convertMinor(
+    _amount(into),
+    from: _currency(into),
+    to: _currency(out),
+    rate: quote.rate,
+  );
+}
+
 double _pow10(int digits) {
   var result = 1.0;
   for (var i = 0; i < digits; i++) {

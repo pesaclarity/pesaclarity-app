@@ -22,8 +22,10 @@ class LedgerTotals {
   ///
   /// [history] should reach back before [from] so Fuliza repayments can be
   /// matched to earlier draws. Fees include charges, the transaction cost on
-  /// every entry (own transfers too, since moving money still costs) and the
-  /// fee share of Fuliza repayments; the rest of a repayment counts as debt
+  /// every entry (own transfers too, since moving money still costs), what
+  /// an own transfer across currencies cost to exchange (on the day the
+  /// money arrived; a gain lowers fees) and the fee share of Fuliza
+  /// repayments; the rest of a repayment counts as debt
   /// repayment. Own transfers are counted once, by their outflow half.
   factory LedgerTotals.of(
     Iterable<LedgerEntry> history, {
@@ -49,7 +51,7 @@ class LedgerTotals {
         continue;
       }
       final amount = entry.amountMinor;
-      fees += entry.feeMinor;
+      fees += entry.feeMinor + (entry.exchangeCostMinor ?? 0);
       switch (roleOf(entry)) {
         case LedgerRole.income:
           income += amount;

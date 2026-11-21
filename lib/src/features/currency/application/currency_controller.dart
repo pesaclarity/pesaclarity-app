@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/currency_rebase_repository.dart';
 import '../../../data/repositories/rate_history_repository.dart';
@@ -93,6 +94,15 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
       await _history.keep(CalendarDate.local(rates.fetchedAt), rates);
       history = await _history.read();
     }
+    return _settingsOf(json, rates, history);
+  }
+
+  /// The settings saved as [json], with [rates] and [history].
+  static CurrencySettings _settingsOf(
+    Map<String, Object?>? json,
+    ExchangeRates? rates,
+    RateHistory history,
+  ) {
     final base = json?['base'];
     final own = json?['ownRates'];
     return CurrencySettings(
@@ -109,6 +119,65 @@ class CurrencyController extends AsyncNotifier<CurrencySettings> {
       rates: rates,
       history: history,
     );
+  }
+
+  /// The converter [db]'s saved settings and kept rates make, read straight
+  /// from the space's database rather than from this controller, so work
+  /// that runs without the app's providers (pairing own transfers, posting
+  /// the journal) converts as the app does. Read again only when
+  /// [storedRatesSignature] changes. Changes nothing.
+  static Future<CurrencyConverter> storedConverter(AppDatabase db) async {
+    final signature = await storedRatesSignature(db);
+    final cached = _stored[db];
+    if (cached != null && cached.$1 == signature) return cached.$2;
+    final converter = await _readStoredConverter(db);
+    _stored[db] = (signature, converter);
+    return converter;
+  }
+
+  static final _stored = Expando<(String, CurrencyConverter)>();
+
+  /// What changes when [storedConverter] would convert differently: how
+  /// many days of rates are kept and the latest day, the saved settings
+  /// (base currency and the person's own rates), and the latest rates
+  /// while no day's are kept. Rates are only ever added to a day that had
+  /// none, so these change whenever they do.
+  static Future<String> storedRatesSignature(AppDatabase db) async {
+    final kept = await db
+        .customSelect(
+          'SELECT COUNT(*) AS n, MAX(day) AS last FROM rate_snapshots',
+          readsFrom: {db.rateSnapshots},
+        )
+        .getSingle();
+    final n = kept.read<int>('n');
+    Future<String> setting(String key) async =>
+        (await (db.select(
+          db.appSettings,
+        )..where((s) => s.key.equals(key))).getSingleOrNull())?.value ??
+        '';
+    final saved = await setting(settingsKey);
+    return '$n|${kept.readNullable<String>('last') ?? ''}|'
+        // With nothing saved, the base is the app's default.
+        '${saved.isEmpty ? BaseCurrency.code : saved}|'
+        '${n == 0 ? await setting(ratesKey) : ''}';
+  }
+
+  static Future<CurrencyConverter> _readStoredConverter(AppDatabase db) async {
+    final settings = DriftAppSettingsRepository(db);
+    final saved = await settings.readJson(ratesKey);
+    final rates = saved == null ? null : ExchangeRates.fromSaved(saved);
+    var history = await DriftRateHistoryRepository(db).read();
+    // Rates fetched before rates were kept by day count as their day's.
+    if (history.isEmpty && rates != null) {
+      history = RateHistory([
+        DayRates(CalendarDate.local(rates.fetchedAt), rates),
+      ]);
+    }
+    return _settingsOf(
+      await settings.readJson(settingsKey),
+      rates,
+      history,
+    ).converter;
   }
 
   Future<CurrencySettings> _current() async => state.value ?? await future;

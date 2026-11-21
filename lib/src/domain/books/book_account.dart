@@ -97,7 +97,19 @@ enum BookAccountKind {
   /// What Fuliza charged: access fees, daily charges and what repayments
   /// took beyond what was owed, whether a message said so or the balances
   /// show it.
-  fulizaCharges(BookAccountClass.expense);
+  fulizaCharges(BookAccountClass.expense),
+
+  /// The trading account of own transfers across currencies: what was
+  /// sold in one currency and bought in another, so every entry sums to
+  /// zero in its own currency. Zero in the base at the day's rates; what
+  /// is left is a move in value between the days of a transfer's two
+  /// sides, when the base is a third currency.
+  currencyExchange(BookAccountClass.asset),
+
+  /// What own transfers across currencies cost against the day's rate: the
+  /// money out less what the money in was worth that day. Counted with
+  /// fees; negative when more came in than the day's rate gives.
+  exchangeCost(BookAccountClass.expense);
 
   const BookAccountKind(this.accountClass);
 
@@ -177,6 +189,10 @@ class BookAccount {
   );
   static const notYetSorted = BookAccount.fixed(BookAccountKind.notYetSorted);
   static const fulizaCharges = BookAccount.fixed(BookAccountKind.fulizaCharges);
+  static const currencyExchange = BookAccount.fixed(
+    BookAccountKind.currencyExchange,
+  );
+  static const exchangeCost = BookAccount.fixed(BookAccountKind.exchangeCost);
 
   /// Money on its way between accounts: the journal's clearing account.
   static const moneyInTransit = ownTransfers;

@@ -36,6 +36,7 @@ class LedgerEntry {
     this.owedDueAt,
     this.originalAmountMinor,
     this.originalCurrency,
+    this.exchangeCostMinor,
   }) : currency = currency ?? BaseCurrency.code,
        assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
@@ -117,6 +118,14 @@ class LedgerEntry {
   final int? originalAmountMinor;
   final String? originalCurrency;
 
+  /// On the money in of an own transfer across currencies, read with both
+  /// sides in one currency at real rates of their days: what the exchange
+  /// cost, the money out less this money in. It counts with fees, on the
+  /// day the money arrived; negative when more came in than the money out
+  /// was worth, which lowers fees. Null otherwise, also when either side
+  /// has no rate for its day or only an approximate one.
+  final int? exchangeCostMinor;
+
   bool get isInflow => direction == TransactionDirection.inflow;
 
   bool get isOutflow => direction == TransactionDirection.outflow;
@@ -130,7 +139,11 @@ class LedgerEntry {
   /// Whether this is a balance correction rather than money that moved.
   bool get isCorrection => kind == TransactionKind.correction;
 
-  LedgerEntry copyWith({int? transferPairId, int? accountId}) => LedgerEntry(
+  LedgerEntry copyWith({
+    int? transferPairId,
+    int? accountId,
+    int? exchangeCostMinor,
+  }) => LedgerEntry(
     id: id,
     accountId: accountId ?? this.accountId,
     occurredAt: occurredAt,
@@ -161,6 +174,7 @@ class LedgerEntry {
     owedDueAt: owedDueAt,
     originalAmountMinor: originalAmountMinor,
     originalCurrency: originalCurrency,
+    exchangeCostMinor: exchangeCostMinor ?? this.exchangeCostMinor,
   );
 
   @override

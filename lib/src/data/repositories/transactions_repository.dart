@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/exchange_rates.dart';
+import '../../domain/ledger/cross_currency_transfers.dart';
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_transfers.dart';
 import '../../domain/payees/payee_directory.dart';
@@ -50,10 +53,12 @@ abstract interface class TransactionsRepository {
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
 
-  /// Finds and stores own transfers (see `findOwnTransfers`) among the
-  /// transactions from [from] to [to], every one when not given, widened by
-  /// the time a named transfer waits for its other side. Returns how many
-  /// pairs were made. [addNew] runs it after every new transaction, so
+  /// Finds and stores own transfers (see `findOwnTransfers`, then
+  /// `findCrossCurrencyTransfers` between currencies, at the rates kept
+  /// with the space) among the transactions from [from] to [to], every one
+  /// when not given, widened by the time a named transfer waits for its
+  /// other side. A pair across currencies whose side the bank reversed is
+  /// unmatched first. Returns how many pairs were made. [addNew] runs it after every new transaction, so
   /// message scans, new messages, statements and checked messages all pair.
   Future<int> pairOwnTransfers({DateTime? from, DateTime? to});
 
@@ -360,15 +365,86 @@ class DriftTransactionsRepository implements TransactionsRepository {
         )
         .get();
     final read = _RowReader(_db);
-    return [
+    final records = <int, TransactionRecord>{};
+    final entries = [
       for (final row in rows)
         _toLedgerEntry(
-          read.transaction(row.data),
+          records[row.data['id']! as int] = read.transaction(row.data),
           read.payee(row.data),
           categories,
           tags,
           _converter,
         ),
+    ];
+    return _withExchangeCosts(entries, records, categories);
+  }
+
+  /// [entries] with what each own transfer across currencies cost to
+  /// exchange on its money in (see [exchangeCostOf]), when both sides are
+  /// read in the base currency at real rates of their days. [records] are
+  /// the entries' rows, by id.
+  Future<List<LedgerEntry>> _withExchangeCosts(
+    List<LedgerEntry> entries,
+    Map<int, TransactionRecord> records,
+    Map<int, Category> categories,
+  ) async {
+    final converter = _converter;
+    if (converter == null) return entries;
+    final byId = {for (final e in entries) e.id: e};
+    final ins = [
+      for (final e in entries)
+        if (e.isInflow &&
+            e.transferPairId != null &&
+            e.currency == converter.base)
+          e,
+    ];
+    if (ins.isEmpty) return entries;
+    // Money out on another day or account than was read.
+    final away = [
+      for (final e in ins)
+        if (!byId.containsKey(e.transferPairId)) e.transferPairId!,
+    ];
+    final partners = <int, (LedgerEntry, TransactionRecord)>{};
+    for (var i = 0; i < away.length; i += 500) {
+      final ids = away.sublist(i, min(i + 500, away.length));
+      for (final r in await (_db.select(
+        _db.transactions,
+      )..where((t) => t.id.isIn(ids))).get()) {
+        partners[r.id] = (
+          _toLedgerEntry(r, null, categories, const {}, converter),
+          r,
+        );
+      }
+    }
+    bool real(TransactionRecord record) {
+      if (record.currency == converter.base) return true;
+      final kind = convertRecord(record, converter)?.kind;
+      return kind != null &&
+          kind != RateKind.approximate &&
+          kind != RateKind.latest;
+    }
+
+    final costs = <int, int>{};
+    for (final into in ins) {
+      final id = into.transferPairId!;
+      final (out, outRecord) = switch (byId[id]) {
+        final e? => (e, records[id]!),
+        null => partners[id] ?? (null, null),
+      };
+      if (out == null || outRecord == null) continue;
+      final cost = exchangeCostOf(out, into);
+      if (cost == null || !real(outRecord) || !real(records[into.id]!)) {
+        continue;
+      }
+      costs[into.id] = cost;
+    }
+    if (costs.isEmpty) return entries;
+    return [
+      for (final e in entries)
+        if (costs[e.id] case final cost?)
+          e.copyWith(exchangeCostMinor: cost)
+        else
+          e,
     ];
   }
 
@@ -393,46 +469,87 @@ class DriftTransactionsRepository implements TransactionsRepository {
       });
 
   @override
-  Future<int> pairOwnTransfers({
-    DateTime? from,
-    DateTime? to,
-  }) => _db.transaction(() async {
-    final t = _db.transactions;
-    final query = _db.select(t);
-    if (from != null) {
-      query.where(
-        (t) => t.occurredAt.isBiggerOrEqualValue(
-          from.subtract(waitingTransferWindow),
-        ),
-      );
+  Future<int> pairOwnTransfers({DateTime? from, DateTime? to}) =>
+      _db.transaction(() async {
+        final t = _db.transactions;
+        final query = _db.select(t);
+        if (from != null) {
+          query.where(
+            (t) => t.occurredAt.isBiggerOrEqualValue(
+              from.subtract(waitingTransferWindow),
+            ),
+          );
+        }
+        if (to != null) {
+          query.where(
+            (t) => t.occurredAt.isSmallerOrEqualValue(
+              to.add(waitingTransferWindow),
+            ),
+          );
+        }
+        final categories = {
+          for (final c in await _db.select(_db.categories).get()) c.id: c,
+        };
+        final payees = {
+          for (final p in await _db.select(_db.payees).get()) p.id: p,
+        };
+        // Amounts as stored, each in the currency it moved in.
+        Future<List<LedgerEntry>> read() async => [
+          for (final r in await query.get())
+            _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
+        ];
+        var entries = await read();
+        if (await _unmatchReversed(entries)) entries = await read();
+        final accounts = await _db.select(_db.accounts).get();
+        final declined = await declinedTransfers();
+        final pairs = findOwnTransfers(
+          entries,
+          declined: declined,
+          references: {for (final a in accounts) a.id: a.reference},
+        );
+        // Then between currencies, among what one currency left unpaired, at
+        // the rates the app converts with.
+        final across = findCrossCurrencyTransfers(
+          applyTransferPairs(entries, pairs),
+          accounts: {
+            for (final a in accounts)
+              a.id: TransferAccount(
+                currency: a.currency,
+                reference: a.reference,
+                institutionId: a.institutionId,
+              ),
+          },
+          // The rates kept with the space, not [_converter]: pairing then
+          // does not depend on whether the app had read them yet.
+          rateOn: dayRatesOf(await CurrencyController.storedConverter(_db)),
+          declined: declined,
+        );
+        final all = [...pairs, for (final t in across) t.pair];
+        await saveTransferPairs(all);
+        return all.length;
+      });
+
+  /// Unmatches each own transfer across currencies in [entries] whose side
+  /// the bank undid (see [reversedEntries]): nothing is left to arrive in
+  /// the other currency, so both count as they were and the reversal
+  /// cancels its side. The pair is never matched again. Returns whether
+  /// any was unmatched.
+  Future<bool> _unmatchReversed(List<LedgerEntry> entries) async {
+    final reversed = reversedEntries(entries);
+    if (reversed.isEmpty) return false;
+    final byId = {for (final e in entries) e.id: e};
+    final undone = <int>{};
+    for (final id in reversed) {
+      final entry = byId[id]!;
+      final partner = byId[entry.transferPairId];
+      if (partner == null || undone.contains(partner.id)) continue;
+      final (out, into) = entry.isOutflow ? (entry, partner) : (partner, entry);
+      if (!isCrossCurrencyPair(out, into)) continue;
+      await unmatch(entry.id);
+      undone.addAll([entry.id, partner.id]);
     }
-    if (to != null) {
-      query.where(
-        (t) =>
-            t.occurredAt.isSmallerOrEqualValue(to.add(waitingTransferWindow)),
-      );
-    }
-    final categories = {
-      for (final c in await _db.select(_db.categories).get()) c.id: c,
-    };
-    final payees = {
-      for (final p in await _db.select(_db.payees).get()) p.id: p,
-    };
-    // Amounts as stored: a transfer moves in one currency.
-    final entries = [
-      for (final r in await query.get())
-        _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
-    ];
-    final pairs = findOwnTransfers(
-      entries,
-      declined: await declinedTransfers(),
-      references: {
-        for (final a in await _db.select(_db.accounts).get()) a.id: a.reference,
-      },
-    );
-    await saveTransferPairs(pairs);
-    return pairs.length;
-  });
+    return undone.isNotEmpty;
+  }
 
   @override
   Future<void> match(int outflowId, int inflowId) => _db.transaction(() async {

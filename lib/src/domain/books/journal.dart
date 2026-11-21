@@ -1,5 +1,6 @@
 import '../enums.dart';
 import '../ledger/balances.dart';
+import '../ledger/cross_currency_transfers.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/own_transfers.dart';
 import 'book_account.dart';
@@ -36,20 +37,30 @@ import 'books.dart';
 /// * Each side of an own transfer goes through Money in transit, and once
 ///   both sides are paired the money out's entry clears what the transfer
 ///   lost on the way ([transferShortfall]): a fee when less arrived than
-///   left, Not yet sorted when more did. A transfer between two currencies
-///   stays in transit, each side in its own currency.
+///   left, Not yet sorted when more did.
+/// * A paired transfer between two currencies posts one exchange entry per
+///   currency, dated when the money arrived ([JournalSource.exchange]):
+///   the money out's currency moves what left from transit to Currency
+///   exchange, less what the exchange cost against the day's rate
+///   ([arrivedInOutCurrency], from [rateOn]), which goes to Exchange cost;
+///   the money in's currency moves what arrived from Currency exchange
+///   back into transit. Every entry sums to zero in its currency, and
+///   transit clears in each. With no rate for that day, or only an
+///   approximate one, the cost is not known: the whole money out goes to
+///   Currency exchange.
 ///
 /// Transactions on no known account, in another currency than their account
 /// or before its opening date still post, as they read alone.
 ///
 /// [partners] holds the other sides of the own transfers in [history] that
 /// [history] leaves out, by id, for posting only some accounts: a money
-/// out's entry needs what arrived.
+/// out's entry needs what arrived, and an exchange entry needs both sides.
 List<JournalEntry> postJournal({
   required Iterable<AccountOpening> accounts,
   required Iterable<LedgerEntry> history,
   required Map<int, BookCategory> categories,
   Map<int, LedgerEntry> partners = const {},
+  DayRate? rateOn,
 }) {
   final all = history.toList();
   final byId = {for (final e in all) e.id: e};
@@ -76,7 +87,56 @@ List<JournalEntry> postJournal({
       ),
     );
   }
+  for (final e in all) {
+    if (_exchange(e, partnerOf(e), categories, rateOn) case final entry?) {
+      out.add(entry);
+    }
+  }
   return out;
+}
+
+/// [e]'s currency's exchange entry, when [e] and [partner] are the two
+/// sides of an own transfer across currencies that both go through Money
+/// in transit; null otherwise. Dated when the money arrived.
+JournalEntry? _exchange(
+  LedgerEntry e,
+  LedgerEntry? partner,
+  Map<int, BookCategory> categories,
+  DayRate? rateOn,
+) {
+  if (partner == null) return null;
+  final (out, into) = e.isOutflow ? (e, partner) : (partner, e);
+  if (!isCrossCurrencyPair(out, into)) return null;
+  bool viaTransit(LedgerEntry side) => _ownLines(
+    side,
+    categories,
+  ).any((l) => l.account == BookAccount.moneyInTransit);
+  if (!viaTransit(out) || !viaTransit(into)) return null;
+  final List<JournalLine> lines;
+  if (e.isOutflow) {
+    final arrived = rateOn == null
+        ? null
+        : arrivedInOutCurrency(out, into, rateOn);
+    final cost = arrived == null ? 0 : out.amountMinor - arrived;
+    lines = [
+      JournalLine(BookAccount.currencyExchange, out.amountMinor - cost),
+      JournalLine(BookAccount.exchangeCost, cost),
+      JournalLine(BookAccount.moneyInTransit, -out.amountMinor),
+    ];
+  } else {
+    lines = [
+      JournalLine(BookAccount.moneyInTransit, into.amountMinor),
+      JournalLine(BookAccount.currencyExchange, -into.amountMinor),
+    ];
+  }
+  return JournalEntry(
+    source: JournalSource.exchange,
+    sourceId: e.id,
+    at: into.occurredAt,
+    currency: e.currency,
+    accountId: e.accountId,
+    lines: lines,
+  );
 }
 
 /// The balance of [account] in [currency] from [entries] dated before [at],
