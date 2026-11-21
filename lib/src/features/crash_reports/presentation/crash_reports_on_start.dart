@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../routing/app_router.dart';
+import '../../../routing/app_routes.dart';
 import '../../app_status/application/update_check_choice.dart';
 import '../application/crash_reports.dart';
 import '../data/crash_report_sender.dart';
@@ -57,11 +59,10 @@ class _CrashReportsOnStartState extends ConsumerState<CrashReportsOnStart> {
     if (!await ref.read(agreedToReportingPolicyProvider.future)) return;
     final reports = await ref.read(pendingCrashStoreProvider).read();
     if (reports.isEmpty || !mounted) return;
-    final navigator = ref
-        .read(appRouterProvider)
-        .routerDelegate
-        .navigatorKey
-        .currentContext;
+    final router = ref.read(appRouterProvider);
+    await _settledOn(router);
+    if (!mounted) return;
+    final navigator = router.routerDelegate.navigatorKey.currentContext;
     if (navigator == null || !navigator.mounted) return;
     await showCrashReportSheet(navigator, reports);
   }
@@ -80,6 +81,31 @@ class _CrashReportsOnStartState extends ConsumerState<CrashReportsOnStart> {
   void dispose() {
     _lifecycle.dispose();
     super.dispose();
+  }
+
+  /// Waits until [router] has left the launch screen (and the space
+  /// question) for the screen the person stays on. A sheet shown over the
+  /// launch screen goes with it when the app moves on to Home.
+  Future<void> _settledOn(GoRouter router) async {
+    bool passing() => const {
+      AppRoutes.launch,
+      AppRoutes.chooseSpace,
+    }.contains(router.routerDelegate.currentConfiguration.uri.path);
+    if (passing()) {
+      final left = Completer<void>();
+      void check() {
+        if (!passing() && !left.isCompleted) left.complete();
+      }
+
+      router.routerDelegate.addListener(check);
+      try {
+        await left.future;
+      } finally {
+        router.routerDelegate.removeListener(check);
+      }
+    }
+    // The new screen is built before the sheet goes over it.
+    await WidgetsBinding.instance.endOfFrame;
   }
 
   Future<void> _install() async {
