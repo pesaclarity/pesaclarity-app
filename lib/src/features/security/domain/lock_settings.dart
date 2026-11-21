@@ -6,6 +6,7 @@ final class LockSettings {
     this.biometricEnabled = false,
     this.lockAfter = defaultLockAfter,
     this.hideBalancesOnOpen = false,
+    this.allowScreenCapture = false,
   });
 
   static const defaultLockAfter = Duration(seconds: 30);
@@ -30,16 +31,23 @@ final class LockSettings {
   /// Whether amounts start hidden each time the app opens.
   final bool hideBalancesOnOpen;
 
+  /// Whether the phone may take screenshots and screen recordings of the
+  /// app, and show it in recent apps. Blocked unless the person allows it;
+  /// only Android lets an app block them.
+  final bool allowScreenCapture;
+
   LockSettings copyWith({
     bool? pinSet,
     bool? biometricEnabled,
     Duration? lockAfter,
     bool? hideBalancesOnOpen,
+    bool? allowScreenCapture,
   }) => LockSettings(
     pinSet: pinSet ?? this.pinSet,
     biometricEnabled: biometricEnabled ?? this.biometricEnabled,
     lockAfter: lockAfter ?? this.lockAfter,
     hideBalancesOnOpen: hideBalancesOnOpen ?? this.hideBalancesOnOpen,
+    allowScreenCapture: allowScreenCapture ?? this.allowScreenCapture,
   );
 
   /// The preferences part, as stored. [pinSet] comes from the PIN record.
@@ -47,6 +55,7 @@ final class LockSettings {
     'biometric': biometricEnabled,
     'lockAfterSeconds': lockAfter.inSeconds,
     'hideBalances': hideBalancesOnOpen,
+    'allowScreenCapture': allowScreenCapture,
   };
 
   static LockSettings fromJson(
@@ -61,6 +70,8 @@ final class LockSettings {
         _ => defaultLockAfter,
       },
       hideBalancesOnOpen: json['hideBalances'] == true,
+      // Anything but a saved yes reads as blocked.
+      allowScreenCapture: json['allowScreenCapture'] == true,
     );
   }
 }

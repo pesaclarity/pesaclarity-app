@@ -6,11 +6,13 @@ import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../application/app_lock_controller.dart';
 import '../data/biometric_authenticator.dart';
+import '../data/screen_capture_blocker.dart';
 import '../domain/lock_settings.dart';
 import 'pin_entry_screens.dart';
 
 /// The Security section of Profile: app lock, fingerprint unlock, when to
-/// lock, and hiding balances.
+/// lock, hiding balances and, where the app can block them, allowing
+/// screenshots.
 class SecuritySettingsCard extends ConsumerWidget {
   const SecuritySettingsCard({super.key});
 
@@ -22,6 +24,7 @@ class SecuritySettingsCard extends ConsumerWidget {
     final controller = ref.read(appLockControllerProvider.notifier);
     final biometricAvailable =
         ref.watch(biometricAvailableProvider).value ?? false;
+    final canBlockScreenCapture = ref.watch(canBlockScreenCaptureProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,6 +87,21 @@ class SecuritySettingsCard extends ConsumerWidget {
                 value: settings.hideBalancesOnOpen,
                 onChanged: controller.setHideBalancesOnOpen,
               ),
+              if (canBlockScreenCapture) ...[
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
+                  title: const Text('Allow screenshots and screen recording'),
+                  subtitle: Text(
+                    settings.allowScreenCapture
+                        ? 'Screenshots, recordings and recent apps show your '
+                              'amounts. Tap the eye to hide them first.'
+                        : "Blocked. Pesa Clarity's screen is also hidden in "
+                              'recent apps.',
+                  ),
+                  value: settings.allowScreenCapture,
+                  onChanged: controller.setAllowScreenCapture,
+                ),
+              ],
             ],
           ),
         ),

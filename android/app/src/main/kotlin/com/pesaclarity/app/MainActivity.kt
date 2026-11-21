@@ -15,10 +15,12 @@ class MainActivity : FlutterFragmentActivity() {
     private var deviceIntegrity: DeviceIntegrityChannel? = null
     private var googleSignIn: GoogleSignInChannel? = null
     private var printer: PrinterChannel? = null
+    private var screenCapture: ScreenCaptureChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Blocks screenshots, screen recording and app-switcher previews of financial data.
         // Debug builds skip it so CI can capture UI screenshots; release builds are never debuggable.
+        // Set here, before any Dart code runs; ScreenCaptureChannel clears it once the person allows them.
         val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (!debuggable) {
             window.setFlags(
@@ -39,6 +41,7 @@ class MainActivity : FlutterFragmentActivity() {
         // Per flavour: Credential Manager on play, a stand-in on foss.
         googleSignIn = GoogleSignInChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         printer = PrinterChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        screenCapture = ScreenCaptureChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
@@ -54,6 +57,8 @@ class MainActivity : FlutterFragmentActivity() {
         googleSignIn = null
         printer?.dispose()
         printer = null
+        screenCapture?.dispose()
+        screenCapture = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
