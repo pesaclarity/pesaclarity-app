@@ -676,36 +676,49 @@ final journalRepositoryProvider = Provider<JournalRepository>((ref) {
 });
 
 /// The open space's journal balances at one ledger generation (how many
-/// changes the ledger has seen) and with one currency converter. Every
-/// provider that reads the journal at that generation shares this one read.
+/// changes the ledger has seen), read through one repository (which holds
+/// the space's database) with one currency converter. Every provider that
+/// reads the journal at that generation shares this one read.
+///
+/// The repository is part of the key because each space's generation
+/// starts at zero: keyed by generation and converter alone, a space opened
+/// after another was handed that space's balances once their counts met.
 ///
 /// It depends on nothing that changes: a change to the ledger or to the
 /// rates makes a new key rather than invalidating this one while its readers
 /// are still computing. The newest key is kept alive, so a reader that is
 /// only read (not listened to) still gets its value; older keys are let go
-/// once the next one is read and nothing watches them.
+/// once the next one is read and nothing watches them. A key of another
+/// repository (another space) is always the newest.
 final journalAtGenerationProvider = FutureProvider.autoDispose
-    .family<JournalBalances, (int, CurrencyConverter)>((ref, key) {
-      final (generation, converter) = key;
+    .family<JournalBalances, (int, CurrencyConverter, JournalRepository)>((
+      ref,
+      key,
+    ) {
+      final (generation, converter, journal) = key;
       final latest = ref.read(_latestJournalProvider);
       final link = ref.keepAlive();
       final newest = latest.generation;
-      if (newest == null || generation >= newest) {
+      if (newest == null ||
+          !identical(latest.journal, journal) ||
+          generation >= newest) {
         final older = latest.link;
         latest
           ..link = link
-          ..generation = generation;
+          ..generation = generation
+          ..journal = journal;
         older?.close();
       } else {
         link.close();
       }
-      return ref.read(journalRepositoryProvider).read(converter: converter);
+      return journal.read(converter: converter);
     });
 
 /// The newest journal generation read, kept alive until the next.
 class _LatestJournal {
   KeepAliveLink? link;
   int? generation;
+  JournalRepository? journal;
 }
 
 final _latestJournalProvider = Provider<_LatestJournal>(
@@ -716,7 +729,10 @@ final _latestJournalProvider = Provider<_LatestJournal>(
 /// ledger and shared by every provider that calls this. Providers that call
 /// it watch `ledgerChangesProvider` themselves, so they follow every change.
 Future<JournalBalances> readJournal(Ref ref) {
-  final generation = ref.watch(journalRepositoryProvider).generation;
+  final journal = ref.watch(journalRepositoryProvider);
   final converter = ref.watch(currencyConverterProvider);
-  return ref.watch(journalAtGenerationProvider((generation, converter)).future);
+  return ref.watch(
+    journalAtGenerationProvider((journal.generation, converter, journal))
+        .future,
+  );
 }
