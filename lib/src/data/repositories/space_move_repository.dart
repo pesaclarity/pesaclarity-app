@@ -6,6 +6,7 @@ import '../database/database_providers.dart';
 import '../database/space_databases.dart';
 import 'message_links.dart';
 import 'message_reads_repository.dart';
+import 'savings_links.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
 /// shared M-Pesa line that belongs to the business.
@@ -14,6 +15,15 @@ abstract interface class SpaceMoveRepository {
   /// institution or name; its category comes along when the other space has
   /// one with the same key. The open space remembers the move, so reading
   /// the same message again does not bring it back.
+  ///
+  /// The balance its message reported stays behind (decision 0027,
+  /// alternative D, a stopgap until the full model): unless [spaceId] is
+  /// the space that reads the account, the copy arrives with no reported or
+  /// claimed balance and no Fuliza total, so the other space's account adds
+  /// up from its own records only.
+  ///
+  /// A payment into or out of a savings account the app keeps stays where
+  /// it is, with its entry there (see `isSavingsLinked`).
   Future<void> move(int transactionId, String spaceId, {int? toCategoryId});
 
   /// The categories in [spaceId], to choose one for what moves there.
@@ -49,6 +59,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
     String spaceId, {
     int? toCategoryId,
   }) async {
+    if (await isSavingsLinked(_source, transactionId)) return;
     final tx = await (_source.select(
       _source.transactions,
     )..where((t) => t.id.equals(transactionId))).getSingle();
@@ -62,9 +73,18 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
             _source.categories,
           )..where((c) => c.id.equals(categoryId))).getSingleOrNull();
 
+    final sourceReads = await _reads(_source, account);
+
     final (target, close) = await _openTarget(spaceId);
     try {
       await target.transaction(() async {
+        // What the message said the wallet holds is the balance of the
+        // space that reads the account: on a line Personal shares with a
+        // business, the owner's whole wallet. Taken into any other space it
+        // would become that space's balance, its opening and corrections
+        // overwritten and a payment that empties the wallet read as Fuliza.
+        // Only a move back to the space that reads the account keeps it.
+        final keepsBalance = !sourceReads && await _reads(target, account);
         final accountId = await _accountIn(target, account, tx.occurredAt);
         final targetCategory = category?.key == null
             ? null
@@ -104,6 +124,18 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     autoCategoryId: const Value(null),
                     autoCategorySource: const Value(null),
                     autoCategoryConfidence: const Value(null),
+                    balanceAfterMinor: keepsBalance
+                        ? Value(tx.balanceAfterMinor)
+                        : const Value(null),
+                    claimedBalanceMinor: keepsBalance
+                        ? Value(tx.claimedBalanceMinor)
+                        : const Value(null),
+                    owedAfterMinor: keepsBalance
+                        ? Value(tx.owedAfterMinor)
+                        : const Value(null),
+                    owedDueAt: keepsBalance
+                        ? Value(tx.owedDueAt)
+                        : const Value(null),
                   ),
             );
         // Moving back undoes an earlier move away, for each message
@@ -148,6 +180,17 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
         _source.transactions,
       )..where((t) => t.id.equals(transactionId))).go();
     });
+  }
+
+  /// Whether [db]'s space reads [account]: has its institution switched on
+  /// (each account is read in one space only).
+  Future<bool> _reads(AppDatabase db, Account account) async {
+    final institution = account.institutionId;
+    if (institution == null) return false;
+    return await (db.select(db.selectedInstitutions)
+              ..where((s) => s.institutionId.equals(institution)))
+            .getSingleOrNull() !=
+        null;
   }
 
   /// The account in [db] that matches [account]: the same institution,

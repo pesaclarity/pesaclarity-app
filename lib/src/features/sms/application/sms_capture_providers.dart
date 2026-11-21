@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ujumbe/ujumbe.dart' show SmsMessage;
 
+import '../../../core/lifecycle/app_resumed.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
@@ -21,6 +23,7 @@ import '../../categoriser/application/categoriser_providers.dart';
 import '../../spaces/application/routing_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../data/sms_source.dart';
+import '../domain/scan_range.dart';
 import 'message_recheck.dart';
 import 'read_again.dart';
 import 'scan_range_provider.dart';
@@ -66,97 +69,187 @@ final selectedInstitutionsProvider = Provider<List<Institution>>((ref) {
   ];
 });
 
-/// Keeps the ledger current while the app runs: first a scan for messages
-/// that arrived while it was closed (or, for a newly ticked institution, its
-/// messages from the chosen [scanRangeProvider] start), then each watched
-/// message as it lands.
+/// Reads what arrived for [selected] since their last scan: the catch-up
+/// that runs when the app opens and every time it returns to the front. An
+/// institution not scanned before is read from the start of [range], as it
+/// falls at [now].
 ///
-/// Messages that arrive while the app is closed stay in the inbox and are
-/// picked up by the next scan, so no background service is needed.
+/// [scan] reads into its own space's ledger and keeps that space's marks,
+/// so another space is caught up by passing its scan service, institutions
+/// and range. A source that keeps its own copy (the iPhone's Shortcuts
+/// queue) lets go of only what this read: [selected]'s senders, over the
+/// window read (see [SmsScanService.scan]).
+Future<SmsIngestSummary> catchUpOnInbox(
+  SmsScanService scan,
+  List<Institution> selected, {
+  required ScanRange range,
+  required DateTime now,
+}) => scan.scan(
+  selected,
+  from: range.firstDay(CalendarDate.local(now))?.startInstant,
+);
+
+/// Keeps the ledger current while the app runs. When the app opens, and
+/// every time it returns to the front, a scan reads what arrived since the
+/// last one (or, for a newly ticked institution, its messages from the
+/// chosen [scanRangeProvider] start). In between, each watched message is
+/// added as it lands.
+///
+/// The phone passes a message on only while the app is awake, and many
+/// phones put apps in the background to sleep. Messages that arrive while
+/// the app is closed or asleep stay in the inbox and are picked up by the
+/// next scan, so no background service is needed.
+///
+/// Nothing is read without SMS access. It can be given in the phone's
+/// settings while the app is away, so each return to the front checks
+/// again, and reading starts on the first one that finds it given.
 final liveSmsCaptureProvider = StreamProvider<SmsIngestSummary>((ref) async* {
   final selected = ref.watch(selectedInstitutionsProvider);
   final source = ref.watch(smsSourceProvider);
   final scan = ref.watch(smsScanServiceProvider);
   final ingestor = ref.watch(smsIngestorProvider);
-  if (selected.isEmpty || await source.access() != SmsAccess.granted) return;
-  // The space may have changed while access was asked: this capture is
-  // then over.
-  if (!ref.mounted) return;
-  // Each account is read in one space: one this space has on while
-  // Personal reads it too is left to Personal. The selection then changes
-  // and the capture starts again with it.
-  final spaceId = ref.read(activeSpaceIdProvider);
-  if (spaceId != personalSpaceId) {
-    final space = (await ref.read(spacesProvider.future))
-        .where((s) => s.id == spaceId)
-        .firstOrNull;
-    if (space != null &&
-        await ref
-            .read(routingRulesProvider.notifier)
-            .readOnce(
-              space,
-              here: ref.read(institutionsRepositoryProvider),
-              personal: DriftInstitutionsRepository(
-                ref.read(personalDatabaseProvider),
-              ),
-            )) {
-      return;
-    }
+  final resumed = ref.watch(appResumedProvider);
+  if (selected.isEmpty) return;
+
+  // What to deal with next, in the order it came: a message that just
+  // landed, or null for the app coming back to the front. Taken one at a
+  // time, so a scan and a message being added never run at once.
+  final events = StreamController<SmsMessage?>();
+  final next = StreamIterator(events.stream);
+  final resumes = resumed.listen((_) => events.add(null));
+  StreamSubscription<SmsMessage>? arrivals;
+  void stop() {
+    unawaited(next.cancel());
+    unawaited(resumes.cancel());
+    unawaited(arrivals?.cancel());
+    unawaited(events.close());
   }
 
-  void triggerAutoCategorise() {
-    final suggester = ref.read(categorySuggesterProvider);
-    if (suggester != null) {
-      unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
-    }
-  }
-
-  final range = await ref.watch(scanRangeProvider.future);
-  final initial = await scan.scan(
-    selected,
-    from: range
-        .firstDay(CalendarDate.local(ref.read(clockProvider)()))
-        ?.startInstant,
-  );
-  if (!ref.mounted) return;
-  if (initial.added > 0) triggerAutoCategorise();
-  // Amounts read before a pack knew an account's currency or number move
-  // to the right ones, once per pack version.
+  // A change of accounts or space starts capture afresh. This run then
+  // stops waiting at once, and leaves unread what still waited its turn.
+  ref.onDispose(stop);
   try {
-    final notice = await ref.read(messageRecheckProvider).runIfNeeded(selected);
-    if (notice != null) ref.invalidate(recheckNoticeProvider);
-  } on Object catch (error) {
-    if (kDebugMode) debugPrint('Rechecking messages failed: $error');
-  }
-  // Every message again, in the background, once the readers are newer
-  // than the ones that last read them all.
-  unawaited(
-    ref.read(readAgainControllerProvider.notifier).readIfNewer(selected),
-  );
-  yield initial;
-
-  final senders = {for (final i in selected) ...i.senderIds};
-  // Personal reads accounts shared with a business; sort what it already
-  // knows (people the owner said are always business or personal).
-  Future<void> sortShared() async {
-    if (ref.read(activeSpaceIdProvider) != personalSpaceId) return;
-    try {
-      await ref.read(sharedLineRouterProvider).applyRules();
-    } on Object catch (error) {
-      if (kDebugMode) debugPrint('Sorting shared accounts failed: $error');
+    // Access can be given in the phone's settings while the app is away, so
+    // look again each time it comes back.
+    while (await source.access() != SmsAccess.granted) {
+      if (!await next.moveNext()) return;
     }
-  }
-
-  if (initial.added > 0) await sortShared();
-  await for (final message in source.incoming(senders)) {
-    final summary = await ingestor.ingest([message], selected);
-    // Another space opened meanwhile: its own capture takes over.
+    // The space may have changed while access was asked: this capture is
+    // then over.
     if (!ref.mounted) return;
-    if (summary.added > 0) {
-      triggerAutoCategorise();
-      await sortShared();
+    // Each account is read in one space: one this space has on while
+    // Personal reads it too is left to Personal. The selection then changes
+    // and the capture starts again with it.
+    final spaceId = ref.read(activeSpaceIdProvider);
+    if (spaceId != personalSpaceId) {
+      final space = (await ref.read(spacesProvider.future))
+          .where((s) => s.id == spaceId)
+          .firstOrNull;
+      if (!ref.mounted) return;
+      if (space != null &&
+          await ref
+              .read(routingRulesProvider.notifier)
+              .readOnce(
+                space,
+                here: ref.read(institutionsRepositoryProvider),
+                personal: DriftInstitutionsRepository(
+                  ref.read(personalDatabaseProvider),
+                ),
+              )) {
+        return;
+      }
+      if (!ref.mounted) return;
     }
-    yield summary;
+    // Listening starts before the first scan, so a message that lands
+    // during it is not missed. One the scan also read is skipped as already
+    // stored.
+    arrivals = source
+        .incoming({for (final i in selected) ...i.senderIds})
+        .listen(events.add, onError: events.addError);
+
+    void triggerAutoCategorise() {
+      final suggester = ref.read(categorySuggesterProvider);
+      if (suggester != null) {
+        unawaited(ref.read(autoCategoriserProvider).autoCategorise(suggester));
+      }
+    }
+
+    final range = await ref.watch(scanRangeProvider.future);
+    if (!ref.mounted) return;
+    // The same catch-up when the app opens and each time it comes back.
+    Future<SmsIngestSummary> catchUp() => catchUpOnInbox(
+      scan,
+      selected,
+      range: range,
+      now: ref.read(clockProvider)(),
+    );
+    final initial = await catchUp();
+    // Another space opened, or capture started afresh, meanwhile: the rest
+    // is that run's to do.
+    if (!ref.mounted) return;
+    if (initial.added > 0) triggerAutoCategorise();
+    // Amounts read before a pack knew an account's currency or number move
+    // to the right ones, once per pack version.
+    try {
+      final notice = await ref
+          .read(messageRecheckProvider)
+          .runIfNeeded(selected);
+      if (notice != null) ref.invalidate(recheckNoticeProvider);
+    } on Object catch (error) {
+      if (kDebugMode) debugPrint('Rechecking messages failed: $error');
+    }
+    if (!ref.mounted) return;
+    // Every message again, in the background, once the readers are newer
+    // than the ones that last read them all.
+    unawaited(
+      ref.read(readAgainControllerProvider.notifier).readIfNewer(selected),
+    );
+    yield initial;
+
+    // Personal reads accounts shared with a business; sort what it already
+    // knows (people the owner said are always business or personal).
+    Future<void> sortShared() async {
+      if (ref.read(activeSpaceIdProvider) != personalSpaceId) return;
+      try {
+        await ref.read(sharedLineRouterProvider).applyRules();
+      } on Object catch (error) {
+        if (kDebugMode) debugPrint('Sorting shared accounts failed: $error');
+      }
+    }
+
+    if (initial.added > 0) await sortShared();
+    while (await next.moveNext()) {
+      final message = next.current;
+      final SmsIngestSummary summary;
+      if (message != null) {
+        summary = await ingestor.ingest([message], selected);
+      } else {
+        // Back at the front. The phone passed nothing on while the app was
+        // asleep, so read what arrived since the last scan. Access may have
+        // been taken away meanwhile: then there is nothing to read.
+        try {
+          final access = await source.access();
+          if (!ref.mounted) return;
+          if (access != SmsAccess.granted) continue;
+          summary = await catchUp();
+        } on Object catch (error) {
+          // Messages still come in as they land, and the next return reads
+          // from the same mark again.
+          if (kDebugMode) debugPrint('Reading missed messages failed: $error');
+          continue;
+        }
+      }
+      // Another space opened meanwhile: its own capture takes over.
+      if (!ref.mounted) return;
+      if (summary.added > 0) {
+        triggerAutoCategorise();
+        await sortShared();
+      }
+      yield summary;
+    }
+  } finally {
+    // Also when an error ends capture, so nothing goes on listening.
+    stop();
   }
 });
 

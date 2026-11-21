@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import 'amounts_hidden.dart';
 import 'beside_or_under.dart';
 
 /// The space around every section header: [Layout.sectionTop] above and
@@ -101,8 +102,10 @@ class SectionTitle extends StatelessWidget {
 /// the eye last. Every tab but Home starts with it.
 ///
 /// The title is never shrunk or cut. When it and the actions do not fit on
-/// one line, as on a narrow phone with large text, the actions wrap onto
-/// the lines under the title, at the right.
+/// one line, as on a narrow phone with large text, the eye stays beside the
+/// title, at the right, and the other actions wrap onto the lines under it,
+/// at the right, so they never crowd the title or leave the eye on a line
+/// of its own.
 ///
 /// On iPhone the actions sit in a row of their own above the title, at the
 /// right, as iOS lays out a large title under its bar's buttons (and as
@@ -130,11 +133,12 @@ class TabHeader extends StatelessWidget {
       header: true,
       child: Text(title, style: Theme.of(context).textTheme.headlineLarge),
     );
-    final buttons = Wrap(
+    Widget wrap(List<Widget> children) => Wrap(
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: actions,
+      children: children,
     );
+    final buttons = wrap(actions);
     if (actions.isNotEmpty && defaultTargetPlatform == TargetPlatform.iOS) {
       return Padding(
         padding: const EdgeInsets.only(bottom: Layout.titleGap),
@@ -151,14 +155,31 @@ class TabHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Layout.titleGap),
       child: actions.isEmpty
           ? Align(alignment: AlignmentDirectional.centerStart, child: heading)
+          : actions.length > 1 && actions.last is AmountsEye
+          ? _TitleAndActions(
+              children: [
+                heading,
+                wrap(_withoutGap(actions.sublist(0, actions.length - 1))),
+                actions.last,
+              ],
+            )
           : _TitleAndActions(children: [heading, buttons]),
     );
   }
 }
 
+/// [actions] without a trailing gap, left where the eye was taken off.
+List<Widget> _withoutGap(List<Widget> actions) =>
+    actions.isNotEmpty && actions.last is SizedBox
+    ? actions.sublist(0, actions.length - 1)
+    : actions;
+
 /// Lays out a title and its actions: on one line when both fit at their
 /// natural widths, otherwise the title on its own line and the actions
-/// under it, at the end.
+/// under it, at the end. With a third child, the eye, it follows the other
+/// actions on one line, and otherwise stays on the title's line at the end
+/// while they go under it (unless the title and the eye do not fit side by
+/// side either, when it goes under with them).
 class _TitleAndActions extends MultiChildRenderObjectWidget {
   const _TitleAndActions({required super.children});
 
@@ -196,24 +217,37 @@ class _RenderTitleAndActions extends RenderBox
   }
 
   RenderBox get _title => firstChild!;
-  RenderBox get _actions => lastChild!;
+  RenderBox get _actions => childAfter(firstChild!)!;
+
+  /// The eye, when it is kept apart from the other actions.
+  RenderBox? get _eye => childAfter(_actions);
+
+  double _eyeWidth() => _eye?.getMaxIntrinsicWidth(double.infinity) ?? 0;
 
   /// Whether the title and the actions fit side by side in [width].
   bool _oneLine(double width) =>
       _title.getMaxIntrinsicWidth(double.infinity) +
-          _actions.getMaxIntrinsicWidth(double.infinity) <=
+          _actions.getMaxIntrinsicWidth(double.infinity) +
+          _eyeWidth() <=
       width;
+
+  /// Whether, when not on one line, the eye stays beside the title.
+  bool _eyeWithTitle(double width) =>
+      _eye != null &&
+      _title.getMaxIntrinsicWidth(double.infinity) + _eyeWidth() <= width;
 
   @override
   double computeMinIntrinsicWidth(double height) => math.max(
     _title.getMinIntrinsicWidth(height),
-    _actions.getMinIntrinsicWidth(height),
+    _actions.getMinIntrinsicWidth(height) +
+        (_eye?.getMinIntrinsicWidth(height) ?? 0),
   );
 
   @override
   double computeMaxIntrinsicWidth(double height) =>
       _title.getMaxIntrinsicWidth(height) +
-      _actions.getMaxIntrinsicWidth(height);
+      _actions.getMaxIntrinsicWidth(height) +
+      (_eye?.getMaxIntrinsicWidth(height) ?? 0);
 
   @override
   double computeMinIntrinsicHeight(double width) =>
@@ -224,12 +258,23 @@ class _RenderTitleAndActions extends RenderBox
       _height(width, (child, w) => child.getMaxIntrinsicHeight(w));
 
   double _height(double width, double Function(RenderBox, double) height) {
+    final eye = _eye;
+    final eyeWidth = _eyeWidth();
     if (_oneLine(width)) {
       final actions = _actions.getMaxIntrinsicWidth(double.infinity);
-      return math.max(
-        height(_title, width - actions),
+      return [
+        height(_title, width - actions - eyeWidth),
         height(_actions, actions),
-      );
+        if (eye != null) height(eye, eyeWidth),
+      ].reduce(math.max);
+    }
+    if (eye != null && _eyeWithTitle(width)) {
+      return math.max(height(_title, width - eyeWidth), height(eye, eyeWidth)) +
+          height(_actions, width);
+    }
+    if (eye != null) {
+      return height(_title, width) +
+          math.max(height(_actions, width - eyeWidth), height(eye, eyeWidth));
     }
     return height(_title, width) + height(_actions, width);
   }
@@ -246,29 +291,71 @@ class _RenderTitleAndActions extends RenderBox
   Size _layout(BoxConstraints constraints, ChildLayouter layoutChild) {
     final width = constraints.maxWidth;
     final dry = layoutChild == ChildLayoutHelper.dryLayoutChild;
+    final eye = _eye;
     final Size title;
     final Size actions;
+    var eyeSize = Size.zero;
     final Offset titleAt;
     final Offset actionsAt;
+    var eyeAt = Offset.zero;
     if (_oneLine(width)) {
       actions = layoutChild(_actions, const BoxConstraints());
+      if (eye != null) eyeSize = layoutChild(eye, const BoxConstraints());
       title = layoutChild(
         _title,
-        BoxConstraints(maxWidth: math.max(0, width - actions.width)),
+        BoxConstraints(
+          maxWidth: math.max(0, width - actions.width - eyeSize.width),
+        ),
       );
-      final height = math.max(title.height, actions.height);
+      final height = [
+        title.height,
+        actions.height,
+        eyeSize.height,
+      ].reduce(math.max);
       titleAt = Offset(0, (height - title.height) / 2);
-      actionsAt = Offset(width - actions.width, (height - actions.height) / 2);
+      actionsAt = Offset(
+        width - actions.width - eyeSize.width,
+        (height - actions.height) / 2,
+      );
+      eyeAt = Offset(width - eyeSize.width, (height - eyeSize.height) / 2);
+    } else if (eye != null && _eyeWithTitle(width)) {
+      // The eye beside the title; the other actions under them.
+      eyeSize = layoutChild(eye, const BoxConstraints());
+      title = layoutChild(
+        _title,
+        BoxConstraints(maxWidth: math.max(0, width - eyeSize.width)),
+      );
+      final line = math.max(title.height, eyeSize.height);
+      titleAt = Offset(0, (line - title.height) / 2);
+      eyeAt = Offset(width - eyeSize.width, (line - eyeSize.height) / 2);
+      actions = layoutChild(_actions, BoxConstraints(maxWidth: width));
+      actionsAt = Offset(width - actions.width, line);
     } else {
       title = layoutChild(_title, BoxConstraints(maxWidth: width));
-      actions = layoutChild(_actions, BoxConstraints(maxWidth: width));
       titleAt = Offset.zero;
-      actionsAt = Offset(width - actions.width, title.height);
+      if (eye != null) eyeSize = layoutChild(eye, const BoxConstraints());
+      actions = layoutChild(
+        _actions,
+        BoxConstraints(maxWidth: math.max(0, width - eyeSize.width)),
+      );
+      final line = math.max(actions.height, eyeSize.height);
+      actionsAt = Offset(
+        width - actions.width - eyeSize.width,
+        title.height + (line - actions.height) / 2,
+      );
+      eyeAt = Offset(
+        width - eyeSize.width,
+        title.height + (line - eyeSize.height) / 2,
+      );
     }
     final size = constraints.constrain(
       Size(
         width,
-        math.max(titleAt.dy + title.height, actionsAt.dy + actions.height),
+        [
+          titleAt.dy + title.height,
+          actionsAt.dy + actions.height,
+          eyeAt.dy + eyeSize.height,
+        ].reduce(math.max),
       ),
     );
     if (!dry) {
@@ -283,6 +370,12 @@ class _RenderTitleAndActions extends RenderBox
         actionsAt,
         actions,
       );
+      if (eye != null) {
+        (eye.parentData! as _TitleAndActionsData).offset = place(
+          eyeAt,
+          eyeSize,
+        );
+      }
     }
     return size;
   }

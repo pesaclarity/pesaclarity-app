@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -8,8 +9,13 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
+import 'package:pesaclarity/src/data/repositories/goals_repository.dart';
+import 'package:pesaclarity/src/data/repositories/savings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/space_move_repository.dart';
+import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/categoriser/rule_categoriser.dart';
+import 'package:pesaclarity/src/domain/savings/savings_product.dart';
+import 'package:pesaclarity/src/domain/savings/savings_prompt.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/activity/presentation/activity_screen.dart';
 import 'package:pesaclarity/src/features/categoriser/application/categoriser_providers.dart';
@@ -77,6 +83,20 @@ Future<void> _seed(AppDatabase db) async {
         ),
       );
 }
+
+/// A made-up payment from M-Pesa account [accountId] to the Chumz paybill.
+TransactionsCompanion _toChumz(int accountId, DateTime at, int minor) =>
+    TransactionsCompanion.insert(
+      accountId: accountId,
+      occurredAt: at,
+      amountMinor: minor,
+      direction: TransactionDirection.outflow,
+      kind: const Value(TransactionKind.paybill),
+      source: TransactionSource.sms,
+      counterpartyKind: const Value(PayeeIdentifierKind.paybill),
+      counterpartyValue: const Value('NABO CAPITAL LTD C2B#CH12345'),
+      counterpartyName: const Value('NABO CAPITAL LTD C2B'),
+    );
 
 List<Override> _overrides(
   AppDatabase db,
@@ -168,6 +188,121 @@ void main() {
           );
       final left = await db.select(db.transactions).get();
       expect(left.single.occurredAt.toUtc(), DateTime.utc(2026, 10, 5));
+    });
+  });
+
+  testAppWidgets('clearing keeps a savings account and its goals, not its '
+      'entries', (tester) async {
+    final db = openTestDatabase();
+    final container = ProviderContainer(overrides: _overrides(db, _Files()));
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      await _seed(db);
+      final mpesa = (await db.select(db.accounts).get()).first.id;
+      final transactions = DriftTransactionsRepository(db);
+      await transactions.addNew([
+        _toChumz(mpesa, DateTime.utc(2026, 10, 5, 6), 100000),
+      ]);
+      final savings = DriftSavingsRepository(db);
+      addTearDown(savings.dispose);
+      final chumzId = (await savings.add(
+        chumz,
+        at: DateTime.utc(2026, 11, 2),
+        pockets: const [SavingsPocketDraft(code: 'CH12345', name: 'Christmas')],
+      )).accountId;
+      final pocket = (await savings.account(chumzId))!.pockets.single;
+      await savings.updateBalances(
+        chumzId,
+        balanceByPocket: {pocket.id: 101000},
+        at: DateTime.utc(2026, 11, 2),
+      );
+      final goals = DriftGoalsRepository(db);
+      await goals.setPocket(
+        await goals.add(name: 'Christmas', targetMinor: 1000000),
+        pocket.id,
+      );
+
+      await container
+          .read(spaceManagerProvider)
+          .clear(Space.personal, keep: false);
+
+      expect(await db.select(db.transactions).get(), isEmpty);
+      expect(await db.select(db.savingsEntries).get(), isEmpty);
+      expect(await db.select(db.savingsReadings).get(), isEmpty);
+      expect(await db.select(db.goals).get(), isEmpty);
+      // The account and its goal in Chumz stay, holding nothing.
+      final kept = (await savings.account(chumzId))!;
+      expect(kept.pockets.single.name, 'Christmas');
+      expect(kept.balanceMinor, 0);
+      expect(kept.entries, isEmpty);
+      expect(kept.updates, isEmpty);
+
+      // The next payment is linked as before.
+      await transactions.addNew([
+        _toChumz(mpesa, DateTime.utc(2026, 11, 12, 6), 50000),
+      ]);
+      expect((await savings.account(chumzId))!.balanceMinor, 50000);
+    });
+  });
+
+  testAppWidgets('clearing a date range takes the savings entries and '
+      'balances in it, and works out the rest again', (tester) async {
+    final db = openTestDatabase();
+    final container = ProviderContainer(overrides: _overrides(db, _Files()));
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      await _seed(db);
+      final mpesa = (await db.select(db.accounts).get()).first.id;
+      await DriftTransactionsRepository(db).addNew([
+        _toChumz(mpesa, DateTime.utc(2026, 10, 5, 6), 100000),
+        _toChumz(mpesa, DateTime.utc(2026, 11, 3, 6), 50000),
+      ]);
+      final savings = DriftSavingsRepository(db);
+      addTearDown(savings.dispose);
+      final chumzId = (await savings.add(
+        chumz,
+        at: DateTime.utc(2026, 11, 2),
+      )).accountId;
+      final pocket = (await savings.account(chumzId))!.pockets.single.id;
+      // Interest of 10 shillings on each update.
+      await savings.updateBalances(
+        chumzId,
+        balanceByPocket: {pocket: 101000},
+        at: DateTime.utc(2026, 10, 20),
+      );
+      await savings.updateBalances(
+        chumzId,
+        balanceByPocket: {pocket: 152000},
+        at: DateTime.utc(2026, 11, 10),
+      );
+      expect((await savings.account(chumzId))!.interestMinor, 2000);
+
+      await container
+          .read(spaceManagerProvider)
+          .clear(
+            Space.personal,
+            keep: false,
+            from: DateTime.utc(2026, 11),
+            to: DateTime.utc(2026, 12),
+          );
+
+      final account = (await savings.account(chumzId))!;
+      expect(account.entries.single.amountMinor, 100000);
+      expect(account.updates.single.interestMinor, 1000);
+      expect(account.balanceMinor, 101000);
+      expect(await db.select(db.savingsReadings).get(), hasLength(1));
+      // October's payment keeps its entry on Chumz, and its interest.
+      final left = await (db.select(
+        db.transactions,
+      )..where((t) => t.accountId.equals(chumzId))).get();
+      expect(left, hasLength(2));
+      final payment =
+          (await (db.select(
+            db.transactions,
+          )..where((t) => t.accountId.equals(mpesa))).get()).where(
+            (t) => t.transferPairId != null,
+          );
+      expect(payment.single.occurredAt.toUtc(), DateTime.utc(2026, 10, 5, 6));
     });
   });
 

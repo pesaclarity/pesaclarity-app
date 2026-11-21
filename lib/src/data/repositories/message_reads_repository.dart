@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
+import 'savings_links.dart';
 
 /// A transaction already read from a message, and whether the person has
 /// made it theirs since (see [MessageReadsRepository.stored]).
@@ -134,6 +135,8 @@ class MessageReadsRepository {
         readBy: Value(readBy),
       ),
     );
+    // Read now as a payment into a savings account the app keeps.
+    await linkSavingsPayments(_db, [row.id]);
     return true;
   });
 

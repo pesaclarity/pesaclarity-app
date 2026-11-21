@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/core/lifecycle/app_resumed.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_key_store.dart';
@@ -31,7 +32,8 @@ class NoActiveSpaceStore implements ActiveSpaceStore {
 /// The app's own providers over two in-memory databases: [personal] and one
 /// [other] space, switched with the real `activeSpaceIdProvider`. Messages
 /// come from [sms] (an empty inbox when not given) and the time from
-/// [clock].
+/// [clock]. The app never goes to the background and back, since there is
+/// no widgets binding to tell it.
 ProviderContainer twoSpaces({
   required AppDatabase personal,
   required AppDatabase other,
@@ -54,6 +56,7 @@ ProviderContainer twoSpaces({
         (packs, messages) async => parseAll(packs, messages),
       ),
       clockProvider.overrideWithValue(clock),
+      appResumedProvider.overrideWithValue(const Stream.empty()),
     ],
   );
   addTearDown(container.dispose);

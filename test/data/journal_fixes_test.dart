@@ -783,7 +783,12 @@ void main() {
       expect(await of(BookAccount.fees), kes(30));
     });
 
-    test('two currencies: each side waits in its own currency', () async {
+    // Currencies stage 2 changed this on purpose: each side used to wait
+    // in transit in its own currency. Now the pair's exchange entries
+    // clear transit in each currency through Currency exchange; with no
+    // rates kept here, what the exchange cost is not known.
+    test('two currencies: transit clears in each currency through Currency '
+        'exchange', () async {
       final usd = await db
           .into(db.accounts)
           .insert(
@@ -815,14 +820,17 @@ void main() {
       await transactions.match(sent, got);
       await settled();
       final read = await journal.read();
+      expect(read.balanceOf(BookAccount.moneyInTransit, currency: 'USD'), 0);
+      expect(read.balanceOf(BookAccount.moneyInTransit, currency: 'KES'), 0);
       expect(
-        read.balanceOf(BookAccount.moneyInTransit, currency: 'USD'),
+        read.balanceOf(BookAccount.currencyExchange, currency: 'USD'),
         10000,
       );
       expect(
-        read.balanceOf(BookAccount.moneyInTransit, currency: 'KES'),
+        read.balanceOf(BookAccount.currencyExchange, currency: 'KES'),
         -kes(12900),
       );
+      expect(read.balanceOf(BookAccount.exchangeCost, currency: 'USD'), 0);
       expect(read.balanceOf(BookAccount.fees, currency: 'KES'), 0);
       expect(read.balanceOf(BookAccount.fees, currency: 'USD'), 0);
     });

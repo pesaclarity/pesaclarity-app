@@ -123,6 +123,23 @@ const defaultCategories = <CategorySeed>[
   CategorySeed('own_transfer', 'Own transfer', CategoryType.transfer),
 ];
 
+/// Interest a savings account earned: income, but never money arriving in a
+/// day-to-day account. Made the first time a savings account's typed balance
+/// shows interest, so it stays out of [defaultCategories] and the
+/// categoriser's labels.
+const interestSeed = CategorySeed('interest', 'Interest', CategoryType.income);
+
+/// [interestSeed] under another name, for when the person already has a
+/// category called Interest that is not income.
+const interestEarnedSeed = CategorySeed(
+  'interest',
+  'Interest earned',
+  CategoryType.income,
+);
+
+/// The key of the seeded category money moved into savings counts under.
+const savingsCategoryKey = 'savings';
+
 /// An existing category as seeding sees it.
 typedef ExistingCategory = ({String? key, String name});
 

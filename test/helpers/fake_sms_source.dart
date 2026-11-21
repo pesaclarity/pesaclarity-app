@@ -23,6 +23,7 @@ class FakeSmsSource implements SmsSource {
 
   final reads = <({Set<String> senders, DateTime since})>[];
   final listenedSenders = <Set<String>>[];
+  int accessChecks = 0;
   int permissionRequests = 0;
   int settingsOpened = 0;
 
@@ -35,7 +36,10 @@ class FakeSmsSource implements SmsSource {
   }
 
   @override
-  Future<SmsAccess> access() async => current;
+  Future<SmsAccess> access() async {
+    accessChecks++;
+    return current;
+  }
 
   @override
   Future<SmsAccess> requestAccess() async {

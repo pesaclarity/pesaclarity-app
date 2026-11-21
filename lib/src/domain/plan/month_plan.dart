@@ -193,7 +193,9 @@ class MonthReview {
   /// in the plan's month.
   ///
   /// A category's actual is its spending, tax, savings and debt payments,
-  /// less refunds. Uncategorised actuals count only spending and refunds, so
+  /// less refunds. Money moved into the person's own savings account counts
+  /// as savings too (see [isSavedByTransfer]), so a planned Savings line is
+  /// met by it. Uncategorised actuals count only spending and refunds, so
   /// an unnamed Fuliza repayment does not land there. Each category's actual
   /// pays its lines in order: arrears first, then by due date, then one-offs;
   /// a line marked paid counts as paid and uses up what it can.
@@ -272,6 +274,7 @@ int _actualOf(LedgerEntry entry) {
     LedgerRole.tax ||
     LedgerRole.saving ||
     LedgerRole.debtRepayment => entry.amountMinor,
+    LedgerRole.ownTransfer when isSavedByTransfer(entry) => entry.amountMinor,
     _ => 0,
   };
 }

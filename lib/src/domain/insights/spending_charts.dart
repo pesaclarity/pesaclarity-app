@@ -188,6 +188,10 @@ class SpendingChart {
 List<(SliceKey, int)> spendingPartsOf(LedgerEntry entry, FulizaLedger fuliza) {
   final parts = <(SliceKey, int)>[];
   if (entry.feeMinor > 0) parts.add((const FeesSlice(), entry.feeMinor));
+  // What an own transfer across currencies cost to exchange; a gain lowers
+  // fees.
+  final exchange = entry.exchangeCostMinor ?? 0;
+  if (exchange != 0) parts.add((const FeesSlice(), exchange));
   final category = entry.categoryId == null
       ? const UncategorisedSlice()
       : CategorySlice(entry.categoryId!);

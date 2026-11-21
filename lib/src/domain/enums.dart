@@ -84,6 +84,23 @@ enum DebtType {
 
 enum GoalStatus { active, paused, achieved }
 
+/// What an entry on a savings account the app keeps is.
+enum SavingsEntryKind {
+  /// Money paid in from another of the person's accounts, or typed in.
+  paidIn,
+
+  /// Money taken back out to another of the person's accounts, or typed in.
+  takenOut,
+
+  /// What a balance the person typed showed the money had earned.
+  interest,
+
+  /// The rest of what a typed balance showed: money that was there before
+  /// the records start, or a change nothing recorded explains. Never income
+  /// or spending.
+  correction,
+}
+
 enum ParserPackTestStatus { unknown, passed, failed }
 
 /// Where a category suggestion came from.

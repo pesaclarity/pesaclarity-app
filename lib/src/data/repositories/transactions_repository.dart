@@ -1,7 +1,12 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money/exchange_rates.dart';
+import '../../domain/categories/default_categories.dart';
+import '../../domain/ledger/balances.dart';
+import '../../domain/ledger/cross_currency_transfers.dart';
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_transfers.dart';
 import '../../domain/payees/payee_directory.dart';
@@ -12,6 +17,7 @@ import '../database/database_providers.dart';
 import 'message_links.dart';
 import 'message_twins_store.dart';
 import 'payees_repository.dart';
+import 'savings_links.dart';
 
 /// The ledger of transactions from SMS, statements and manual entry.
 abstract interface class TransactionsRepository {
@@ -19,7 +25,9 @@ abstract interface class TransactionsRepository {
   Stream<List<TransactionRecord>> watchRecent({int limit = 50, int? tagId});
 
   /// Stores [transaction]. Without a payee id, a counterparty (normalised
-  /// with `PayeeIdentifier`) is resolved to its named payee, if any.
+  /// with `PayeeIdentifier`) is resolved to its named payee, if any. One on
+  /// a savings account the app keeps, or said to have moved to or from one,
+  /// joins that account's entries (see `linkSavingsPayments`).
   Future<int> add(TransactionsCompanion transaction);
 
   /// Stores each of [transactions] whose account has no transaction with the
@@ -31,7 +39,10 @@ abstract interface class TransactionsRepository {
   /// transfer, or two messages with the same reference) is merged into that
   /// transaction instead of stored again. A new transaction whose message
   /// names one of the person's other accounts as where it went counts as an
-  /// own transfer, and a loan repayment is recorded against its debt.
+  /// own transfer, and a loan repayment is recorded against its debt. A
+  /// payment into a savings account the app keeps, or money back from it,
+  /// gets its entry there and counts as an own transfer (see
+  /// `linkSavingsPayments`).
   Future<int> addNew(Iterable<TransactionsCompanion> transactions);
 
   /// Finds an existing transaction with the same receipt, for dedupe between
@@ -41,19 +52,29 @@ abstract interface class TransactionsRepository {
   /// Transactions with time in `[from, to)` as ledger entries, oldest first,
   /// with their payee applied (see `applyPayee`) and their tags. Only those
   /// tagged [tagId] when given.
+  ///
+  /// Money out of a day-to-day account that the person, or its message,
+  /// says went to one of their savings accounts (SACCO or money market) is
+  /// filed under the seeded Savings category, unless they chose a category
+  /// for it or its payee has one.
+  ///
+  /// With [dayToDayOnly], entries on savings accounts are left out.
   Future<List<LedgerEntry>> ledgerEntries({
     required DateTime from,
     required DateTime to,
     int? tagId,
+    bool dayToDayOnly = false,
   });
 
   /// Stores own-transfer pairs so both halves point at each other.
   Future<void> saveTransferPairs(Iterable<TransferPair> pairs);
 
-  /// Finds and stores own transfers (see `findOwnTransfers`) among the
-  /// transactions from [from] to [to], every one when not given, widened by
-  /// the time a named transfer waits for its other side. Returns how many
-  /// pairs were made. [addNew] runs it after every new transaction, so
+  /// Finds and stores own transfers (see `findOwnTransfers`, then
+  /// `findCrossCurrencyTransfers` between currencies, at the rates kept
+  /// with the space) among the transactions from [from] to [to], every one
+  /// when not given, widened by the time a named transfer waits for its
+  /// other side. A pair across currencies whose side the bank reversed is
+  /// unmatched first. Returns how many pairs were made. [addNew] runs it after every new transaction, so
   /// message scans, new messages, statements and checked messages all pair.
   Future<int> pairOwnTransfers({DateTime? from, DateTime? to});
 
@@ -62,11 +83,15 @@ abstract interface class TransactionsRepository {
   Future<void> match(int outflowId, int inflowId);
 
   /// Undoes the own transfer [id] is half of, so both count as they were
-  /// and pairing never matches them again.
+  /// and pairing never matches them again. A payment into or out of a
+  /// savings account the app keeps stays matched with its entry there.
   Future<void> unmatch(int id);
 
   /// Marks [id] as money moved to or from the person's own [accountId], or
-  /// clears that with null, then pairs it if its other side is here.
+  /// clears that with null, then pairs it if its other side is here. Naming
+  /// a savings account the app keeps writes the other side there at once,
+  /// since no message will bring it; an entry on such an account names no
+  /// other account.
   Future<void> setTransferAccount(int id, int? accountId);
 
   /// Pairs the person unmatched.
@@ -147,9 +172,13 @@ class DriftTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<int> add(TransactionsCompanion transaction) async => _db
-      .into(_db.transactions)
-      .insert(_withPayee(transaction, await payeeDirectory(_db)));
+  Future<int> add(TransactionsCompanion transaction) async {
+    final id = await _db
+        .into(_db.transactions)
+        .insert(_withPayee(transaction, await payeeDirectory(_db)));
+    await linkSavingsPayments(_db, [id]);
+    return id;
+  }
 
   @override
   Future<int> addNew(Iterable<TransactionsCompanion> transactions) =>
@@ -165,6 +194,8 @@ class DriftTransactionsRepository implements TransactionsRepository {
         }
 
         final inserted = <int>[];
+        // Stored transactions a second message changed.
+        final changed = <int>[];
         for (final transaction in transactions) {
           final key = transaction.dedupeKey.present
               ? transaction.dedupeKey.value
@@ -174,7 +205,10 @@ class DriftTransactionsRepository implements TransactionsRepository {
             // M-Pesa's own and KCB's confirmation of one payment: keep what
             // only the new one says, such as M-Pesa's balance and fee.
             final same = await _storedTwinByKey(transaction, key);
-            if (same != null) await mergeTwin(_db, same, transaction);
+            if (same != null) {
+              await mergeTwin(_db, same, transaction);
+              changed.add(same.id);
+            }
             continue;
           }
           final row = _withPayee(transaction, directory);
@@ -182,6 +216,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           final twin = await findTwin(_db, row);
           if (twin != null) {
             await mergeTwin(_db, twin.record, row, match: twin.match);
+            changed.add(twin.record.id);
             merged++;
             touched(twin.record.occurredAt);
             touched(row.occurredAt.value);
@@ -191,6 +226,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           final card = await findCardTwin(_db, row, _converter);
           if (card != null) {
             await mergeCardTwin(_db, card, row);
+            changed.add(card.id);
             merged++;
             touched(card.occurredAt);
             continue;
@@ -205,6 +241,11 @@ class DriftTransactionsRepository implements TransactionsRepository {
             await markTransferToOwnAccount(_db, id, accounts: accounts);
             await linkLoanRepayment(_db, id);
           }
+        }
+        // Before pairing, so a payment into savings is never paired with
+        // something unrelated first.
+        if (inserted.isNotEmpty || changed.isNotEmpty) {
+          await linkSavingsPayments(_db, [...inserted, ...changed]);
         }
         if (added > 0 || merged > 0) {
           await pairOwnTransfers(from: earliest, to: latest);
@@ -310,10 +351,12 @@ class DriftTransactionsRepository implements TransactionsRepository {
     int? tagId,
     Set<int>? accountIds,
     Set<int>? ids,
+    bool dayToDayOnly = false,
   }) async {
     final categories = {
       for (final c in await _db.select(_db.categories).get()) c.id: c,
     };
+    final savings = await _intoSavings(categories.values);
     final accounts = accountIds?.toList();
     final only = ids?.toList();
     String any(List<int> list) => List.filled(list.length, '?').join(', ');
@@ -321,12 +364,17 @@ class DriftTransactionsRepository implements TransactionsRepository {
       't.occurred_at >= ? AND t.occurred_at < ?',
       if (accounts != null) 't.account_id IN (${any(accounts)})',
       if (only != null) 't.id IN (${any(only)})',
+      if (dayToDayOnly)
+        't.account_id NOT IN (SELECT a.id FROM accounts a WHERE a.type IN '
+            '(${List.filled(savingsAccountTypes.length, '?').join(', ')}))',
     ].join(' AND ');
     final rangeVariables = <Variable<Object>>[
       Variable<DateTime>(from),
       Variable<DateTime>(to),
       for (final id in accounts ?? const <int>[]) Variable<int>(id),
       for (final id in only ?? const <int>[]) Variable<int>(id),
+      if (dayToDayOnly)
+        for (final type in savingsAccountTypes) Variable<String>(type.name),
     ];
 
     final tags = <int, Set<int>>{};
@@ -360,16 +408,108 @@ class DriftTransactionsRepository implements TransactionsRepository {
         )
         .get();
     final read = _RowReader(_db);
-    return [
+    final records = <int, TransactionRecord>{};
+    final entries = [
       for (final row in rows)
         _toLedgerEntry(
-          read.transaction(row.data),
+          records[row.data['id']! as int] = read.transaction(row.data),
           read.payee(row.data),
           categories,
           tags,
           _converter,
+          savings: savings,
         ),
     ];
+    return _withExchangeCosts(entries, records, categories);
+  }
+
+  /// [entries] with what each own transfer across currencies cost to
+  /// exchange on its money in (see [exchangeCostOf]), when both sides are
+  /// read in the base currency at real rates of their days. [records] are
+  /// the entries' rows, by id.
+  Future<List<LedgerEntry>> _withExchangeCosts(
+    List<LedgerEntry> entries,
+    Map<int, TransactionRecord> records,
+    Map<int, Category> categories,
+  ) async {
+    final converter = _converter;
+    if (converter == null) return entries;
+    final byId = {for (final e in entries) e.id: e};
+    final ins = [
+      for (final e in entries)
+        if (e.isInflow &&
+            e.transferPairId != null &&
+            e.currency == converter.base)
+          e,
+    ];
+    if (ins.isEmpty) return entries;
+    // Money out on another day or account than was read.
+    final away = [
+      for (final e in ins)
+        if (!byId.containsKey(e.transferPairId)) e.transferPairId!,
+    ];
+    final partners = <int, (LedgerEntry, TransactionRecord)>{};
+    for (var i = 0; i < away.length; i += 500) {
+      final ids = away.sublist(i, min(i + 500, away.length));
+      for (final r in await (_db.select(
+        _db.transactions,
+      )..where((t) => t.id.isIn(ids))).get()) {
+        partners[r.id] = (
+          _toLedgerEntry(r, null, categories, const {}, converter),
+          r,
+        );
+      }
+    }
+    bool real(TransactionRecord record) {
+      if (record.currency == converter.base) return true;
+      final kind = convertRecord(record, converter)?.kind;
+      return kind != null &&
+          kind != RateKind.approximate &&
+          kind != RateKind.latest;
+    }
+
+    final costs = <int, int>{};
+    for (final into in ins) {
+      final id = into.transferPairId!;
+      final (out, outRecord) = switch (byId[id]) {
+        final e? => (e, records[id]!),
+        null => partners[id] ?? (null, null),
+      };
+      if (out == null || outRecord == null) continue;
+      final cost = exchangeCostOf(out, into);
+      if (cost == null || !real(outRecord) || !real(records[into.id]!)) {
+        continue;
+      }
+      costs[into.id] = cost;
+    }
+    if (costs.isEmpty) return entries;
+    return [
+      for (final e in entries)
+        if (costs[e.id] case final cost?)
+          e.copyWith(exchangeCostMinor: cost)
+        else
+          e,
+    ];
+  }
+
+  /// The person's savings accounts and the seeded Savings category, which
+  /// money moved into them is filed under. Null when that category is gone
+  /// or there is no savings account.
+  Future<_IntoSavings?> _intoSavings(Iterable<Category> categories) async {
+    final category = categories
+        .where((c) => c.key == savingsCategoryKey)
+        .firstOrNull;
+    if (category == null) return null;
+    final a = _db.accounts;
+    final accounts =
+        await (_db.selectOnly(a)
+              ..addColumns([a.id])
+              ..where(a.type.isInValues(savingsAccountTypes)))
+            .map((row) => row.read(a.id)!)
+            .get();
+    return accounts.isEmpty
+        ? null
+        : _IntoSavings(accounts.toSet(), category.id);
   }
 
   @override
@@ -393,46 +533,87 @@ class DriftTransactionsRepository implements TransactionsRepository {
       });
 
   @override
-  Future<int> pairOwnTransfers({
-    DateTime? from,
-    DateTime? to,
-  }) => _db.transaction(() async {
-    final t = _db.transactions;
-    final query = _db.select(t);
-    if (from != null) {
-      query.where(
-        (t) => t.occurredAt.isBiggerOrEqualValue(
-          from.subtract(waitingTransferWindow),
-        ),
-      );
+  Future<int> pairOwnTransfers({DateTime? from, DateTime? to}) =>
+      _db.transaction(() async {
+        final t = _db.transactions;
+        final query = _db.select(t);
+        if (from != null) {
+          query.where(
+            (t) => t.occurredAt.isBiggerOrEqualValue(
+              from.subtract(waitingTransferWindow),
+            ),
+          );
+        }
+        if (to != null) {
+          query.where(
+            (t) => t.occurredAt.isSmallerOrEqualValue(
+              to.add(waitingTransferWindow),
+            ),
+          );
+        }
+        final categories = {
+          for (final c in await _db.select(_db.categories).get()) c.id: c,
+        };
+        final payees = {
+          for (final p in await _db.select(_db.payees).get()) p.id: p,
+        };
+        // Amounts as stored, each in the currency it moved in.
+        Future<List<LedgerEntry>> read() async => [
+          for (final r in await query.get())
+            _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
+        ];
+        var entries = await read();
+        if (await _unmatchReversed(entries)) entries = await read();
+        final accounts = await _db.select(_db.accounts).get();
+        final declined = await declinedTransfers();
+        final pairs = findOwnTransfers(
+          entries,
+          declined: declined,
+          references: {for (final a in accounts) a.id: a.reference},
+        );
+        // Then between currencies, among what one currency left unpaired, at
+        // the rates the app converts with.
+        final across = findCrossCurrencyTransfers(
+          applyTransferPairs(entries, pairs),
+          accounts: {
+            for (final a in accounts)
+              a.id: TransferAccount(
+                currency: a.currency,
+                reference: a.reference,
+                institutionId: a.institutionId,
+              ),
+          },
+          // The rates kept with the space, not [_converter]: pairing then
+          // does not depend on whether the app had read them yet.
+          rateOn: dayRatesOf(await CurrencyController.storedConverter(_db)),
+          declined: declined,
+        );
+        final all = [...pairs, for (final t in across) t.pair];
+        await saveTransferPairs(all);
+        return all.length;
+      });
+
+  /// Unmatches each own transfer across currencies in [entries] whose side
+  /// the bank undid (see [reversedEntries]): nothing is left to arrive in
+  /// the other currency, so both count as they were and the reversal
+  /// cancels its side. The pair is never matched again. Returns whether
+  /// any was unmatched.
+  Future<bool> _unmatchReversed(List<LedgerEntry> entries) async {
+    final reversed = reversedEntries(entries);
+    if (reversed.isEmpty) return false;
+    final byId = {for (final e in entries) e.id: e};
+    final undone = <int>{};
+    for (final id in reversed) {
+      final entry = byId[id]!;
+      final partner = byId[entry.transferPairId];
+      if (partner == null || undone.contains(partner.id)) continue;
+      final (out, into) = entry.isOutflow ? (entry, partner) : (partner, entry);
+      if (!isCrossCurrencyPair(out, into)) continue;
+      await unmatch(entry.id);
+      undone.addAll([entry.id, partner.id]);
     }
-    if (to != null) {
-      query.where(
-        (t) =>
-            t.occurredAt.isSmallerOrEqualValue(to.add(waitingTransferWindow)),
-      );
-    }
-    final categories = {
-      for (final c in await _db.select(_db.categories).get()) c.id: c,
-    };
-    final payees = {
-      for (final p in await _db.select(_db.payees).get()) p.id: p,
-    };
-    // Amounts as stored: a transfer moves in one currency.
-    final entries = [
-      for (final r in await query.get())
-        _toLedgerEntry(r, payees[r.payeeId], categories, const {}, null),
-    ];
-    final pairs = findOwnTransfers(
-      entries,
-      declined: await declinedTransfers(),
-      references: {
-        for (final a in await _db.select(_db.accounts).get()) a.id: a.reference,
-      },
-    );
-    await saveTransferPairs(pairs);
-    return pairs.length;
-  });
+    return undone.isNotEmpty;
+  }
 
   @override
   Future<void> match(int outflowId, int inflowId) => _db.transaction(() async {
@@ -445,6 +626,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> unmatch(int id) => _db.transaction(() async {
+    if (await isSavingsLinked(_db, id)) return;
     final row = await (_db.select(
       _db.transactions,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
@@ -471,13 +653,17 @@ class DriftTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> setTransferAccount(int id, int? accountId) async {
+    if (await isSavingsEntry(_db, id)) return;
     final row =
         await (_db.update(
           _db.transactions,
         )..where((t) => t.id.equals(id))).writeReturning(
           TransactionsCompanion(transferAccountId: Value(accountId)),
         );
-    if (accountId == null || row.isEmpty) return;
+    if (row.isEmpty) return;
+    // A savings account the app keeps gets, or loses, its side at once.
+    await linkSavingsPayments(_db, [id]);
+    if (accountId == null) return;
     final at = row.single.occurredAt;
     await pairOwnTransfers(from: at, to: at);
   }
@@ -648,13 +834,29 @@ Converted? convertRecord(
   gotRate: record.fxRateMicros == null ? null : record.fxRateMicros! / 1e6,
 );
 
+/// The person's savings accounts, and the category money moved into them is
+/// filed under.
+class _IntoSavings {
+  const _IntoSavings(this.accountIds, this.categoryId);
+
+  final Set<int> accountIds;
+  final int categoryId;
+
+  /// Whether [record] moved money from a day-to-day account into savings.
+  bool takes(TransactionRecord record) =>
+      record.direction == TransactionDirection.outflow &&
+      accountIds.contains(record.transferAccountId) &&
+      !accountIds.contains(record.accountId);
+}
+
 LedgerEntry _toLedgerEntry(
   TransactionRecord record,
   Payee? payee,
   Map<int, Category> categories,
   Map<int, Set<int>> tags,
-  CurrencyConverter? converter,
-) {
+  CurrencyConverter? converter, {
+  _IntoSavings? savings,
+}) {
   // Amounts in another currency are converted into the base one, at the
   // rate the person got or else the rates of their day; with no rate they
   // keep their own currency, so totals in the base leave them out.
@@ -684,7 +886,13 @@ LedgerEntry _toLedgerEntry(
     autoCategoryId: record.autoCategoryId,
     isInflow: record.direction == TransactionDirection.inflow,
   );
-  final categoryId = applied.categoryId;
+  // Money moved into savings is saved, whatever was suggested for it: only
+  // the person's own choice or the payee's category says otherwise.
+  final saved =
+      savings != null &&
+      savings.takes(record) &&
+      (applied.categoryId == null || applied.isCategoryAuto);
+  final categoryId = saved ? savings.categoryId : applied.categoryId;
   final category = categoryId == null ? null : categories[categoryId];
   return LedgerEntry(
     id: record.id,
@@ -699,7 +907,7 @@ LedgerEntry _toLedgerEntry(
     categoryId: categoryId,
     categoryType: category?.type,
     isDailySpending: category?.isDailySpending ?? false,
-    categoryIsAuto: applied.isCategoryAuto,
+    categoryIsAuto: !saved && applied.isCategoryAuto,
     needsPurpose: applied.needsPurpose,
     transferPairId: record.transferPairId,
     transferAccountId: record.transferAccountId,
@@ -758,6 +966,9 @@ Stream<void> ledgerTableUpdates(AppDatabase db) => db.tableUpdates(
     db.invoices,
     db.invoiceLines,
     db.etimsCosts,
+    db.savingsPockets,
+    db.savingsEntries,
+    db.savingsReadings,
   ]),
 );
 

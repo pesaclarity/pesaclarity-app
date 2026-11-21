@@ -9,11 +9,13 @@ import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/ledger/balances.dart';
+import '../../../domain/ledger/cross_currency_transfers.dart';
 import '../../../domain/ledger/fuliza_debt.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/on_hand.dart';
 import '../../../domain/ledger/own_transfers.dart';
 import '../../../domain/time/calendar.dart';
+import '../../currency/application/currency_controller.dart';
 import '../../income/application/income_providers.dart';
 
 /// How far back the balance check looks for gaps.
@@ -224,14 +226,17 @@ final onHandProvider = FutureProvider<OnHand?>((ref) async {
   );
 });
 
-/// Pairs own transfers over the whole history once, after the update that
-/// started pairing them. Safe to run again: only unpaired entries pair.
+/// Pairs own transfers over the whole history once after each update that
+/// changed how they pair: version 1 started pairing them, version 2 pairs
+/// them across currencies. Safe to run again: only unpaired entries pair.
 final pairHistoryOnceProvider = FutureProvider<void>((ref) async {
   const key = 'ledger.ownTransfersPaired';
+  const version = 2;
   final settings = ref.watch(appSettingsRepositoryProvider);
-  if (await settings.readJson(key) != null) return;
+  final done = (await settings.readJson(key))?['version'];
+  if (done is int && done >= version) return;
   await ref.watch(transactionsRepositoryProvider).pairOwnTransfers();
-  await settings.writeJson(key, {'version': 1});
+  await settings.writeJson(key, {'version': version});
 });
 
 /// Entries that may be the other side of transaction `id`, which happened
@@ -256,6 +261,40 @@ final transferSuggestionsProvider =
         declined: await transactions.declinedTransfers(),
       );
     });
+
+/// Entries in another currency that may be the other side of transaction
+/// `id`, which happened `at`, best first, for "Was this your own money?":
+/// each with the rate the two give (see [suggestCrossCurrencyPartners]).
+final crossCurrencySuggestionsProvider =
+    FutureProvider.family<List<CrossCurrencyTransfer>, ({int id, DateTime at})>(
+      (ref, key) async {
+        ref.watch(ledgerChangesProvider);
+        final transactions = ref.watch(transactionsRepositoryProvider);
+        final converter = ref.watch(currencyConverterProvider);
+        final (:id, :at) = key;
+        final entries = await transactions.ledgerEntries(
+          from: at.subtract(waitingTransferWindow),
+          to: at.add(waitingTransferWindow),
+        );
+        final entry = entries.where((e) => e.id == id).firstOrNull;
+        if (entry == null) return const [];
+        final accounts = await ref.watch(accountsRepositoryProvider).all();
+        return suggestCrossCurrencyPartners(
+          entry,
+          entries,
+          accounts: {
+            for (final a in accounts)
+              a.id: TransferAccount(
+                currency: a.currency,
+                reference: a.reference,
+                institutionId: a.institutionId,
+              ),
+          },
+          rateOn: dayRatesOf(converter),
+          declined: await transactions.declinedTransfers(),
+        );
+      },
+    );
 
 /// What an own transfer typed while checking a message would pair with.
 typedef TransferQuery = ({

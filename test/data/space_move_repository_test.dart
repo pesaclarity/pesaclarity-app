@@ -5,9 +5,11 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/accounts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/debts_repository.dart';
 import 'package:pesaclarity/src/data/repositories/review_inbox_repository.dart';
+import 'package:pesaclarity/src/data/repositories/savings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/space_move_repository.dart';
 import 'package:pesaclarity/src/data/repositories/transactions_repository.dart';
 import 'package:pesaclarity/src/domain/debts/debt.dart';
+import 'package:pesaclarity/src/domain/savings/savings_product.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 import 'package:pesaclarity/src/features/accounts/domain/institution.dart';
@@ -105,6 +107,90 @@ void main() {
     await moves.move(id, 'abc123');
     final moved = await business.select(business.transactions).getSingle();
     expect(moved.categoryOverrideId, isNull);
+  });
+
+  // The balance a message reported is the balance of the space that reads
+  // its account (decision 0027, alternative D).
+  group('the balance the message reported', () {
+    TransactionsCompanion withBalances(int accountId) =>
+        sale(accountId).copyWith(
+          balanceAfterMinor: const Value(3846900),
+          claimedBalanceMinor: const Value(3846900),
+          owedAfterMinor: const Value(30300),
+          owedDueAt: Value(DateTime.utc(2026, 12, 3)),
+        );
+
+    Future<void> reads(AppDatabase db) => db
+        .into(db.selectedInstitutions)
+        .insert(
+          SelectedInstitutionsCompanion.insert(
+            institutionId: 'mpesa',
+            selectedAt: DateTime.utc(2026),
+          ),
+        );
+
+    void expectNoBalance(TransactionRecord moved) {
+      expect(moved.balanceAfterMinor, isNull);
+      expect(moved.claimedBalanceMinor, isNull);
+      expect(moved.owedAfterMinor, isNull);
+      expect(moved.owedDueAt, isNull);
+    }
+
+    test('stays behind when the payment moves out of the space that reads '
+        'its account', () async {
+      await reads(personal);
+      final id = await DriftTransactionsRepository(personal)
+          .add(withBalances(mpesa));
+
+      await moves.move(id, 'shop1');
+
+      final moved = await business.select(business.transactions).getSingle();
+      expect(moved.amountMinor, 150000);
+      expect(moved.receiptNo, 'QK1');
+      expectNoBalance(moved);
+    });
+
+    test('stays behind when neither space reads the account', () async {
+      final id = await DriftTransactionsRepository(personal)
+          .add(withBalances(mpesa));
+
+      await moves.move(id, 'shop1');
+
+      expectNoBalance(await business.select(business.transactions).getSingle());
+    });
+
+    test('comes along when the payment moves into the space that reads its '
+        'account', () async {
+      // A payment moved into the shop before balances stayed behind, moved
+      // back to Personal, which reads the line.
+      await reads(personal);
+      final shopMpesa = await business
+          .into(business.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026),
+              institutionId: const Value('mpesa'),
+            ),
+          );
+      final id = await DriftTransactionsRepository(business)
+          .add(withBalances(shopMpesa));
+
+      await DriftSpaceMoveRepository(
+        business,
+        (_) async => (personal, false),
+      ).move(id, personalSpaceId);
+
+      final back = await personal.select(personal.transactions).getSingle();
+      expect(back.balanceAfterMinor, 3846900);
+      expect(back.claimedBalanceMinor, 3846900);
+      expect(back.owedAfterMinor, 30300);
+      expect(
+        back.owedDueAt?.isAtSameMomentAs(DateTime.utc(2026, 12, 3)),
+        isTrue,
+      );
+    });
   });
 
   // A debt or goal belongs to its own space: its row id means another debt
@@ -342,5 +428,44 @@ void main() {
       expect(await personal.select(personal.transactions).get(), isEmpty);
       expect(await business.select(business.transactions).get(), hasLength(1));
     });
+  });
+
+  test('a payment into a savings account the app keeps stays, with its '
+      'entry there', () async {
+    // A made-up payment to the Chumz paybill, and Chumz added.
+    final paid = await DriftTransactionsRepository(personal).add(
+      TransactionsCompanion.insert(
+        accountId: mpesa,
+        occurredAt: DateTime.utc(2026, 11, 3, 9),
+        amountMinor: 100000,
+        direction: TransactionDirection.outflow,
+        kind: const Value(TransactionKind.paybill),
+        source: TransactionSource.sms,
+        counterpartyKind: const Value(PayeeIdentifierKind.paybill),
+        counterpartyValue: const Value('NABO CAPITAL LTD C2B#CH12345'),
+        counterpartyName: const Value('NABO CAPITAL LTD C2B'),
+        receiptNo: const Value('QK3'),
+        dedupeKey: const Value('QK3|100000|t'),
+      ),
+    );
+    final savings = DriftSavingsRepository(personal);
+    addTearDown(savings.dispose);
+    final chumzId = (await savings.add(
+      chumz,
+      at: DateTime.utc(2026, 11, 4),
+    )).accountId;
+    final mirror = await (personal.select(
+      personal.transactions,
+    )..where((t) => t.accountId.equals(chumzId))).getSingle();
+    final before = await personal.select(personal.transactions).get();
+
+    // Neither the payment nor its entry on Chumz goes on its own.
+    await moves.move(paid, 'abc123');
+    await moves.move(mirror.id, 'abc123');
+
+    expect(await personal.select(personal.transactions).get(), before);
+    expect(await personal.select(personal.movedTransactions).get(), isEmpty);
+    expect(await business.select(business.transactions).get(), isEmpty);
+    expect((await savings.account(chumzId))!.balanceMinor, 100000);
   });
 }

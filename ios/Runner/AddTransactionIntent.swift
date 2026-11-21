@@ -2,8 +2,8 @@ import AppIntents
 
 /// The Shortcuts action "Add transaction from message". A personal
 /// automation runs it for each message from M-Pesa or a bank, passing the
-/// message and its sender. It only queues the message; the app reads it the
-/// next time it opens, or at once if it is open.
+/// message and its sender. It only queues the message; the app reads it at
+/// once if it is open, or the next time it opens or returns to the front.
 struct AddTransactionFromMessageIntent: AppIntent {
   static var title: LocalizedStringResource = "Add transaction from message"
   static var description = IntentDescription(

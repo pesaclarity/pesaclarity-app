@@ -6,6 +6,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
+import '../../../data/repositories/savings_links.dart';
 import '../../accounts/domain/institution.dart';
 import '../data/sms_source.dart';
 import 'sms_capture_providers.dart';
@@ -157,6 +158,9 @@ class MessageRecheck {
       }
     }
     if (moved.isEmpty) return null;
+    // A payment into a savings account the app keeps takes its entry there
+    // along, or loses it when it is no longer in that account's currency.
+    await syncSavingsAccounts(_db);
     final top = moved.entries.reduce((a, b) => b.value.$1 > a.value.$1 ? b : a);
     return RecheckNotice(
       count: top.value.$1,

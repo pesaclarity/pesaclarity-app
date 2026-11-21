@@ -39,6 +39,12 @@ enum JournalSource {
   /// Tax a client kept back from a payment and paid to KRA for the
   /// business: [JournalEntry.sourceId] is the withheld record's id.
   withheld,
+
+  /// One currency's half of an own transfer across currencies, posted when
+  /// both sides are matched and dated when the money arrived:
+  /// [JournalEntry.sourceId] is the transaction of the side in that
+  /// currency.
+  exchange,
 }
 
 /// One line of a journal entry. Positive is a debit, negative a credit.
@@ -198,6 +204,9 @@ const ownerPayCategoryKey = 'owner_pay';
 /// account equal to [balanceAt]. A sale on credit counts as a sale when it
 /// is made, against what the customer owes, and their payment later clears
 /// it; stock or a cost bought on credit works the same way with suppliers.
+/// What an own transfer across currencies cost to exchange
+/// ([LedgerEntry.exchangeCostMinor]) is a cost, out of Money in transit,
+/// when the money arrives.
 class Books {
   Books._(this.entries);
 
@@ -222,6 +231,24 @@ class Books {
           categories: categories,
           fulizaFee: fuliza.feeOf(e),
           toStock: restocks.contains(e.id),
+        ),
+      );
+    }
+    for (final e in all) {
+      // What an own transfer across currencies cost to exchange leaves
+      // Money in transit when the money arrives, as a cost.
+      final cost = e.exchangeCostMinor;
+      if (cost == null || cost == 0) continue;
+      out.add(
+        JournalEntry(
+          source: JournalSource.exchange,
+          sourceId: e.id,
+          at: e.occurredAt,
+          currency: e.currency,
+          lines: [
+            JournalLine(BookAccount.exchangeCost, cost),
+            JournalLine(BookAccount.ownTransfers, -cost),
+          ],
         ),
       );
     }
@@ -257,7 +284,8 @@ class Books {
       JournalSource.transaction ||
       JournalSource.creditSale ||
       JournalSource.creditPurchase ||
-      JournalSource.withheld => 1,
+      JournalSource.withheld ||
+      JournalSource.exchange => 1,
       JournalSource.balanceDifference => 2,
     };
     for (final p in purchases) {

@@ -172,6 +172,8 @@ String bookAccountName(BookAccount a, Map<int, String> categoryNames) =>
       BookAccountKind.tax => 'Tax paid',
       BookAccountKind.costOfSales => 'Cost of stock sold',
       BookAccountKind.stockLosses => 'Stock spoiled or lost',
+      BookAccountKind.exchangeCost => 'Exchange cost',
+      BookAccountKind.currencyExchange => 'Currency exchange',
       _ => a.kind.name,
     };
 
