@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/flavor.dart';
 import '../../../shared/accessibility.dart';
+import '../../../shared/offline_messages.dart';
 import '../../../theme/brand_tokens.dart';
 import '../../../theme/pesa_colors.dart';
 import '../application/auth_controller.dart';
@@ -46,7 +47,13 @@ class _SignInPanelState extends ConsumerState<SignInPanel> {
     try {
       await action();
     } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) {
+        setState(
+          () => _error = failure.kind == AuthFailureKind.network
+              ? OfflineMessages.signIn
+              : failure.message,
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

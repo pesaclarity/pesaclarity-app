@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/adaptive/adaptive.dart';
+import '../../../shared/offline_messages.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/pesa_colors.dart';
@@ -91,9 +92,12 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
           }
           if (snapshot.hasError) {
             final error = snapshot.error;
-            final message = error is AuthFailure
-                ? error.message
-                : const AuthFailure(AuthFailureKind.server).message;
+            final message = switch (error) {
+              AuthFailure(kind: AuthFailureKind.network) =>
+                OfflineMessages.devicesList,
+              AuthFailure() => error.message,
+              _ => const AuthFailure(AuthFailureKind.server).message,
+            };
             // Signed out: trying again cannot help.
             if (error is AuthFailure &&
                 error.kind == AuthFailureKind.sessionEnded) {
