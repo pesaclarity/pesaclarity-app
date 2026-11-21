@@ -35,8 +35,8 @@ class AskBarAway extends Notifier<bool> {
 
 final askBarAwayProvider = NotifierProvider<AskBarAway, bool>(AskBarAway.new);
 
-/// The Ask button in Home's top bar, beside Profile. Tinted while the Ask
-/// bar is away.
+/// The Ask button in Home's top bar, beside Profile. While the Ask bar is
+/// away its icon turns red; the button itself stays plain.
 class AskHomeButton extends ConsumerWidget {
   const AskHomeButton({super.key});
 
@@ -53,11 +53,9 @@ class AskHomeButton extends ConsumerWidget {
         tooltip: AskStrings.title,
         constraints: const BoxConstraints.tightFor(width: 48, height: 48),
         style: IconButton.styleFrom(
-          backgroundColor: away ? colors.brandSoft : theme.colorScheme.surface,
-          foregroundColor: away
-              ? PesaColors.of(context).link
-              : theme.colorScheme.onSurface,
-          side: BorderSide(color: away ? colors.link : colors.border),
+          backgroundColor: theme.colorScheme.surface,
+          foregroundColor: away ? colors.link : theme.colorScheme.onSurface,
+          side: BorderSide(color: colors.border),
         ),
         icon: const Icon(Icons.chat_bubble_outline),
         onPressed: () => context.push(AppRoutes.ask),
@@ -86,47 +84,53 @@ class AskBar extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         key: const Key('ask-bar'),
-        color: colors.floating,
-        elevation: colors.floatingElevation,
-        shadowColor: colors.shadow,
-        // The neutral edge every floating part has: red is for actions.
+        color: theme.colorScheme.surface,
+        // The neutral edge every floating part has, and no shadow: red is
+        // for actions.
         shape: StadiumBorder(side: BorderSide(color: colors.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push(route),
-          child: SizedBox(
-            height: height,
+          // Grows with large text: the words take a second line before they
+          // end in "...".
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: height),
             child: Row(
               children: [
                 const SizedBox(width: 14),
                 Icon(
                   Icons.chat_bubble_outline,
                   size: 20,
-                  color: PesaColors.of(context).link,
+                  color: theme.colorScheme.onSurface,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge!.copyWith(
-                      color: colors.textMuted,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge!.copyWith(
+                        color: colors.textMuted,
+                      ),
                     ),
                   ),
                 ),
                 Container(
                   margin: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(minHeight: height - 12),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   alignment: Alignment.center,
                   decoration: ShapeDecoration(
-                    color: colors.selected,
-                    shape: const StadiumBorder(),
+                    shape: StadiumBorder(
+                      side: BorderSide(color: colors.border),
+                    ),
                   ),
                   child: Text(
                     AskStrings.send,
                     style: theme.textTheme.labelLarge!.copyWith(
-                      color: PesaColors.of(context).link,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ),

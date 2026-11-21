@@ -8,6 +8,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart' show formatTime;
+import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
@@ -121,26 +122,19 @@ class _AskConversationsScreenState
             ),
         ],
       ),
-      floatingActionButton: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          // The soft shadow of floating parts, none in dark.
-          boxShadow: PesaColors.of(context).floatingShadow,
+      floatingActionButton: FilledButton.icon(
+        key: const Key('ask-new-conversation'),
+        style: FilledButton.styleFrom(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
+          minimumSize: const Size(0, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: const StadiumBorder(),
+          side: BorderSide.none,
         ),
-        child: FilledButton.icon(
-          key: const Key('ask-new-conversation'),
-          style: FilledButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
-            minimumSize: const Size(0, 52),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            shape: const StadiumBorder(),
-            side: BorderSide.none,
-          ),
-          icon: const Icon(Icons.add),
-          label: const Text(AskStrings.newConversation),
-          onPressed: () => context.pushReplacement(AppRoutes.ask),
-        ),
+        icon: const Icon(Icons.add),
+        label: const Text(AskStrings.newConversation),
+        onPressed: () => context.pushReplacement(AppRoutes.ask),
       ),
       body: all == null
           ? const LoadingView()
@@ -171,15 +165,9 @@ class _AskConversationsScreenState
                   ),
                 for (final MapEntry(key: group, value: list)
                     in groups.entries) ...[
-                  Padding(
+                  SectionLabel(
+                    group,
                     padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-                    child: Text(
-                      group,
-                      style: theme.textTheme.labelSmall!.copyWith(
-                        color: colors.textMuted,
-                        letterSpacing: 1,
-                      ),
-                    ),
                   ),
                   Card(
                     margin: EdgeInsets.zero,

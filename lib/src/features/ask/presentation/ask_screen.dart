@@ -14,6 +14,8 @@ import '../../../routing/app_routes.dart';
 import '../../../shared/accessibility.dart';
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/widgets/app_sheet.dart';
+import '../../../shared/widgets/sections.dart';
+import '../../../theme/brand_tokens.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../spaces/application/spaces_providers.dart';
@@ -350,12 +352,15 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: colors.brandSoft,
+            Container(
+              width: 56,
+              height: 56,
+              decoration: ShapeDecoration(
+                shape: CircleBorder(side: BorderSide(color: colors.border)),
+              ),
               child: Icon(
                 Icons.chat_bubble_outline,
-                color: PesaColors.of(context).link,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -390,10 +395,9 @@ class _Starters extends StatelessWidget {
     return DecoratedBox(
       key: const Key('ask-starters'),
       decoration: BoxDecoration(
-        color: colors.floating,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(Layout.panelRadius),
         border: Border.all(color: colors.border),
-        boxShadow: colors.floatingShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
@@ -403,13 +407,10 @@ class _Starters extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
+                const Expanded(
+                  child: SectionLabel(
                     AskStrings.tryAsking,
-                    style: theme.textTheme.labelSmall!.copyWith(
-                      color: colors.textMuted,
-                      letterSpacing: 1,
-                    ),
+                    padding: EdgeInsets.zero,
                   ),
                 ),
                 IconButton(
@@ -473,10 +474,7 @@ class _Tags extends StatelessWidget {
               child: InputChip(
                 key: Key('ask-tag-${kind.name}'),
                 label: Text(name),
-                backgroundColor: Colors.transparent,
-                side: BorderSide(
-                  color: colors.textMuted.withValues(alpha: 0.5),
-                ),
+
                 deleteIcon: const Icon(Icons.close, size: 16),
                 deleteButtonTooltipMessage: AskStrings.dropTag(name),
                 onDeleted: () => onDrop(kind),
@@ -506,8 +504,8 @@ class _InputBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.field,
-          borderRadius: BorderRadius.circular(28),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(BrandTokens.pillRadius),
           border: Border.all(color: colors.border),
         ),
         child: Row(

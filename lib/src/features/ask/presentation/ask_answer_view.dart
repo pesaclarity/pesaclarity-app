@@ -37,8 +37,8 @@ class QuestionBubble extends StatelessWidget {
         margin: const EdgeInsets.only(left: 48, bottom: Layout.cardGap),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          // A neutral tint, as a selected chip.
-          color: PesaColors.of(context).selected,
+          // Plain, with a thin edge: no fill behind the words.
+          border: Border.all(color: PesaColors.of(context).border),
           borderRadius: BorderRadius.circular(Layout.panelRadius),
         ),
         child: Text(
@@ -265,11 +265,11 @@ class MonthBars extends StatelessWidget {
                           (_height - 6) *
                               (largest <= 0 ? 0 : b.valueMinor / largest),
                       decoration: BoxDecoration(
+                        // The bar asked about in the text colour, the rest
+                        // in grey: red is kept for actions and problems.
                         color: b.highlight
-                            ? colors.link
-                            : theme.colorScheme.onSurfaceVariant.withValues(
-                                alpha: 0.22,
-                              ),
+                            ? theme.colorScheme.onSurface
+                            : colors.border,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -313,12 +313,12 @@ class ShareBar extends StatelessWidget {
                 if (percent > 0)
                   Expanded(
                     flex: percent,
-                    child: ColoredBox(color: colors.link),
+                    child: ColoredBox(color: theme.colorScheme.onSurface),
                   ),
                 if (percent < 100)
                   Expanded(
                     flex: 100 - percent,
-                    child: ColoredBox(color: colors.brandSoft),
+                    child: ColoredBox(color: colors.border),
                   ),
               ],
             ),
@@ -482,11 +482,14 @@ class SuggestionChips extends StatelessWidget {
       children: [
         for (final s in suggestions)
           ActionChip(
-            avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
+            // The sparkles in the text colour, as Ask's are everywhere.
+            avatar: Icon(
+              Icons.auto_awesome_outlined,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             // Wraps at large text rather than being clipped.
             label: Text(s, softWrap: true, maxLines: 3),
-            backgroundColor: PesaColors.of(context).field,
-            side: BorderSide.none,
             onPressed: () => onTap(s),
           ),
       ],

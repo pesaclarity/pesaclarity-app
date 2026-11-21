@@ -282,7 +282,9 @@ void main() {
     final side = (material.shape! as StadiumBorder).side;
     final colors = PesaColors.of(tester.element(bar));
     expect(side.color, colors.border);
-    expect(material.color, colors.floating);
+    // The plain surface, as everything is now: no lifted, shadowed bar.
+    expect(material.color, Theme.of(tester.element(bar)).colorScheme.surface);
+    expect(material.elevation, 0);
   });
 
   test('Activity filters read as an Ask bar', () {
