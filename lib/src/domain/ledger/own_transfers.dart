@@ -70,10 +70,16 @@ enum TransferFit {
   loose,
 }
 
+/// The currency [entry]'s money moved in, before the ledger showed it in
+/// the base currency.
+String _movedIn(LedgerEntry entry) => entry.originalCurrency ?? entry.currency;
+
 /// How [outflow] and [inflow]'s amounts fit as one transfer, or null when
-/// they cannot be one.
+/// they cannot be one: they must have moved in one currency. Shown in the
+/// base currency, a transfer between two currencies would look like one
+/// amount less a fee and never clear.
 TransferFit? transferFit(LedgerEntry outflow, LedgerEntry inflow) {
-  if (outflow.currency != inflow.currency) return null;
+  if (_movedIn(outflow) != _movedIn(inflow)) return null;
   final difference = outflow.amountMinor - inflow.amountMinor;
   if (difference == 0) return TransferFit.exact;
   if (difference < 0) return null;
@@ -205,7 +211,7 @@ List<TransferPair> findOwnTransfers(
       continue;
     }
     (entry.isOutflow ? outflows : inflows)
-        .putIfAbsent(entry.currency, () => [])
+        .putIfAbsent(_movedIn(entry), () => [])
         .add(entry);
   }
 
@@ -277,8 +283,9 @@ class TransferSuggestion {
 /// Entries that could be [entry]'s other side, best first: unpaired, on
 /// another account, the opposite way, in the same currency, up to
 /// [waitingTransferWindow] apart, with equal amounts or the outflow larger
-/// by up to twice a plausible fee. For the person to choose; never paired
-/// without them.
+/// by up to twice a plausible fee. The currency is the one the money moved
+/// in, not the base currency the ledger may show it in. For the person to
+/// choose; never paired without them.
 List<TransferSuggestion> suggestTransferPartners(
   LedgerEntry entry,
   Iterable<LedgerEntry> entries, {
@@ -291,7 +298,7 @@ List<TransferSuggestion> suggestTransferPartners(
     if (other.id == entry.id ||
         other.accountId == entry.accountId ||
         other.direction == entry.direction ||
-        other.currency != entry.currency) {
+        _movedIn(other) != _movedIn(entry)) {
       continue;
     }
     final out = entry.isOutflow ? entry : other;

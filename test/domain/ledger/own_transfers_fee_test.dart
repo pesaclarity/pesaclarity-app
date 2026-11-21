@@ -165,6 +165,26 @@ void main() {
       expect(suggestions.last.feeMinor(money.amountMinor), kes(30));
     });
 
+    test('only sides in the currency of the one being matched, though the '
+        'ledger shows both in the base currency', () {
+      // KES 13,050 out; USD 100.00 in, shown as KES 12,920.
+      final usdIn = LedgerEntry(
+        id: 2,
+        accountId: mpesa,
+        occurredAt: eat(2026, 11, 14, 10, 2),
+        amountMinor: kes(12920),
+        direction: TransactionDirection.inflow,
+        kind: TransactionKind.bank,
+        originalAmountMinor: 10000,
+        originalCurrency: 'USD',
+      );
+      final kesOut = out(1, kes(13050));
+      expect(suggestTransferPartners(kesOut, [kesOut, usdIn]), isEmpty);
+      expect(suggestTransferPartners(usdIn, [usdIn, kesOut]), isEmpty);
+      expect(transferFit(kesOut, usdIn), isNull);
+      expect(findOwnTransfers([kesOut, usdIn]), isEmpty);
+    });
+
     test('nothing for a paired entry', () {
       final paired = into(1, kes(5000)).copyWith(transferPairId: 9);
       expect(suggestTransferPartners(paired, [out(2, kes(5000))]), isEmpty);
