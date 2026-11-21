@@ -23,7 +23,7 @@ const keptPersonalLimit = 2000;
 
 /// The line rules, in Personal's settings.
 class RoutingRulesController extends AsyncNotifier<RoutingRules> {
-  static const settingsKey = 'routing.rules';
+  static const settingsKey = routingRulesKey;
 
   AppSettingsRepository get _settings =>
       ref.read(mainSettingsRepositoryProvider);

@@ -9,6 +9,19 @@ import 'database_providers.dart';
 /// Where Personal's settings keep the list of spaces on this phone.
 const spacesListKey = 'spaces.list';
 
+/// Where Personal's settings keep what is in Recently deleted, with the
+/// keys of the locked copies.
+const keptSpacesKey = 'spaces.kept';
+
+/// Where Personal's settings keep the Business or personal rules.
+const routingRulesKey = 'routing.rules';
+
+/// Personal's settings that are about every space, not Personal's own
+/// records: which spaces exist, what is kept of deleted ones, and where
+/// money goes between them. A restore of Personal leaves them as they are
+/// (see `LocalDataStore.replaceWith`).
+const everySpaceSettingKeys = {spacesListKey, keptSpacesKey, routingRulesKey};
+
 /// Something asked for a space that is not on this phone's list, such as a
 /// business deleted since a rule was made for it.
 final class SpaceNotOnPhone implements Exception {

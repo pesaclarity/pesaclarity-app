@@ -165,6 +165,46 @@ void checkAndRekeyDatabase({
   }
 }
 
+/// Writes [settings] over the same keys in the database at [path] (keyed
+/// with [keyHex]), and removes those of [keys] that [settings] lacks, so
+/// they read as they did before the file was restored.
+///
+/// Synchronous so it can run in a background isolate.
+void keepSettings({
+  required String path,
+  required String keyHex,
+  required Set<String> keys,
+  required Map<String, String> settings,
+}) {
+  final db = sqlite3.open(path);
+  try {
+    applyCipherKey(db, keyHex);
+    final hasSettings = db
+        .select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'app_settings'",
+        )
+        .isNotEmpty;
+    // A file from before the settings table, long before spaces: there is
+    // nothing of theirs to keep in it.
+    if (!hasSettings) return;
+    db.execute('BEGIN');
+    for (final key in keys) {
+      db.execute('DELETE FROM app_settings WHERE key = ?', [key]);
+      final value = settings[key];
+      if (value != null) {
+        db.execute('INSERT INTO app_settings (key, value) VALUES (?, ?)', [
+          key,
+          value,
+        ]);
+      }
+    }
+    db.execute('COMMIT');
+  } finally {
+    db.close();
+  }
+}
+
 /// Moves [staged] into [live]'s place, putting the old file back if the move
 /// fails. The old file is removed only after the new one is in place.
 Future<void> swapDatabaseFiles({
@@ -264,12 +304,32 @@ class SqlCipherLocalDataStore implements LocalDataStore {
     final release = lock.hold();
     try {
       final spaceId = _ref.read(activeSpaceIdProvider);
+      // Restoring Personal's records must not change which spaces exist:
+      // its settings about every space stay as they are now.
+      final Map<String, String>? everySpace = spaceId == personalSpaceId
+          ? {
+              for (final row in await (current.select(
+                current.appSettings,
+              )..where((s) => s.key.isIn(everySpaceSettingKeys))).get())
+                row.key: row.value,
+            }
+          : null;
       _ref.invalidate(
         spaceId == personalSpaceId
             ? personalDatabaseProvider
             : appDatabaseProvider,
       );
       await lock.close(current);
+      if (everySpace != null) {
+        await Isolate.run(
+          () => keepSettings(
+            path: path,
+            keyHex: deviceKey,
+            keys: everySpaceSettingKeys,
+            settings: everySpace,
+          ),
+        );
+      }
       await swapDatabaseFiles(
         live: await databaseFile(spaceId),
         staged: staged,

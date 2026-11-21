@@ -38,7 +38,7 @@ const _keptOnClear = {
 
 /// Data kept for 30 days, newest first, from Personal's settings.
 class KeptDataController extends AsyncNotifier<List<KeptData>> {
-  static const settingsKey = 'spaces.kept';
+  static const settingsKey = keptSpacesKey;
 
   @override
   Future<List<KeptData>> build() async {
