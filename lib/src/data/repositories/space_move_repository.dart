@@ -5,6 +5,7 @@ import '../../domain/spaces/space.dart';
 import '../database/app_database.dart';
 import '../database/connection.dart';
 import '../database/database_providers.dart';
+import 'message_links.dart';
 import 'message_reads_repository.dart';
 
 /// Moves a transaction from the open space to another, such as a sale on a
@@ -91,6 +92,11 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
                     id: const Value.absent(),
                     accountId: Value(accountId),
                     payeeId: const Value(null),
+                    // Its goal and debt stay in the space it leaves: in
+                    // this one the same ids name another goal or debt, or
+                    // none.
+                    goalId: const Value(null),
+                    debtId: const Value(null),
                     transferPairId: const Value(null),
                     transferAccountId: const Value(null),
                     categoryOverrideId: Value(
@@ -134,6 +140,7 @@ class DriftSpaceMoveRepository implements SpaceMoveRepository {
             );
       }
       await setAsideMessagesOf(_source, [transactionId]);
+      await unlinkLoanRepayment(_source, tx);
       // An own transfer's other half stays here, now on its own.
       await (_source.update(_source.transactions)
             ..where((t) => t.transferPairId.equals(transactionId)))

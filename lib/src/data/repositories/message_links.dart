@@ -127,3 +127,64 @@ Future<void> linkLoanRepayment(AppDatabase db, int id) async {
     );
   }
 }
+
+/// Takes back what the repayment [row] set on its debt when its message was
+/// read (see [linkLoanRepayment]), before [row] leaves this space: the
+/// balance its message confirmed and the next due date it gave. Each goes
+/// back to what the newest repayment message still linked to the debt says,
+/// or to nothing, as if [row]'s message had not been read here. A balance
+/// or date set since, by a later message or by the person, stays.
+Future<void> unlinkLoanRepayment(AppDatabase db, TransactionRecord row) async {
+  final debtId = row.debtId;
+  if (debtId == null) return;
+  final debt = await (db.select(
+    db.debts,
+  )..where((d) => d.id.equals(debtId))).getSingleOrNull();
+  if (debt == null) return;
+  // The other repayment messages on this debt, newest first.
+  final others =
+      await (db.select(db.transactions)
+            ..where(
+              (t) =>
+                  t.debtId.equals(debtId) &
+                  t.id.equals(row.id).not() &
+                  t.kind.equalsValue(TransactionKind.loanRepayment) &
+                  t.direction.equalsValue(TransactionDirection.outflow),
+            )
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.occurredAt),
+              (t) => OrderingTerm.desc(t.id),
+            ]))
+          .get();
+  final owed = row.owedAfterMinor;
+  final asOf = debt.balanceAsOf;
+  final after = row.occurredAt.add(const Duration(seconds: 1));
+  final setBalance =
+      owed != null &&
+      debt.balanceMinor == owed &&
+      asOf != null &&
+      asOf.isAtSameMomentAs(after);
+  final setDue = debt.nextDueTransactionId == row.id;
+  if (!setBalance && !setDue) return;
+  final balance = others.where((t) => t.owedAfterMinor != null).firstOrNull;
+  final due = others.where((t) => t.owedDueAt != null).firstOrNull;
+  await (db.update(db.debts)..where((d) => d.id.equals(debtId))).write(
+    DebtsCompanion(
+      balanceMinor: setBalance
+          ? Value(balance?.owedAfterMinor)
+          : const Value.absent(),
+      balanceAsOf: setBalance
+          ? Value(balance?.occurredAt.add(const Duration(seconds: 1)))
+          : const Value.absent(),
+      nextDueDay: setDue
+          ? Value(
+              due == null
+                  ? null
+                  : dayKey(CalendarDate.of(due.owedDueAt!, nairobiUtcOffset)),
+            )
+          : const Value.absent(),
+      nextDueSetAt: setDue ? Value(due?.occurredAt) : const Value.absent(),
+      nextDueTransactionId: setDue ? Value(due?.id) : const Value.absent(),
+    ),
+  );
+}

@@ -88,3 +88,17 @@ SmsMessage kcbPesalinkDone() => kcbSms(
   'Mobile Loan of up to KES 100K. Dial *000# or use the KCB App.',
   DateTime.utc(2026, 11, 6, 7, 15, 5),
 );
+
+/// KCB taking a salary advance repayment of [amount], with what is [left]
+/// on the loan and when the next instalment is [due].
+SmsMessage kcbLoanRepaid(
+  String amount,
+  String left,
+  DateTime receivedAt, {
+  String due = '05/12/2026',
+}) => kcbSms(
+  'Dear JANE, KES $amount was debited from your KCB account to repay your '
+  'KCB Salary Advance 12345. The loan has been partially paid. Your loan '
+  'balance is KES $left, next instalment is due on $due.',
+  receivedAt,
+);
