@@ -77,7 +77,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 39;
+  int get schemaVersion => 40;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -339,6 +339,12 @@ class AppDatabase extends _$AppDatabase {
           transactions,
           transactions.twinMessageHash,
         );
+      }
+      // When a loan's next instalment is due, and where that came from.
+      if (from < 40) {
+        await _addColumnIfMissing(m, debts, debts.nextDueDay);
+        await _addColumnIfMissing(m, debts, debts.nextDueSetAt);
+        await _addColumnIfMissing(m, debts, debts.nextDueTransactionId);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/accounts/account_reference.dart';
+import '../../domain/debts/next_due.dart';
+import '../../domain/time/calendar.dart';
 import '../database/app_database.dart';
 
 /// Marks the new transaction [id] as money moved to the person's own
@@ -57,7 +59,9 @@ Future<void> markTransferToOwnAccount(
 /// Records the new loan repayment [id] against the debt its message names,
 /// such as "KCB Salary Advance": the debt with that lender, or a new one,
 /// and, when the message gives what is left, that balance as confirmed just
-/// after the payment. It is paying back a debt, never spending.
+/// after the payment. When the message says when the next instalment is
+/// due, that becomes the debt's next due date, unless a later message or
+/// the person's own edit set it. It is paying back a debt, never spending.
 Future<void> linkLoanRepayment(AppDatabase db, int id) async {
   final row = await (db.select(
     db.transactions,
@@ -106,6 +110,20 @@ Future<void> linkLoanRepayment(AppDatabase db, int id) async {
   if (owed != null && (asOf == null || !after.isBefore(asOf))) {
     await (db.update(db.debts)..where((d) => d.id.equals(debt!.id))).write(
       DebtsCompanion(balanceMinor: Value(owed), balanceAsOf: Value(after)),
+    );
+  }
+  final due = row.owedDueAt;
+  final dueSetAt = debt.nextDueSetAt;
+  if (due != null && (dueSetAt == null || !row.occurredAt.isBefore(dueSetAt))) {
+    // The parsers give a due day as midnight in the lender's own time;
+    // lenders whose messages print one are in East Africa Time.
+    final day = CalendarDate.of(due, nairobiUtcOffset);
+    await (db.update(db.debts)..where((d) => d.id.equals(debt!.id))).write(
+      DebtsCompanion(
+        nextDueDay: Value(dayKey(day)),
+        nextDueSetAt: Value(row.occurredAt),
+        nextDueTransactionId: Value(id),
+      ),
     );
   }
 }

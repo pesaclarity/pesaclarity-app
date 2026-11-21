@@ -2,6 +2,7 @@ import '../../core/money/money.dart';
 import '../enums.dart';
 import '../payees/payee_identifier.dart';
 import '../time/calendar.dart';
+import 'next_due.dart';
 
 /// Basis points in a whole, times twelve months: the divisor that turns an
 /// annual rate in basis points into one month's interest.
@@ -22,6 +23,8 @@ class Debt {
     this.instalments = const [],
     this.payeeId,
     this.identifiers = const [],
+    this.nextDue,
+    this.lastPayment,
   }) : currency = currency ?? BaseCurrency.code,
        isFormal = isFormal ?? type != DebtType.family,
        assert(balanceMinor >= 0, 'balanceMinor is never negative'),
@@ -52,6 +55,13 @@ class Debt {
 
   /// Raw identifiers repayments go to, such as the lender's paybill.
   final List<PayeeIdentifier> identifiers;
+
+  /// When the next instalment is due, from the lender's messages or typed
+  /// by the person. Null when not known.
+  final NextDue? nextDue;
+
+  /// The latest repayment, linked from a message or recorded by hand.
+  final DebtPayment? lastPayment;
 
   /// False for family and friend loans. Defaults from [type].
   final bool isFormal;
@@ -95,6 +105,8 @@ class Debt {
     instalments: instalments,
     payeeId: payeeId,
     identifiers: identifiers,
+    nextDue: nextDue,
+    lastPayment: lastPayment,
   );
 
   @override

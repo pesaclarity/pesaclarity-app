@@ -776,6 +776,87 @@ void main() {
       expect(await userVersion(db), db.schemaVersion);
     });
 
+    test('migrates a version 39 database: when a loan is next due', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final account = await old
+          .into(old.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'Test Bank',
+              type: AccountType.bank,
+              openingDate: DateTime.utc(2026),
+            ),
+          );
+      await old
+          .into(old.debts)
+          .insert(
+            DebtsCompanion.insert(
+              lender: 'Test Loan',
+              type: DebtType.bankLoan,
+              startingBalanceMinor: 100000,
+            ),
+          );
+      for (final column in [
+        'next_due_day',
+        'next_due_set_at',
+        'next_due_transaction_id',
+      ]) {
+        await old.customStatement('ALTER TABLE debts DROP COLUMN $column');
+      }
+      await old.customStatement('PRAGMA user_version = 39');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      final debtColumns = await columns(db, 'debts');
+      for (final column in [
+        'next_due_day',
+        'next_due_set_at',
+        'next_due_transaction_id',
+      ]) {
+        expect(debtColumns[column], isFalse, reason: column);
+      }
+      final [debt] = await db.select(db.debts).get();
+      expect(debt.lender, 'Test Loan');
+      expect(debt.nextDueDay, isNull);
+
+      // The new link follows its transaction away.
+      final tx = await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: DateTime.utc(2026, 11, 20),
+              amountMinor: 250000,
+              direction: TransactionDirection.outflow,
+              source: TransactionSource.sms,
+            ),
+          );
+      await db
+          .update(db.debts)
+          .write(
+            DebtsCompanion(
+              nextDueDay: const Value(20261205),
+              nextDueTransactionId: Value(tx),
+            ),
+          );
+      await (db.delete(db.transactions)..where((t) => t.id.equals(tx))).go();
+      final [after] = await db.select(db.debts).get();
+      expect(after.nextDueDay, 20261205);
+      expect(after.nextDueTransactionId, isNull);
+    });
+
+    test('the version 40 step is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('PRAGMA user_version = 39');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      expect(await userVersion(db), db.schemaVersion);
+      expect(await columns(db, 'debts'), contains('next_due_day'));
+    });
+
     test('migrates a version 17 database: moved transactions', () async {
       final old = AppDatabase(NativeDatabase(file));
       await old.customStatement('DROP TABLE moved_transactions');

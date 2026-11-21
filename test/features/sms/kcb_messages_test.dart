@@ -71,11 +71,16 @@ SmsMessage _pesalink({
   DateTime.utc(2026, 11, 6, 7, 20),
 );
 
-SmsMessage _loanRepaid(String amount, String left, DateTime at) => _kcbSms(
+SmsMessage _loanRepaid(
+  String amount,
+  String left,
+  DateTime at, {
+  String due = '15/12/2026',
+}) => _kcbSms(
   'Dear JANE AKINYI DOE, KES $amount was debited from your KCB account to '
   'repay your KCB Salary Advance 100000001. The loan has been partially '
   'paid. Your loan balance is KES $left, next instalment is due on '
-  '15/12/2026. Pay the loan to borrow again.',
+  '$due. Pay the loan to borrow again.',
   at,
 );
 
@@ -496,6 +501,92 @@ void main() {
     [debt] = await debts.debts(today: CalendarDate(2026, 12, 6));
     expect(debt.balanceMinor, 3650025);
     expect(await db.select(db.debts).get(), hasLength(1));
+  });
+
+  group('the next instalment', () {
+    Future<DebtRecord> stored() => db.select(db.debts).getSingle();
+
+    test('a loan repayment sets when it is due on its debt', () async {
+      await ingestor.ingest([
+        _loanRepaid('2500.00', '12000.00', DateTime.utc(2026, 11, 20, 6, 14)),
+      ], _kcb);
+
+      final [paid] = await rows();
+      final row = await stored();
+      expect(row.nextDueDay, 20261215);
+      expect(row.nextDueSetAt!.toUtc(), DateTime.utc(2026, 11, 20, 6, 14));
+      expect(row.nextDueTransactionId, paid.id);
+
+      final [debt] = await DriftDebtsRepository(db)
+          .debts(today: CalendarDate(2026, 11, 21));
+      final due = debt.nextDue!;
+      expect(due.date, CalendarDate(2026, 12, 15));
+      expect(due.paidSince, isFalse);
+      expect(due.source!.institutionId, 'kcb');
+      expect(due.source!.readAt.toUtc(), DateTime.utc(2026, 11, 20, 6, 14));
+      expect(debt.lastPayment, (
+        date: CalendarDate(2026, 11, 20),
+        amountMinor: 250000,
+      ));
+    });
+
+    test('moves to the next date with the next message', () async {
+      await ingestor.ingest([
+        _loanRepaid('2500.00', '12000.00', DateTime.utc(2026, 11, 20, 6)),
+      ], _kcb);
+      await ingestor.ingest([
+        _loanRepaid(
+          '2500.00',
+          '9500.00',
+          DateTime.utc(2026, 12, 15, 6),
+          due: '15/01/2027',
+        ),
+      ], _kcb);
+      expect((await stored()).nextDueDay, 20270115);
+
+      // An older message read later leaves the newer date.
+      await ingestor.ingest([
+        _loanRepaid(
+          '2500.00',
+          '14500.00',
+          DateTime.utc(2026, 10, 20, 6),
+          due: '15/11/2026',
+        ),
+      ], _kcb);
+      expect((await stored()).nextDueDay, 20270115);
+    });
+
+    test('a message after the person typed a date replaces it', () async {
+      await ingestor.ingest([
+        _loanRepaid('2500.00', '12000.00', DateTime.utc(2026, 11, 20, 6)),
+      ], _kcb);
+      final debts = DriftDebtsRepository(db);
+      final id = (await stored()).id;
+      await debts.setNextDue(
+        id,
+        CalendarDate(2026, 12, 20),
+        DateTime.utc(2026, 11, 25),
+      );
+      // Read again, the older message keeps the typed date.
+      await ingestor.ingest([
+        _loanRepaid('2500.00', '14500.00', DateTime.utc(2026, 10, 20, 6)),
+      ], _kcb);
+      var row = await stored();
+      expect(row.nextDueDay, 20261220);
+      expect(row.nextDueTransactionId, isNull);
+
+      await ingestor.ingest([
+        _loanRepaid(
+          '2500.00',
+          '9500.00',
+          DateTime.utc(2026, 12, 18, 6),
+          due: '15/01/2027',
+        ),
+      ], _kcb);
+      row = await stored();
+      expect(row.nextDueDay, 20270115);
+      expect(row.nextDueTransactionId, isNotNull);
+    });
   });
 
   group('KCB card', () {

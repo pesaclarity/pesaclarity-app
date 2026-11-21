@@ -215,4 +215,102 @@ void main() {
     )..where((t) => t.id.equals(tx))).getSingle();
     expect(record.debtId, isNull);
   });
+
+  group('next due date', () {
+    Future<int> loan() => debts.add(
+      DebtsCompanion.insert(
+        lender: 'Test Bank Loan',
+        type: DebtType.bankLoan,
+        startingBalanceMinor: 100000,
+        minimumPaymentMinor: const Value(10000),
+      ),
+    );
+
+    Future<Debt> read(int id) async =>
+        (await debts.debts(today: today)).singleWhere((d) => d.id == id);
+
+    test('a typed date is kept, with no message behind it', () async {
+      final id = await loan();
+      expect((await read(id)).nextDue, isNull);
+
+      await debts.setNextDue(
+        id,
+        CalendarDate(2026, 12, 5),
+        DateTime.utc(2026, 11, 20),
+      );
+      final due = (await read(id)).nextDue!;
+      expect(due.date, CalendarDate(2026, 12, 5));
+      expect(due.source, isNull);
+      expect(due.paidSince, isFalse);
+
+      await debts.setNextDue(id, null, DateTime.utc(2026, 11, 21));
+      expect((await read(id)).nextDue, isNull);
+      final row = await (db.select(
+        db.debts,
+      )..where((d) => d.id.equals(id))).getSingle();
+      expect(row.nextDueSetAt, isNull);
+    });
+
+    test('a repayment on or after the date counts as paid since', () async {
+      final id = await loan();
+      await debts.setNextDue(
+        id,
+        CalendarDate(2026, 11, 10),
+        DateTime.utc(2026, 11),
+      );
+      await pay(11, 9, 10000, debtId: id);
+      expect((await read(id)).nextDue!.paidSince, isFalse);
+
+      // 09:00 UTC on 10 Nov is 12:00 that day in Nairobi.
+      await pay(11, 10, 10000, debtId: id);
+      expect((await read(id)).nextDue!.paidSince, isTrue);
+    });
+
+    test('a payment by hand counts as paid since too', () async {
+      final id = await loan();
+      await debts.setNextDue(
+        id,
+        CalendarDate(2026, 11, 10),
+        DateTime.utc(2026, 11),
+      );
+      await debts.recordPayment(id, DateTime.utc(2026, 11, 12), 5000);
+      final debt = await read(id);
+      expect(debt.nextDue!.paidSince, isTrue);
+      expect(debt.lastPayment, (
+        date: CalendarDate(2026, 11, 12),
+        amountMinor: 5000,
+      ));
+    });
+
+    test('the last payment is the latest repayment', () async {
+      final id = await loan();
+      expect((await read(id)).lastPayment, isNull);
+      await pay(11, 15, 7000, debtId: id);
+      await pay(10, 15, 9000, debtId: id);
+      expect((await read(id)).lastPayment, (
+        date: CalendarDate(2026, 11, 15),
+        amountMinor: 7000,
+      ));
+    });
+
+    test('names the message the date came from, until it is deleted', () async {
+      final id = await loan();
+      final tx = await pay(11, 15, 10000, debtId: id);
+      await (db.update(db.debts)..where((d) => d.id.equals(id))).write(
+        DebtsCompanion(
+          nextDueDay: const Value(20261215),
+          nextDueSetAt: Value(DateTime.utc(2026, 11, 15, 9)),
+          nextDueTransactionId: Value(tx),
+        ),
+      );
+      final source = (await read(id)).nextDue!.source!;
+      expect(source.readAt.toUtc(), DateTime.utc(2026, 11, 15, 9));
+      expect(source.account, 'M-Pesa');
+
+      await (db.delete(db.transactions)..where((t) => t.id.equals(tx))).go();
+      final due = (await read(id)).nextDue!;
+      expect(due.date, CalendarDate(2026, 12, 15));
+      expect(due.source, isNull);
+    });
+  });
 }

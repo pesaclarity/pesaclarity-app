@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/money/money.dart';
 import '../../domain/debts/debt.dart';
 import '../../domain/debts/family_loan.dart';
+import '../../domain/debts/next_due.dart';
 import '../../domain/debts/repayment_matcher.dart';
 import '../../domain/payees/payee_identifier.dart';
 import '../../domain/time/calendar.dart';
@@ -19,6 +20,10 @@ abstract interface class DebtsRepository {
   Future<void> update(int debtId, DebtsCompanion changes);
 
   Future<void> remove(int debtId);
+
+  /// Sets when [debtId]'s next instalment is due, as the person typed it on
+  /// [setAt], or clears it. A repayment message after [setAt] replaces it.
+  Future<void> setNextDue(int debtId, CalendarDate? date, DateTime setAt);
 
   /// Records a balance the user confirmed on [asOf], such as from a lender
   /// statement. Repayments after it come off it.
@@ -85,6 +90,16 @@ class DriftDebtsRepository implements DebtsRepository {
         .write(const TransactionsCompanion(debtId: Value(null)));
     await (_db.delete(_db.debts)..where((d) => d.id.equals(debtId))).go();
   });
+
+  @override
+  Future<void> setNextDue(int debtId, CalendarDate? date, DateTime setAt) =>
+      (_db.update(_db.debts)..where((d) => d.id.equals(debtId))).write(
+        DebtsCompanion(
+          nextDueDay: Value(date == null ? null : dayKey(date)),
+          nextDueSetAt: Value(date == null ? null : setAt),
+          nextDueTransactionId: const Value(null),
+        ),
+      );
 
   @override
   Future<void> confirmBalance(int debtId, int balanceMinor, DateTime asOf) =>
@@ -177,6 +192,7 @@ class DriftDebtsRepository implements DebtsRepository {
     final instalments = await _instalmentsByDebt();
     final repayments = await _repaymentsByDebt();
     final identifiers = await _identifiersByPayee();
+    final sources = await _dueSources(rows);
 
     return [
       for (final row in rows)
@@ -188,8 +204,32 @@ class DriftDebtsRepository implements DebtsRepository {
               ? const []
               : identifiers[row.payeeId] ?? const [],
           today: today,
+          dueSource: sources[row.nextDueTransactionId],
         ),
     ];
+  }
+
+  /// The message each debt's next due date came from, by transaction id.
+  Future<Map<int, DueSource>> _dueSources(List<DebtRecord> debts) async {
+    final ids = {
+      for (final d in debts)
+        if (d.nextDueDay != null && d.nextDueTransactionId != null)
+          d.nextDueTransactionId!,
+    };
+    if (ids.isEmpty) return const {};
+    final t = _db.transactions;
+    final a = _db.accounts;
+    final rows = await (_db.select(t).join([
+      innerJoin(a, a.id.equalsExp(t.accountId)),
+    ])..where(t.id.isIn(ids))).get();
+    return {
+      for (final row in rows)
+        row.readTable(t).id: DueSource(
+          readAt: row.readTable(t).occurredAt,
+          institutionId: row.readTable(a).institutionId,
+          account: row.readTable(a).name,
+        ),
+    };
   }
 
   @override
@@ -305,6 +345,7 @@ Debt _toDebt(
   required List<_Repayment> repayments,
   required List<PayeeIdentifier> identifiers,
   required CalendarDate today,
+  DueSource? dueSource,
 }) {
   final asOf = row.balanceAsOf;
   final base = row.balanceMinor ?? row.startingBalanceMinor;
@@ -334,6 +375,30 @@ Debt _toDebt(
     instalments: remainingInstalments,
     payeeId: row.payeeId,
     identifiers: identifiers,
+    nextDue: _nextDue(row, repayments, dueSource),
+    lastPayment: repayments.isEmpty
+        ? null
+        : (
+            date: CalendarDate.local(repayments.last.at),
+            amountMinor: repayments.last.amountMinor,
+          ),
+  );
+}
+
+/// When [row]'s next instalment is due, and whether a repayment has come in
+/// since that day.
+NextDue? _nextDue(
+  DebtRecord row,
+  List<_Repayment> repayments,
+  DueSource? source,
+) {
+  final key = row.nextDueDay;
+  if (key == null) return null;
+  final date = fromDayKey(key);
+  return NextDue(
+    date: date,
+    paidSince: repayments.any((r) => !CalendarDate.local(r.at).isBefore(date)),
+    source: row.nextDueTransactionId == null ? null : source,
   );
 }
 

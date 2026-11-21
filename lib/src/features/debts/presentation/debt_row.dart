@@ -5,7 +5,8 @@ import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 
 /// A debt in a list: the lender, what is left, a bar of how much is paid,
-/// and a line under it. The same on Goals and on Debts.
+/// and a line under it, with [footer] below that when given, such as when
+/// the next instalment is due. The same on Goals and on Debts.
 class DebtRow extends StatelessWidget {
   const DebtRow({
     required this.name,
@@ -13,6 +14,7 @@ class DebtRow extends StatelessWidget {
     required this.paidFraction,
     required this.caption,
     this.captionColor,
+    this.footer,
     this.onTap,
     super.key,
   });
@@ -28,6 +30,9 @@ class DebtRow extends StatelessWidget {
 
   /// The caption's colour; muted by default.
   final Color? captionColor;
+
+  /// A line under the caption, such as `DueLine`.
+  final Widget? footer;
   final VoidCallback? onTap;
 
   @override
@@ -70,6 +75,10 @@ class DebtRow extends StatelessWidget {
                 color: captionColor ?? colors.textMuted,
               ),
             ),
+            if (footer case final footer?) ...[
+              const SizedBox(height: 6),
+              footer,
+            ],
           ],
         ),
       ),

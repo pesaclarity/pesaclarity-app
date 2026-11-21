@@ -6,6 +6,7 @@ import '../../../core/money/money_format.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
+import '../../../domain/debts/next_due.dart';
 import '../../../domain/debts/payoff_order.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/ledger/balances.dart';
@@ -26,6 +27,8 @@ import '../../security/application/balance_visibility.dart';
 import '../application/debts_overview_provider.dart';
 import 'debt_row.dart';
 import 'debt_sheet.dart';
+import 'due_line.dart';
+import 'loan_detail_screen.dart';
 
 export '../../../domain/time/date_labels.dart' show monthLabel;
 
@@ -217,8 +220,11 @@ class _DebtList extends ConsumerWidget {
           debt: debt,
           payoff: overview.plan.debt(debt.id),
           paidFraction: overview.paidFraction(debt),
-          onTap: () =>
-              showDebtSheet(context, today: overview.today, debt: debt),
+          today: overview.today,
+          // A loan with a due date opens on its details; the rest on edit.
+          onTap: debt.nextDue == null
+              ? () => showDebtSheet(context, today: overview.today, debt: debt)
+              : () => showLoanDetail(context, debt.id),
         ),
         if (index < debts.length - 1) const Divider(height: 1),
       ],
@@ -263,12 +269,14 @@ class _DebtItem extends StatelessWidget {
     required this.debt,
     required this.payoff,
     required this.paidFraction,
+    required this.today,
     required this.onTap,
   });
 
   final Debt debt;
   final DebtPayoff payoff;
   final double paidFraction;
+  final CalendarDate today;
   final VoidCallback onTap;
 
   @override
@@ -278,7 +286,7 @@ class _DebtItem extends StatelessWidget {
 
     final details = [
       if (debt.chargesInterest)
-        '${_rateLabel(debt.annualRateBasisPoints)} p.a.'
+        '${debtRateLabel(debt.annualRateBasisPoints)} p.a.'
       else
         'Interest-free',
       if (debt.minimumPaymentMinor > 0)
@@ -295,6 +303,14 @@ class _DebtItem extends StatelessWidget {
           ? '$details · needs more than the minimum'
           : details,
       captionColor: cleared == null ? colors.warning : null,
+      footer: switch (debt.nextDue) {
+        final due? when due.statusOn(today).state != DueState.paid => DueLine(
+          due: due,
+          today: today,
+          amountMinor: debt.minimumPaymentMinor,
+        ),
+        _ => null,
+      },
       onTap: onTap,
     );
   }
@@ -512,7 +528,8 @@ String _whatIfText(
   return '${parts.join(', ')}.';
 }
 
-String _rateLabel(int basisPoints) {
+/// A yearly rate in basis points as the app shows it, such as `12.5%`.
+String debtRateLabel(int basisPoints) {
   final whole = basisPoints ~/ 100;
   final hundredths = basisPoints % 100;
   if (hundredths == 0) return '$whole%';

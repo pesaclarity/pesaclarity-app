@@ -75,6 +75,7 @@ class _DebtSheetState extends State<DebtSheet> {
     text: _amountText(widget.debt?.minimumPaymentMinor),
   );
   late final _payment = TextEditingController();
+  late var _nextDue = widget.debt?.nextDue?.date;
   var _busy = false;
 
   bool get _editing => widget.debt != null;
@@ -107,9 +108,18 @@ class _DebtSheetState extends State<DebtSheet> {
     );
 
     final existing = widget.debt;
+    final now = container.read(clockProvider)();
+    // A family loan keeps its agreed instalments instead.
+    final nextDue = _family ? null : _nextDue;
     if (existing == null) {
-      await debts.add(details.copyWith(startingBalanceMinor: Value(balance)));
+      final id = await debts.add(
+        details.copyWith(startingBalanceMinor: Value(balance)),
+      );
+      if (nextDue != null) await debts.setNextDue(id, nextDue, now);
     } else {
+      if (nextDue != existing.nextDue?.date) {
+        await debts.setNextDue(existing.id, nextDue, now);
+      }
       await debts.update(existing.id, details);
       if (balance != existing.balanceMinor) {
         await debts.confirmBalance(
@@ -217,6 +227,18 @@ class _DebtSheetState extends State<DebtSheet> {
             label: _family ? 'Agreed each month' : 'Minimum each month',
             allowZero: true,
           ),
+          if (!_family) ...[
+            const SizedBox(height: 12),
+            DateField(
+              key: const Key('debt-next-due'),
+              label: 'Next due (optional)',
+              value: _nextDue,
+              clearable: true,
+              firstDate: widget.today.addDays(-365),
+              lastDate: CalendarDate(widget.today.year + 5, 12, 31),
+              onChanged: (date) => setState(() => _nextDue = date),
+            ),
+          ],
           const SizedBox(height: 20),
           FilledButton(
             onPressed: _busy ? null : _save,

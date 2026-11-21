@@ -106,6 +106,21 @@ class Debts extends Table {
 
   /// Position in the user's own payoff order; null when not placed.
   IntColumn get customOrder => integer().nullable()();
+
+  /// When the next instalment is due, as `yyyymmdd`: from the lender's
+  /// latest repayment message, or typed by the person. Null when not known.
+  IntColumn get nextDueDay => integer().nullable()();
+
+  /// When [nextDueDay] was set: the message's time, or when the person typed
+  /// it. An older message does not replace it.
+  DateTimeColumn get nextDueSetAt => dateTime().nullable()();
+
+  /// The repayment whose message gave [nextDueDay]; null when typed.
+  IntColumn get nextDueTransactionId => integer().nullable().references(
+    Transactions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 }
 
 /// Instalments agreed on a family or friend loan.
