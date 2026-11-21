@@ -3,13 +3,14 @@ import 'package:drift/drift.dart';
 import '../../core/money/exchange_rates.dart';
 import '../../core/money/money.dart';
 
+import '../../domain/accounts/account_reference.dart';
 import '../../domain/ledger/message_twins.dart';
 import '../database/app_database.dart';
 
 /// Finds a stored message on [row]'s account about the same money as
 /// [row] (see [twinMatch]): the same reference first, then the nearest in
 /// time. Null when [row] is a transaction of its own.
-Future<TransactionRecord?> findTwin(
+Future<({TransactionRecord record, TwinMatch match})?> findTwin(
   AppDatabase db,
   TransactionsCompanion row,
 ) async {
@@ -42,6 +43,10 @@ Future<TransactionRecord?> findTwin(
     kind: row.kind.present ? row.kind.value : null,
     receipt: row.receiptNo.present ? row.receiptNo.value : null,
     messageHash: hash,
+    counterpartyName: row.counterpartyName.present
+        ? row.counterpartyName.value
+        : null,
+    readBy: row.readBy.present ? row.readBy.value : null,
   );
   ({TransactionRecord record, TwinMatch match, Duration gap})? best;
   for (final record in nearby) {
@@ -55,6 +60,8 @@ Future<TransactionRecord?> findTwin(
         receipt: record.receiptNo,
         messageHash: record.messageHash,
         twinHash: record.twinMessageHash,
+        counterpartyName: record.counterpartyName,
+        readBy: record.readBy,
       ),
       incoming,
     );
@@ -66,7 +73,7 @@ Future<TransactionRecord?> findTwin(
       best = (record: record, match: match, gap: gap);
     }
   }
-  return best?.record;
+  return best == null ? null : (record: best.record, match: best.match);
 }
 
 TwinFacts _facts({
@@ -78,6 +85,8 @@ TwinFacts _facts({
   required String? receipt,
   required String? messageHash,
   String? twinHash,
+  String? counterpartyName,
+  String? readBy,
 }) => TwinFacts(
   at: at,
   amountMinor: amountMinor,
@@ -87,6 +96,8 @@ TwinFacts _facts({
   receipt: receipt,
   messageHash: messageHash,
   twinHash: twinHash,
+  counterpartyName: counterpartyName,
+  readBy: readBy,
 );
 
 /// Keeps one transaction for [stored] and [incoming], two messages about the
@@ -94,13 +105,22 @@ TwinFacts _facts({
 /// other party, fee and time (and so its dedupe key) are kept, and anything
 /// it lacks, such as a balance, comes from the other. The account, and so
 /// the account number the alert printed, stays. What the person set stays.
+///
+/// Money into M-Pesa from a bank account ([TwinMatch.walletCredit]) keeps
+/// M-Pesa's reference, time and balance, as M-Pesa's statement has them,
+/// and the bank's sender: the name and account number the money came from,
+/// where M-Pesa names only the bank.
 Future<void> mergeTwin(
   AppDatabase db,
   TransactionRecord stored,
-  TransactionsCompanion incoming,
-) {
+  TransactionsCompanion incoming, {
+  TwinMatch? match,
+}) {
   T? v<T>(Value<T?> value) => value.present ? value.value : null;
   final incomingHash = v(incoming.messageHash);
+  if (match == TwinMatch.walletCredit) {
+    return _mergeWalletCredit(db, stored, incoming);
+  }
   final takeIncoming =
       (stored.receiptNo == null || stored.receiptNo!.isEmpty) &&
       (v(incoming.receiptNo)?.isNotEmpty ?? false);
@@ -148,6 +168,109 @@ Future<void> mergeTwin(
   return (db.update(
     db.transactions,
   )..where((t) => t.id.equals(stored.id))).write(changes);
+}
+
+Future<void> _mergeWalletCredit(
+  AppDatabase db,
+  TransactionRecord stored,
+  TransactionsCompanion incoming,
+) async {
+  T? v<T>(Value<T?> value) => value.present ? value.value : null;
+  final storedIsWallet =
+      walletCreditSide(
+        TwinFacts(
+          at: stored.occurredAt,
+          amountMinor: stored.amountMinor,
+          direction: stored.direction,
+          currency: stored.currency,
+          kind: stored.kind ?? TransactionKind.bank,
+          counterpartyName: stored.counterpartyName,
+          readBy: stored.readBy,
+        ),
+        TwinFacts(
+          at: incoming.occurredAt.value,
+          amountMinor: incoming.amountMinor.value,
+          direction: incoming.direction.value,
+          currency: v(incoming.currency) ?? stored.currency,
+          kind: v(incoming.kind) ?? TransactionKind.bank,
+          counterpartyName: v(incoming.counterpartyName),
+          readBy: v(incoming.readBy),
+        ),
+      ) ??
+      true;
+  final incomingFee = v(incoming.feeMinor) ?? 0;
+  final fee = stored.feeMinor > 0 ? stored.feeMinor : incomingFee;
+  final twin = Value(stored.twinMessageHash ?? v(incoming.messageHash));
+  final changes = storedIsWallet
+      ? TransactionsCompanion(
+          feeMinor: Value(fee),
+          counterpartyKind: Value(
+            v(incoming.counterpartyKind) ?? stored.counterpartyKind,
+          ),
+          counterpartyValue: Value(
+            v(incoming.counterpartyValue) ?? stored.counterpartyValue,
+          ),
+          counterpartyName: Value(
+            v(incoming.counterpartyName) ?? stored.counterpartyName,
+          ),
+          payeeId: Value(v(incoming.payeeId) ?? stored.payeeId),
+          balanceAfterMinor: Value(
+            stored.balanceAfterMinor ?? v(incoming.balanceAfterMinor),
+          ),
+          twinMessageHash: twin,
+        )
+      : TransactionsCompanion(
+          occurredAt: incoming.occurredAt,
+          receiptNo: incoming.receiptNo,
+          dedupeKey: incoming.dedupeKey,
+          feeMinor: Value(fee),
+          payeeId: Value(stored.payeeId ?? v(incoming.payeeId)),
+          balanceAfterMinor: Value(
+            v(incoming.balanceAfterMinor) ?? stored.balanceAfterMinor,
+          ),
+          twinMessageHash: twin,
+        );
+  await (db.update(
+    db.transactions,
+  )..where((t) => t.id.equals(stored.id))).write(changes);
+  if (storedIsWallet) {
+    await _unpairFromOtherAccount(
+      db,
+      stored,
+      v(incoming.counterpartyKind) == PayeeIdentifierKind.account
+          ? v(incoming.counterpartyValue)
+          : null,
+    );
+  }
+}
+
+/// Undoes the own-transfer pair M-Pesa's message alone made for [stored]
+/// once the bank's message names the account the money came from, when
+/// that is not the paired account: money from someone else's KCB account
+/// paired with the person's own KCB debit of the same amount, say. The
+/// pairing run after the merge then pairs it by the number, or leaves it
+/// as money in. A pair to an account the person named stays.
+Future<void> _unpairFromOtherAccount(
+  AppDatabase db,
+  TransactionRecord stored,
+  String? from,
+) async {
+  final partnerId = stored.transferPairId;
+  final printed = AccountReference.tryParse(from);
+  if (partnerId == null || printed == null) return;
+  if (stored.transferAccountId != null) return;
+  final partner = await (db.select(
+    db.transactions,
+  )..where((t) => t.id.equals(partnerId))).getSingleOrNull();
+  if (partner == null || partner.transferAccountId != null) return;
+  final account = await (db.select(
+    db.accounts,
+  )..where((a) => a.id.equals(partner.accountId))).getSingleOrNull();
+  final own = AccountReference.tryParse(account?.reference);
+  if (own == null || own.sameAs(printed)) return;
+  await (db.update(db.transactions)
+        ..where((t) => t.id.isIn([stored.id, partnerId])))
+      .write(const TransactionsCompanion(transferPairId: Value(null)));
 }
 
 /// Finds the stored other half of a card payment in another currency, such

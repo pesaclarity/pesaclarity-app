@@ -181,9 +181,9 @@ class DriftTransactionsRepository implements TransactionsRepository {
           // A second message about money already stored: one transaction.
           final twin = await findTwin(_db, row);
           if (twin != null) {
-            await mergeTwin(_db, twin, row);
+            await mergeTwin(_db, twin.record, row, match: twin.match);
             merged++;
-            touched(twin.occurredAt);
+            touched(twin.record.occurredAt);
             touched(row.occurredAt.value);
             continue;
           }

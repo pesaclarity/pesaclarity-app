@@ -79,6 +79,33 @@ SmsMessage _loanRepaid(String amount, String left, DateTime at) => _kcbSms(
   at,
 );
 
+/// KCB telling the M-Pesa owner that money from a KCB account reached them.
+SmsMessage _kcbIntoMpesa({
+  String ref = 'KCB0000000000031',
+  String from = 'MARY WAMBUI DOE - 987****654',
+  String amount = '2,500.00',
+  String time = '03:15:20 PM',
+}) => _kcbSms(
+  '$ref Confirmed.  KES $amount received from $from on 2026-11-07 $time '
+  'via KCB.',
+  DateTime.utc(2026, 11, 7, 12, 16),
+);
+
+/// M-Pesa's own message for money received from KCB, or from [from].
+SmsMessage _mpesaReceived({
+  String ref = 'TJB0000031',
+  String from = 'KCB 1 522522',
+  String amount = '2,500.00',
+  String time = '3:15 PM',
+  String balance = '9,500.00',
+}) => SmsMessage(
+  sender: 'MPESA',
+  body:
+      '$ref Confirmed.You have received Ksh$amount from $from on 7/11/26 at '
+      '$time New M-PESA balance is Ksh$balance.',
+  receivedAt: DateTime.utc(2026, 11, 7, 12, 15, 30),
+);
+
 void main() {
   late AppDatabase db;
   late SmsIngestor ingestor;
@@ -162,6 +189,140 @@ void main() {
         _mpesaPaybill(),
       ], _kcbAndMpesa);
       expect(await rows(), hasLength(1));
+    });
+  });
+
+  group('KCB to M-Pesa, told by KCB and by M-Pesa', () {
+    Future<List<LedgerEntry>> entries() => transactionsRepo.ledgerEntries(
+      from: DateTime.utc(2026, 11),
+      to: DateTime.utc(2026, 12),
+    );
+
+    for (final kcbFirst in [true, false]) {
+      test("money from someone else's KCB account is counted once "
+          '(${kcbFirst ? 'KCB' : 'M-Pesa'} first)', () async {
+        // The person's own KCB account also moved the same amount that
+        // day: the money in is not taken for it.
+        await ingestor.ingest([
+          _movement(
+            'debited',
+            '2,500.00',
+            'Mobi',
+            '15:15:00',
+            date: '07 NOV 2026',
+          ),
+        ], _kcbAndMpesa);
+        final messages = [_kcbIntoMpesa(), _mpesaReceived()];
+        for (final m in kcbFirst ? messages : messages.reversed) {
+          await ingestor.ingest([m], _kcbAndMpesa);
+        }
+
+        final mpesa = await account('mpesa');
+        final [received] = (await rows())
+            .where((r) => r.accountId == mpesa.id)
+            .toList();
+        expect(received.amountMinor, 250000);
+        expect(received.direction, TransactionDirection.inflow);
+        // M-Pesa's reference and balance, as its statement has them.
+        expect(received.receiptNo, 'TJB0000031');
+        expect(received.balanceAfterMinor, 950000);
+        expect(received.twinMessageHash, isNotNull);
+        // KCB's sender: who the money came from, not just "KCB".
+        expect(received.counterpartyName, 'MARY WAMBUI DOE');
+        expect(received.counterpartyKind, PayeeIdentifierKind.account);
+        expect(received.counterpartyValue, '987****654');
+        expect(received.transferPairId, isNull);
+        expect(received.transferAccountId, isNull);
+        final entry = (await entries()).singleWhere((e) => e.id == received.id);
+        expect(roleOf(entry), LedgerRole.awaitingPayee);
+      });
+    }
+
+    for (final kcbFirst in [true, false]) {
+      test('from the person\'s own KCB account it is one own transfer '
+          '(${kcbFirst ? 'KCB' : 'M-Pesa'} first)', () async {
+        final kcbSide = [
+          _movement(
+            'debited',
+            '2,500.00',
+            'Mobi',
+            '15:14:50',
+            date: '07 NOV 2026',
+          ),
+          _kcbSms(
+            'KCB0000000000032  KES 2,500.00 sent from 123****890 to '
+            '254****789 - JANE AKINYI DOE on 2026-11-07 03:15:00 PM. M-PESA '
+            'REF: TJB0000032',
+            DateTime.utc(2026, 11, 7, 12, 15, 10),
+          ),
+          _kcbIntoMpesa(
+            ref: 'KCB0000000000032',
+            from: 'JANE AKINYI DOE - 123****890',
+            time: '03:15:05 PM',
+          ),
+        ];
+        final mpesaSide = [_mpesaReceived(ref: 'TJB0000032')];
+        for (final m
+            in kcbFirst
+                ? [...kcbSide, ...mpesaSide]
+                : [...mpesaSide, ...kcbSide]) {
+          await ingestor.ingest([m], _kcbAndMpesa);
+        }
+
+        final [a, b] = await rows();
+        final out = a.direction == TransactionDirection.outflow ? a : b;
+        final into = identical(out, a) ? b : a;
+        expect(out.accountId, (await account('kcb')).id);
+        expect(into.accountId, (await account('mpesa')).id);
+        expect(into.receiptNo, 'TJB0000032');
+        expect(into.balanceAfterMinor, 950000);
+        expect(out.transferPairId, into.id);
+        expect(into.transferPairId, out.id);
+        for (final e in await entries()) {
+          expect(roleOf(e), LedgerRole.ownTransfer);
+        }
+      });
+    }
+
+    test('two transfers of the same amount stay two', () async {
+      await ingestor.ingest([
+        _kcbIntoMpesa(),
+        _mpesaReceived(),
+        _kcbIntoMpesa(ref: 'KCB0000000000033', time: '03:18:20 PM'),
+        _mpesaReceived(
+          ref: 'TJB0000033',
+          time: '3:18 PM',
+          balance: '12,000.00',
+        ),
+      ], _kcbAndMpesa);
+      final both = await rows();
+      expect(both, hasLength(2));
+      expect({for (final r in both) r.receiptNo}, {'TJB0000031', 'TJB0000033'});
+      expect(both.every((r) => r.twinMessageHash != null), isTrue);
+    });
+
+    test('M-Pesa from KCB outside the twin window stays its own', () async {
+      await ingestor.ingest([
+        _kcbIntoMpesa(),
+        _mpesaReceived(time: '3:35 PM'),
+      ], _kcbAndMpesa);
+      expect(await rows(), hasLength(2));
+    });
+
+    test('M-Pesa from someone else is not KCB\'s twin', () async {
+      await ingestor.ingest([
+        _kcbIntoMpesa(),
+        _mpesaReceived(from: 'JOHN KAMAU 0700***002'),
+      ], _kcbAndMpesa);
+      expect(await rows(), hasLength(2));
+    });
+
+    test('two M-Pesa messages from KCB stay two', () async {
+      await ingestor.ingest([
+        _mpesaReceived(),
+        _mpesaReceived(ref: 'TJB0000034', time: '3:17 PM'),
+      ], _kcbAndMpesa);
+      expect(await rows(), hasLength(2));
     });
   });
 
