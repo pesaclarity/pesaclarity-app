@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
 import '../database/database_providers.dart';
 import 'message_reads_repository.dart';
+import 'savings_links.dart';
 
 /// Corrections and fixes that keep each account's balance true. Payments
 /// themselves are never edited: a correction is its own visible entry, a
@@ -53,14 +54,19 @@ abstract interface class BalancesRepository {
     required String currency,
   });
 
-  /// Removes correction [id]. Only corrections can be undone this way.
+  /// Removes correction [id]. Only corrections can be undone this way. A
+  /// correction that a balance typed for a savings account showed is undone
+  /// by removing that balance, which takes any interest it showed with it.
   Future<void> undoCorrection(int id);
 
   /// Removes [copyId], a duplicate of [keptId]: links to the copy (sales,
-  /// quick records, tags) move to the one kept.
+  /// quick records, tags) move to the one kept. A copy's entry on a savings
+  /// account the app keeps goes with it.
   Future<void> removeCopy(int copyId, {required int keptId});
 
-  /// Moves transaction [id] to [accountId], whole.
+  /// Moves transaction [id] to [accountId], whole. An entry on a savings
+  /// account the app keeps stays there; a payment that has such an entry
+  /// takes it along.
   Future<void> moveToAccount(int id, int accountId);
 
   /// Adds an account without messages, such as cash, holding [balanceMinor]
@@ -184,13 +190,21 @@ class DriftBalancesRepository implements BalancesRepository {
       );
 
   @override
-  Future<void> undoCorrection(int id) =>
-      (_db.delete(_db.transactions)..where(
-            (t) =>
-                t.id.equals(id) &
-                t.kind.equalsValue(TransactionKind.correction),
-          ))
-          .go();
+  Future<void> undoCorrection(int id) => _db.transaction(() async {
+    final row =
+        await (_db.select(_db.transactions)..where(
+              (t) =>
+                  t.id.equals(id) &
+                  t.kind.equalsValue(TransactionKind.correction),
+            ))
+            .getSingleOrNull();
+    if (row == null) return;
+    if (await isSavingsEntry(_db, id)) {
+      await undoSavingsUpdate(_db, row.accountId, row.occurredAt);
+      return;
+    }
+    await (_db.delete(_db.transactions)..where((t) => t.id.equals(id))).go();
+  });
 
   @override
   Future<void> removeCopy(int copyId, {required int keptId}) =>
@@ -213,13 +227,17 @@ class DriftBalancesRepository implements BalancesRepository {
         await (_db.delete(
           _db.transactions,
         )..where((t) => t.id.equals(copyId))).go();
+        await syncSavingsAccounts(_db);
       });
 
   @override
   Future<void> moveToAccount(int id, int accountId) =>
-      (_db.update(_db.transactions)..where((t) => t.id.equals(id))).write(
-        TransactionsCompanion(accountId: Value(accountId)),
-      );
+      _db.transaction(() async {
+        if (await isSavingsEntry(_db, id)) return;
+        await (_db.update(_db.transactions)..where((t) => t.id.equals(id)))
+            .write(TransactionsCompanion(accountId: Value(accountId)));
+        await linkSavingsPayments(_db, [id]);
+      });
 
   @override
   Future<int> addAccount({
