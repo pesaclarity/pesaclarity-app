@@ -278,6 +278,21 @@ abstract final class BalanceText {
   static String waitingFor(String account) =>
       'Own transfer · waiting for $account';
   static const transferSaved = 'Saved as a transfer.';
+
+  // An own transfer across currencies.
+  static const rateYouGot = 'Rate you got';
+  static const fromTheTwoAmounts = 'From the two amounts';
+  static const daysRate = "Day's rate";
+  static String rateOf(String day) => 'Rate of $day';
+  static const noRateThatDay = 'No rate for that day';
+  static const approximateRate = 'Approximate: no rate kept for that day';
+  static const notKnown = 'Not known';
+  static const exchangeCost = 'Exchange cost';
+  static const costNotKnown = "Not known without that day's rate";
+  static String overTheDaysRate(String percent) =>
+      "$percent over the day's rate · counts with fees";
+  static String betterThanTheDaysRate(String percent) =>
+      "$percent better than the day's rate · lowers fees";
   static const noOtherAccount =
       'Add your other account first: Balances › Add an account.';
 }

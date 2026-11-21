@@ -574,7 +574,12 @@ class _ActivityRow extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        amount: _entryAmount(context, shown, transfer: true),
+        amount: _entryAmount(
+          context,
+          shown,
+          transfer: true,
+          arrived: transfer.outflow == null ? null : transfer.inflow,
+        ),
         onTap: () => showOwnTransferSheet(context, transfer),
       ),
       DailyNoiseLine() && final noise => _row(
@@ -714,11 +719,14 @@ class _ActivityRow extends StatelessWidget {
   }
 
   /// [entry]'s amount in the currency it moved in, with the base amount
-  /// under it when that differs; an own [transfer] shows no sign.
+  /// under it when that differs; an own [transfer] shows no sign. A
+  /// transfer whose money [arrived] in another currency shows that amount
+  /// under it instead, in its own currency.
   Widget _entryAmount(
     BuildContext context,
     LedgerEntry entry, {
     bool transfer = false,
+    LedgerEntry? arrived,
   }) {
     final colors = PesaColors.of(context);
     final inflow = entry.direction == TransactionDirection.inflow;
@@ -745,7 +753,10 @@ class _ActivityRow extends StatelessWidget {
           ? colors.successText
           : Theme.of(context).colorScheme.onSurface,
     );
-    final under = original != null
+    final arrivedIn = arrived?.originalCurrency ?? arrived?.currency;
+    final under = arrived != null && arrivedIn != (ownCode ?? entry.currency)
+        ? '→ ${_orHidden(context, formatMoney(Money(arrived.originalAmountMinor ?? arrived.amountMinor, currency: arrivedIn!), alwaysShowMinorUnits: true))}'
+        : original != null
         ? '≈ ${_orHidden(context, formatMoney(Money(entry.amountMinor, currency: entry.currency)))}'
         : ownCode != null
         ? 'Not in totals yet'
