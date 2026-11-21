@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -284,7 +286,17 @@ class _GoalGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const gap = Layout.cardGap;
-        final width = (constraints.maxWidth - gap) / 2;
+        final half = (constraints.maxWidth - gap) / 2;
+        // Two to a row while each name keeps whole words in half the
+        // width; at larger text, one to a row.
+        final style = _GoalCard.nameStyle(context);
+        final widest = [
+          for (final goal in goals)
+            RowName.widestWord(context, goal.name, style),
+        ].fold(0.0, math.max);
+        final width = widest + 2 * Layout.cardPadding <= half
+            ? half
+            : constraints.maxWidth;
         return Wrap(
           spacing: gap,
           runSpacing: gap,
@@ -306,6 +318,10 @@ class _GoalCard extends StatelessWidget {
 
   final SavingsGoal goal;
   final CalendarDate today;
+
+  static TextStyle nameStyle(BuildContext context) =>
+      Theme.of(context).textTheme.bodyMedium!
+          .copyWith(fontWeight: FontWeight.w500);
 
   @override
   Widget build(BuildContext context) {
@@ -334,12 +350,7 @@ class _GoalCard extends StatelessWidget {
                 semanticsLabel: '${goal.name} $percent%',
               ),
               const SizedBox(height: 10),
-              Text(
-                goal.name,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(goal.name, style: nameStyle(context)),
               const SizedBox(height: 4),
               Text(
                 '${amount(goal.savedMinor)} of ${amount(goal.targetMinor)}',

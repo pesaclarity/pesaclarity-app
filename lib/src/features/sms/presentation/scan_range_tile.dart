@@ -23,7 +23,7 @@ class ScanRangeTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(scanRangeProvider).value ?? ScanRange.all;
     return Card(
-      child: ListTile(
+      child: ChoiceTile<ScanPeriod>(
         title: const Text('Read messages from'),
         subtitle: const Text(
           'For every account you ticked. New messages are always added.',

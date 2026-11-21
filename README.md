@@ -404,6 +404,7 @@ The same screens, plus the sheets and dialogs most screens open (`test/screensho
 - an amount cut short: ellipsized, clipped or narrower than its number, as amounts are always shown whole,
 - a field's label cut short (labels sit above their field, `LabeledField`, and wrap),
 - a row name in Activity or Money (`RowName`) cut before it has used its second line,
+- a word drawn across two lines, in any text (a word is a run of letters and digits; a row's amount or button moves under its title instead, `ValueTile` and `BesideOrUnder`),
 - a tap target under 48 x 48 (Android) or 44 x 44 (iPhone), and
 - something that can be tapped with no label for screen readers.
 

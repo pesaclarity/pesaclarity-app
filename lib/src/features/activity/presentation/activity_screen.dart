@@ -21,6 +21,7 @@ import '../../../shared/format/date_labels.dart';
 import '../../../shared/format/ledger_labels.dart';
 import '../../../shared/semantic_ids.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
@@ -656,31 +657,42 @@ class _ActivityRow extends StatelessWidget {
     required Widget amount,
     Widget? trailing,
     VoidCallback? onTap,
-  }) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(16),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          avatar,
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RowName(title, style: Theme.of(context).textTheme.titleMedium),
-                subtitle,
-              ],
+  }) {
+    final nameStyle = Theme.of(context).textTheme.titleMedium;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            avatar,
+            const SizedBox(width: 14),
+            // The amount moves under the name at larger text, where the
+            // name would otherwise break a word.
+            Expanded(
+              child: BesideOrUnder(
+                gap: 12,
+                // The subtitle may be a DetailLine, which fits itself.
+                leadMinWidth: RowName.widestWord(context, title, nameStyle),
+                lead: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RowName(title, style: nameStyle),
+                    subtitle,
+                  ],
+                ),
+                end: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [amount, ?trailing],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          amount,
-          ?trailing,
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _amount(
     BuildContext context,
@@ -821,10 +833,15 @@ class _Avatar extends StatelessWidget {
       ),
       child: icon != null
           ? Icon(icon, color: foreground, size: 22)
-          : Text(
-              text!,
-              style: Theme.of(context).textTheme.labelLarge!
-                  .copyWith(color: foreground),
+          // Initials shrink to fit at larger text rather than wrap.
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                text!,
+                softWrap: false,
+                style: Theme.of(context).textTheme.labelLarge!
+                    .copyWith(color: foreground),
+              ),
             ),
     );
   }

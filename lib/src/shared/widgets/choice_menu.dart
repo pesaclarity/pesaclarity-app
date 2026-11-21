@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
+import 'value_tile.dart';
 
 /// One choice of more than two, as a drop-down: a pill showing the current
 /// choice that opens a menu of all of them. Used in place of a row of chip
@@ -101,4 +102,19 @@ class ChoiceMenu<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A row with a [ChoiceMenu] at its end, such as "Lock after": a
+/// [ValueTile], so the menu moves under the title at larger text, where
+/// the title would otherwise be left less than a word's width beside it.
+class ChoiceTile<T> extends ValueTile {
+  const ChoiceTile({
+    required super.title,
+    required ChoiceMenu<T> super.trailing,
+    super.subtitle,
+    super.leading,
+    super.enabled,
+    super.contentPadding,
+    super.key,
+  });
 }

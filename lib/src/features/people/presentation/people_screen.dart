@@ -16,6 +16,7 @@ import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../shared/widgets/value_tile.dart';
 import '../../../theme/app_typography.dart';
 import '../../sales/presentation/pay_sheet.dart' show methodName;
 import '../../sales/presentation/records_sheets.dart';
@@ -172,7 +173,7 @@ class _Customers extends ConsumerWidget {
               children: [
                 for (final (i, c) in owing.indexed) ...[
                   if (i > 0) const Divider(height: 1),
-                  ListTile(
+                  ValueTile(
                     key: Key('customer-${c.name}'),
                     onTap: () =>
                         context.push(AppRoutes.customerStatement(c.name)),
@@ -258,7 +259,7 @@ class _Suppliers extends ConsumerWidget {
               children: [
                 for (final (i, s) in owed.indexed) ...[
                   if (i > 0) const Divider(height: 1),
-                  ListTile(
+                  ValueTile(
                     key: Key('supplier-${s.debt.id}'),
                     onTap: () =>
                         context.push(AppRoutes.supplierStatement(s.debt.id)),
@@ -283,7 +284,7 @@ class _Suppliers extends ConsumerWidget {
               children: [
                 for (final (i, p) in paid.indexed) ...[
                   if (i > 0) const Divider(height: 1),
-                  ListTile(
+                  ValueTile(
                     title: Text(p.supplier),
                     subtitle: Text(
                       'Paid by ${methodName(p.method)} on '

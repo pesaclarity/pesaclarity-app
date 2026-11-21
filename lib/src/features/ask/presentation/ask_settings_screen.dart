@@ -52,7 +52,7 @@ class AskSettingsScreen extends ConsumerWidget {
                 value: settings.save,
                 onChanged: (v) => controller.save(settings.copyWith(save: v)),
               ),
-              ListTile(
+              ChoiceTile<AskKeepFor>(
                 title: const Text(AskStrings.keepFor),
                 subtitle: const Text(AskStrings.keepForDetail),
                 enabled: settings.save,

@@ -27,6 +27,7 @@ import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/hero_figure_card.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
+import '../../../shared/widgets/value_tile.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
@@ -762,7 +763,7 @@ class _BillRow extends StatelessWidget {
         ? 'Due this month'
         : 'Due ${shortDate(due)} · ${relativeDays(due, today: today)}';
 
-    return ListTile(
+    return ValueTile(
       onTap: () => context.go(AppRoutes.plan),
       leading: const IconBadge(Icons.receipt_long_outlined),
       title: Text(bill.name, style: theme.textTheme.titleMedium),

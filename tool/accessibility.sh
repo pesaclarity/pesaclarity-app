@@ -3,8 +3,9 @@
 # (test/screenshots) at 1, 1.3, 1.5 and 2 times the text size, in light and
 # dark, and in high contrast at the usual size. Fails on anything that
 # overflows, an amount cut short, a field's label cut short, a row name in
-# Activity or Money cut before its second line, a tap target under 48 x 48
-# (Android) or 44 x 44 (iPhone) and a button with no label. Text contrast is
+# Activity or Money cut before its second line, a word drawn across two
+# lines in any text, a tap target under 48 x 48 (Android) or 44 x 44
+# (iPhone) and a button with no label. Text contrast is
 # reported in <out-dir>/contrast.jsonl and summarised; it fails only on the
 # screens in must_pass below, which once fell short and were fixed.
 #

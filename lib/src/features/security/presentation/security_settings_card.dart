@@ -57,7 +57,7 @@ class SecuritySettingsCard extends ConsumerWidget {
                       : null,
                 ),
                 const Divider(height: 1),
-                ListTile(
+                ChoiceTile<Duration>(
                   title: const Text('Lock after'),
                   trailing: ChoiceMenu<Duration>(
                     key: const Key('lock-after'),

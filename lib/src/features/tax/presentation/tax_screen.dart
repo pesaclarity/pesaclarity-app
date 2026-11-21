@@ -403,7 +403,7 @@ class _Settings extends ConsumerWidget {
     return Card(
       child: Column(
         children: [
-          ListTile(
+          ChoiceTile<bool>(
             title: const Text('You file as'),
             subtitle: Text(
               settings.company
@@ -442,7 +442,7 @@ class _Settings extends ConsumerWidget {
             ),
           ),
           if (settings.setAside case final rate?)
-            ListTile(
+            ChoiceTile<int>(
               title: const Text('Share kept aside'),
               subtitle: Text(
                 'Your records suggest ${rateText(view.suggestedShare)}',

@@ -18,6 +18,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
+import '../../../shared/widgets/value_tile.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../auth/application/auth_controller.dart';
@@ -86,7 +87,7 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
           GroupedSection(
             children: [
               for (final space in spaces)
-                ListTile(
+                ValueTile(
                   key: Key('spaces-${space.id}'),
                   leading: InitialsBadge(space.initial),
                   title: Text(space.name),
@@ -192,7 +193,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
                 onTap: () => _rename(context, ref, space),
               ),
               if (space.id != personalSpaceId)
-                ListTile(
+                ChoiceTile<SpaceKind>(
                   title: const Text('Kind'),
                   subtitle: const Text('What the space is for'),
                   trailing: ChoiceMenu<SpaceKind>(
@@ -208,7 +209,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
                   ),
                 ),
               if (setup != null)
-                ListTile(
+                ChoiceTile<BusinessSells>(
                   title: const Text('Sells'),
                   subtitle: const Text('Changes Home, Sell and Stock'),
                   trailing: ChoiceMenu<BusinessSells>(
@@ -244,7 +245,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
                   onTap: () => context.push(AppRoutes.baseCurrency),
                 ),
                 if (day != null)
-                  ListTile(
+                  ChoiceTile<int>(
                     title: const Text('Day ends at'),
                     subtitle: const Text('For sales today and Close the day'),
                     trailing: ChoiceMenu<int>(
