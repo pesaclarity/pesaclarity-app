@@ -1,4 +1,6 @@
+import '../../../shared/offline_messages.dart';
 import '../data/backup_settings_repository.dart';
+import 'backup_service.dart';
 
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
@@ -36,3 +38,34 @@ String? lastBackupSummary(BackupSettings settings, DateTime now) {
   final when = backupDayLabel(at, now);
   return where.isEmpty ? 'Backed up $when' : '$where · $when';
 }
+
+/// What to say after a backup run: where it went, and what did not.
+///
+/// A vault that needs a connection is no failure: the other places still
+/// have their copy, and the vault gets its own once the phone is online.
+String backupRunMessage(BackupRunReport report) {
+  if (report.failed.isEmpty) return 'Backed up.';
+  final others = {
+    for (final MapEntry(:key, :value) in report.failed.entries)
+      if (!(key == BackupLocationId.vault && report.offline.contains(key)))
+        key: value,
+  };
+  if (others.isEmpty) {
+    if (report.succeeded.isEmpty) return OfflineMessages.vaultOnly;
+    final places = [
+      for (final id in BackupLocationId.values)
+        if (report.succeeded.contains(id)) id.shortLabel,
+    ];
+    return OfflineMessages.backedUpExceptVault(_list(places));
+  }
+  final problems = [
+    for (final MapEntry(:key, :value) in report.failed.entries)
+      '${key.label}: $value',
+  ].join('\n');
+  return report.succeeded.isEmpty ? problems : 'Backed up, except:\n$problems';
+}
+
+/// "SD card", "Drive and SD card".
+String _list(List<String> items) => items.length < 2
+    ? items.join()
+    : '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';

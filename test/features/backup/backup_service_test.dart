@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
+import 'package:pesaclarity/src/features/auth/domain/auth_models.dart';
 import 'package:pesaclarity/src/features/backup/application/backup_service.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_settings_repository.dart';
 import 'package:pesaclarity/src/features/backup/data/key_value_store.dart';
@@ -95,6 +96,49 @@ void main() {
     expect((await settings.load()).lastSuccessTo, {
       BackupLocationId.deviceFolder,
     });
+  });
+
+  test('any error at one location never stops the others', () async {
+    for (final error in <Object>[
+      const AuthFailure(AuthFailureKind.network),
+      StateError('closed'),
+      const FileSystemException('full'),
+    ]) {
+      final folder = MemoryLocation(BackupLocationId.deviceFolder);
+      final report = await service.backUp([
+        MemoryLocation(BackupLocationId.vault, error: error),
+        folder,
+      ]);
+      expect(report.succeeded, {
+        BackupLocationId.deviceFolder,
+      }, reason: '$error');
+      expect(report.failed.keys, [BackupLocationId.vault]);
+      expect(folder.files, hasLength(1));
+    }
+  });
+
+  test('a vault offline is remembered until it takes a backup', () async {
+    final vault = MemoryLocation(
+      BackupLocationId.vault,
+      failWith: 'Could not reach the vault.',
+      offline: true,
+    );
+    final folder = MemoryLocation(BackupLocationId.deviceFolder);
+    final report = await service.backUp([vault, folder]);
+
+    expect(report.offline, {BackupLocationId.vault});
+    expect(report.succeeded, {BackupLocationId.deviceFolder});
+    expect(folder.files, hasLength(1));
+    expect((await settings.load()).vaultPending, isTrue);
+
+    // A backup to the phone alone leaves the vault owed.
+    await service.backUp([folder]);
+    expect((await settings.load()).vaultPending, isTrue);
+
+    final online = MemoryLocation(BackupLocationId.vault);
+    await service.backUp([online]);
+    expect(online.files, hasLength(1));
+    expect((await settings.load()).vaultPending, isFalse);
   });
 
   test('nothing is recorded when every location fails', () async {

@@ -16,10 +16,21 @@ Future<R> _runInIsolate<R>(FutureOr<R> Function() work) => Isolate.run(work);
 
 /// What happened at each location during one backup.
 final class BackupRunReport {
-  const BackupRunReport({required this.succeeded, required this.failed});
+  const BackupRunReport({
+    required this.succeeded,
+    required this.failed,
+    this.offline = const {},
+  });
 
+  /// Where every space was backed up.
   final Set<BackupLocationId> succeeded;
+
+  /// Where the backup did not go, and why.
   final Map<BackupLocationId, String> failed;
+
+  /// The [failed] locations the phone could not reach for want of a
+  /// connection.
+  final Set<BackupLocationId> offline;
 }
 
 /// Thrown when backing up before a passphrase and recovery key exist.
@@ -93,9 +104,14 @@ class BackupService {
 
   /// Backs up every space to every location in [locations], and records
   /// the time if at least one location took them all.
+  ///
+  /// A location that fails never stops the others. A vault that could not
+  /// be reached for want of a connection is remembered, for
+  /// [BackupSettings.vaultPending].
   Future<BackupRunReport> backUp(List<BackupLocation> locations) async {
     final dir = await _freshDirectory('outgoing');
     final failed = <BackupLocationId, String>{};
+    final offline = <BackupLocationId>{};
     try {
       for (final space in await _data.spaces()) {
         final file = await createBackupFile(dir, space: space);
@@ -106,7 +122,9 @@ class BackupService {
             await location.upload(file, name);
           } on BackupLocationException catch (e) {
             failed[location.id] = e.message;
-          } on IOException {
+            if (e.offline) offline.add(location.id);
+          } on Object {
+            // Whatever goes wrong at one place, the others still get theirs.
             failed[location.id] = 'The copy could not be saved there.';
           }
         }
@@ -119,13 +137,27 @@ class BackupService {
       for (final l in locations)
         if (!failed.containsKey(l.id)) l.id,
     };
-    if (succeeded.isNotEmpty) {
-      final current = await _settings.load();
+    final current = await _settings.load();
+    final triedVault = locations.any((l) => l.id == BackupLocationId.vault);
+    final vaultPending = triedVault
+        ? offline.contains(BackupLocationId.vault)
+        : current.vaultPending;
+    if (succeeded.isNotEmpty || vaultPending != current.vaultPending) {
       await _settings.save(
-        current.copyWith(lastSuccessAt: _clock(), lastSuccessTo: succeeded),
+        succeeded.isEmpty
+            ? current.copyWith(vaultPending: vaultPending)
+            : current.copyWith(
+                lastSuccessAt: _clock(),
+                lastSuccessTo: succeeded,
+                vaultPending: vaultPending,
+              ),
       );
     }
-    return BackupRunReport(succeeded: succeeded, failed: failed);
+    return BackupRunReport(
+      succeeded: succeeded,
+      failed: failed,
+      offline: offline,
+    );
   }
 
   /// A fresh backup file to hand to the share sheet.

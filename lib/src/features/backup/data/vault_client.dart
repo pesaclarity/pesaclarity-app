@@ -5,8 +5,9 @@ import 'package:cryptography/dart.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/integrity/integrity_attestor.dart';
-
+import '../../../core/network/connection_errors.dart';
 import '../../../domain/spaces/space.dart';
+import '../../auth/domain/auth_models.dart';
 import 'backup_location.dart';
 import 'backup_settings_repository.dart';
 
@@ -82,7 +83,7 @@ class VaultBackupLocation implements BackupLocation {
   }
 
   @override
-  Future<void> upload(File file, String fileName) async {
+  Future<void> upload(File file, String fileName) => _guard(() async {
     final digest = await _sha256(file);
     final request = http.StreamedRequest('POST', _backups())
       ..headers.addAll(await _auth())
@@ -92,17 +93,23 @@ class VaultBackupLocation implements BackupLocation {
       ..headers['X-Backup-Space'] = backupSpaceFromName(fileName)
       ..contentLength = await file.length();
     final sending = _client.send(request);
-    await request.sink.addStream(file.openRead());
-    await request.sink.close();
-    final response = await http.Response.fromStream(await _send(sending));
+    final writing = () async {
+      await request.sink.addStream(file.openRead());
+      await request.sink.close();
+    }();
+    // Offline, sending fails before anything reads the body, and writing
+    // it would then wait for ever: the answer decides, and the write only
+    // matters once the request went through.
+    writing.ignore();
+    final sent = await sending;
+    await writing;
+    final response = await http.Response.fromStream(sent);
     _check(response.statusCode, response.body);
-  }
+  });
 
   @override
-  Future<List<BackupEntry>> list() async {
-    final response = await _call(
-      () async => _client.get(_backups(), headers: await _auth()),
-    );
+  Future<List<BackupEntry>> list() => _guard(() async {
+    final response = await _client.get(_backups(), headers: await _auth());
     _check(response.statusCode, response.body);
     final rows = jsonDecode(response.body) as List<Object?>;
     return [
@@ -115,40 +122,73 @@ class VaultBackupLocation implements BackupLocation {
           space: row['space'] as String? ?? personalSpaceId,
         ),
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  }
+  });
 
   @override
-  Future<void> delete(BackupEntry entry) async {
-    final response = await _call(
-      () async => _client.delete(_backups(entry.id), headers: await _auth()),
+  Future<void> delete(BackupEntry entry) => _guard(() async {
+    final response = await _client.delete(
+      _backups(entry.id),
+      headers: await _auth(),
     );
     if (response.statusCode == 404) return;
     _check(response.statusCode, response.body);
-  }
+  });
 
   @override
-  Future<void> download(BackupEntry entry, File destination) async {
-    final request = http.Request('GET', _backups(entry.id))
-      ..headers.addAll(await _auth());
-    final response = await _send(_client.send(request));
-    if (response.statusCode != 200) {
-      _check(response.statusCode, await response.stream.bytesToString());
-    }
-    final sink = destination.openWrite();
+  Future<void> download(BackupEntry entry, File destination) =>
+      _guard(() async {
+        final request = http.Request('GET', _backups(entry.id))
+          ..headers.addAll(await _auth());
+        final response = await _client.send(request);
+        if (response.statusCode != 200) {
+          _check(response.statusCode, await response.stream.bytesToString());
+        }
+        final sink = destination.openWrite();
+        try {
+          await sink.addStream(response.stream);
+        } finally {
+          await sink.close();
+        }
+        final expected = response.headers['x-content-sha256'];
+        if (expected != null &&
+            expected.toLowerCase() != _hex(await _sha256(destination))) {
+          await destination.delete();
+          throw const BackupLocationException(
+            'The download from the vault was damaged. Try again.',
+          );
+        }
+      });
+
+  /// Runs [work], turning everything that can go wrong on the way to the
+  /// vault into a [BackupLocationException]: no connection (including
+  /// renewing the sign-in offline), the session ending, or the server
+  /// failing. Only the backup's own file errors pass through.
+  static Future<T> _guard<T>(Future<T> Function() work) async {
     try {
-      await sink.addStream(response.stream);
-    } finally {
-      await sink.close();
-    }
-    final expected = response.headers['x-content-sha256'];
-    if (expected != null &&
-        expected.toLowerCase() != _hex(await _sha256(destination))) {
-      await destination.delete();
-      throw const BackupLocationException(
-        'The download from the vault was damaged. Try again.',
-      );
+      return await work();
+    } on BackupLocationException {
+      rethrow;
+    } on AuthFailure catch (failure) {
+      throw switch (failure.kind) {
+        AuthFailureKind.network => _offline,
+        AuthFailureKind.sessionEnded => const BackupLocationException(
+          'Sign in again to use the Pesa Clarity vault.',
+        ),
+        _ => const BackupLocationException(
+          'The vault is busy right now. Try again in a minute.',
+        ),
+      };
+    } on FileSystemException {
+      rethrow;
+    } on Object catch (error) {
+      if (isConnectionError(error)) throw _offline;
+      rethrow;
     }
   }
+
+  static const _offline = BackupLocationException.offline(
+    'Could not reach the vault. Check your connection.',
+  );
 
   static Future<List<int>> _sha256(File file) async {
     final sink = const DartSha256().newHashSink();
@@ -161,24 +201,6 @@ class VaultBackupLocation implements BackupLocation {
 
   static String _hex(List<int> bytes) =>
       [for (final b in bytes) b.toRadixString(16).padLeft(2, '0')].join();
-
-  static Future<T> _call<T>(Future<T> Function() request) async {
-    try {
-      return await request();
-    } on SocketException {
-      throw const BackupLocationException(
-        'Could not reach the vault. Check your connection.',
-      );
-    } on http.ClientException {
-      throw const BackupLocationException(
-        'Could not reach the vault. Check your connection.',
-      );
-    }
-  }
-
-  static Future<http.StreamedResponse> _send(
-    Future<http.StreamedResponse> sending,
-  ) => _call(() => sending);
 
   static void _check(int status, String body) {
     if (status >= 200 && status < 300) return;

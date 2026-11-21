@@ -56,18 +56,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       return;
     }
     await _run('Backing up', () async {
-      final report = await _controller.backUpNow();
-      if (report.failed.isEmpty) {
-        _tell('Backed up.');
-      } else {
-        final problems = [
-          for (final MapEntry(:key, :value) in report.failed.entries)
-            '${key.label}: $value',
-        ].join('\n');
-        _tell(
-          report.succeeded.isEmpty ? problems : 'Backed up, except:\n$problems',
-        );
-      }
+      _tell(backupRunMessage(await _controller.backUpNow()));
     });
   }
 

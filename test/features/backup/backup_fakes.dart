@@ -68,21 +68,38 @@ class FakeLocalDataStore implements LocalDataStore {
 
 /// A location that keeps files in memory.
 class MemoryLocation implements BackupLocation {
-  MemoryLocation(this.id, {this.failWith});
+  MemoryLocation(this.id, {this.failWith, this.offline = false, this.error});
 
   @override
   final BackupLocationId id;
   final String? failWith;
+
+  /// Whether [failWith] is for want of a connection.
+  bool offline;
+
+  /// Thrown as is by every call, when set.
+  Object? error;
   final files = <String, Uint8List>{};
 
   @override
   Future<void> upload(File file, String fileName) async {
-    if (failWith != null) throw BackupLocationException(failWith!);
+    if (error case final error?) throw error;
+    if (failWith != null) {
+      throw BackupLocationException(failWith!, offline: offline);
+    }
     files[fileName] = file.readAsBytesSync();
   }
 
   @override
-  Future<List<BackupEntry>> list() async => [
+  Future<List<BackupEntry>> list() async {
+    if (error case final error?) throw error;
+    if (failWith != null) {
+      throw BackupLocationException(failWith!, offline: offline);
+    }
+    return _entries();
+  }
+
+  List<BackupEntry> _entries() => [
     for (final name in files.keys)
       BackupEntry(
         id: name,
@@ -98,7 +115,13 @@ class MemoryLocation implements BackupLocation {
       destination.writeAsBytes(files[entry.id]!);
 
   @override
-  Future<void> delete(BackupEntry entry) async => files.remove(entry.id);
+  Future<void> delete(BackupEntry entry) async {
+    if (error case final error?) throw error;
+    if (failWith != null) {
+      throw BackupLocationException(failWith!, offline: offline);
+    }
+    files.remove(entry.id);
+  }
 }
 
 /// A folder picker and file store with no platform channel.

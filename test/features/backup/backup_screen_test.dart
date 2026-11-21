@@ -6,13 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/core/backup/backup.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
+import 'package:pesaclarity/src/features/auth/domain/auth_models.dart';
 import 'package:pesaclarity/src/features/backup/application/backup_providers.dart';
 import 'package:pesaclarity/src/features/backup/application/backup_service.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_settings_repository.dart';
 import 'package:pesaclarity/src/features/backup/data/key_value_store.dart';
+import 'package:pesaclarity/src/features/backup/data/vault_client.dart';
 import 'package:pesaclarity/src/features/backup/presentation/backup_screen.dart';
 import 'package:pesaclarity/src/features/backup/presentation/backup_setup_screen.dart';
 import 'package:pesaclarity/src/features/profile/presentation/profile_screen.dart';
@@ -272,6 +276,124 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  group('with the vault offline', () {
+    // Signed in, but renewing the sign-in finds no network.
+    final offlineVault = <Override>[
+      vaultBaseUrlProvider.overrideWithValue(
+        Uri.parse('https://vault.example.test/'),
+      ),
+      vaultTokenSourceProvider.overrideWithValue(
+        SessionVaultTokenSource(
+          () => Future.error(const AuthFailure(AuthFailureKind.network)),
+        ),
+      ),
+      vaultHttpClientProvider.overrideWithValue(
+        () => MockClient((_) async => throw const SocketException('offline')),
+      ),
+      backupAvailabilityProvider.overrideWithValue(
+        const BackupAvailability(vault: true, drive: false),
+      ),
+    ];
+
+    Future<void> enable(_Harness h, Set<BackupLocationId> places) async {
+      await _setUpSecrets(h);
+      await h.repo.save(
+        BackupSettings(
+          enabled: places,
+          folder: const DeviceFolder(uri: 'content://tree/sd', name: 'SD'),
+        ),
+      );
+    }
+
+    testWidgets('backs up to the SD card and says the vault waits', (
+      tester,
+    ) async {
+      final h = _Harness();
+      await enable(h, {BackupLocationId.vault, BackupLocationId.deviceFolder});
+      await h.pump(tester, extra: offlineVault);
+
+      await tester.tap(find.text('Back up now'));
+      await _settleWork(tester);
+
+      expect(h.documents.written, hasLength(1));
+      expect(
+        find.text(
+          'Backed up to SD card. The vault needs a connection; it will back '
+          'up when you are online.',
+        ),
+        findsOneWidget,
+      );
+      expect((await h.repo.load()).vaultPending, isTrue);
+    });
+
+    testWidgets('with only the vault on, says the rest works offline', (
+      tester,
+    ) async {
+      final h = _Harness();
+      await enable(h, {BackupLocationId.vault});
+      await h.pump(tester, extra: offlineVault);
+
+      await tester.tap(find.text('Back up now'));
+      await _settleWork(tester);
+
+      expect(
+        find.text(
+          'The vault needs a connection. Everything else works offline.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    test('the vault gets its copy once the phone is online', () async {
+      final h = _Harness();
+      addTearDown(() => h.work.deleteSync(recursive: true));
+      await enable(h, {BackupLocationId.vault, BackupLocationId.deviceFolder});
+      var online = false;
+      final uploads = <String>[];
+      final container = ProviderContainer(
+        overrides: [
+          ...h.overrides(AppFlavor.play),
+          vaultBaseUrlProvider.overrideWithValue(
+            Uri.parse('https://vault.example.test/'),
+          ),
+          vaultTokenSourceProvider.overrideWithValue(
+            SessionVaultTokenSource(
+              () async => online
+                  ? 'token'
+                  : throw const AuthFailure(AuthFailureKind.network),
+            ),
+          ),
+          vaultHttpClientProvider.overrideWithValue(
+            () => MockClient((request) async {
+              if (request.method == 'POST') {
+                uploads.add(request.headers['X-Backup-Space']!);
+                return http.Response('', 201);
+              }
+              return http.Response('[]', 200);
+            }),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final backups = container.read(backupControllerProvider.notifier);
+
+      await backups.backUpNow();
+      expect(h.documents.written, hasLength(1));
+      await backups.catchUp(); // still offline
+      expect(uploads, isEmpty);
+      expect(h.data.snapshotted, hasLength(1), reason: 'no work offline');
+
+      online = true;
+      await backups.catchUp();
+      expect(uploads, ['personal']);
+      expect((await h.repo.load()).vaultPending, isFalse);
+      expect(h.documents.written, hasLength(1), reason: 'the SD card had it');
+
+      await backups.catchUp();
+      expect(uploads, hasLength(1), reason: 'nothing more is owed');
+    });
   });
 
   testWidgets('restores from the folder only with the right passphrase', (

@@ -50,6 +50,7 @@ final class BackupSettings {
     this.folder,
     this.lastSuccessAt,
     this.lastSuccessTo = const {},
+    this.vaultPending = false,
   });
 
   /// Whether a passphrase and recovery key exist on this phone.
@@ -59,18 +60,24 @@ final class BackupSettings {
   final DateTime? lastSuccessAt;
   final Set<BackupLocationId> lastSuccessTo;
 
+  /// Whether the last backup could not reach the vault for want of a
+  /// connection, so it goes there once the phone is online.
+  final bool vaultPending;
+
   BackupSettings copyWith({
     bool? isSetUp,
     Set<BackupLocationId>? enabled,
     DeviceFolder? folder,
     DateTime? lastSuccessAt,
     Set<BackupLocationId>? lastSuccessTo,
+    bool? vaultPending,
   }) => BackupSettings(
     isSetUp: isSetUp ?? this.isSetUp,
     enabled: enabled ?? this.enabled,
     folder: folder ?? this.folder,
     lastSuccessAt: lastSuccessAt ?? this.lastSuccessAt,
     lastSuccessTo: lastSuccessTo ?? this.lastSuccessTo,
+    vaultPending: vaultPending ?? this.vaultPending,
   );
 }
 
@@ -115,6 +122,7 @@ class BackupSettingsRepository {
             ),
       lastSuccessAt: lastAt == null ? null : DateTime.tryParse(lastAt),
       lastSuccessTo: ids(json['lastSuccessTo']),
+      vaultPending: json['vaultPending'] == true,
     );
   }
 
@@ -126,6 +134,7 @@ class BackupSettingsRepository {
       'folderName': settings.folder?.name,
       'lastSuccessAt': settings.lastSuccessAt?.toUtc().toIso8601String(),
       'lastSuccessTo': [for (final id in settings.lastSuccessTo) id.name],
+      'vaultPending': settings.vaultPending,
     }),
   );
 

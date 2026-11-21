@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 import 'package:pesaclarity/src/core/integrity/integrity_attestor.dart';
+import 'package:pesaclarity/src/features/auth/domain/auth_models.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_location.dart';
 import 'package:pesaclarity/src/features/backup/data/drive_client.dart';
 import 'package:pesaclarity/src/features/backup/data/vault_client.dart';
@@ -231,6 +233,89 @@ void main() {
           reason: '$status',
         );
       }
+    });
+
+    group('offline', () {
+      Matcher offline() => throwsA(
+        isA<BackupLocationException>()
+            .having((e) => e.offline, 'offline', isTrue)
+            .having(
+              (e) => e.message,
+              'message',
+              'Could not reach the vault. Check your connection.',
+            ),
+      );
+
+      test('renewing the sign-in offline is the vault being offline', () {
+        final vault = VaultBackupLocation(
+          baseUrl: base,
+          tokens: SessionVaultTokenSource(
+            () => Future.error(const AuthFailure(AuthFailureKind.network)),
+          ),
+          client: MockClient((_) async => http.Response('[]', 200)),
+        );
+        expect(vault.upload(file, 'b.pcbackup'), offline());
+        expect(vault.list(), offline());
+        expect(
+          vault.delete(
+            BackupEntry(
+              id: 'v1',
+              name: 'Vault backup',
+              createdAt: DateTime(2026),
+            ),
+          ),
+          offline(),
+        );
+      });
+
+      // What the network throws in airplane mode, behind a captive portal
+      // or with poor coverage, once a token is in hand.
+      for (final error in <Object>[
+        const SocketException('Failed host lookup'),
+        TimeoutException('timed out'),
+        const HandshakeException('captive portal'),
+        const TlsException('tls'),
+        const OSError('Network is unreachable', 101),
+        http.ClientException('Connection closed'),
+      ]) {
+        test('${error.runtimeType} is the vault being offline', () async {
+          final vault = VaultBackupLocation(
+            baseUrl: base,
+            tokens: const _Token('t0k'),
+            client: MockClient((_) async => throw error),
+          );
+          await expectLater(vault.list(), offline());
+          await expectLater(
+            vault
+                .upload(file, 'b.pcbackup')
+                .timeout(const Duration(seconds: 5)),
+            offline(),
+            reason: 'never waits for ever on the unsent body',
+          );
+        });
+      }
+
+      test('a session the server ended asks to sign in again', () {
+        final vault = VaultBackupLocation(
+          baseUrl: base,
+          tokens: SessionVaultTokenSource(
+            () => Future.error(const AuthFailure(AuthFailureKind.sessionEnded)),
+          ),
+          client: MockClient((_) async => http.Response('[]', 200)),
+        );
+        expect(
+          vault.list(),
+          throwsA(
+            isA<BackupLocationException>()
+                .having((e) => e.offline, 'offline', isFalse)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Sign in again to use the Pesa Clarity vault.',
+                ),
+          ),
+        );
+      });
     });
 
     test('is off unless a build names the vault', () {

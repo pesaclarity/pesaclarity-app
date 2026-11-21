@@ -43,9 +43,17 @@ abstract interface class BackupLocation {
 
 /// A location that is switched on but cannot be reached.
 final class BackupLocationException implements Exception {
-  const BackupLocationException(this.message);
+  const BackupLocationException(this.message, {this.offline = false});
+
+  /// Copy for a location the phone could not reach for want of a
+  /// connection.
+  const BackupLocationException.offline(this.message) : offline = true;
 
   final String message;
+
+  /// Whether the phone could not reach the location for want of a
+  /// connection, so trying again online should work.
+  final bool offline;
 
   @override
   String toString() => 'BackupLocationException: $message';

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -45,6 +46,12 @@ final documentPrinterProvider = Provider<DocumentPrinter>(
 
 /// The vault's address; null while the vault is not deployed.
 final vaultBaseUrlProvider = Provider<Uri?>((ref) => VaultConfig.uri);
+
+/// A new HTTP client for the vault, pinned to our certificates.
+final vaultHttpClientProvider = Provider<http.Client Function()>(
+  (ref) =>
+      () => IOClient(ref.read(httpClientFactoryProvider).create()),
+);
 
 /// The vault signs in with the account's access token.
 final vaultTokenSourceProvider = Provider<VaultTokenSource>(
@@ -209,9 +216,6 @@ class BackupController extends AsyncNotifier<BackupSettings> {
     );
   }
 
-  IOClient _pinnedClient() =>
-      IOClient(ref.read(httpClientFactoryProvider).create());
-
   /// The location object for [id], or null if it cannot be used now.
   BackupLocation? locationFor(BackupLocationId id, BackupSettings settings) {
     switch (id) {
@@ -222,7 +226,7 @@ class BackupController extends AsyncNotifier<BackupSettings> {
             : VaultBackupLocation(
                 baseUrl: url,
                 tokens: ref.read(vaultTokenSourceProvider),
-                client: _pinnedClient(),
+                client: ref.read(vaultHttpClientProvider)(),
                 integrity: ref.read(vaultIntegrityProvider),
               );
       case BackupLocationId.drive:
@@ -267,6 +271,26 @@ class BackupController extends AsyncNotifier<BackupSettings> {
       }
     }
     return failed;
+  }
+
+  /// Does what had to wait for a connection, once the phone has one: the
+  /// vault's copy of a backup made offline. Quiet, and cheap while still
+  /// offline: one request finds that out before any backup is made.
+  Future<void> catchUp() async {
+    final settings = await future;
+    if (!settings.vaultPending ||
+        !settings.enabled.contains(BackupLocationId.vault)) {
+      return;
+    }
+    final vault = locationFor(BackupLocationId.vault, settings);
+    if (vault == null) return;
+    try {
+      await vault.list();
+    } on BackupLocationException {
+      return;
+    }
+    await ref.read(backupServiceProvider).backUp([vault]);
+    state = AsyncData(await _repo.load());
   }
 
   /// Backs up to every switched-on location.
