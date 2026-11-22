@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/sacco_links.dart';
 import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
@@ -84,7 +86,12 @@ class DebtsOverview {
     this.fulizaDebt,
     this.fulizaAccount,
     this.fulizaWalletMinor = 0,
+    this.checkOffDays = const {},
   });
+
+  /// SACCO loans taken off by check-off from salary: the payday each is
+  /// taken on, by debt id.
+  final Map<int, int> checkOffDays;
 
   final CalendarDate today;
 
@@ -130,6 +137,10 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
   final now = ref.watch(clockProvider)();
   final today = CalendarDate.local(now);
   final repository = ref.watch(debtsRepositoryProvider);
+  // Check-off loans are taken off by themselves each payday.
+  final db = ref.watch(appDatabaseProvider);
+  await takeCheckOffs(db, today);
+  final checkOffs = await checkOffDaysByDebt(db);
   final preference = await ref.watch(debtPreferenceProvider.future);
   final owed = [
     for (final d in await repository.debts(today: today))
@@ -187,5 +198,6 @@ final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
     fulizaDebt: fulizaDebt,
     fulizaAccount: fulizaAccount,
     fulizaWalletMinor: fulizaWallet,
+    checkOffDays: checkOffs,
   );
 });

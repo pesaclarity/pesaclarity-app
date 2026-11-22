@@ -19,6 +19,7 @@ import 'message_links.dart';
 import 'message_twins_store.dart';
 import 'own_moves.dart';
 import 'payees_repository.dart';
+import 'sacco_links.dart';
 import 'savings_links.dart';
 
 /// The ledger of transactions from SMS, statements and manual entry.
@@ -186,6 +187,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
         .into(_db.transactions)
         .insert(_withPayee(transaction, await payeeDirectory(_db)));
     await linkSavingsPayments(_db, [id]);
+    await syncSaccos(_db, transactionIds: [id]);
     return id;
   }
 
@@ -259,6 +261,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
         // something unrelated first.
         if (inserted.isNotEmpty || changed.isNotEmpty) {
           await linkSavingsPayments(_db, [...inserted, ...changed]);
+          await syncSaccos(_db, transactionIds: [...inserted, ...changed]);
         }
         if (added > 0 || merged > 0) {
           await pairOwnTransfers(from: earliest, to: latest);
@@ -781,6 +784,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
     if (row.isEmpty) return;
     // A savings account the app keeps gets, or loses, its side at once.
     await linkSavingsPayments(_db, [id]);
+    await syncSaccos(_db, transactionIds: [id]);
     if (accountId == null) return;
     final at = row.single.occurredAt;
     await pairOwnTransfers(from: at, to: at);

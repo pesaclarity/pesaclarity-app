@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/money/money.dart';
 import '../../../core/money/money_format.dart';
 import '../../../data/repositories/debts_repository.dart';
+import '../../../data/repositories/sacco_links.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/debts/fuliza_tracker.dart';
 import '../../../domain/debts/next_due.dart';
@@ -95,6 +96,16 @@ class DebtsScreen extends ConsumerWidget {
                 if (overview.fuliza case final fuliza?) ...[
                   const SizedBox(height: Layout.cardGap),
                   _FulizaCard(fuliza),
+                ],
+                if (overview.debts.any(
+                  (d) => overview.checkOffDays.containsKey(d.id),
+                )) ...[
+                  const SizedBox(height: Layout.cardGap),
+                  const Notice(
+                    'A check-off loan is paid before your salary arrives, so '
+                    'payday shows your pay after it.',
+                    key: Key('debts-check-off-note'),
+                  ),
                 ],
                 if (overview.debts.isNotEmpty) ...[
                   const SizedBox(height: Layout.cardGap),
@@ -227,6 +238,7 @@ class _DebtList extends ConsumerWidget {
           payoff: overview.plan.debt(debt.id),
           paidFraction: overview.paidFraction(debt),
           today: overview.today,
+          checkOffDay: overview.checkOffDays[debt.id],
           // A loan with a due date opens on its details; the rest on edit.
           onTap: debt.nextDue == null
               ? () => showDebtSheet(context, today: overview.today, debt: debt)
@@ -277,8 +289,11 @@ class _DebtItem extends StatelessWidget {
     required this.paidFraction,
     required this.today,
     required this.onTap,
+    this.checkOffDay,
   });
 
+  /// The payday a check-off loan is taken on; null for any other debt.
+  final int? checkOffDay;
   final Debt debt;
   final DebtPayoff payoff;
   final double paidFraction;
@@ -298,8 +313,10 @@ class _DebtItem extends StatelessWidget {
       if (debt.minimumPaymentMinor > 0)
         '${shownMoney(context, debt.minimumPaymentMinor, withCurrency: false)}'
             ' a month',
+      if (checkOffDay != null) 'check-off',
       if (cleared != null) 'cleared ${monthLabel(cleared)}',
     ].join(' · ');
+    final theme = Theme.of(context);
 
     return DebtRow(
       name: debt.lender,
@@ -310,6 +327,12 @@ class _DebtItem extends StatelessWidget {
           : details,
       captionColor: cleared == null ? colors.warning : null,
       footer: switch (debt.nextDue) {
+        _ when checkOffDay != null && debt.minimumPaymentMinor > 0 => Text(
+          'Next ${shownMoney(context, debt.minimumPaymentMinor, withCurrency: true)} '
+          'taken from salary ${dayLabel(nextCheckOff(checkOffDay!, today), thisYear: today.year)}',
+          key: Key('debt-check-off-${debt.id}'),
+          style: theme.textTheme.bodySmall,
+        ),
         final due? when due.statusOn(today).state != DueState.paid => DueLine(
           due: due,
           today: today,

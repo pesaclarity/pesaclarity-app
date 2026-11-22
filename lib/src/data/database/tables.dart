@@ -48,6 +48,50 @@ class Accounts extends Table {
   /// the business, "On your M-Pesa" names Personal's M-Pesa. Null for a
   /// purchase paid by another space.
   IntColumn get linkedAccountId => integer().nullable()();
+
+  /// Left out of account lists (My accounts shows it under Hidden
+  /// accounts). It still counts in totals and keeps its history.
+  BoolColumn get hidden => boolean().withDefault(const Constant(false))();
+
+  /// Whether it counts in On hand and Safe to spend, as the person set it;
+  /// null follows its type (savings accounts do not).
+  BoolColumn get countsOnHand => boolean().nullable()();
+}
+
+/// A SACCO account's own details: one account holds its deposits and
+/// shares (saved) and, through [loanDebtId], its loan (owed).
+@DataClassName('SaccoDetailsRow')
+class SaccoDetails extends Table {
+  IntColumn get accountId =>
+      integer().references(Accounts, #id, onDelete: KeyAction.cascade)();
+
+  /// Its M-Pesa paybill, digits only. Payments to it, or to the SACCO's
+  /// name, are moves to the SACCO.
+  TextColumn get paybill => text().withLength(max: 20).nullable()();
+
+  /// Shares: counted in the account's balance and in Saved, but they
+  /// cannot be withdrawn. Deposits are the balance less these.
+  IntColumn get sharesMinor => integer().withDefault(const Constant(0))();
+  IntColumn get contributionMinor => integer().nullable()();
+
+  /// "You can borrow up to" this many tenths of deposits; null hides it.
+  IntColumn get borrowTimesTenths => integer().nullable()();
+
+  IntColumn get loanDebtId => integer().nullable().references(
+    Debts,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// The loan is taken off by check-off from salary, on [checkOffDay].
+  BoolColumn get checkOff => boolean().withDefault(const Constant(false))();
+  IntColumn get checkOffDay => integer().nullable()();
+
+  /// Check-offs are taken from paydays after this instant.
+  DateTimeColumn get checkOffFrom => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {accountId};
 }
 
 @TableIndex(name: 'categories_key', columns: {#key}, unique: true)

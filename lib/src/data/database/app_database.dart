@@ -11,6 +11,7 @@ import '../../domain/spaces/space.dart';
 import '../../domain/spaces/space_categories.dart';
 import '../repositories/firefly_triggers.dart';
 import '../repositories/journal_repository.dart';
+import '../repositories/sacco_links.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
@@ -79,13 +80,14 @@ part 'app_database.g.dart';
     FireflyOutbox,
     FireflySent,
     FireflyAccounts,
+    SaccoDetails,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 46;
+  int get schemaVersion => 47;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -389,6 +391,16 @@ class AppDatabase extends _$AppDatabase {
       // Money lent from a transaction, and money in that pays it back.
       if (from < 46) {
         await _addColumnIfMissing(m, transactions, transactions.lentLoanId);
+      }
+      // Editing accounts, and SACCOs as one account (deposits, shares
+      // and their loan).
+      if (from < 47) {
+        await _addColumnIfMissing(m, accounts, accounts.hidden);
+        await _addColumnIfMissing(m, accounts, accounts.countsOnHand);
+        if (!await _exists('table', saccoDetails.actualTableName)) {
+          await m.createTable(saccoDetails);
+        }
+        await mergeSaccos(this, DateTime.now());
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

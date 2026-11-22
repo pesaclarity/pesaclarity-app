@@ -15,6 +15,7 @@ class AccountOpening {
     required this.openingBalanceMinor,
     required this.openingDate,
     String? currency,
+    this.countsOnHand,
   }) : currency = currency ?? BaseCurrency.code;
 
   final int id;
@@ -25,7 +26,14 @@ class AccountOpening {
   final DateTime openingDate;
   final String currency;
 
-  bool get isSavings => savingsAccountTypes.contains(type);
+  /// Whether it counts in On hand and Safe to spend, as the person set it
+  /// on the account; null follows its type.
+  final bool? countsOnHand;
+
+  /// Whether it is kept apart from day-to-day money: a savings account
+  /// (SACCO, money market), unless the person counts it in On hand, or any
+  /// account they took out of On hand.
+  bool get isSavings => !(countsOnHand ?? !savingsAccountTypes.contains(type));
 
   /// Whether the account can owe Fuliza: M-Pesa.
   bool get canOweFuliza => type == AccountType.mpesa;

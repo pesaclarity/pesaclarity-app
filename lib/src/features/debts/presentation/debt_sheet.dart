@@ -25,7 +25,7 @@ String debtTypeLabel(DebtType type) => switch (type) {
   DebtType.salaryAdvance => 'Salary advance',
   DebtType.fuliza => 'Fuliza',
   DebtType.mobileLoan => 'Mobile loan',
-  DebtType.saccoLoan => 'Sacco loan',
+  DebtType.saccoLoan => 'SACCO loan',
   DebtType.family => 'Family or friend',
   DebtType.supplier => 'Supplier',
 };
@@ -179,7 +179,10 @@ class _DebtSheetState extends State<DebtSheet> {
             name: 'Kind of debt',
             expand: true,
             options: [
-              for (final type in DebtType.values) (type, debtTypeLabel(type)),
+              // A SACCO loan is added with its SACCO, in My accounts.
+              for (final type in DebtType.values)
+                if (type != DebtType.saccoLoan || _type == DebtType.saccoLoan)
+                  (type, debtTypeLabel(type)),
             ],
             value: _type,
             onChanged: (type) => setState(() => _type = type),

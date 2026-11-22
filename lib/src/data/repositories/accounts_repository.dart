@@ -341,6 +341,7 @@ class DriftAccountsRepository implements AccountsRepository {
             openingBalanceMinor: inBase,
             openingDate: a.openingDate,
             currency: _converter.base,
+            countsOnHand: a.countsOnHand,
           )
         else
           AccountOpening(
@@ -349,6 +350,7 @@ class DriftAccountsRepository implements AccountsRepository {
             openingBalanceMinor: a.openingBalanceMinor,
             openingDate: a.openingDate,
             currency: a.currency,
+            countsOnHand: a.countsOnHand,
           ),
   ];
 }

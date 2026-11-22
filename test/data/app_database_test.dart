@@ -872,6 +872,38 @@ void main() {
       await old.customStatement('PRAGMA user_version = 43');
     }
 
+    test('migrates a version 46 database: SACCO accounts and Sacco loans '
+        'become one SACCO each, once', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      await old.customStatement('DROP TABLE sacco_details');
+      for (final column in ['hidden', 'counts_on_hand']) {
+        await old.customStatement('ALTER TABLE accounts DROP COLUMN $column');
+      }
+      await old.customStatement(
+        'INSERT INTO accounts (name, type, currency, opening_balance_minor, '
+        "opening_date) VALUES ('Mwangaza Sacco', 'sacco', 'KES', 0, 0)",
+      );
+      await old.customStatement(
+        'INSERT INTO debts (lender, type, currency, starting_balance_minor, '
+        "is_formal) VALUES ('Mwangaza SACCO loan', 'saccoLoan', 'KES', "
+        '100, 1)',
+      );
+      await old.customStatement('PRAGMA user_version = 46');
+      await old.close();
+      final db = AppDatabase(NativeDatabase(file));
+      expect(await userVersion(db), db.schemaVersion);
+      final details = await db.select(db.saccoDetails).get();
+      expect(details.single.loanDebtId, isNotNull);
+      expect(await columns(db, 'accounts'), contains('hidden'));
+      await db.customStatement('PRAGMA user_version = 46');
+      await db.close();
+      final again = AppDatabase(NativeDatabase(file));
+      addTearDown(again.close);
+      expect(await userVersion(again), again.schemaVersion);
+      expect(await again.select(again.saccoDetails).get(), hasLength(1));
+      expect(await again.select(again.accounts).get(), hasLength(1));
+    });
+
     /// Takes the current schema in [old] back to version 45, before money
     /// lent from a transaction.
     Future<void> toVersion45(AppDatabase old) async {
@@ -888,7 +920,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 46);
+      expect(db.schemaVersion, 47);
       expect((await columns(db, 'transactions'))['lent_loan_id'], isFalse);
       await db.customStatement('PRAGMA user_version = 45');
       await db.close();
@@ -927,7 +959,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 46);
+      expect(db.schemaVersion, 47);
       expect((await columns(db, 'accounts'))['family_of'], isFalse);
       expect(
         (await columns(db, 'transactions'))['other_balance_minor'],
@@ -955,7 +987,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 46);
+      expect(db.schemaVersion, 47);
       expect(await columns(db, 'transactions'), contains('linked_receipt_no'));
       await db.customStatement('PRAGMA user_version = 43');
       await db.close();
@@ -1008,7 +1040,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 46);
+      expect(db.schemaVersion, 47);
       expect(
         (await columns(db, 'accounts')).keys,
         containsAll(['linked_space_id', 'linked_account_id']),
@@ -1188,7 +1220,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 46);
+      expect(db.schemaVersion, 47);
       expect((await columns(db, 'accounts'))['product'], isFalse);
       expect((await columns(db, 'goals'))['saved_in_pocket_id'], isFalse);
       expect(
