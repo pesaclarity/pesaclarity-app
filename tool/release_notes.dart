@@ -166,6 +166,16 @@ List<String>? releaseNoteSection(String body) {
   for (final line in lines.skip(start + 1)) {
     if (RegExp(r'^\s*#{1,6}\s').hasMatch(line)) break;
     final text = line.trim();
+    // A horizontal rule ends the section: footers such as the generated-by
+    // line come after one.
+    if (RegExp(r'^(-{3,}|\*{3,}|_{3,})$').hasMatch(text)) break;
+    // Generated-by and session lines are never part of a note.
+    if (RegExp(
+      r'generated (by|with) \[?claude code|^https://claude\.ai/',
+      caseSensitive: false,
+    ).hasMatch(text)) {
+      break;
+    }
     // The template's "<one or two plain sentences ...>" placeholder.
     if (text.isEmpty || RegExp(r'^<[^>]*>$').hasMatch(text)) continue;
     section.add(text);
