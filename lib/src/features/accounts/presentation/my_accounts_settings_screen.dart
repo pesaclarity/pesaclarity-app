@@ -24,10 +24,11 @@ import '../../spaces/application/spaces_providers.dart';
 import '../application/mpesa_family_providers.dart';
 import '../application/mpesa_lines_providers.dart';
 import '../domain/institution.dart';
-import 'account_currency_screen.dart';
+import 'account_page.dart';
 import 'line_questions.dart';
 import 'mpesa_family_card.dart';
 import 'mpesa_lines_sheet.dart';
+import 'sacco_screens.dart';
 
 /// Profile › My accounts: each account and the currency it counts in, the
 /// savings apps the app keeps, such as Chumz, and the way to add or remove
@@ -60,15 +61,29 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
         for (final b in f.business) b.account.id,
       ],
     };
+    // A SACCO has a card of its own, with its loan.
+    final saccoIds = {
+      for (final (a, _)
+          in ref.watch(saccosProvider).value ??
+              const <(Account, SaccoDetailsRow)>[])
+        a.id,
+    };
     final named = withLineNames({...?loaded.value}, lineAccounts);
     // Savings apps, such as Chumz, have a card of their own. A line given
     // to another space leaves an empty account here, not shown.
     final accounts = [
       for (final a in named.values)
         if (a.product == null &&
+            !a.hidden &&
+            !saccoIds.contains(a.id) &&
             !hidden.contains(a.id) &&
             !grouped.contains(a.id))
           a,
+    ]..sort((a, b) => a.id.compareTo(b.id));
+    // Accounts the person hid, still in totals and history.
+    final hiddenByPerson = [
+      for (final a in named.values)
+        if (a.hidden && !hidden.contains(a.id)) a,
     ]..sort((a, b) => a.id.compareTo(b.id));
     final institutions = {
       for (final i in ref.watch(institutionCatalogueProvider)) i.id: i,
@@ -134,6 +149,17 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: Layout.cardGap),
+                SaccosCard(
+                  onOpen: (id) => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => SaccoScreen(
+                        accountId: id,
+                        onEdit: () => openAccountPage(context, id),
+                      ),
+                    ),
+                  ),
+                ),
                 const SavingsAccountsCard(),
                 const SizedBox(height: 12),
                 Notice(
@@ -153,6 +179,23 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
                 Card(
                   child: Column(
                     children: [
+                      if (hiddenByPerson.isNotEmpty) ...[
+                        ListTile(
+                          key: const Key('hidden-accounts'),
+                          title: const Text(AccountEditText.hiddenAccounts),
+                          subtitle: Text(
+                            '${hiddenByPerson.length} hidden · '
+                            '${hiddenByPerson.map((a) => a.name).join(', ')}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const HiddenAccountsScreen(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                      ],
                       if (lines.twoSeen) ...[
                         _LinesRow(lines: lines),
                         const Divider(height: 1),
@@ -163,6 +206,14 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
                         _TrackFulizaRow(tracked: fuliza.tracked),
                         const Divider(height: 1),
                       ],
+                      ListTile(
+                        key: const Key('add-sacco'),
+                        title: const Text(SaccoText.addSacco),
+                        subtitle: const Text(SaccoText.addSaccoHint),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => showAddSaccoSheet(context),
+                      ),
+                      const Divider(height: 1),
                       Semantics(
                         identifier: SemanticIds.myAccountsChoose,
                         child: ListTile(
@@ -324,65 +375,86 @@ class _AccountRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final name = currencyCatalogue[account.currency]?.name ?? account.currency;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(account.name, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(
-                  from,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    color: colors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (account.institutionId != null)
-            // Its messages say which currency it is in.
-            Semantics(
-              label: '${account.name} counts in $name, from its messages',
-              excludeSemantics: true,
-              child: Tag(
-                account.currency,
-                key: Key('account-currency-${account.id}'),
-              ),
-            )
-          else
-            Semantics(
-              button: true,
-              label: '${account.name} currency: $name. Change',
-              excludeSemantics: true,
-              child: OutlinedButton(
-                key: Key('account-currency-${account.id}'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        AccountCurrencyScreen(accountId: account.id),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+    return Semantics(
+      button: true,
+      label: '${account.name}, $from, counts in $name. Open',
+      excludeSemantics: true,
+      child: InkWell(
+        key: Key('account-row-${account.id}'),
+        onTap: () => openAccountPage(context, account.id),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(account.currency, style: theme.textTheme.labelLarge),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: 20,
-                      color: colors.textMuted,
+                    Text(account.name, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      from,
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: colors.textMuted,
+                      ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              Tag(account.currency, key: Key('account-currency-${account.id}')),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, color: colors.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// My accounts › Hidden accounts: the accounts the person hid from lists.
+/// They still count in totals and keep their history; each opens its page,
+/// where Hide from lists can be switched off.
+class HiddenAccountsScreen extends ConsumerWidget {
+  const HiddenAccountsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accounts = [
+      for (final a
+          in (ref.watch(activityAccountsProvider).value ?? const {}).values)
+        if (a.hidden) a,
+    ];
+    final institutions = {
+      for (final i in ref.watch(institutionCatalogueProvider)) i.id: i,
+    };
+    return Scaffold(
+      appBar: AppBar(title: const Text(AccountEditText.hiddenAccounts)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          Text(
+            'They still count in totals and keep their history. Open one to '
+            'show it again.',
+            style: Theme.of(context).textTheme.bodyLarge!
+                .copyWith(color: PesaColors.of(context).textMuted),
+          ),
+          const SizedBox(height: 16),
+          if (accounts.isEmpty)
+            const Text('No hidden accounts.')
+          else
+            Card(
+              child: Column(
+                children: [
+                  for (final (i, a) in accounts.indexed) ...[
+                    if (i > 0) const Divider(height: 1),
+                    _AccountRow(
+                      account: a,
+                      from: _fromLine(context, a, institutions, null),
+                    ),
+                  ],
+                ],
               ),
             ),
         ],

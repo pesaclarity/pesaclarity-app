@@ -104,12 +104,18 @@ class _Body extends ConsumerWidget {
         if (dayToDay.isNotEmpty)
           GroupedSection(
             header: BalanceText.dayToDay.toUpperCase(),
-            children: [for (final a in dayToDay) _AccountRow(a)],
+            children: [
+              for (final a in dayToDay)
+                if (!a.account.hidden) _AccountRow(a),
+            ],
           ),
         if (overview.savings.isNotEmpty)
           GroupedSection(
             header: BalanceText.savings.toUpperCase(),
-            children: [for (final a in overview.savings) _AccountRow(a)],
+            children: [
+              for (final a in overview.savings)
+                if (!a.account.hidden) _AccountRow(a),
+            ],
           ),
         const SizedBox(height: Layout.cardGap),
         Padding(

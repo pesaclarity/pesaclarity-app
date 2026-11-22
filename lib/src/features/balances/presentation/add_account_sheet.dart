@@ -9,6 +9,7 @@ import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../accounts/presentation/account_page.dart' show accountTypeChoice;
 import '../../currency/application/currency_controller.dart';
 import '../../currency/presentation/currency_picker.dart';
 import 'balance_text.dart';
@@ -18,7 +19,7 @@ const addableAccountTypes = [
   AccountType.cash,
   AccountType.bank,
   AccountType.mpesa,
-  AccountType.sacco,
+  AccountType.moneyMarket,
   AccountType.other,
 ];
 
@@ -118,17 +119,16 @@ class _AddAccountSheetState extends ConsumerState<AddAccountSheet> {
             name: BalanceText.accountType,
             expand: true,
             options: [
-              for (final t in addableAccountTypes)
-                (t, BalanceText.typeLabel(t)),
+              for (final t in addableAccountTypes) (t, accountTypeChoice(t)),
             ],
             value: _type,
             onChanged: (type) => setState(() {
               // Keep a typed name; swap the suggested one.
               final suggested = addableAccountTypes
-                  .map(BalanceText.typeLabel)
+                  .map(accountTypeChoice)
                   .contains(_name.text.trim());
               if (suggested || _name.text.trim().isEmpty) {
-                _name.text = BalanceText.typeLabel(type);
+                _name.text = accountTypeChoice(type);
               }
               _type = type;
             }),

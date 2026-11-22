@@ -90,7 +90,9 @@ void main() {
   }
 
   Future<void> pickUsd(WidgetTester tester) async {
-    await tester.tap(find.byKey(Key('account-currency-$cash')));
+    await tester.tap(find.byKey(Key('account-row-$cash')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('account-currency')));
     await tester.pumpAndSettle();
     expect(find.text('Cash currency'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('currency-search')), 'USD');
@@ -112,11 +114,11 @@ void main() {
     );
     expect(find.text('Messages from MPESA'), findsOneWidget);
     expect(find.text('Money you add by hand'), findsOneWidget);
-    // M-Pesa's currency comes from its messages: a label, not a button.
-    await tester.tap(find.byKey(Key('account-currency-$mpesa')));
+    // M-Pesa's currency comes from its messages: locked on its page.
+    await tester.tap(find.byKey(Key('account-row-$mpesa')));
     await tester.pumpAndSettle();
-    expect(find.text('M-Pesa currency'), findsNothing);
-    expect(find.text('Add or remove accounts'), findsOneWidget);
+    expect(find.byKey(const Key('account-currency-locked')), findsOneWidget);
+    expect(find.byKey(const Key('account-currency')), findsNothing);
   });
 
   testAppWidgets('new amounts in Cash take the new currency', (tester) async {
@@ -137,7 +139,7 @@ void main() {
       () => db.select(db.transactions).getSingle(),
     );
     expect(row!.currency, 'SSP');
-    expect(find.text('My accounts'), findsOneWidget);
+    expect(find.text('Cash'), findsWidgets);
   });
 
   testAppWidgets('keeps the currency', (tester) async {
