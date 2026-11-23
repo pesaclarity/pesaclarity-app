@@ -8,7 +8,12 @@ import 'ledger_entry.dart';
 /// and the number its messages print, from the accounts list (decision
 /// 0030, rule 4).
 class OwnAccount {
-  const OwnAccount({required this.id, this.reference, this.institutionId});
+  const OwnAccount({
+    required this.id,
+    this.reference,
+    this.institutionId,
+    this.phone,
+  });
 
   final int id;
 
@@ -18,6 +23,10 @@ class OwnAccount {
 
   /// The institution whose messages feed it, such as `mpesa` or `kcb`.
   final String? institutionId;
+
+  /// The phone number the person typed for an M-Pesa line, whose reference
+  /// is only the line's key.
+  final String? phone;
 }
 
 /// The person's own numbers and accounts, learned from their accounts list:
@@ -34,7 +43,10 @@ class OwnAccounts {
   /// The phone number [accountId] is kept under, normalised as
   /// `PayeeIdentifier.phone` writes it (`0700000000`); null when its number
   /// is not a phone number or none is kept.
-  String? phoneOf(int accountId) => _phone(_accounts[accountId]?.reference);
+  String? phoneOf(int accountId) => _phoneOf(_accounts[accountId]);
+
+  static String? _phoneOf(OwnAccount? a) =>
+      a == null ? null : (a.phone ?? _phone(a.reference));
 
   /// The other own account [entry]'s message names as the other side: an
   /// own phone number, an own (masked) account number, or an own account
@@ -49,7 +61,7 @@ class OwnAccounts {
         final phone = AccountReference.tryParse(_phone(value));
         if (phone == null) return null;
         for (final a in _accounts.values) {
-          final own = AccountReference.tryParse(_phone(a.reference));
+          final own = AccountReference.tryParse(_phoneOf(a));
           if (own != null && own.sameAs(phone)) found.add(a.id);
         }
       case PayeeIdentifierKind.account || PayeeIdentifierKind.paybill:

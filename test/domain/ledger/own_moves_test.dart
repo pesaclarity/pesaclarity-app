@@ -454,5 +454,28 @@ void main() {
       expect(lines.namedBy(toAccount), isNull);
       expect(lines.phoneOf(line), isNull);
     });
+
+    test('a number the person typed for a line is an own number', () {
+      const line = 9;
+      final lines = OwnAccounts([
+        const OwnAccount(id: mpesa, institutionId: 'mpesa'),
+        OwnAccount(
+          id: line,
+          reference: lineReference('2'),
+          institutionId: 'mpesa',
+          phone: '0712345678',
+        ),
+      ]);
+      final toLine = out(
+        1,
+        mpesa,
+        100,
+        kind: TransactionKind.sent,
+        cpKind: PayeeIdentifierKind.phone,
+        cpValue: '0712***678',
+      );
+      expect(lines.namedBy(toLine), line);
+      expect(lines.phoneOf(line), '0712345678');
+    });
   });
 }

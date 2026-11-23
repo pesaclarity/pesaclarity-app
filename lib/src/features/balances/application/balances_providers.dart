@@ -14,6 +14,7 @@ import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/ledger_history.dart';
 import '../../../data/repositories/own_moves.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/accounts/mpesa_lines.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/ledger/balances.dart';
 import '../../../domain/ledger/cross_currency_transfers.dart';
@@ -22,6 +23,7 @@ import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/on_hand.dart';
 import '../../../domain/ledger/own_transfers.dart';
 import '../../../domain/time/calendar.dart';
+import '../../accounts/application/mpesa_lines_providers.dart';
 import '../../accounts/domain/institution.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../goals/application/goals_aside_providers.dart';
@@ -191,11 +193,20 @@ final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
       ),
     );
   }
+  // The main M-Pesa line's balance shows first among the lines, then the
+  // second's.
+  final lines = ref.watch(mpesaLinesProvider).value ?? MpesaLines.empty;
   list.sort((a, b) {
     final bySavings = (a.isSavings ? 1 : 0).compareTo(b.isSavings ? 1 : 0);
-    return bySavings != 0
-        ? bySavings
-        : a.account.name.toLowerCase().compareTo(b.account.name.toLowerCase());
+    if (bySavings != 0) return bySavings;
+    final byName = a.account.name.toLowerCase().compareTo(
+      b.account.name.toLowerCase(),
+    );
+    return byName != 0
+        ? byName
+        : lines
+              .rankOf(a.account.reference)
+              .compareTo(lines.rankOf(b.account.reference));
   });
   return BalancesOverview(
     accounts: list,

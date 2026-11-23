@@ -91,6 +91,11 @@ abstract final class LinesText {
       'sheet.';
   static const keepThese = 'Keep these 2';
   static const nameHint = 'Such as Work line';
+  static const number = 'Number (optional)';
+  static const numberHint = 'Such as 0712 345 678';
+  static const numberNote =
+      'Typed by you, kept on this phone. A send to it from your other line '
+      'counts as a move between your accounts.';
   static const whereMoneyGoes = 'Where its money goes';
   static const thisLineIs = 'This line is';
   static String skipped(String name) =>
@@ -349,6 +354,7 @@ class _LineRow extends StatelessWidget {
       ),
       subtitle: Text(
         [
+          ?line.maskedNumber,
           [
             if (last != null) 'Last message ${lineWhen(last, today)}',
             count,
@@ -518,6 +524,7 @@ class LineSheet extends ConsumerStatefulWidget {
 
 class _LineSheetState extends ConsumerState<LineSheet> {
   TextEditingController? _name;
+  TextEditingController? _number;
   String? _destination;
   _Is? _is;
   var _delete = false;
@@ -531,6 +538,7 @@ class _LineSheetState extends ConsumerState<LineSheet> {
   @override
   void dispose() {
     _name?.dispose();
+    _number?.dispose();
     super.dispose();
   }
 
@@ -541,6 +549,7 @@ class _LineSheetState extends ConsumerState<LineSheet> {
       if (mounted) setState(() => _records = n);
     });
     _name = TextEditingController(text: line.name ?? '');
+    _number = TextEditingController(text: line.number ?? '');
     _destination = destinationOf(line);
     _is = !line.tracked
         ? _Is.dont
@@ -613,6 +622,10 @@ class _LineSheetState extends ConsumerState<LineSheet> {
             .read(mpesaLinesProvider.notifier)
             .apply((l) => l.withChoice(line.id, name: name));
       }
+    }
+    final typed = _number!.text.trim();
+    if (typed != (line.number ?? '')) {
+      await routing.setNumber(line.id, typed.isEmpty ? null : typed);
     }
     switch (_is) {
       case _Is.main:
@@ -738,6 +751,25 @@ class _LineSheetState extends ConsumerState<LineSheet> {
               counterText: '',
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        LabeledField(
+          label: LinesText.number,
+          child: TextField(
+            key: const Key('line-number'),
+            controller: _number,
+            keyboardType: TextInputType.phone,
+            maxLength: 13,
+            decoration: const InputDecoration(
+              hintText: LinesText.numberHint,
+              counterText: '',
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          LinesText.numberNote,
+          style: theme.textTheme.bodySmall!.copyWith(color: colors.textMuted),
         ),
         if (lines.split) ...[
           const SizedBox(height: 12),

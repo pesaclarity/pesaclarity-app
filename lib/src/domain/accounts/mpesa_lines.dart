@@ -1,3 +1,4 @@
+import '../payees/payee_identifier.dart';
 import '../spaces/space.dart';
 
 /// Two or more M-Pesa lines on one phone (decision 0026, section 6).
@@ -98,6 +99,7 @@ class MpesaLine {
     this.lastAt,
     this.messages = 0,
     this.tracked = true,
+    this.number,
   });
 
   /// `1`, `2`, ... in the order the lines were first seen.
@@ -130,6 +132,17 @@ class MpesaLine {
   /// the person deleted them.
   final bool tracked;
 
+  /// The line's phone number as the person typed it (`0712345678`), if
+  /// they did. The app never reads it from the phone.
+  final String? number;
+
+  /// [number] masked for showing: `0712 ••• 678`.
+  String? get maskedNumber {
+    final n = number;
+    if (n == null || n.length < 10) return null;
+    return '${n.substring(0, 4)} ••• ${n.substring(n.length - 3)}';
+  }
+
   /// `SIM 1` where the phone tells lines apart by SIM, else `Line 1`.
   String get slot => sims.isEmpty ? 'Line $id' : 'SIM $id';
 
@@ -150,6 +163,7 @@ class MpesaLine {
     DateTime? Function()? lastAt,
     int? messages,
     bool? tracked,
+    String? Function()? number,
   }) => MpesaLine(
     id: id,
     sims: sims ?? this.sims,
@@ -162,6 +176,7 @@ class MpesaLine {
     lastAt: lastAt == null ? this.lastAt : lastAt(),
     messages: messages ?? this.messages,
     tracked: tracked ?? this.tracked,
+    number: number == null ? this.number : number(),
   );
 
   /// Whether no message came from it for more than [oldAfter] before [now]:
@@ -232,6 +247,7 @@ class MpesaLine {
       lastAt: when('lastAt'),
       messages: messages is int ? messages : 0,
       tracked: json['tracked'] != false,
+      number: json['number'] is String ? json['number']! as String : null,
     );
   }
 
@@ -247,6 +263,7 @@ class MpesaLine {
     'lastAt': ?lastAt?.toUtc().toIso8601String(),
     'messages': messages,
     if (!tracked) 'tracked': false,
+    'number': ?number,
   };
 }
 
@@ -885,6 +902,14 @@ class MpesaLines {
       ? LineRole.second
       : null;
 
+  /// Where an account keyed by [reference] sorts among M-Pesa lines: the
+  /// main line first, then the second, then any other account.
+  int rankOf(String? reference) => switch (lineOfReference(reference)) {
+    final id? when id == mainId => 0,
+    final id? when id == secondId => 1,
+    _ => 2,
+  };
+
   /// "Keep my 2 most recent lines, set the rest aside": offered while more
   /// than two lines are seen, until used once.
   bool get offersQuickSetup => lines.length > 2 && !quickSetupDone;
@@ -980,6 +1005,23 @@ class MpesaLines {
       skippedLineId: () => skippedLineId == fromId ? intoId : skippedLineId,
     );
   }
+
+  /// Line [lineId]'s number, as typed: kept as `0712345678`, or cleared
+  /// when [typed] is empty or no phone number.
+  MpesaLines withNumber(String lineId, String? typed) {
+    final target = line(lineId);
+    if (target == null) return this;
+    final phone = typed == null ? null : PayeeIdentifier.phone(typed)?.value;
+    final clean = phone != null && !phone.contains('*') ? phone : null;
+    return _with(target.copyWith(number: () => clean));
+  }
+
+  /// The typed numbers, by line id: the person's own numbers for matching
+  /// moves between their accounts (decision 0030).
+  Map<String, String> get numbers => {
+    for (final l in lines)
+      if (l.number != null) l.id: l.number!,
+  };
 
   /// The quiet note on the first skipped message was seen.
   MpesaLines skipNoteSeen() => copyWith(skipNote: SkipNote.shown);

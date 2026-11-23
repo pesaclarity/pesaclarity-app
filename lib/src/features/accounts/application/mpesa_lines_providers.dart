@@ -15,6 +15,7 @@ import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/balances_repository.dart';
 import '../../../data/repositories/institutions_repository.dart';
 import '../../../data/repositories/message_reads_repository.dart';
+import '../../../data/repositories/own_moves.dart';
 import '../../../data/repositories/review_inbox_repository.dart';
 import '../../../data/repositories/space_move_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
@@ -386,6 +387,25 @@ class MpesaLineRouting {
       setCountsOnHand: true,
     ),
   );
+
+  /// Line [lineId]'s number, as the person typed it (none: cleared). Every
+  /// space keeps a copy of the numbers, so a send from one line to another
+  /// is matched as a move between own accounts there (decision 0030), and
+  /// moves already stored are matched again.
+  Future<void> setNumber(String lineId, String? typed) async {
+    final lines = await _lines.apply((l) => l.withNumber(lineId, typed));
+    final spaces = _ref.read(spaceDatabasesProvider);
+    for (final id in await _listed(_ref)) {
+      final (db, close) = await spaces.open(id);
+      try {
+        await DriftAppSettingsRepository(db)
+            .writeJson(linePhonesKey, lines.numbers);
+        await DriftTransactionsRepository(db).pairOwnTransfers();
+      } finally {
+        if (close) await db.close();
+      }
+    }
+  }
 
   /// How many records line [lineId] has in the space that reads it.
   Future<int> recordCount(String lineId) async =>
@@ -771,3 +791,22 @@ final hiddenLineAccountsProvider = Provider<Set<int>>((ref) {
       if (!read.containsKey(id)) id,
   };
 });
+
+/// Accounts in the order added, except that M-Pesa line accounts [lineIds]
+/// sit together where the first was added, the main line first, then the
+/// second (see [MpesaLines.rankOf]).
+int Function(Account, Account) byLineOrder(
+  MpesaLines lines,
+  Iterable<int> lineIds,
+) {
+  final ids = lineIds.toSet();
+  final at = ids.isEmpty ? 0 : ids.reduce((a, b) => a < b ? a : b);
+  return (a, b) {
+    int place(Account x) => ids.contains(x.id) ? at : x.id;
+    int rank(Account x) => ids.contains(x.id) ? lines.rankOf(x.reference) : 0;
+    final byPlace = place(a).compareTo(place(b));
+    if (byPlace != 0) return byPlace;
+    final byRank = rank(a).compareTo(rank(b));
+    return byRank != 0 ? byRank : a.id.compareTo(b.id);
+  };
+}

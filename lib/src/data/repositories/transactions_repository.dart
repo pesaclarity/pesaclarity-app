@@ -653,7 +653,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           references: {for (final a in accounts) a.id: a.reference},
           receipts: receipts,
           linked: linked,
-          own: ownAccountsOf(accounts),
+          own: ownAccountsOf(accounts, linePhones: await readLinePhones(_db)),
           answers: await readOwnMoveAnswers(_db),
         );
         // Then between currencies, among what one currency left unpaired, at

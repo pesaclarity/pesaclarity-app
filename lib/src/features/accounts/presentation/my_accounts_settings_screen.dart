@@ -82,7 +82,7 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
             !hidden.contains(a.id) &&
             !grouped.contains(a.id))
           a,
-    ]..sort((a, b) => a.id.compareTo(b.id));
+    ]..sort(byLineOrder(lines, lineAccounts.keys));
     // Accounts the person hid, still in totals and history.
     final hiddenByPerson = [
       for (final a in named.values)

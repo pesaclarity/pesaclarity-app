@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/accounts/mpesa_lines.dart';
 import '../../domain/ledger/cross_currency_transfers.dart';
 import '../../domain/ledger/ledger_entry.dart';
 import '../../domain/ledger/own_accounts.dart';
@@ -15,15 +16,39 @@ const ownMoveAnswersKey = 'ledger.ownMoveAnswers';
 /// The person's own numbers and accounts, from [accounts] (decision 0030,
 /// rule 4). The accounts money between spaces keeps (decision 0027) are no
 /// account a message can name: a payment on one is never an own transfer.
-OwnAccounts ownAccountsOf(Iterable<Account> accounts) => OwnAccounts([
+///
+/// [linePhones] are the numbers the person typed for their M-Pesa lines,
+/// by line id: a line's account has that number, so a send to it from
+/// another line is a move between own accounts.
+OwnAccounts ownAccountsOf(
+  Iterable<Account> accounts, {
+  Map<String, String> linePhones = const {},
+}) => OwnAccounts([
   for (final a in accounts)
     if (!a.type.isBetweenSpaces)
       OwnAccount(
         id: a.id,
         reference: a.reference,
         institutionId: a.institutionId,
+        phone: switch (lineOfReference(a.reference)) {
+          final id? => linePhones[id],
+          null => null,
+        },
       ),
 ]);
+
+/// Where each space's settings keep the numbers typed for M-Pesa lines,
+/// by line id, copied from `mpesa.lines` so every space can match moves.
+const linePhonesKey = 'mpesa.linePhones';
+
+/// The line numbers [db]'s space keeps (see [linePhonesKey]).
+Future<Map<String, String>> readLinePhones(AppDatabase db) async {
+  final json = await DriftAppSettingsRepository(db).readJson(linePhonesKey);
+  return {
+    for (final MapEntry(:key, :value) in (json ?? const {}).entries)
+      if (value is String) key: value,
+  };
+}
 
 /// The answers the person gave, by sender.
 Future<Map<String, bool>> readOwnMoveAnswers(AppDatabase db) async {
@@ -95,7 +120,7 @@ Future<Map<int, OwnMoveQuestion>> ownMoveQuestions(AppDatabase db) async {
   if (rows.isEmpty) return const {};
   final byId = {for (final r in rows) r.id: r};
   final accounts = await db.select(db.accounts).get();
-  final own = ownAccountsOf(accounts);
+  final own = ownAccountsOf(accounts, linePhones: await readLinePhones(db));
   final references = {for (final a in accounts) a.id: a.reference};
   final answers = await readOwnMoveAnswers(db);
   final asked = <int, OwnMoveQuestion>{};
@@ -144,7 +169,7 @@ Future<int> unpairRuledOutMoves(AppDatabase db) async {
   )..where((t) => t.transferPairId.isNotNull())).get();
   final byId = {for (final r in rows) r.id: r};
   final accounts = await db.select(db.accounts).get();
-  final own = ownAccountsOf(accounts);
+  final own = ownAccountsOf(accounts, linePhones: await readLinePhones(db));
   final references = {for (final a in accounts) a.id: a.reference};
   final answers = await readOwnMoveAnswers(db);
   var unpaired = 0;

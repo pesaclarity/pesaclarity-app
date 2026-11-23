@@ -307,6 +307,42 @@ void main() {
     }
   });
 
+  testAppWidgets("a typed number shows masked under the line's name, and "
+      'the sheet has the Number field', (tester) async {
+    await _pump(
+      tester,
+      manyLines(),
+      also: (s) async {
+        final lines = await _saved(s);
+        await DriftAppSettingsRepository(s.db).writeJson(
+          mpesaLinesKey,
+          lines.withNumber('5', '0712345678').toJson(),
+        );
+      },
+    );
+    expect(find.textContaining('0712 ••• 678\n'), findsOneWidget);
+    await _tap(tester, 'line-row-5');
+    expect(find.text('Number (optional)'), findsOneWidget);
+    expect(find.text('0712345678'), findsOneWidget);
+  });
+
+  testAppWidgets('the main line shows first in My accounts', (tester) async {
+    await _pump(
+      tester,
+      myAccounts(),
+      also: (s) async {
+        final lines = await _saved(s);
+        await DriftAppSettingsRepository(
+          s.db,
+        ).writeJson(mpesaLinesKey, lines.withRole('5', LineRole.main).toJson());
+      },
+    );
+    final main = find.text('M-Pesa · SIM 5');
+    final other = find.text('M-Pesa · My line');
+    await tester.scrollUntilVisible(main, 200);
+    expect(tester.getTopLeft(main).dy, lessThan(tester.getTopLeft(other).dy));
+  });
+
   for (final scale in [1.0, 1.3, 1.5, 2.0]) {
     group('at ${scale}x text', () {
       testAppWidgets('M-Pesa lines and its sheets fit', (tester) async {

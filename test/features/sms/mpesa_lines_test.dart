@@ -9,11 +9,13 @@ import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
 import 'package:pesaclarity/src/data/repositories/institutions_repository.dart';
+import 'package:pesaclarity/src/data/repositories/own_moves.dart';
 import 'package:pesaclarity/src/data/repositories/space_leak_repair.dart';
 import 'package:pesaclarity/src/domain/accounts/mpesa_lines.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/accounts/application/mpesa_lines_providers.dart';
 import 'package:pesaclarity/src/features/accounts/domain/institution.dart';
+import 'package:pesaclarity/src/features/balances/application/balances_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/features/sms/application/sms_capture_providers.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
@@ -532,6 +534,77 @@ void main() {
       expect((await byAccount(personal))[lineReference(seven.id)], {
         'TKA0000040',
       });
+    });
+
+    test('the main line shows first in Balances, Money and On hand', () async {
+      final c = await splitTwo(FakeSmsSource(inbox: _twoLines()));
+      await c.read(mpesaLineRoutingProvider).setRole('2', LineRole.main);
+      final sub = c.listen(balancesOverviewProvider, (_, _) {});
+      addTearDown(sub.close);
+      await c.read(mpesaLinesProvider.future);
+      final overview = await c.read(balancesOverviewProvider.future);
+      expect(
+        [
+          for (final a in overview.accounts)
+            if (lineOfReference(a.account.reference) != null)
+              a.account.reference,
+        ],
+        ['line:2', 'line:1'],
+      );
+      // On hand lists accounts in the same line order.
+      final accounts = await personal.select(personal.accounts).get();
+      final lines = await c.read(mpesaLinesProvider.future);
+      final ordered = [...accounts]
+        ..sort(byLineOrder(lines, [for (final a in accounts) a.id]));
+      expect(ordered.first.reference, 'line:2');
+    });
+
+    test("a line's typed number reaches every space, and a send to it from "
+        'the other line is a move between own accounts', () async {
+      final c = await splitTwo(FakeSmsSource(inbox: _twoLines()));
+      final one = (await lineAccount('1')).id;
+      final two = (await lineAccount('2')).id;
+      Future<int> add(int account, TransactionDirection d, String? phone) =>
+          personal
+              .into(personal.transactions)
+              .insert(
+                TransactionsCompanion.insert(
+                  accountId: account,
+                  amountMinor: 70000,
+                  direction: d,
+                  occurredAt: DateTime.utc(2026, 11, 20, 8),
+                  source: TransactionSource.sms,
+                  kind: Value(
+                    d == TransactionDirection.outflow
+                        ? TransactionKind.sent
+                        : TransactionKind.received,
+                  ),
+                  counterpartyKind: Value(
+                    phone == null ? null : PayeeIdentifierKind.phone,
+                  ),
+                  counterpartyValue: Value(phone),
+                ),
+              );
+      final sent = await add(one, TransactionDirection.outflow, '0712***678');
+      await add(two, TransactionDirection.inflow, null);
+
+      await c.read(mpesaLineRoutingProvider).setNumber('2', '0712 345 678');
+      expect(
+        (await c.read(mpesaLinesProvider.future)).line('2')!.maskedNumber,
+        '0712 ••• 678',
+      );
+      for (final db in [personal, shop]) {
+        expect(await readLinePhones(db), {'2': '0712345678'});
+      }
+      final own = ownAccountsOf(
+        await personal.select(personal.accounts).get(),
+        linePhones: await readLinePhones(personal),
+      );
+      expect(own.phoneOf(two), '0712345678');
+      final row = await (personal.select(
+        personal.transactions,
+      )..where((t) => t.id.equals(sent))).getSingle();
+      expect(row.transferPairId, isNotNull);
     });
 
     test(

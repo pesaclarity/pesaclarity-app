@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../data/database/app_database.dart';
+import '../../../domain/accounts/mpesa_lines.dart';
 import '../../../domain/goals/goals_aside.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
@@ -9,6 +11,7 @@ import '../../../shared/widgets/app_sheet.dart';
 import '../../../shared/widgets/figures.dart';
 import '../../../shared/widgets/marks.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../accounts/application/mpesa_lines_providers.dart';
 import '../../activity/application/activity_providers.dart';
 import '../../goals/application/goals_aside_providers.dart';
 import '../../goals/presentation/goals_aside_text.dart';
@@ -40,13 +43,24 @@ class OnHandSheet extends ConsumerWidget {
         if (g.asideMinor > 0) g.goal.name,
     ];
     String money(int minor) => shownMoney(context, minor);
+    // The main M-Pesa line first among the lines, then the second.
+    final lines = ref.watch(mpesaLinesProvider).value ?? MpesaLines.empty;
+    final byLine = byLineOrder(lines, [
+      for (final a in accounts.values)
+        if (lineOfReference(a.reference) != null) a.id,
+    ]);
+    int order(Account? a, Account? b, int ia, int ib) =>
+        a == null || b == null ? ia.compareTo(ib) : byLine(a, b);
     return SheetBody(
       title: BalanceText.onHandTitle(
         shownMoney(context, onHand.totalMinor, withCurrency: true),
       ),
       subtitle: BalanceText.startOfToday,
       children: [
-        for (final MapEntry(key: id, value: minor) in onHand.byAccount.entries)
+        for (final (id, minor) in [
+          for (final MapEntry(:key, :value) in onHand.byAccount.entries)
+            (key, value),
+        ]..sort((a, b) => order(accounts[a.$1], accounts[b.$1], a.$1, b.$1)))
           LabelValueRow(
             key: Key('on-hand-account-$id'),
             label: accounts[id]?.name ?? 'Account',

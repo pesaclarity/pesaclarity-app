@@ -196,6 +196,33 @@ void main() {
     });
   });
 
+  test('the main line sorts first, then the second, then the rest', () {
+    final lines = _six()
+        .withRole('5', LineRole.main)
+        .withRole('1', LineRole.second);
+    expect(lines.rankOf('line:5'), 0);
+    expect(lines.rankOf('line:1'), 1);
+    expect(lines.rankOf('line:3'), 2);
+    expect(lines.rankOf(null), 2);
+  });
+
+  test(
+    'a typed number is kept plain, shown masked, and cleared when empty',
+    () {
+      var lines = _six().withNumber('5', '+254 712 345 678');
+      expect(lines.line('5')!.number, '0712345678');
+      expect(lines.line('5')!.maskedNumber, '0712 ••• 678');
+      expect(lines.numbers, {'5': '0712345678'});
+      expect(
+        MpesaLines.fromJson(lines.toJson()).line('5')!.number,
+        '0712345678',
+      );
+      lines = lines.withNumber('5', 'not a number');
+      expect(lines.line('5')!.number, isNull);
+      expect(lines.withNumber('5', '').numbers, isEmpty);
+    },
+  );
+
   test('an old save with no new fields reads as before', () {
     final lines = MpesaLines.fromJson({
       'lines': [
