@@ -167,6 +167,33 @@ void main() {
       expect(progressOf(review, savings).status, PlanStatus.done);
     });
 
+    test('leaves out paying back a family or friend loan', () {
+      final family = LedgerEntry(
+        id: 900,
+        accountId: 1,
+        occurredAt: eat(2026, 10, 12),
+        amountMinor: kes(4000),
+        direction: TransactionDirection.outflow,
+        kind: TransactionKind.sent,
+        categoryId: loan,
+        categoryType: CategoryType.debt,
+        repaysFamilyLoan: true,
+      );
+      final review = MonthReview.of(octoberPlan(), [
+        family,
+        paid(loan, 6000, type: CategoryType.debt),
+      ]);
+      // Only the bank, SACCO or app loan's 6,000 counts.
+      expect(progressOf(review, loan).actualMinor, kes(6000));
+      expect(progressOf(review, loan).status, PlanStatus.inProgress);
+      expect(
+        MonthReview.of(octoberPlan(), [
+          family,
+        ]).categories.where((c) => c.categoryId == loan && c.actualMinor != 0),
+        isEmpty,
+      );
+    });
+
     test('money moved into a savings account meets the Savings line', () {
       // Out of M-Pesa into the person's own savings account, both halves:
       // an own transfer, filed under Savings by where it went.

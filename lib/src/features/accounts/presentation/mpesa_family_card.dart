@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database_providers.dart';
+import '../../../domain/accounts/own_and_owe.dart';
 import '../../../domain/savings/savings_account.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/time/date_labels.dart';
@@ -47,6 +48,9 @@ abstract final class FamilyText {
   static const countsInBusiness = 'Counts in your Business space';
   static const businessTill = 'Your business till';
   static String across(String day) => 'Across your M-Pesa accounts · $day';
+  static String acrossAll(String day) => 'Across your accounts · $day';
+  static String saccoDeposits(String name) => '$name deposits';
+  static String saccoShares(String name) => "$name shares · can't be withdrawn";
   static const yoursAfterDebts = 'Yours after debts';
   static String pochiNote(String name, String amount, {required bool there}) =>
       there
@@ -73,32 +77,57 @@ bool _pochiCountsElsewhere(WidgetRef ref) {
       invested: colors.markBlue,
     );
 
+/// The totals of [families] with [saccos] added, in the families' currency
+/// or else the first SACCO's.
+OwnAndOwe _totals(List<MpesaFamily> families, List<SaccoHolding> saccos) {
+  int sum(int Function(MpesaFamily f) of) =>
+      families.fold(0, (total, f) => total + of(f));
+  return OwnAndOwe.of(
+    currency: _currencyOf(families, saccos),
+    walletMinor: sum((f) => f.walletMinor),
+    savedMinor: sum((f) => f.savedMinor),
+    investedMinor: sum((f) => f.investedMinor),
+    owedMinor: sum((f) => f.owedMinor),
+    saccos: saccos,
+  );
+}
+
+String _currencyOf(List<MpesaFamily> families, List<SaccoHolding> saccos) =>
+    families.firstOrNull?.currency ?? saccos.first.currency;
+
 /// "What you own and owe", at the top of My accounts: what the M-Pesa
-/// families hold after debts, a bar of their parts and each part's total.
-/// Opens the breakdown.
+/// families and SACCOs hold after debts, a bar of their parts and each
+/// part's total. Opens the breakdown. Needs a family or a SACCO.
 class OwnAndOweCard extends StatelessWidget {
-  const OwnAndOweCard({required this.families, super.key});
+  const OwnAndOweCard({
+    required this.families,
+    this.saccos = const [],
+    super.key,
+  }) : assert(families.length + saccos.length > 0, 'needs an account');
 
   final List<MpesaFamily> families;
+
+  /// SACCOs: deposits and shares under Saved, the loan under Owed.
+  final List<SaccoHolding> saccos;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final parts = _partColors(colors);
-    final currency = families.first.currency;
-    int sum(int Function(MpesaFamily f) of) =>
-        families.fold(0, (total, f) => total + of(f));
-    final walletMinor = sum((f) => f.walletMinor);
-    final savedMinor = sum((f) => f.savedMinor);
-    final investedMinor = sum((f) => f.investedMinor);
-    final owedMinor = sum((f) => f.owedMinor);
-    final ownMinor = walletMinor + savedMinor + investedMinor;
+    final currency = _currencyOf(families, saccos);
+    final totals = _totals(families, saccos);
+    final walletMinor = totals.walletMinor;
+    final savedMinor = totals.savedMinor;
+    final investedMinor = totals.investedMinor;
+    final owedMinor = totals.owedMinor;
+    final ownMinor = totals.ownMinor;
     String plain(int minor) =>
         shownMoney(context, minor, currency: currency, withCurrency: false);
     final muted = theme.textTheme.bodySmall!.copyWith(color: colors.textMuted);
     final legend = [
-      (FamilyText.mpesa, walletMinor, parts.wallet, false),
+      if (families.isNotEmpty)
+        (FamilyText.mpesa, walletMinor, parts.wallet, false),
       (FamilyText.saved, savedMinor, parts.saved, false),
       (FamilyText.invested, investedMinor, parts.invested, false),
       (FamilyText.owed, owedMinor, colors.textMuted, true),
@@ -111,7 +140,7 @@ class OwnAndOweCard extends StatelessWidget {
     return Card(
       key: const Key('own-and-owe'),
       child: InkWell(
-        onTap: () => showOwnAndOweSheet(context, families),
+        onTap: () => showOwnAndOweSheet(context, families, saccos: saccos),
         child: Padding(
           padding: const EdgeInsets.all(Layout.cardPadding),
           child: Column(
@@ -174,7 +203,9 @@ class OwnAndOweCard extends StatelessWidget {
                 builder: (context, constraints) {
                   final columns =
                       MediaQuery.textScalerOf(context).scale(1) >= 1.3 ? 2 : 4;
-                  final width = constraints.maxWidth / columns;
+                  final width =
+                      constraints.maxWidth /
+                      (columns > legend.length ? legend.length : columns);
                   return Wrap(
                     runSpacing: 10,
                     children: [
@@ -236,19 +267,24 @@ class _Dot extends StatelessWidget {
 }
 
 /// The breakdown of "What you own and owe": every M-Pesa account under
-/// M-Pesa, Saved, Invested and Owed, then what is the person's after debts.
+/// M-Pesa, Saved, Invested and Owed, with each SACCO's deposits and shares
+/// under Saved and its loan under Owed, then what is the person's after
+/// debts.
 Future<void> showOwnAndOweSheet(
   BuildContext context,
-  List<MpesaFamily> families,
-) => showAppSheet<void>(
+  List<MpesaFamily> families, {
+  List<SaccoHolding> saccos = const [],
+}) => showAppSheet<void>(
   context: context,
-  builder: (context) => AmountsHiddenScope(child: _OwnAndOweSheet(families)),
+  builder: (context) =>
+      AmountsHiddenScope(child: _OwnAndOweSheet(families, saccos)),
 );
 
 class _OwnAndOweSheet extends ConsumerWidget {
-  const _OwnAndOweSheet(this.families);
+  const _OwnAndOweSheet(this.families, this.saccos);
 
   final List<MpesaFamily> families;
+  final List<SaccoHolding> saccos;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -256,7 +292,16 @@ class _OwnAndOweSheet extends ConsumerWidget {
     final colors = PesaColors.of(context);
     final parts = _partColors(colors);
     final today = ref.watch(familyMonthProvider);
-    final currency = families.first.currency;
+    final currency = _currencyOf(families, saccos);
+    final totals = _totals(families, saccos);
+    final saccosHere = [
+      for (final s in saccos)
+        if (s.currency == currency) s,
+    ];
+    final saccoLoans = [
+      for (final s in saccosHere)
+        if (s.hasLoan) s,
+    ];
     String plain(int minor) =>
         shownMoney(context, minor, currency: currency, withCurrency: false);
     final saved = [for (final f in families) ...f.saved];
@@ -266,8 +311,6 @@ class _OwnAndOweSheet extends ConsumerWidget {
         if (f.fulizaOwedMinor > 0) f,
     ];
     final business = [for (final f in families) ...f.business];
-    int sum(int Function(MpesaFamily f) of) =>
-        families.fold(0, (total, f) => total + of(f));
     final head = theme.textTheme.bodyLarge!.copyWith(
       fontWeight: FontWeight.w600,
     );
@@ -299,27 +342,35 @@ class _OwnAndOweSheet extends ConsumerWidget {
     final there = _pochiCountsElsewhere(ref);
     return SheetBody(
       title: FamilyText.ownAndOwe,
-      subtitle: FamilyText.across(dayLabel(today, thisYear: today.year)),
+      subtitle: saccosHere.isEmpty
+          ? FamilyText.across(dayLabel(today, thisYear: today.year))
+          : FamilyText.acrossAll(dayLabel(today, thisYear: today.year)),
       children: [
-        row(
-          FamilyText.mpesa,
-          sum((f) => f.walletMinor),
-          lead: _Dot(color: parts.wallet),
-          group: true,
-        ),
-        if (saved.isNotEmpty) ...[
+        if (families.isNotEmpty)
+          row(
+            FamilyText.mpesa,
+            totals.walletMinor,
+            lead: _Dot(color: parts.wallet),
+            group: true,
+          ),
+        if (saved.isNotEmpty || saccosHere.isNotEmpty) ...[
           row(
             FamilyText.saved,
-            sum((f) => f.savedMinor),
+            totals.savedMinor,
             lead: _Dot(color: parts.saved),
             group: true,
           ),
           for (final s in saved) row(s.name, s.balanceMinor),
+          for (final s in saccosHere) ...[
+            row(FamilyText.saccoDeposits(s.name), s.depositsMinor),
+            if (s.sharesMinor > 0)
+              row(FamilyText.saccoShares(s.name), s.sharesMinor),
+          ],
         ],
         if (invested.isNotEmpty) ...[
           row(
             FamilyText.invested,
-            sum((f) => f.investedMinor),
+            totals.investedMinor,
             lead: _Dot(color: parts.invested),
             group: true,
           ),
@@ -327,11 +378,12 @@ class _OwnAndOweSheet extends ConsumerWidget {
         ],
         row(
           FamilyText.owed,
-          sum((f) => f.owedMinor),
+          totals.owedMinor,
           lead: _Dot(color: colors.textMuted, ring: true),
           group: true,
         ),
         for (final f in fuliza) row(FamilyText.fuliza, f.fulizaOwedMinor),
+        for (final s in saccoLoans) row(s.loanName!, s.loanOwedMinor),
         const SizedBox(height: 14),
         const Divider(height: 1),
         const SizedBox(height: 14),
@@ -343,7 +395,7 @@ class _OwnAndOweSheet extends ConsumerWidget {
               Text(
                 shownMoney(
                   context,
-                  sum((f) => f.afterDebtsMinor),
+                  totals.afterDebtsMinor,
                   currency: currency,
                   withCurrency: true,
                 ),

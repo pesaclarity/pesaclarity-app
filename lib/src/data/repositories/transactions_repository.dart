@@ -441,14 +441,21 @@ class DriftTransactionsRepository implements TransactionsRepository {
         .customSelect(
           'SELECT t.*, p.id AS payee_row_id, p.display_name AS payee_name, '
           'p.default_category_id AS payee_category_id, '
-          'p.leak_type AS payee_leak_type, p.ask_purpose AS payee_ask_purpose '
+          'p.leak_type AS payee_leak_type, p.ask_purpose AS payee_ask_purpose, '
+          'EXISTS (SELECT 1 FROM debts d WHERE d.id = t.debt_id '
+          'AND d.is_formal = 0) AS repays_family_loan '
           'FROM transactions t LEFT OUTER JOIN payees p ON p.id = t.payee_id '
           'WHERE $inRange'
           '${tagId == null ? '' : ' AND EXISTS (SELECT 1 FROM transaction_tags l '
                     'WHERE l.transaction_id = t.id AND l.tag_id = ?)'} '
           'ORDER BY t.occurred_at ASC, t.id ASC',
           variables: [...rangeVariables, if (tagId != null) Variable(tagId)],
-          readsFrom: {_db.transactions, _db.payees, _db.transactionTags},
+          readsFrom: {
+            _db.transactions,
+            _db.payees,
+            _db.transactionTags,
+            _db.debts,
+          },
         )
         .get();
     final read = _RowReader(_db);
@@ -463,6 +470,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           _converter,
           savings: savings,
           waiting: waiting,
+          repaysFamilyLoan: row.data['repays_family_loan'] == 1,
         ),
     ];
     return _withExchangeCosts(entries, records, categories);
@@ -991,6 +999,7 @@ LedgerEntry _toLedgerEntry(
   CurrencyConverter? converter, {
   _IntoSavings? savings,
   _Waiting? waiting,
+  bool repaysFamilyLoan = false,
 }) {
   // Amounts in another currency are converted into the base one, at the
   // rate the person got or else the rates of their day; with no rate they
@@ -1074,6 +1083,8 @@ LedgerEntry _toLedgerEntry(
     originalCurrency: converted ? record.currency : null,
     linkedSpaceId: record.linkedSpaceId,
     lentLoanId: record.lentLoanId,
+    repaysFamilyLoan:
+        repaysFamilyLoan && record.direction == TransactionDirection.outflow,
   );
 }
 

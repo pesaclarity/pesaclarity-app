@@ -8,6 +8,7 @@ import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/sacco_links.dart';
 import '../../../data/repositories/sacco_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/accounts/own_and_owe.dart';
 import '../../../domain/debts/debt.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
@@ -786,6 +787,26 @@ class SaccosCard extends ConsumerWidget {
 final saccosProvider = StreamProvider<List<(Account, SaccoDetailsRow)>>(
   (ref) => ref.watch(saccoRepositoryProvider).watchAll(),
 );
+
+/// Each SACCO the person has not hidden, as "What you own and owe" counts
+/// it: deposits and shares under Saved, its loan under Owed.
+final saccoHoldingsProvider = Provider<List<SaccoHolding>>((ref) {
+  final saccos = ref.watch(saccosProvider).value ?? const [];
+  final overview = ref.watch(balancesOverviewProvider).value;
+  final loans = ref.watch(saccoLoansProvider).value ?? const {};
+  return [
+    for (final (account, details) in saccos)
+      if (!account.hidden)
+        SaccoHolding(
+          name: account.name,
+          currency: account.currency,
+          savedMinor: overview?.byId(account.id)?.heldMinor ?? 0,
+          sharesMinor: details.sharesMinor,
+          loanName: loans[details.loanDebtId]?.lender,
+          loanOwedMinor: loans[details.loanDebtId]?.balanceMinor ?? 0,
+        ),
+  ];
+});
 
 /// The SACCOs' loans, by debt id.
 final saccoLoansProvider = FutureProvider<Map<int, Debt>>((ref) async {

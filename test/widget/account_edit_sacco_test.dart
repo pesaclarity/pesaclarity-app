@@ -189,4 +189,50 @@ void main() {
     expect(find.textContaining('check-off from salary'), findsOneWidget);
     expect(find.byKey(const Key('sacco-can-borrow')), findsOneWidget);
   });
+
+  testAppWidgets('What you own and owe shows a SACCO with no M-Pesa family', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => SaccoRepository(db).add(
+        name: 'Mwangaza SACCO',
+        currency: 'KES',
+        paybill: '400222',
+        depositsMinor: kes(84000),
+        sharesMinor: kes(20000),
+        at: eat(2026, 10, 1, 9),
+        loan: SaccoLoanInput(
+          owedMinor: kes(150000),
+          monthlyMinor: kes(6500),
+          rateBasisPoints: 1200,
+        ),
+      ),
+    );
+    await pump(tester, const MyAccountsSettingsScreen());
+    final card = find.byKey(const Key('own-and-owe'));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('M-Pesa')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('104,000')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('150,000')),
+      findsOneWidget,
+    );
+
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.text('Mwangaza SACCO deposits'), findsOneWidget);
+    expect(find.text('84,000'), findsOneWidget);
+    expect(
+      find.text("Mwangaza SACCO shares · can't be withdrawn"),
+      findsOneWidget,
+    );
+    expect(find.text('20,000'), findsOneWidget);
+    expect(find.textContaining('Across your accounts'), findsOneWidget);
+  });
 }

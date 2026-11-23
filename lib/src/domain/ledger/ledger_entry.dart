@@ -41,6 +41,7 @@ class LedgerEntry {
     this.heldForAccountId,
     this.placeId,
     this.lentLoanId,
+    this.repaysFamilyLoan = false,
   }) : currency = currency ?? BaseCurrency.code,
        assert(amountMinor >= 0, 'amountMinor is always positive'),
        assert(feeMinor >= 0, 'feeMinor is always positive');
@@ -151,6 +152,11 @@ class LedgerEntry {
   /// spending nor income ([LedgerRole.lending]).
   final int? lentLoanId;
 
+  /// Whether this is money out paying back a family or friend loan in
+  /// Lent and borrowed ("Paid back a loan"): not a bank, SACCO or app
+  /// loan, so Plan leaves it out of debt payments.
+  final bool repaysFamilyLoan;
+
   /// Where this entry stands among entries at the same time.
   int get order => placeId ?? id;
 
@@ -213,6 +219,7 @@ class LedgerEntry {
     heldForAccountId: heldForAccountId,
     placeId: placeId,
     lentLoanId: lentLoanId,
+    repaysFamilyLoan: repaysFamilyLoan,
   );
 
   @override

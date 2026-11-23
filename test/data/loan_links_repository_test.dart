@@ -300,6 +300,55 @@ void main() {
     );
 
     test(
+      'Plan leaves paying a friend back out; a bank loan still counts',
+      () async {
+        await links.borrow(await received(1, 3000));
+        final family = await sent(12, 1000);
+        expect(await links.payBack(family), isTrue);
+        final loanCategory = (await categories.byKey(loanCategoryKey))!.id;
+        final bank = await DriftDebtsRepository(db).add(
+          DebtsCompanion.insert(
+            lender: 'Test Bank',
+            type: DebtType.bankLoan,
+            startingBalanceMinor: kes(50000),
+          ),
+        );
+        final bankPayment = await sent(14, 2500);
+        await (db.update(
+          db.transactions,
+        )..where((t) => t.id.equals(bankPayment))).write(
+          TransactionsCompanion(
+            debtId: Value(bank),
+            categoryOverrideId: Value(loanCategory),
+          ),
+        );
+
+        expect((await entryOf(family)).repaysFamilyLoan, isTrue);
+        expect((await entryOf(bankPayment)).repaysFamilyLoan, isFalse);
+        await journal.sync();
+        final review = MonthReview.of(
+          MonthPlan(
+            month: YearMonth(2026, 11),
+            lines: const [],
+            categories: const {},
+          ),
+          await entries(),
+          journal: await journal.read(),
+        );
+        expect(
+          review.categories
+              .singleWhere((c) => c.categoryId == loanCategory)
+              .actualMinor,
+          kes(2500),
+        );
+        expect(review.actualMinor, kes(2500));
+        // Neither is day-to-day spending, so safe to spend is untouched.
+        expect(dayToDaySpendOf(await entryOf(family)), 0);
+        expect(dayToDaySpendOf(await entryOf(bankPayment)), 0);
+      },
+    );
+
+    test(
       'with nothing borrowed from them it is a repayment on its own',
       () async {
         final out = await sent(12, 1000);

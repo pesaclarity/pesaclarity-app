@@ -70,6 +70,7 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
               const <(Account, SaccoDetailsRow)>[])
         a.id,
     };
+    final saccoHoldings = ref.watch(saccoHoldingsProvider);
     final named = withLineNames({...?loaded.value}, lineAccounts);
     // Savings apps, such as Chumz, have a card of their own. A line given
     // to another space leaves an empty account here, not shown.
@@ -108,8 +109,8 @@ class MyAccountsSettingsScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
-                if (families.isNotEmpty) ...[
-                  OwnAndOweCard(families: families),
+                if (families.isNotEmpty || saccoHoldings.isNotEmpty) ...[
+                  OwnAndOweCard(families: families, saccos: saccoHoldings),
                   const SizedBox(height: 16),
                 ],
                 Text(

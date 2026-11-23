@@ -203,6 +203,8 @@ class MonthReview {
   ///
   /// With the space's [journal] (decision 0018, stage 4), what each entry
   /// paid towards its category is read from its journal entry's postings.
+  /// Paying back a family or friend loan ([LedgerEntry.repaysFamilyLoan])
+  /// is left out.
   factory MonthReview.of(
     MonthPlan plan,
     Iterable<LedgerEntry> entries, {
@@ -275,6 +277,9 @@ int _actualOf(LedgerEntry entry, PostedParts? posted) {
     return posted?.spendingMinor ?? -entry.amountMinor;
   }
   if (!entry.isOutflow) return 0;
+  // Paying a friend or relative back is not a debt payment in Plan; bank,
+  // SACCO and app loans still are.
+  if (role == LedgerRole.debtRepayment && entry.repaysFamilyLoan) return 0;
   if (entry.categoryId == null) {
     if (role != LedgerRole.spending) return 0;
     return posted?.spendingMinor ?? entry.amountMinor;

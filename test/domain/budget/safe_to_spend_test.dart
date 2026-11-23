@@ -20,6 +20,36 @@ void main() {
   final monday = CalendarDate(2026, 10, 26);
 
   group('SafeToSpend.calculate', () {
+    test('paying back a loan, family or bank, is not day-to-day', () {
+      LedgerEntry repaid({required bool family}) => LedgerEntry(
+        id: family ? 901 : 902,
+        accountId: 1,
+        occurredAt: eat(2026, 10, 26, 9),
+        amountMinor: kes(3000),
+        direction: TransactionDirection.outflow,
+        kind: TransactionKind.sent,
+        categoryId: 9,
+        categoryType: CategoryType.debt,
+        repaysFamilyLoan: family,
+      );
+      final without = SafeToSpend.calculate(
+        budgetMinor: kes(30000),
+        entries: [food(eat(2026, 10, 10), kes(24000))],
+        today: monday,
+      );
+      final withBoth = SafeToSpend.calculate(
+        budgetMinor: kes(30000),
+        entries: [
+          food(eat(2026, 10, 10), kes(24000)),
+          repaid(family: true),
+          repaid(family: false),
+        ],
+        today: monday,
+      );
+      expect(withBoth.leftTodayMinor, without.leftTodayMinor);
+      expect(withBoth.leftThisMonthMinor, without.leftThisMonthMinor);
+    });
+
     test('splits what is left evenly by default', () {
       final result = SafeToSpend.calculate(
         budgetMinor: kes(30000),
