@@ -17,6 +17,7 @@ import '../../review/application/review_providers.dart';
 import '../application/mpesa_lines_providers.dart';
 import '../application/my_accounts_providers.dart';
 import '../domain/institution.dart';
+import 'mpesa_lines_screen.dart' show LinesText;
 
 /// Whether the open space reads M-Pesa itself, where the offer to split and
 /// the questions about lines wait.
@@ -74,6 +75,7 @@ class LineQuestionRows extends ConsumerWidget {
               builder: (_) => WhichLineSheet(item: which.first),
             ),
           ),
+        if (lines.skipNote == SkipNote.due) LineSkipNote(lines: lines),
         if (sim != null)
           _Row(
             key: const Key('home-same-line'),
@@ -190,7 +192,7 @@ class _WhichLineSheetState extends ConsumerState<WhichLineSheet> {
         Card(
           child: Column(
             children: [
-              for (final (i, line) in lines.lines.indexed) ...[
+              for (final (i, line) in lines.tracked.indexed) ...[
                 if (i > 0) const Divider(height: 1),
                 ListTile(
                   key: Key('which-line-${line.id}'),
@@ -321,6 +323,51 @@ class _SameLineSheetState extends ConsumerState<SameLineSheet> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The quiet note, once, when a message from a line the person stopped
+/// tracking is first skipped. Later ones are skipped without a note; M-Pesa
+/// lines says how many lines are not tracked.
+class LineSkipNote extends ConsumerWidget {
+  const LineSkipNote({required this.lines, super.key});
+
+  final MpesaLines lines;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colors = PesaColors.of(context);
+    final name = lines.line(lines.skippedLineId ?? '')?.label ?? 'a line';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        key: const Key('line-skip-note'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                LinesText.skipped(name),
+                style: theme.textTheme.bodyMedium!.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  key: const Key('line-skip-note-ok'),
+                  onPressed: () =>
+                      ref.read(mpesaLinesProvider.notifier).skipNoteSeen(),
+                  child: const Text('OK'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

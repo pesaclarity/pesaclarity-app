@@ -63,9 +63,55 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('mpesa-lines')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('line-row-1')));
+      await tester.pumpAndSettle();
     },
   );
   shot('lines-home-rows', homeRows, split: true, iphone: true);
   shot('lines-which-line', whichLine, split: true, iphone: true);
   shot('lines-same-line', sameLine, split: true);
+
+  // Many lines (fx-9): the list, old lines open, the quick setup, one
+  // line's sheet, Don't track, Same line as…, and the screen after.
+  void many(
+    String name,
+    Widget home, {
+    bool after = false,
+    bool iphone = false,
+    Future<void> Function(WidgetTester tester)? then,
+  }) => screenshot(name, (tester) async {
+    final seeded = await tester.runAsync(
+      () => seedManyLines(after: after, iphone: iphone),
+    );
+    await tester.pumpWidget(
+      ProviderScope(overrides: linesOverrides(seeded!), child: shotApp(home)),
+    );
+    await settleFrames(tester);
+    await tester.pumpAndSettle();
+    if (then != null) await then(tester);
+    await snap(tester);
+  });
+
+  Future<void> Function(WidgetTester) tap(String key) => (tester) async {
+    if (find.byKey(Key(key)).evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        find.byKey(Key(key)),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.ensureVisible(find.byKey(Key(key)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key(key)));
+    await tester.pumpAndSettle();
+  };
+
+  many('lines-many-list', manyLines());
+  many('lines-many-old', manyLines(), then: tap('lines-old'));
+  many('lines-many-quick', quickSetup());
+  many('lines-many-line', lineSheet('5'));
+  many('lines-many-untrack', lineSheet('4'), then: tap('line-is-dont'));
+  many('lines-many-same', lineSheet('3'), then: tap('line-is-same'));
+  many('lines-many-after', manyLines(), after: true);
+  many('lines-many-iphone', lineSheet('5'), iphone: true);
 }

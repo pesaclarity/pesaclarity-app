@@ -192,7 +192,13 @@ void main() {
         await tester.tap(find.byKey(const Key('mpesa-lines')));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await _toSheetButton(tester);
+        // M-Pesa lines, then one line's sheet.
+        await tester.tap(find.byKey(const Key('line-row-1')));
+        await tester.pumpAndSettle();
+        final save = find.byKey(const Key('line-save'));
+        await tester.ensureVisible(save);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
         expect(find.text('Save'), findsOneWidget);
       });
 

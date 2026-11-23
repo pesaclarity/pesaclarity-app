@@ -29,6 +29,7 @@ import '../domain/institution.dart';
 import 'account_page.dart';
 import 'line_questions.dart';
 import 'mpesa_family_card.dart';
+import 'mpesa_lines_screen.dart';
 import 'mpesa_lines_sheet.dart';
 import 'sacco_screens.dart';
 
@@ -342,7 +343,7 @@ class _LinesRow extends ConsumerWidget {
             : elsewhere.join('. '),
       ),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () => showMpesaLinesSheet(context),
+      onTap: () => openMpesaLines(context),
     );
   }
 }

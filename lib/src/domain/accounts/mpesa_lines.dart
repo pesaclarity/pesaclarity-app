@@ -97,6 +97,7 @@ class MpesaLine {
     this.firstAt,
     this.lastAt,
     this.messages = 0,
+    this.tracked = true,
   });
 
   /// `1`, `2`, ... in the order the lines were first seen.
@@ -124,6 +125,11 @@ class MpesaLine {
   final DateTime? lastAt;
   final int messages;
 
+  /// Off ("Don't track this line"): its new messages are skipped at every
+  /// read, and its balance leaves every total. Its past records stay unless
+  /// the person deleted them.
+  final bool tracked;
+
   /// `SIM 1` where the phone tells lines apart by SIM, else `Line 1`.
   String get slot => sims.isEmpty ? 'Line $id' : 'SIM $id';
 
@@ -143,6 +149,7 @@ class MpesaLine {
     DateTime? Function()? firstAt,
     DateTime? Function()? lastAt,
     int? messages,
+    bool? tracked,
   }) => MpesaLine(
     id: id,
     sims: sims ?? this.sims,
@@ -154,7 +161,15 @@ class MpesaLine {
     firstAt: firstAt == null ? this.firstAt : firstAt(),
     lastAt: lastAt == null ? this.lastAt : lastAt(),
     messages: messages ?? this.messages,
+    tracked: tracked ?? this.tracked,
   );
+
+  /// Whether no message came from it for more than [oldAfter] before [now]:
+  /// it folds under "Old lines".
+  bool isOld(DateTime now) {
+    final last = lastAt;
+    return last == null || now.difference(last) > oldAfter;
+  }
 
   /// This line with [facts] seen: counted, and its balance taken, when the
   /// message is newer than any seen. A message read again changes nothing.
@@ -216,6 +231,7 @@ class MpesaLine {
       firstAt: when('firstAt'),
       lastAt: when('lastAt'),
       messages: messages is int ? messages : 0,
+      tracked: json['tracked'] != false,
     );
   }
 
@@ -230,8 +246,21 @@ class MpesaLine {
     'firstAt': ?firstAt?.toUtc().toIso8601String(),
     'lastAt': ?lastAt?.toUtc().toIso8601String(),
     'messages': messages,
+    if (!tracked) 'tracked': false,
   };
 }
+
+/// A line with no message for longer than this is old: it folds under
+/// "Old lines" in M-Pesa lines.
+const oldAfter = Duration(days: 90);
+
+/// What a tracked line is to the person: its balance is M-Pesa's first on
+/// Home ([main]), or is added to the M-Pesa total ([second]).
+enum LineRole { main, second }
+
+/// The quiet note the first time a message from an untracked line is
+/// skipped: not yet ([none]), waiting to be seen ([due]), seen ([shown]).
+enum SkipNote { none, due, shown }
 
 /// A SIM not seen before, after the lines were split, whose first message
 /// carried on from no line's balance: "Is this the same line as My line?".
@@ -329,6 +358,23 @@ final class WaitForSim extends LinePlace {
   String toString() => 'WaitForSim($sim)';
 }
 
+/// On line [lineId], which the person stopped tracking: skipped.
+final class NotTracked extends LinePlace {
+  const NotTracked(this.lineId);
+
+  final String lineId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NotTracked && other.lineId == lineId;
+
+  @override
+  int get hashCode => Object.hash('skip', lineId);
+
+  @override
+  String toString() => 'NotTracked($lineId)';
+}
+
 /// Most placements by balance remembered, newest kept.
 const placedLimit = 1000;
 
@@ -345,6 +391,11 @@ class MpesaLines {
     this.readFrom = const {},
     this.readUntil = const {},
     this.surveyed = false,
+    this.mainId,
+    this.secondId,
+    this.quickSetupDone = false,
+    this.skipNote = SkipNote.none,
+    this.skippedLineId,
   });
 
   /// Reads saved lines; anything malformed is left out.
@@ -377,6 +428,17 @@ class MpesaLines {
       readFrom: times(json['readFrom']),
       readUntil: times(json['readUntil']),
       surveyed: json['surveyed'] == true,
+      mainId: json['main'] is String ? json['main']! as String : null,
+      secondId: json['second'] is String ? json['second']! as String : null,
+      quickSetupDone: json['quickSetup'] == true,
+      skipNote:
+          SkipNote.values
+              .where((n) => n.name == json['skipNote'])
+              .firstOrNull ??
+          SkipNote.none,
+      skippedLineId: json['skippedLine'] is String
+          ? json['skippedLine']! as String
+          : null,
     );
   }
 
@@ -409,6 +471,19 @@ class MpesaLines {
   /// Whether the lines were counted from the whole inbox once.
   final bool surveyed;
 
+  /// The main line and the second line the person chose, if any.
+  final String? mainId;
+  final String? secondId;
+
+  /// Whether "Keep my 2 most recent lines" was used: it is not offered
+  /// again.
+  final bool quickSetupDone;
+
+  /// The quiet note on the first message skipped from an untracked line,
+  /// and the line it was from.
+  final SkipNote skipNote;
+  final String? skippedLineId;
+
   Map<String, Object?> toJson() => {
     'lines': [for (final l in lines) l.toJson()],
     'split': split,
@@ -424,6 +499,11 @@ class MpesaLines {
         key: value.toUtc().toIso8601String(),
     },
     'surveyed': surveyed,
+    'main': ?mainId,
+    'second': ?secondId,
+    'quickSetup': quickSetupDone,
+    'skipNote': skipNote.name,
+    'skippedLine': ?skippedLineId,
   };
 
   MpesaLines copyWith({
@@ -435,6 +515,11 @@ class MpesaLines {
     Map<String, DateTime>? readFrom,
     Map<String, DateTime>? readUntil,
     bool? surveyed,
+    String? Function()? mainId,
+    String? Function()? secondId,
+    bool? quickSetupDone,
+    SkipNote? skipNote,
+    String? Function()? skippedLineId,
   }) => MpesaLines(
     lines: lines ?? this.lines,
     split: split ?? this.split,
@@ -444,6 +529,11 @@ class MpesaLines {
     readFrom: readFrom ?? this.readFrom,
     readUntil: readUntil ?? this.readUntil,
     surveyed: surveyed ?? this.surveyed,
+    mainId: mainId == null ? this.mainId : mainId(),
+    secondId: secondId == null ? this.secondId : secondId(),
+    quickSetupDone: quickSetupDone ?? this.quickSetupDone,
+    skipNote: skipNote ?? this.skipNote,
+    skippedLineId: skippedLineId == null ? this.skippedLineId : skippedLineId(),
   );
 
   MpesaLine? line(String id) => lines.where((l) => l.id == id).firstOrNull;
@@ -517,7 +607,30 @@ class MpesaLines {
   /// balance decides; when it cannot, a message before the split goes to
   /// the line used last (they are one account then) and one after asks
   /// "Which line was this?".
+  ///
+  /// A message on a line the person stopped tracking is skipped
+  /// ([NotTracked]); the line still counts it, so its balance chain carries
+  /// on. The first one skipped leaves the quiet note due.
   (MpesaLines, LinePlace) place(LineFacts facts) {
+    final (next, at) = _place(facts);
+    if (at case OnLine(:final lineId)) {
+      final line = next.line(lineId);
+      if (line != null && !line.tracked) {
+        return (
+          next.skipNote == SkipNote.none
+              ? next.copyWith(
+                  skipNote: SkipNote.due,
+                  skippedLineId: () => lineId,
+                )
+              : next,
+          NotTracked(lineId),
+        );
+      }
+    }
+    return (next, at);
+  }
+
+  (MpesaLines, LinePlace) _place(LineFacts facts) {
     final known = placed[facts.hash];
     if (known != null && line(known) != null) {
       return (this, OnLine(known));
@@ -571,7 +684,18 @@ class MpesaLines {
       pick = lines.single;
     } else if (!split) {
       // Read as one account anyway: follow the line used last.
-      pick = _latest(carried.isEmpty ? lines : carried);
+      // A line no longer tracked is not guessed at.
+      final tracked = [
+        for (final l in lines)
+          if (l.tracked) l,
+      ];
+      pick = _latest(
+        carried.isNotEmpty
+            ? carried
+            : tracked.isEmpty
+            ? lines
+            : tracked,
+      );
     }
     if (pick == null) return (this, const AskWhichLine());
     // Before the split, a balance no line explains starts a second line.
@@ -738,6 +862,127 @@ class MpesaLines {
           l,
     ],
   );
+
+  /// Every line, the one with the latest message first.
+  List<MpesaLine> get newestFirst => [...lines]
+    ..sort(
+      (a, b) => (b.lastAt ?? DateTime(0)).compareTo(a.lastAt ?? DateTime(0)),
+    );
+
+  /// The lines still tracked.
+  List<MpesaLine> get tracked => [
+    for (final l in lines)
+      if (l.tracked) l,
+  ];
+
+  /// How many lines are not tracked.
+  int get untrackedCount => lines.length - tracked.length;
+
+  /// What [lineId] is, if the person chose.
+  LineRole? roleOf(String lineId) => lineId == mainId
+      ? LineRole.main
+      : lineId == secondId
+      ? LineRole.second
+      : null;
+
+  /// "Keep my 2 most recent lines, set the rest aside": offered while more
+  /// than two lines are seen, until used once.
+  bool get offersQuickSetup => lines.length > 2 && !quickSetupDone;
+
+  /// The two lines with the latest messages, kept by the quick setup, and
+  /// the rest, set aside, newest first.
+  (List<MpesaLine>, List<MpesaLine>) get quickSetupSplit {
+    final all = newestFirst;
+    return (all.take(2).toList(), all.skip(2).toList());
+  }
+
+  /// The quick setup used: the newest line is the main line, the next the
+  /// second; the rest stop being tracked, their past records kept.
+  MpesaLines keepTwoMostRecent() {
+    final (kept, aside) = quickSetupSplit;
+    final keep = {for (final l in kept) l.id};
+    return copyWith(
+      lines: [for (final l in lines) l.copyWith(tracked: keep.contains(l.id))],
+      mainId: () => kept.firstOrNull?.id,
+      secondId: () => kept.length > 1 ? kept[1].id : null,
+      quickSetupDone: true,
+    );
+  }
+
+  /// [lineId] made the [role] line, tracked again if it was not. The line
+  /// that had the role before has none.
+  MpesaLines withRole(String lineId, LineRole role) {
+    final target = line(lineId);
+    if (target == null) return this;
+    return _with(target.copyWith(tracked: true)).copyWith(
+      mainId: () => role == LineRole.main
+          ? lineId
+          : mainId == lineId
+          ? null
+          : mainId,
+      secondId: () => role == LineRole.second
+          ? lineId
+          : secondId == lineId
+          ? null
+          : secondId,
+    );
+  }
+
+  /// "Don't track this line": its new messages are skipped, and it has no
+  /// role.
+  MpesaLines untracked(String lineId) {
+    final target = line(lineId);
+    if (target == null) return this;
+    return _with(target.copyWith(tracked: false)).copyWith(
+      mainId: () => mainId == lineId ? null : mainId,
+      secondId: () => secondId == lineId ? null : secondId,
+    );
+  }
+
+  /// "Same line as…": [fromId] and [intoId] are one line, one SIM having
+  /// replaced the other. [intoId] keeps its id, name and space and takes the
+  /// other's SIMs and messages; the balance continues from whichever had
+  /// the later message. Messages placed on [fromId] are now on [intoId].
+  MpesaLines merged(String fromId, String intoId) {
+    final from = line(fromId);
+    final into = line(intoId);
+    if (from == null || into == null || fromId == intoId) return this;
+    DateTime? earliest(DateTime? a, DateTime? b) =>
+        a == null ? b : (b == null || a.isBefore(b) ? a : b);
+    DateTime? latest(DateTime? a, DateTime? b) =>
+        a == null ? b : (b == null || a.isAfter(b) ? a : b);
+    final newer =
+        (from.lastAt ?? DateTime(0)).isAfter(into.lastAt ?? DateTime(0))
+        ? from
+        : into;
+    final joined = into.copyWith(
+      sims: {...into.sims, ...from.sims},
+      firstAt: () => earliest(into.firstAt, from.firstAt),
+      lastAt: () => latest(into.lastAt, from.lastAt),
+      messages: into.messages + from.messages,
+      balanceMinor: () => newer.balanceMinor,
+      balanceAt: () => newer.balanceAt,
+      tracked: into.tracked || from.tracked,
+    );
+    return copyWith(
+      lines: [
+        for (final l in lines)
+          if (l.id == intoId) joined else if (l.id != fromId) l,
+      ],
+      placed: {
+        for (final MapEntry(:key, :value) in placed.entries)
+          key: value == fromId ? intoId : value,
+      },
+      mainId: () => mainId == fromId ? intoId : mainId,
+      secondId: () => secondId == fromId
+          ? (mainId == intoId ? null : intoId)
+          : (mainId == fromId && secondId == intoId ? null : secondId),
+      skippedLineId: () => skippedLineId == fromId ? intoId : skippedLineId,
+    );
+  }
+
+  /// The quiet note on the first skipped message was seen.
+  MpesaLines skipNoteSeen() => copyWith(skipNote: SkipNote.shown);
 
   /// How far the iPhone's queue may let go of M-Pesa messages, once
   /// [spaceId] has read up to [until]: what every space reading a line has

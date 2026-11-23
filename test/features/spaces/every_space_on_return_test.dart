@@ -197,7 +197,7 @@ void main() {
   group('iPhone, two lines', () {
     late _IphoneQueue queue;
 
-    Future<ProviderContainer> app() async {
+    Future<ProviderContainer> app({bool shopTracked = true}) async {
       // Split: My line in Personal (last at KES 12,500), Shop line in the
       // shop (last at KES 24,330).
       await DriftAppSettingsRepository(personal).writeJson(
@@ -218,6 +218,7 @@ void main() {
               spaceId: _shop.id,
               balanceMinor: 2433000,
               balanceAt: DateTime.utc(2026, 11, 19),
+              tracked: shopTracked,
             ),
           ],
         ).toJson(),
@@ -250,6 +251,20 @@ void main() {
       expect(await receipts(personal), ['TKA0000721']);
       expect(await receipts(shop), ['TKA0000722']);
       expect(queue.queue, isEmpty);
+    });
+
+    test('a line not tracked is skipped by every space on return, and the '
+        'first skip leaves the quiet note due', () async {
+      final c = await app(shopTracked: false);
+      final shell = c.listen(liveSmsCaptureProvider, (_, _) {});
+      addTearDown(shell.close);
+      await until(() async => (await receipts(personal)).isNotEmpty);
+      await settle();
+      expect(await receipts(personal), ['TKA0000721']);
+      expect(await receipts(shop), isEmpty);
+      final lines = await c.read(mpesaLinesProvider.notifier).saved();
+      expect(lines.skipNote, SkipNote.due);
+      expect(lines.skippedLineId, '2');
     });
 
     test(

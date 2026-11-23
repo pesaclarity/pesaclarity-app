@@ -9,6 +9,7 @@ import '../../../core/time/clock.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/database/space_databases.dart';
+import '../../../data/repositories/account_edits.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/balances_repository.dart';
@@ -83,6 +84,9 @@ class MpesaLinesController extends AsyncNotifier<MpesaLines> {
 
   /// "Not now" on the offer to split.
   Future<void> hideOffer() => apply((l) => l.copyWith(offerHidden: true));
+
+  /// The quiet note on the first skipped message was seen.
+  Future<void> skipNoteSeen() => apply((l) => l.skipNoteSeen());
 }
 
 /// Where the open space's settings keep whether to ask "Which line was
@@ -147,6 +151,8 @@ class SpaceMessageLines implements MessageLines {
     return [
       for (final place in places)
         switch (place) {
+          // A line the person stopped tracking is read nowhere.
+          NotTracked() => const ReadElsewhere(),
           OnLine() when !lines.split => const ReadOnAccount(null),
           OnLine(:final lineId) =>
             lines.readerOf(lines.line(lineId)!, spaces) == spaceId
@@ -326,6 +332,143 @@ class MpesaLineRouting {
     } finally {
       if (closeTarget) await target.close();
     }
+  }
+
+  /// Each line its own account, as the split makes them, before a choice
+  /// that needs it: a role, a merge or not tracking a line. Names and
+  /// spaces stay as they are.
+  Future<void> _ensureSplit() async {
+    final lines = await _lines.saved();
+    if (lines.split || lines.lines.isEmpty) return;
+    await _ref.read(lineSplitControllerProvider.notifier).split({
+      for (final line in lines.lines)
+        line.id: LineSetting(
+          spaceId: line.spaceId,
+          name: line.name,
+          sharedWith: line.sharedWith,
+        ),
+    });
+  }
+
+  /// Runs [work] on the database of the space that reads [lineId], with
+  /// the id of the line's account there, if it has one.
+  Future<T?> _onLineAccount<T>(
+    String lineId,
+    Future<T> Function(AppDatabase db, int accountId) work,
+  ) async {
+    final lines = await _lines.saved();
+    final line = lines.line(lineId);
+    if (line == null) return null;
+    final reader = lines.readerOf(line, await _listed(_ref));
+    final (db, close) = await _ref.read(spaceDatabasesProvider).open(reader);
+    try {
+      final account =
+          await (db.select(db.accounts)..where(
+                (a) =>
+                    a.institutionId.equals(mpesaInstitutionId) &
+                    a.reference.equals(lineReference(lineId)),
+              ))
+              .getSingleOrNull();
+      if (account == null) return null;
+      return await work(db, account.id);
+    } finally {
+      if (close) await db.close();
+    }
+  }
+
+  /// Whether [lineId]'s balance counts in On hand and the M-Pesa total.
+  Future<void> _counts(String lineId, {required bool counts}) => _onLineAccount(
+    lineId,
+    (db, id) => AccountEdits(db).save(
+      id,
+      // Null follows the type, which counts.
+      countsOnHand: counts ? null : false,
+      setCountsOnHand: true,
+    ),
+  );
+
+  /// How many records line [lineId] has in the space that reads it.
+  Future<int> recordCount(String lineId) async =>
+      await _onLineAccount(
+        lineId,
+        (db, id) => AccountEdits(db).transactionCount(id),
+      ) ??
+      0;
+
+  /// "Keep my 2 most recent lines, set the rest aside".
+  Future<void> keepTwoMostRecent() async {
+    await _ensureSplit();
+    final lines = await _lines.apply((l) => l.keepTwoMostRecent());
+    for (final line in lines.lines) {
+      await _counts(line.id, counts: line.tracked);
+    }
+  }
+
+  /// [lineId] is the main or second line, and tracked again.
+  Future<void> setRole(String lineId, LineRole role) async {
+    await _ensureSplit();
+    await _lines.apply((l) => l.withRole(lineId, role));
+    await _counts(lineId, counts: true);
+  }
+
+  /// "Don't track this line": its new messages are skipped and its balance
+  /// leaves every total. With [deleteRecords] its records go too, as
+  /// removing an account's transactions does: their messages set aside so
+  /// reading again never brings them back, the journal and the Firefly III
+  /// outbox following through their triggers.
+  Future<void> untrack(String lineId, {required bool deleteRecords}) async {
+    await _ensureSplit();
+    await _lines.apply((l) => l.untracked(lineId));
+    await _onLineAccount(lineId, (db, id) async {
+      final edits = AccountEdits(db);
+      if (deleteRecords) await edits.deleteRecords(id);
+      await edits.save(id, countsOnHand: false, setCountsOnHand: true);
+    });
+  }
+
+  /// "Same line as…": line [fromId] joins [intoId]. Its records move to
+  /// the space that reads [intoId] when that is another, then onto
+  /// [intoId]'s account there, keeping their dates; the balance continues
+  /// from the line with the later message.
+  Future<void> merge(String fromId, String intoId) async {
+    if (fromId == intoId) return;
+    await _ensureSplit();
+    final before = await _lines.saved();
+    final from = before.line(fromId);
+    final into = before.line(intoId);
+    if (from == null || into == null) return;
+    final listed = await _listed(_ref);
+    if (before.readerOf(from, listed) != before.readerOf(into, listed)) {
+      await choose(
+        fromId,
+        LineSetting(
+          spaceId: into.spaceId,
+          name: from.name,
+          sharedWith: into.sharedWith,
+        ),
+      );
+    }
+    await _onLineAccount(fromId, (db, fromAccount) async {
+      final target =
+          await (db.select(db.accounts)..where(
+                (a) =>
+                    a.institutionId.equals(mpesaInstitutionId) &
+                    a.reference.equals(lineReference(intoId)),
+              ))
+              .getSingleOrNull();
+      if (target == null) {
+        // The kept line has no account here yet: this one becomes it.
+        await (db.update(db.accounts)..where((a) => a.id.equals(fromAccount)))
+            .write(AccountsCompanion(reference: Value(lineReference(intoId))));
+      } else {
+        await AccountEdits(db).mergeLine(fromAccount, target.id);
+      }
+      await DriftInstitutionsRepository(db)
+          .setSelected(lineSelectionId(fromId), selected: false);
+    });
+    final lines = await _lines.apply((l) => l.merged(fromId, intoId));
+    final kept = lines.line(intoId);
+    if (kept != null) await _counts(intoId, counts: kept.tracked);
   }
 
   /// "Same line" or "A new line" for [sim], asked about [lineId].

@@ -124,10 +124,42 @@ class AccountEdits {
   Future<void> moveAndRemove(int fromId, int toId) => _db.transaction(() async {
     if (fromId == toId) throw ArgumentError('Same account');
     final from = await _account(fromId);
-    final to = await _account(toId);
     if (from.institutionId != null) {
       throw StateError('An account read from messages is not removed.');
     }
+    await _move(from, await _account(toId));
+  });
+
+  /// "Same line as…": the M-Pesa line account [fromId] joins the line
+  /// account [toId], as [moveAndRemove] moves an account's transactions.
+  Future<void> mergeLine(int fromId, int toId) => _db.transaction(() async {
+    if (fromId == toId) throw ArgumentError('Same account');
+    final from = await _account(fromId);
+    final to = await _account(toId);
+    if (from.institutionId != to.institutionId) {
+      throw StateError('Only two lines of one institution are merged.');
+    }
+    await _move(from, to);
+  });
+
+  /// Deletes every transaction of [accountId], which may be read from
+  /// messages, the way [delete] does; the account stays.
+  Future<void> deleteRecords(int accountId) => _db.transaction(() async {
+    final t = _db.transactions;
+    final ids =
+        await (_db.selectOnly(t)
+              ..addColumns([t.id])
+              ..where(t.accountId.equals(accountId)))
+            .map((r) => r.read(t.id)!)
+            .get();
+    await _removeTransactions(ids);
+    await syncSavingsAccounts(_db);
+    await syncSaccos(_db);
+  });
+
+  Future<void> _move(Account from, Account to) async {
+    final fromId = from.id;
+    final toId = to.id;
     if (from.currency != to.currency) {
       throw ArgumentError('Accounts count in different currencies');
     }
@@ -192,7 +224,7 @@ class AccountEdits {
     await (_db.delete(_db.accounts)..where((a) => a.id.equals(fromId))).go();
     await syncSavingsAccounts(_db);
     await syncSaccos(_db);
-  });
+  }
 
   /// Removes transactions [ids] the way clearing records does.
   Future<void> _removeTransactions(List<int> ids) async {
