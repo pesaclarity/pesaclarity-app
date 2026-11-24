@@ -70,6 +70,7 @@ Future<void> _pump(
   List<SortThing> things = const [],
   List<LedgerEntry> entries = const [],
   HomeSafe safe = const HomeSafe(),
+  CalendarDate? payday,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -81,6 +82,14 @@ Future<void> _pump(
         homePeriodViewProvider.overrideWith(
           (ref, period) async =>
               HomePeriodView.of(entries, period: period, today: _today),
+        ),
+        homeSincePaydayViewProvider.overrideWith(
+          (ref) async => HomePeriodView.of(
+            entries,
+            period: HomePeriod.thisMonth,
+            today: _today,
+            payday: payday,
+          ),
         ),
         thingsToSortProvider.overrideWithValue(things),
         overBudgetAlertsProvider.overrideWithValue(const []),
@@ -196,5 +205,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('7,047'), findsNothing);
     expect(find.textContaining('of which fees KES 87'), findsNothing);
+  });
+
+  testAppWidgets('without a regular income it is this month', (tester) async {
+    await _pump(tester, entries: _history);
+    expect(find.text('THIS MONTH'), findsOneWidget);
+    expect(find.text('1 – 22 Nov'), findsOneWidget);
+  });
+
+  testAppWidgets('with a payday it is since payday, salary included', (
+    tester,
+  ) async {
+    final salary = inflow(
+      id: 9,
+      at: eat(2026, 10, 31, 7),
+      amount: kes(110000),
+      categoryType: CategoryType.income,
+    );
+    await _pump(
+      tester,
+      entries: [..._history, salary],
+      payday: CalendarDate(2026, 10, 31),
+    );
+    expect(find.text('SINCE PAYDAY'), findsOneWidget);
+    expect(find.text('THIS MONTH'), findsNothing);
+    expect(find.text('31 Oct – 22 Nov'), findsOneWidget);
+    expect(find.text('116,500'), findsOneWidget);
+    expect(find.text('109,453'), findsOneWidget);
+    // The eye hides these figures too.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('home-safe')),
+        matching: find.byKey(const Key('amounts-eye')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('116,500'), findsNothing);
+    expect(find.text('109,453'), findsNothing);
   });
 }
