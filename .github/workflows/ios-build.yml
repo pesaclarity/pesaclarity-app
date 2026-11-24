@@ -5,6 +5,8 @@ name: iOS build
 # lasts 7 days per signing). Run by hand. TestFlight needs an Apple developer
 # account first. evening-builds.yml starts it on dev each evening; it only
 # builds when dev has moved since the last iPhone build, unless forced.
+# It is a test build, so it is rayo-only (RAYO_ONLY=true): a model rayo
+# cannot run says why in Ask and Profile › About instead of running in Dart.
 on:
   workflow_dispatch:
     inputs:
@@ -101,7 +103,8 @@ jobs:
             --dart-define=PESACLARITY_TRUSTED_ROOTS="$TRUSTED_ROOTS" \
             --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
-            --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL"
+            --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
+            --dart-define=RAYO_ONLY=true
 
       # An .ipa is the .app inside a Payload folder, zipped. Unsigned: the
       # sideloading tool signs it with the tester's Apple ID, which leaves out
@@ -146,7 +149,7 @@ jobs:
 
       - name: Build for the simulator
         if: inputs.simulator
-        run: flutter build ios --simulator --debug
+        run: flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true
 
       - uses: actions/upload-artifact@v7
         if: inputs.simulator

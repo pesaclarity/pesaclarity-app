@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import '../../../core/ml/model_engines.dart';
 import '../../../domain/categoriser/categoriser.dart';
 import '../../../domain/categoriser/features.dart';
 import '../../../domain/categoriser/model_manifest.dart';
@@ -71,16 +72,28 @@ Future<LoadedCategoriser> loadCategoriser({
   required CategoriserRuntimeOpener? openRuntime,
   String folder = categoriserModelFolder,
   TunedWeights? tuned,
+  ModelEngines? engines,
 }) async {
   const fallback = RuleCategoriser();
-  LoadedCategoriser refuse(List<String> reasons) =>
-      LoadedCategoriser(fallback, ModelStatus.refused, reasons);
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.categoriser;
+  LoadedCategoriser refuse(List<String> reasons) {
+    final why = reasons.join('; ');
+    final engine = log.of(model);
+    if (engine.engine != ModelEngine.failed ||
+        engine.reason == null ||
+        !why.contains(engine.reason!)) {
+      log.record(model, ModelEngine('Rules', reason: why));
+    }
+    return LoadedCategoriser(fallback, ModelStatus.refused, reasons);
+  }
 
   final ModelManifest manifest;
   final ModelLabels labels;
   try {
     final manifestBytes = await readAsset('$folder/$modelManifestFile');
     if (manifestBytes == null) {
+      log.record(model, const ModelEngine('Rules', reason: 'not bundled'));
       return const LoadedCategoriser(fallback, ModelStatus.notInstalled);
     }
     manifest = ModelManifest.fromJson(_json(manifestBytes));
@@ -128,6 +141,9 @@ Future<LoadedCategoriser> loadCategoriser({
         labels: labels,
         runtime: DartCategoriserRuntime(fineTunable.network, tunedWeights),
       );
+      log
+        ..record(model, const ModelEngine('Dart (tuned on this phone)'))
+        ..version(model, weightsVersion(manifest.weightsSha256));
       return LoadedCategoriser(
         RulesFirstCategoriser(rules: fallback, model: categoriser),
         ModelStatus.loaded,
@@ -146,6 +162,7 @@ Future<LoadedCategoriser> loadCategoriser({
       labels: labels,
       runtime: openRuntime(weights, manifest.featureConfig),
     );
+    log.version(model, weightsVersion(manifest.weightsSha256));
     return LoadedCategoriser(
       RulesFirstCategoriser(rules: fallback, model: categoriser),
       ModelStatus.loaded,

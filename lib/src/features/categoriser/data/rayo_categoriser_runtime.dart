@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:rayo/rayo.dart';
 
+import '../../../core/ml/model_engines.dart';
 import '../../../domain/categoriser/categoriser.dart';
 import '../../../domain/categoriser/features.dart';
 import '../../../domain/categoriser/model_manifest.dart';
@@ -10,19 +11,39 @@ import '../../../domain/categoriser/trainable.dart';
 /// Opens `categoriser.weights` on rayo for rows of [config], or in Dart
 /// ([DartCategoriserRuntime], the same network with the int8 kernel
 /// dequantised) when rayo's native library cannot load here or refuses the
-/// file. Throws only when neither can read it.
+/// file. Throws only when neither can read it. In a rayo-only build
+/// ([rayoOnly]) there is no Dart network: rayo's failure is thrown as a
+/// [RayoOnlyFailure], and the categoriser is refused with that reason.
 CategoriserRuntime openCategoriserRuntime(
   Uint8List bytes,
-  FeatureConfig config,
-) {
-  if (rayoAvailable()) {
+  FeatureConfig config, {
+  bool onlyRayo = rayoOnly,
+  bool Function() available = rayoAvailable,
+  ModelEngines? engines,
+}) {
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.categoriser;
+  String reason;
+  if (available()) {
     try {
-      return RayoCategoriser.open(bytes, config.width);
-    } on Object {
-      // The Dart network reads the same file.
+      final runtime = RayoCategoriser.open(bytes, config.width);
+      log.record(model, ModelEngine(rayoEngineName(runtime.kernels)));
+      return runtime;
+    } on Object catch (e) {
+      reason = '$e';
     }
+  } else {
+    reason = "rayo's library cannot load here";
   }
-  return DartCategoriserRuntime(CategoriserNetwork.parse(bytes, config));
+  if (onlyRayo) {
+    log.record(model, ModelEngine(ModelEngine.failed, reason: reason));
+    throw RayoOnlyFailure(model, reason);
+  }
+  final runtime = DartCategoriserRuntime(
+    CategoriserNetwork.parse(bytes, config),
+  );
+  log.record(model, ModelEngine(ModelEngine.dartFallback, reason: reason));
+  return runtime;
 }
 
 /// The categoriser on rayo: `categoriser.weights` with its graph

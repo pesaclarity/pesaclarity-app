@@ -44,6 +44,7 @@ import '../../statements/data/pdf_text_extractor.dart';
 import '../../subscriptions/application/subscriptions_providers.dart';
 import '../../support/application/support_providers.dart';
 import '../../timezone/application/timezone_controller.dart';
+import 'model_engine_tile.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -327,7 +328,7 @@ class ProfileScreen extends ConsumerWidget {
       askRow,
     ];
     final data = [export, if (canImport) importRow, backup, fireflyRow];
-    final about = [privacy, ?support, buildRow];
+    final about = [privacy, ?support, buildRow, const ModelEngineTile()];
 
     return Scaffold(
       appBar: AppBar(

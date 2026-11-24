@@ -193,6 +193,9 @@ jobs:
           SUPPORT_URL: ${{ vars.PESACLARITY_SUPPORT_URL }}
           SUPPORT_PAYEES: ${{ vars.PESACLARITY_SUPPORT_PAYEES }}
           SUPPORT_COSTS_URL: ${{ vars.PESACLARITY_SUPPORT_COSTS_URL }}
+          # Test builds (dev) run the models on rayo or not at all, so a
+          # rayo failure shows; release builds (main) keep the fallbacks.
+          RAYO_ONLY: ${{ github.ref != 'refs/heads/main' }}
         run: |
           # The client id only helps when the app is signed with the dev key.
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
@@ -223,7 +226,8 @@ jobs:
             --dart-define=PESACLARITY_SUPPORT_URL="$SUPPORT_URL" \
             --dart-define=PESACLARITY_SUPPORT_PAYEES="$SUPPORT_PAYEES" \
             --dart-define=PESACLARITY_SUPPORT_COSTS_URL="$SUPPORT_COSTS_URL" \
-            --dart-define=PESACLARITY_DISTRIBUTION=website
+            --dart-define=PESACLARITY_DISTRIBUTION=website \
+            --dart-define=RAYO_ONLY="$RAYO_ONLY"
           name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR"
           out="$RUNNER_TEMP/apks"
           mkdir -p "$out"

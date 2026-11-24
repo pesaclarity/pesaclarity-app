@@ -1,0 +1,90 @@
+name: iOS model test
+
+# Runs the bundled models on rayo in an iPhone simulator, with no Dart,
+# rules or template stand-in (integration_test/rayo_models_test.dart), and
+# checks their outputs against the recordings in test/fixtures. Fails when
+# rayo does not load. On pull requests and dev pushes that touch the models
+# or rayo, and by hand.
+on:
+  pull_request:
+    paths:
+      - assets/models/**
+      - integration_test/**
+      - lib/src/core/ml/**
+      - lib/src/domain/ml/**
+      - lib/src/domain/ask/model_*.dart
+      - lib/src/domain/reader/model_reader.dart
+      - lib/src/features/ask/data/**
+      - lib/src/features/categoriser/data/**
+      - lib/src/features/review/data/**
+      - test/fixtures/ask/**
+      - test/fixtures/categoriser/**
+      - test/fixtures/reader/**
+      - pubspec.yaml
+      - pubspec.lock
+      - .github/workflows/ios-model-test.yml
+  push:
+    branches: [dev]
+    paths:
+      - assets/models/**
+      - integration_test/**
+      - lib/src/core/ml/**
+      - lib/src/domain/ml/**
+      - lib/src/domain/ask/model_*.dart
+      - lib/src/domain/reader/model_reader.dart
+      - lib/src/features/ask/data/**
+      - lib/src/features/categoriser/data/**
+      - lib/src/features/review/data/**
+      - test/fixtures/ask/**
+      - test/fixtures/categoriser/**
+      - test/fixtures/reader/**
+      - pubspec.yaml
+      - pubspec.lock
+      - .github/workflows/ios-model-test.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-model-test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.8"
+
+jobs:
+  simulator:
+    name: Models on rayo (iPhone simulator)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Boot an iPhone simulator
+        run: |
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          phones = [d for runtime, ds in sorted(devices.items()) if "iOS" in runtime
+                    for d in ds if d["name"].startswith("iPhone")]
+          print(phones[-1]["udid"])
+          ')"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
+
+      - name: Run the models on rayo
+        run: flutter test integration_test/rayo_models_test.dart -d "$SIMULATOR" --dart-define=RAYO_ONLY=true
