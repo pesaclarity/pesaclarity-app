@@ -166,11 +166,17 @@ class MoreThisMonthScreen extends ConsumerWidget {
                   )
                 else
                   FigureTile(
-                    label: 'Left this month',
+                    label: safeToSpend.payCycle
+                        ? 'Left this pay cycle'
+                        : 'Left this month',
                     value: _plain(context, safeToSpend.leftThisMonthMinor),
                     belowZero: safeToSpend.leftThisMonthMinor < 0,
                     onTap: () => openActivity(
-                      thisMonth.copyWith(type: ActivityType.dayToDay),
+                      ActivityFilter(
+                        from: safeToSpend.periodFirst ?? thisMonth.from,
+                        to: today,
+                        type: ActivityType.dayToDay,
+                      ),
                     ),
                   ),
                 if (_runwayLabel(forecast) case final runway?)
@@ -235,7 +241,9 @@ class _SafeToSpendCard extends StatelessWidget {
     } else if (result.nothingOnHand) {
       detail = BalanceText.belowZero;
     } else if (result.isBudgetUsedUp) {
-      detail = 'This month\'s day-to-day budget is used up';
+      detail = result.payCycle
+          ? 'This pay cycle\'s day-to-day budget is used up'
+          : 'This month\'s day-to-day budget is used up';
     } else if (result.overTodayMinor > 0) {
       detail = '${_plain(context, result.overTodayMinor)} over today\'s limit';
     } else if (today.isWeekend) {
@@ -260,7 +268,9 @@ class _SafeToSpendCard extends StatelessWidget {
       caption: '$detail$payday',
       footer: HeroProgress(
         value: used,
-        label: '${(used * 100).round()}% of this month\'s spending plan used',
+        label:
+            '${(used * 100).round()}% of this '
+            '${result.payCycle ? 'pay cycle' : 'month'}\'s spending plan used',
       ),
       // The figure is already masked while hidden: keep the eye to show it.
       showEye: true,

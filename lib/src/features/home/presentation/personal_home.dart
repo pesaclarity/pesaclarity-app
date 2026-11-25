@@ -243,7 +243,9 @@ class _SafeToday extends ConsumerWidget {
       line = below
           ? BalanceText.belowZero
           : left <= 0
-          ? "This month's day-to-day budget is used up"
+          ? (monthly.payCycle
+                ? "This pay cycle's day-to-day budget is used up"
+                : "This month's day-to-day budget is used up")
           : about(days <= 0 ? left : left ~/ days, days <= 0 ? 1 : days);
     } else {
       return const HeroFigureCard(
