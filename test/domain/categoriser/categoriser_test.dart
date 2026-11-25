@@ -307,6 +307,31 @@ void main() {
       expect(keys('Unknown Business'), isEmpty);
     });
 
+    test('well-known shops and fuel stations as statements word them', () {
+      for (final (payee, key) in [
+        ('Merchant Payment to NAIVAS JUJA CITY', 'groceries'),
+        ('Merchant Payment to QUICK MART EXAMPLE', 'groceries'),
+        ('POS Txn CARREFOUR EXAMPLE', 'groceries'),
+        ('Pay Bill to 000123 - SHELL EXAMPLE', 'fuel'),
+        ('Merchant Payment to RUBIS EXAMPLE', 'fuel'),
+        ('TOTAL ENERGIES EXAMPLE', 'fuel'),
+        ('TotalEnergies Example', 'fuel'),
+        ('Merchant Payment to VIVO ENERGY EXAMPLE', 'fuel'),
+      ]) {
+        final scores = rules.score(
+          CategoriserInput(
+            payee: payee,
+            amountMinor: 350000,
+            isInflow: false,
+            occurredAt: DateTime.utc(2026, 9, 3),
+            kind: TransactionKind.bank,
+          ),
+        );
+        expect(scores.single.key, key, reason: payee);
+        expect(scores.single.confidence, knownPayeeRuleConfidence);
+      }
+    });
+
     test('a known payee is certain, a word in the name a guess', () {
       double confidence(String payee, {bool inflow = false}) => rules
           .score(

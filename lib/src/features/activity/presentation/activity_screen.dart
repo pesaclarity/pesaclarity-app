@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -837,8 +838,19 @@ class _ActivityRow extends StatelessWidget {
             Expanded(
               child: BesideOrUnder(
                 gap: 12,
-                // The subtitle may be a DetailLine, which fits itself.
-                leadMinWidth: RowName.widestWord(context, title, nameStyle),
+                // The subtitle may be a DetailLine, which fits itself; a
+                // plain Text subtitle (such as "Uncategorised · Tap to
+                // choose") must keep its widest word whole too.
+                leadMinWidth: math.max(
+                  RowName.widestWord(context, title, nameStyle),
+                  subtitle is Text && subtitle.data != null
+                      ? RowName.widestWord(
+                          context,
+                          subtitle.data!,
+                          subtitle.style,
+                        )
+                      : 0,
+                ),
                 lead: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
