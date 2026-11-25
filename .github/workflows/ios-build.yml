@@ -7,6 +7,8 @@ name: iOS build
 # builds when dev has moved since the last iPhone build, unless forced.
 # It is a test build, so it is rayo-only (RAYO_ONLY=true): a model rayo
 # cannot run says why in Ask and Profile › About instead of running in Dart.
+# It also carries the on-phone language model experiment (SLM_EXPERIMENT):
+# slm-model.yml's .weights goes into Runner.app/slm/, in this build only.
 on:
   workflow_dispatch:
     inputs:
@@ -56,9 +58,16 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # The experiment's model, made once and kept on the slm-models release.
+  slm-model:
+    name: Language model (experiment)
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+    uses: ./.github/workflows/slm-model.yml
+
   build:
     name: Build for iPhone (unsigned)
-    needs: changes
+    needs: [changes, slm-model]
     if: needs.changes.outputs.build == 'true'
     runs-on: macos-latest
     timeout-minutes: 45
@@ -104,7 +113,25 @@ jobs:
             --dart-define=PESACLARITY_RATES_URL="$RATES_URL" \
             --dart-define=PESACLARITY_RATES_SOURCE_NAME="$RATES_SOURCE_NAME" \
             --dart-define=PESACLARITY_RATES_SOURCE_URL="$RATES_SOURCE_URL" \
-            --dart-define=RAYO_ONLY=true
+            --dart-define=RAYO_ONLY=true \
+            --dart-define=SLM_EXPERIMENT=true
+
+      # The experiment's model goes into the app as a plain file (not a
+      # Flutter asset, so no other build can pick it up), checked first.
+      - name: Add the language model (experiment)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA256: ${{ needs.slm-model.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/slm"
+          gh release download slm-models -p smollm2-360m-instruct-q4.weights -D "$RUNNER_TEMP/slm" --clobber
+          echo "$SHA256  $RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" | shasum -a 256 -c -
+          for app in build/ios/iphoneos/Runner.app; do
+            mkdir -p "$app/slm"
+            cp "$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" "$app/slm/"
+          done
 
       # An .ipa is the .app inside a Payload folder, zipped. Unsigned: the
       # sideloading tool signs it with the tester's Apple ID, which leaves out
@@ -116,6 +143,7 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app "$out/Payload/"
           (cd "$out" && zip -qr pesaclarity-ios-unsigned.ipa Payload)
           echo "IPA=$out/pesaclarity-ios-unsigned.ipa" >> "$GITHUB_ENV"
+          echo "IPA size: $(stat -f%z "$out/pesaclarity-ios-unsigned.ipa") bytes" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # A SideStore/AltStore source: a small list naming the newest build, so
       # testers who add it see Update in SideStore when a new one is out.
@@ -149,7 +177,10 @@ jobs:
 
       - name: Build for the simulator
         if: inputs.simulator
-        run: flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true
+        run: |
+          flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true --dart-define=SLM_EXPERIMENT=true
+          mkdir -p build/ios/iphonesimulator/Runner.app/slm
+          cp "$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" build/ios/iphonesimulator/Runner.app/slm/
 
       - uses: actions/upload-artifact@v7
         if: inputs.simulator
