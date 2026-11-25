@@ -332,6 +332,111 @@ void main() {
       }
     });
 
+    test('transport operators and apps as statements word them', () {
+      for (final payee in [
+        'UBER EXAMPLE TRIP',
+        'Merchant Payment to BOLT EXAMPLE',
+        'POS Txn LITTLE CAB EXAMPLE',
+        'Pay Bill to 000123 - FARAS EXAMPLE',
+        'Pay Bill to 000456 - MADARAKA EXPRESS',
+        'KENYA AIRWAYS EXAMPLE',
+        'Merchant Payment to JAMBOJET EXAMPLE',
+        'Pay Bill to 000789 - EXAMPLE MATATU SACCO',
+        'EXAMPLE TAXI RIDES',
+        'MFANO BODA RIDERS',
+      ]) {
+        final scores = rules.score(
+          CategoriserInput(
+            payee: payee,
+            amountMinor: 45000,
+            isInflow: false,
+            occurredAt: DateTime.utc(2026, 9, 9, 7),
+            kind: TransactionKind.bank,
+          ),
+        );
+        expect(scores.single.key, 'transport', reason: payee);
+        expect(scores.single.confidence, knownPayeeRuleConfidence);
+      }
+      expect(keys('Merchant Payment to SHELL EXAMPLE'), ['fuel']);
+      expect(keys('BOLT FOOD EXAMPLE'), ['eating_out']);
+      expect(keys('UBER EATS EXAMPLE'), ['eating_out']);
+      expect(keys('EXAMPLE SACCO DEPOSIT'), ['savings']);
+    });
+
+    test('money in that names a salary or payroll is salary', () {
+      for (final payee in [
+        'EXAMPLE EMPLOYER LTD SALARY',
+        'SALARY EXAMPLE COMPANY LTD',
+        'PAYROLL CREDIT EXAMPLE LIMITED',
+        'Pay Bill from 000123 - EXAMPLE LTD NET PAY',
+        'EXAMPLE FARM WAGES',
+      ]) {
+        final scores = rules.score(
+          CategoriserInput(
+            payee: payee,
+            amountMinor: 6200000,
+            isInflow: true,
+            occurredAt: DateTime.utc(2026, 9, 28, 9),
+            kind: TransactionKind.bank,
+          ),
+        );
+        expect(scores.single.key, 'salary', reason: payee);
+        expect(scores.single.confidence, knownPayeeRuleConfidence);
+      }
+      // A salary advance is a loan, and money out is never salary.
+      expect(keys('EXAMPLE BANK SALARY ADVANCE', inflow: true), isEmpty);
+      expect(keys('EXAMPLE STAFF SALARY'), isEmpty);
+    });
+
+    test('money in from a person', () {
+      bool person(String payee, TransactionKind? kind) => fromPerson(
+        CategoriserInput(
+          payee: payee,
+          amountMinor: 150000,
+          isInflow: true,
+          occurredAt: DateTime.utc(2026, 9, 12, 14),
+          kind: kind,
+        ),
+      );
+      expect(person('MFANO KAMAU', TransactionKind.received), isTrue);
+      expect(
+        person(
+          'Customer Transfer from 0700***010 - MFANO KAMAU',
+          TransactionKind.bank,
+        ),
+        isTrue,
+      );
+      expect(person('Funds received from EXAMPLE ACHIENG', null), isTrue);
+      // A business, a salary, a bursary or a plain bank credit is not.
+      expect(person('EXAMPLE TRADERS LTD', TransactionKind.received), isFalse);
+      expect(person('EXAMPLE LTD SALARY', TransactionKind.received), isFalse);
+      expect(
+        person('EXAMPLE COUNTY BURSARY', TransactionKind.received),
+        isFalse,
+      );
+      expect(person('EXAMPLE KAMAU', TransactionKind.bank), isFalse);
+      expect(
+        fromPerson(
+          CategoriserInput(
+            payee: 'MFANO KAMAU',
+            amountMinor: 150000,
+            isInflow: false,
+            occurredAt: DateTime.utc(2026, 9, 12),
+            kind: TransactionKind.sent,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        keys(
+          'Customer Transfer from 0700***010 - MFANO KAMAU',
+          inflow: true,
+          kind: TransactionKind.bank,
+        ),
+        ['money_received'],
+      );
+    });
+
     test('a known payee is certain, a word in the name a guess', () {
       double confidence(String payee, {bool inflow = false}) => rules
           .score(
@@ -422,6 +527,51 @@ void main() {
       expect(modelRuns, 2);
       expect(kindRuleConfidence, greaterThanOrEqualTo(certainRuleConfidence));
       expect(payeeRuleConfidence, lessThan(certainRuleConfidence));
+    });
+
+    test('money from a person is one of the received categories', () {
+      final people = RulesFirstCategoriser(
+        rules: const RuleCategoriser(),
+        model: FixedCategoriser([
+          const CategoryScore('business_income', 0.5),
+          const CategoryScore('support_received', 0.3),
+          const CategoryScore('gifts_received', 0.1),
+          const CategoryScore('salary', 0.1),
+        ]),
+      );
+      CategoriserInput money(String payee, TransactionKind kind) =>
+          CategoriserInput(
+            payee: payee,
+            amountMinor: 500000,
+            isInflow: true,
+            occurredAt: DateTime.utc(2026, 9, 3, 19),
+            kind: kind,
+          );
+      final scores = people.score(
+        money(
+          'Customer Transfer from 0700***011 - EXAMPLE ACHIENG',
+          TransactionKind.bank,
+        ),
+      );
+      expect(scores.map((s) => s.key), ['support_received', 'gifts_received']);
+      expect(scores.first.confidence, closeTo(0.75, 1e-9));
+      // A business keeps the model's answer.
+      expect(
+        people
+            .score(money('EXAMPLE AGENCIES LTD', TransactionKind.received))
+            .first
+            .key,
+        'business_income',
+      );
+      // Without a received category from the model, the rules' guess.
+      final none = RulesFirstCategoriser(
+        rules: const RuleCategoriser(),
+        model: FixedCategoriser([const CategoryScore('salary', 0.9)]),
+      );
+      expect(
+        none.score(money('MFANO KAMAU', TransactionKind.received)).single.key,
+        'money_received',
+      );
     });
 
     test('the suggestion says which one it came from', () {
