@@ -1,11 +1,11 @@
 {
   "weights_file": "categoriser.weights",
-  "weights_sha256": "d2483ed0acb342ede6d62f99f7bd2d20e696f9449953c33719891bb5f70c874c",
+  "weights_sha256": "c97c8e0abf64eec71b0d5ca96ed3abf95dfd600a27e4b45a16617a131eda2aee",
   "weights_size_bytes": 75776,
   "weights_format_version": 1,
   "source": {
     "file": "categoriser.onnx",
-    "sha256": "46886cd6ec98fefed76f3d5a07edcee4789cc70b10539a4e1e46add405f92d3c",
+    "sha256": "54cc049bc3bfa4f664697b577ddd3d4c7e5a9a2923946769f5ce5c6f074ffffa",
     "size_bytes": 276510
   },
   "feature_schema_version": 1,
