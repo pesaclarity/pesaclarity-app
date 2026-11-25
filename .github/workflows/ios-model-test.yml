@@ -10,6 +10,8 @@ on:
     paths:
       - assets/models/**
       - integration_test/**
+      - lib/src/features/slm_experiment/data/**
+      - .github/workflows/slm-model.yml
       - lib/src/core/ml/**
       - lib/src/domain/ml/**
       - lib/src/domain/ask/model_*.dart
@@ -28,6 +30,8 @@ on:
     paths:
       - assets/models/**
       - integration_test/**
+      - lib/src/features/slm_experiment/data/**
+      - .github/workflows/slm-model.yml
       - lib/src/core/ml/**
       - lib/src/domain/ml/**
       - lib/src/domain/ask/model_*.dart
@@ -54,8 +58,16 @@ env:
   FLUTTER_VERSION: "3.47.8"
 
 jobs:
+  # The on-phone language model experiment's file (test builds only).
+  slm-model:
+    name: Language model (experiment)
+    permissions:
+      contents: write
+    uses: ./.github/workflows/slm-model.yml
+
   simulator:
     name: Models on rayo (iPhone simulator)
+    needs: slm-model
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -88,3 +100,20 @@ jobs:
 
       - name: Run the models on rayo
         run: flutter test integration_test/rayo_models_test.dart -d "$SIMULATOR" --dart-define=RAYO_ONLY=true
+
+      # The simulator reads the file where the runner put it.
+      - name: Run the language model on rayo (experiment)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA256: ${{ needs.slm-model.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/slm"
+          gh release download slm-models -p smollm2-360m-instruct-q4.weights -D "$RUNNER_TEMP/slm" --clobber
+          model="$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights"
+          echo "$SHA256  $model" | shasum -a 256 -c -
+          flutter test integration_test/slm_experiment_test.dart -d "$SIMULATOR" \
+            --dart-define=RAYO_ONLY=true --dart-define=SLM_EXPERIMENT=true \
+            --dart-define=SLM_MODEL_PATH="$model" 2>&1 | tee "$RUNNER_TEMP/slm.log"
+          grep "SLM stats" "$RUNNER_TEMP/slm.log" >> "$GITHUB_STEP_SUMMARY" || true

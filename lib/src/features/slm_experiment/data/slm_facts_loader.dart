@@ -1,0 +1,69 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/time/clock.dart';
+import '../../../domain/ask/periods.dart';
+import '../../../domain/budget/budget_alerts.dart';
+import '../../../domain/time/calendar.dart';
+import '../../ask/application/ask_providers.dart';
+import '../../income/application/income_providers.dart';
+import '../../insights/application/insights_providers.dart';
+import '../../plan/application/budget_alert_providers.dart';
+import '../../plan/application/plan_providers.dart' hide paydayProvider;
+import '../domain/slm_facts.dart';
+
+/// The facts for the model, from the open space's records, read on the
+/// phone through the same sources Ask and the screens use. Never sent
+/// anywhere.
+final slmFactsProvider = FutureProvider.autoDispose<SlmFacts>((ref) async {
+  final today = CalendarDate.local(ref.read(clockProvider)());
+  final data = ref.read(askDataSourceProvider);
+  final month = today.yearMonth;
+  final entries = await data.entries(
+    month.addMonths(-3).startInstant,
+    today.addDays(1).startInstant,
+  );
+
+  Future<T?> maybe<T>(Future<T> Function() read) async {
+    try {
+      return await read();
+    } on Object {
+      return null;
+    }
+  }
+
+  final payday = await maybe(() => ref.read(paydayProvider.future));
+  final names = await maybe(() => ref.read(categoryNamesProvider.future));
+  final balances = await maybe(data.balances) ?? const [];
+  final bills = await maybe(data.billsDue) ?? const [];
+  final fees = await maybe(() => data.fees(AskPeriod.thisMonth(today)));
+  final view = await maybe(() => ref.read(planViewProvider(month).future));
+  final planNames = ref.read(planCategoryNamesProvider);
+  final budgets = <SlmBudget>[
+    if (view != null)
+      for (final c in view.review.categories)
+        if (c.plannedMinor > 0 &&
+            isBudgetCategory(view.review.plan, c.categoryId))
+          SlmBudget(
+            planNames[c.categoryId] ?? names?[c.categoryId] ?? 'A category',
+            c.plannedMinor,
+            c.actualMinor,
+          ),
+  ];
+  return SlmFacts.of(
+    SlmFactsInput(
+      today: today,
+      entries: entries,
+      lastPayday: payday?.last,
+      categoryNames: names ?? const {},
+      balances: [
+        for (final b in balances)
+          SlmLine(b.name, b.amountMinor, savings: b.savings),
+      ],
+      bills: [
+        for (final b in bills) SlmLine(b.name, b.amountMinor, date: b.date),
+      ],
+      budgets: budgets,
+      feesThisMonthMinor: fees,
+    ),
+  );
+});
