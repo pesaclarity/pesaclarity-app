@@ -34,8 +34,10 @@ import '../../accounts/presentation/mpesa_lines_screen.dart' show LinePick;
 import '../../auth/application/auth_controller.dart';
 import '../../backup/application/backup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
+import '../application/group_sync_controller.dart';
 import '../application/share_providers.dart';
 import 'approval_screens.dart';
+import 'group_sync_widgets.dart';
 import 'share_scanner.dart';
 
 /// The privacy note on every sharing screen.
@@ -84,7 +86,9 @@ final shareFilePickerProvider = Provider<ShareFilePicker>(
 
 /// The lock and the privacy note.
 class SharePrivacyNote extends StatelessWidget {
-  const SharePrivacyNote({super.key});
+  const SharePrivacyNote({super.key, this.text = sharePrivacyNote});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -98,7 +102,7 @@ class SharePrivacyNote extends StatelessWidget {
           color: PesaColors.of(context).textMuted,
         ),
         const SizedBox(width: 8),
-        Expanded(child: Text(sharePrivacyNote, style: _muted(context))),
+        Expanded(child: Text(text, style: _muted(context))),
       ],
     ),
   );
@@ -172,6 +176,16 @@ class ShareSpaceScreen extends ConsumerWidget {
       ),
       body: overview == null
           ? const LoadingView()
+          : ref.watch(groupSyncFlagProvider) && overview.shared
+          // Pull to sync, as on the space's other screens.
+          ? RefreshIndicator(
+              onRefresh: () => ref.read(groupSyncProvider.notifier).sync(),
+              child: _ShareBody(
+                space: space,
+                overview: overview,
+                spaceId: spaceId,
+              ),
+            )
           : _ShareBody(space: space, overview: overview, spaceId: spaceId),
     );
   }
@@ -196,42 +210,56 @@ class _ShareBody extends ConsumerWidget {
     final lastSent = _latest(overview, sent: true);
     final lastFrom = _latest(overview, sent: false);
     final viewer = overview.myRole == ShareRole.viewer;
+    final sync = ref.watch(groupSyncProvider).value;
+    final syncShown = sync != null && sync.phase != GroupSyncPhase.hidden;
+    final syncOn = syncShown && sync.on;
+    final files = GroupedSection(
+      children: [
+        _IconRow(
+          Icons.upload_file_outlined,
+          'Share an update file',
+          viewer
+              ? 'Viewers receive updates only'
+              : syncOn
+              ? 'Still works, for anyone not syncing'
+              : lastSent == null
+              ? null
+              : 'Last sent to ${overview.nameOf(lastSent.$1)} · '
+                    '${_day(lastSent.$2)}',
+          key: const Key('share-send'),
+          onTap: viewer ? null : () => _send(context, ref, overview),
+        ),
+        _IconRow(
+          Icons.file_download_outlined,
+          'Add an update from someone',
+          lastFrom == null
+              ? null
+              : 'Last from ${overview.nameOf(lastFrom.$1)} · '
+                    '${_day(lastFrom.$2)}',
+          key: const Key('share-receive'),
+          onTap: () => receiveShareFile(context, ref),
+        ),
+      ],
+    );
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: _pad,
       children: [
         Text(
-          'Everyone keeps their own copy. Send an update file when you add '
-          'things; open the ones others send.',
+          syncShown
+              ? 'Everyone keeps their own copy. With sync on, changes reach '
+                    'the others by themselves.'
+              : 'Everyone keeps their own copy. Send an update file when you '
+                    'add things; open the ones others send.',
           style: muted,
         ),
         const SizedBox(height: 12),
+        if (syncShown) ...[
+          GroupSyncCard(space: space),
+          const SizedBox(height: 12),
+        ],
         if (overview.shared) ApprovalsCard(spaceId: spaceId),
-        GroupedSection(
-          children: [
-            _IconRow(
-              Icons.upload_file_outlined,
-              'Share an update file',
-              viewer
-                  ? 'Viewers receive updates only'
-                  : lastSent == null
-                  ? null
-                  : 'Last sent to ${overview.nameOf(lastSent.$1)} · '
-                        '${_day(lastSent.$2)}',
-              key: const Key('share-send'),
-              onTap: viewer ? null : () => _send(context, ref, overview),
-            ),
-            _IconRow(
-              Icons.file_download_outlined,
-              'Add an update from someone',
-              lastFrom == null
-                  ? null
-                  : 'Last from ${overview.nameOf(lastFrom.$1)} · '
-                        '${_day(lastFrom.$2)}',
-              key: const Key('share-receive'),
-              onTap: () => receiveShareFile(context, ref),
-            ),
-          ],
-        ),
+        if (!syncShown) files,
         SectionLabel(
           'Members',
           trailing: Text(
@@ -289,7 +317,11 @@ class _ShareBody extends ConsumerWidget {
             color: PesaColors.of(context).textMuted,
           ),
         ),
-        const SharePrivacyNote(),
+        if (syncShown) ...[const SectionLabel('Update files'), files],
+        if (syncOn)
+          const SharePrivacyNote(text: syncPrivacyNote)
+        else
+          const SharePrivacyNote(),
       ],
     );
   }
