@@ -1,7 +1,7 @@
 name: pesaclarity
 description: Pesa Clarity turns M-Pesa and bank SMS into a clear daily plan, on the phone.
 publish_to: none
-version: 0.5.8+13
+version: 0.5.9+14
 
 environment:
   sdk: ^3.13.0
