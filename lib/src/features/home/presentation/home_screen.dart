@@ -30,6 +30,7 @@ import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
 import '../../sales/presentation/waiting_payments_card.dart';
+import '../../sharing/presentation/group_sync_widgets.dart';
 import '../../spaces/application/business_setup_providers.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../spaces/presentation/business_setup_card.dart';
@@ -100,46 +101,48 @@ class HomeScreen extends ConsumerWidget {
         bottom: false,
         child: AmountsHiddenScope(
           child: AskBarScope(
-            builder: (context, bottomPadding) => ListView(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
-              children: [
-                _Header(today: today),
-                const SizedBox(height: 20),
-                if (space.kind != SpaceKind.personal) ...[
-                  if (sellsProducts) ...[
-                    const _SalesTodayCard(),
+            builder: (context, bottomPadding) => GroupSyncRefresh(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
+                children: [
+                  _Header(today: today),
+                  const SizedBox(height: 20),
+                  if (space.kind != SpaceKind.personal) ...[
+                    if (sellsProducts) ...[
+                      const _SalesTodayCard(),
+                      const SizedBox(height: 12),
+                      const RestoreCheckCard(),
+                      const _QuickButtons(services: false),
+                      const SizedBox(height: 12),
+                      const WaitingPaymentsCard(),
+                    ],
+                    _SpaceSummaryCard(
+                      _summaryFor(ref, isBusiness: isBusiness, today: today),
+                      kind: space.kind,
+                      compact: sellsProducts,
+                      onTap: () => openActivity(thisMonth),
+                    ),
                     const SizedBox(height: 12),
-                    const RestoreCheckCard(),
-                    const _QuickButtons(services: false),
-                    const SizedBox(height: 12),
-                    const WaitingPaymentsCard(),
-                  ],
-                  _SpaceSummaryCard(
-                    _summaryFor(ref, isBusiness: isBusiness, today: today),
-                    kind: space.kind,
-                    compact: sellsProducts,
-                    onTap: () => openActivity(thisMonth),
-                  ),
-                  const SizedBox(height: 12),
-                  const AppNoticeCards(),
-                  if (!sellsProducts) const RestoreCheckCard(),
-                  if (isBusiness && !sellsProducts) ...[
-                    const _QuickButtons(services: true),
-                    const SizedBox(height: 12),
-                    const _HoursCards(),
-                    const WaitingPaymentsCard(),
-                  ],
-                  if (space.kind == SpaceKind.business)
-                    const BusinessSetupCard(),
-                  const SharedLineCard(),
-                  const CashBelowZeroCard(),
-                  const NotYetSortedCard(),
-                  const WhatWasThisCard(),
-                  if (sources.irregular) const WeekByWeekCard(),
-                  HomeComingUp(bills: bills, today: today),
-                ] else
-                  PersonalHome(today: today),
-              ],
+                    const AppNoticeCards(),
+                    if (!sellsProducts) const RestoreCheckCard(),
+                    if (isBusiness && !sellsProducts) ...[
+                      const _QuickButtons(services: true),
+                      const SizedBox(height: 12),
+                      const _HoursCards(),
+                      const WaitingPaymentsCard(),
+                    ],
+                    if (space.kind == SpaceKind.business)
+                      const BusinessSetupCard(),
+                    const SharedLineCard(),
+                    const CashBelowZeroCard(),
+                    const NotYetSortedCard(),
+                    const WhatWasThisCard(),
+                    if (sources.irregular) const WeekByWeekCard(),
+                    HomeComingUp(bills: bills, today: today),
+                  ] else
+                    PersonalHome(today: today),
+                ],
+              ),
             ),
           ),
         ),

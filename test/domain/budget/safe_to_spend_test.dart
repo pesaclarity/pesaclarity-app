@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
+import 'package:pesaclarity/src/domain/income/payday.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
 
@@ -304,6 +305,124 @@ void main() {
         food(eat(2026, 9, 27), kes(90000)),
       ];
       expect(weekendWeightFromHistory(entries, today: monday), 100);
+    });
+  });
+
+  group('pay cycle', () {
+    test('payday mid-month: last payday to the day before the next', () {
+      final cycle = payCycleOf(
+        Payday(last: CalendarDate(2026, 10, 15), gapDays: 31),
+        today: monday,
+      )!;
+      expect(cycle.first, CalendarDate(2026, 10, 15));
+      expect(cycle.last, CalendarDate(2026, 11, 14));
+      final result = SafeToSpend.calculate(
+        budgetMinor: kes(31000),
+        entries: [
+          food(eat(2026, 10, 14), kes(5000)), // before payday: not counted
+          food(eat(2026, 10, 20), kes(10000)),
+        ],
+        today: monday,
+        periodFirst: cycle.first,
+        periodLast: cycle.last,
+      );
+      expect(result.payCycle, isTrue);
+      expect(result.spentBeforeTodayMinor, kes(10000));
+      // 26 Oct to 14 Nov: 20 days, 14 weekdays and 6 weekend days.
+      expect(result.weekdaysLeft + result.weekendDaysLeft, 20);
+      expect(result.weekdayLimitMinor, kes(21000) ~/ 20);
+      expect(result.leftThisMonthMinor, kes(21000));
+    });
+
+    test('payday last month: spending from then counts, not from the 1st', () {
+      final cycle = payCycleOf(
+        Payday(last: CalendarDate(2026, 9, 28), gapDays: 30),
+        today: CalendarDate(2026, 10, 5),
+      )!;
+      expect(cycle.last, CalendarDate(2026, 10, 27));
+      final result = SafeToSpend.calculate(
+        budgetMinor: kes(30000),
+        entries: [
+          food(eat(2026, 9, 29), kes(6000)),
+          food(eat(2026, 10, 2), kes(4000)),
+        ],
+        today: CalendarDate(2026, 10, 5),
+        periodFirst: cycle.first,
+        periodLast: cycle.last,
+      );
+      expect(result.spentBeforeTodayMinor, kes(10000));
+      expect(result.weekdaysLeft + result.weekendDaysLeft, 23);
+    });
+
+    test('no payday: the calendar month', () {
+      expect(payCycleOf(null, today: monday), isNull);
+      final result = SafeToSpend.calculate(
+        budgetMinor: kes(30000),
+        entries: [food(eat(2026, 9, 29), kes(6000))],
+        today: monday,
+      );
+      expect(result.payCycle, isFalse);
+      expect(result.periodFirst, CalendarDate(2026, 10, 1));
+      expect(result.periodLast, CalendarDate(2026, 10, 31));
+      expect(result.spentBeforeTodayMinor, 0);
+    });
+
+    test('boundaries: payday itself counts, next payday starts afresh', () {
+      final payday = Payday(last: CalendarDate(2026, 10, 25), gapDays: 31);
+      // On payday: the whole cycle is ahead.
+      final onPayday = payCycleOf(payday, today: CalendarDate(2026, 10, 25))!;
+      expect(onPayday.first, CalendarDate(2026, 10, 25));
+      expect(onPayday.last, CalendarDate(2026, 11, 24));
+      // The cycle's last day: one day left.
+      final lastDay = SafeToSpend.calculate(
+        budgetMinor: kes(31000),
+        entries: [food(eat(2026, 10, 25), kes(1000))],
+        today: CalendarDate(2026, 11, 24),
+        periodFirst: onPayday.first,
+        periodLast: onPayday.last,
+      );
+      expect(lastDay.spentBeforeTodayMinor, kes(1000));
+      expect(lastDay.weekdaysLeft + lastDay.weekendDaysLeft, 1);
+      // Overdue: the cycle stretches to today rather than ending before it.
+      final late = payCycleOf(payday, today: CalendarDate(2026, 11, 28))!;
+      expect(late.last, CalendarDate(2026, 11, 28));
+      // A payday after today is no cycle.
+      expect(payCycleOf(payday, today: CalendarDate(2026, 10, 24)), isNull);
+      // Today outside the period is a mistake.
+      expect(
+        () => SafeToSpend.calculate(
+          budgetMinor: kes(1000),
+          entries: const [],
+          today: CalendarDate(2026, 11, 25),
+          periodFirst: onPayday.first,
+          periodLast: onPayday.last,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('prorates the monthly budget to the cycle', () {
+      int prorate(CalendarDate first, CalendarDate last) =>
+          prorateMonthlyBudget(kes(31000), first: first, last: last);
+      // A month's pay keeps the whole budget, 28 to 31 days.
+      expect(
+        prorate(CalendarDate(2026, 10, 25), CalendarDate(2026, 11, 24)),
+        kes(31000),
+      );
+      expect(
+        prorate(CalendarDate(2026, 2, 1), CalendarDate(2026, 2, 28)),
+        kes(31000),
+      );
+      // A fortnight from 25 Oct: 14 of 31 days.
+      expect(
+        prorate(CalendarDate(2026, 10, 25), CalendarDate(2026, 11, 7)),
+        kes(14000),
+      );
+      // A week from 1 Nov: 7 of 30 days, rounded down.
+      expect(
+        prorate(CalendarDate(2026, 11, 1), CalendarDate(2026, 11, 7)),
+        kes(31000) * 7 ~/ 30,
+      );
     });
   });
 }

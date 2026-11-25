@@ -113,6 +113,7 @@ class HomePeriodView {
     required this.sums,
     required this.days,
     required this.hasRecords,
+    this.payday,
   });
 
   /// Works out [period] on [today] from [history], which reaches back
@@ -128,8 +129,12 @@ class HomePeriodView {
     String? currency,
     bool Function(LedgerEntry)? listed,
     bool? anyRecords,
+    CalendarDate? payday,
   }) {
-    final span = period.spanOn(today, weekStartsOn: weekStartsOn);
+    // Since payday: from the payday itself, its money in included, to today.
+    final span = payday != null && !payday.isAfter(today)
+        ? DateSpan(payday, today)
+        : period.spanOn(today, weekStartsOn: weekStartsOn);
     final all = history.toList();
     final inSpan = [
       for (final e in all)
@@ -154,11 +159,18 @@ class HomePeriodView {
           ),
       ],
       hasRecords: anyRecords ?? all.isNotEmpty,
+      payday: payday != null && !payday.isAfter(today) ? payday : null,
     );
   }
 
   final HomePeriod period;
   final DateSpan span;
+
+  /// The last payday when [span] runs from it rather than [period]'s days.
+  final CalendarDate? payday;
+
+  /// Whether [span] runs since the last payday.
+  bool get sincePayday => payday != null;
   final InOut sums;
 
   /// Newest first, at most [homeDaysShown].

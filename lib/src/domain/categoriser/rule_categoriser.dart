@@ -40,7 +40,16 @@ const _outflowPayees = <_PayeeRule>[
   ),
   (
     key: 'fuel',
-    payees: ['shell', 'rubis', 'totalenergies', 'ola'],
+    payees: [
+      'shell',
+      'rubis',
+      'totalenergies',
+      'total energies',
+      'ola',
+      'vivo energy',
+      'astrol',
+      'hass petroleum',
+    ],
     words: ['petrol', 'fuel'],
   ),
   (
@@ -48,7 +57,11 @@ const _outflowPayees = <_PayeeRule>[
     payees: [
       'naivas',
       'quickmart',
+      'quick mart',
       'carrefour',
+      'khetias',
+      'eastmatt',
+      'mulleys',
       'chandarana',
       'magunas',
       'cleanshelf',

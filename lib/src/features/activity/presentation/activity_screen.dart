@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,6 +57,7 @@ import '../../savings/presentation/savings_prompt_card.dart';
 import '../../security/application/balance_visibility.dart';
 import '../../settings/application/week_start_provider.dart';
 import '../../sharing/application/share_providers.dart';
+import '../../sharing/presentation/group_sync_widgets.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
 import 'move_chosen.dart';
@@ -360,15 +362,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             enabled: askFilter != null,
             label: askFilter?.$1,
             route: askFilter?.$2 ?? AppRoutes.ask,
-            builder: (context, bottomPadding) => ListView.builder(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
-              itemCount: head.length + feed.length + tail.length,
-              itemBuilder: (context, i) {
-                if (i < head.length) return head[i];
-                i -= head.length;
-                if (i < feed.length) return feedItem(feed[i]);
-                return tail[i - feed.length];
-              },
+            builder: (context, bottomPadding) => GroupSyncRefresh(
+              child: ListView.builder(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
+                itemCount: head.length + feed.length + tail.length,
+                itemBuilder: (context, i) {
+                  if (i < head.length) return head[i];
+                  i -= head.length;
+                  if (i < feed.length) return feedItem(feed[i]);
+                  return tail[i - feed.length];
+                },
+              ),
             ),
           ),
         ),
@@ -834,8 +838,19 @@ class _ActivityRow extends StatelessWidget {
             Expanded(
               child: BesideOrUnder(
                 gap: 12,
-                // The subtitle may be a DetailLine, which fits itself.
-                leadMinWidth: RowName.widestWord(context, title, nameStyle),
+                // The subtitle may be a DetailLine, which fits itself; a
+                // plain Text subtitle (such as "Uncategorised · Tap to
+                // choose") must keep its widest word whole too.
+                leadMinWidth: math.max(
+                  RowName.widestWord(context, title, nameStyle),
+                  subtitle is Text && subtitle.data != null
+                      ? RowName.widestWord(
+                          context,
+                          subtitle.data!,
+                          subtitle.style,
+                        )
+                      : 0,
+                ),
                 lead: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

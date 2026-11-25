@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../core/ml/model_engines.dart';
 import '../../../domain/ask/model_question_reader.dart';
 import '../../../domain/ask/model_reply_writer.dart';
 import '../../../domain/ask/understanding.dart';
@@ -34,34 +35,45 @@ Future<QuestionReader> loadAskReader({
   required AssetReader readAsset,
   required AskReaderRuntimeOpener? openRuntime,
   required QuestionReader fallback,
+  bool onlyRayo = rayoOnly,
+  ModelEngines? engines,
 }) async {
-  if (openRuntime == null) return fallback;
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.askReader;
+  QuestionReader refuse(String reason) {
+    log.record(model, ModelEngine('Rules', reason: reason));
+    if (onlyRayo) throw RayoOnlyFailure(model, reason);
+    return fallback;
+  }
+
+  if (openRuntime == null) return refuse('this build has no runtime');
   try {
     final manifestBytes = await readAsset(
       '$askModelFolder/$askReaderManifestFile',
     );
-    if (manifestBytes == null) return fallback;
+    if (manifestBytes == null) return refuse('not bundled');
     final manifest = AskReaderManifest.fromJson(
       (jsonDecode(utf8.decode(manifestBytes)) as Map).cast<String, Object?>(),
     );
-    if (manifest.incompatibilities().isNotEmpty) return fallback;
+    final problems = manifest.incompatibilities();
+    if (problems.isNotEmpty) return refuse(problems.join('; '));
     final file = manifest.weightsFile;
     if (file.contains('/') || file.contains(r'\') || file.startsWith('.')) {
-      return fallback;
+      return refuse('weights file name $file');
     }
     final bytes = await readAsset('$askModelFolder/$file');
     if (bytes == null ||
         bytes.length != manifest.weightsSizeBytes ||
         await sha256Hex(bytes) != manifest.weightsSha256) {
-      return fallback;
+      return refuse('weights missing or not the manifest\'s');
     }
-    return ModelQuestionReader(
-      openRuntime(bytes),
-      manifest,
-      fallback: fallback,
-    );
-  } on Object {
-    return fallback;
+    final runtime = openRuntime(bytes);
+    log.version(model, weightsVersion(manifest.weightsSha256));
+    return ModelQuestionReader(runtime, manifest, fallback: fallback);
+  } on RayoOnlyFailure {
+    rethrow;
+  } on Object catch (e) {
+    return refuse('$e');
   }
 }
 
@@ -70,29 +82,44 @@ Future<QuestionReader> loadAskReader({
 Future<ModelReplyWriter?> loadAskWriter({
   required AssetReader readAsset,
   required AskWriterRuntimeOpener? openRuntime,
+  bool onlyRayo = rayoOnly,
+  ModelEngines? engines,
 }) async {
-  if (openRuntime == null) return null;
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.askWriter;
+  ModelReplyWriter? refuse(String reason) {
+    log.record(model, ModelEngine(ModelEngine.templates, reason: reason));
+    if (onlyRayo) throw RayoOnlyFailure(model, reason);
+    return null;
+  }
+
+  if (openRuntime == null) return refuse('this build has no runtime');
   try {
     final manifestBytes = await readAsset(
       '$askModelFolder/$askWriterManifestFile',
     );
-    if (manifestBytes == null) return null;
+    if (manifestBytes == null) return refuse('not bundled');
     final manifest = AskWriterManifest.fromJson(
       (jsonDecode(utf8.decode(manifestBytes)) as Map).cast<String, Object?>(),
     );
-    if (manifest.incompatibilities().isNotEmpty) return null;
+    final problems = manifest.incompatibilities();
+    if (problems.isNotEmpty) return refuse(problems.join('; '));
     final file = manifest.weightsFile;
     if (file.contains('/') || file.contains(r'\') || file.startsWith('.')) {
-      return null;
+      return refuse('weights file name $file');
     }
     final bytes = await readAsset('$askModelFolder/$file');
     if (bytes == null ||
         bytes.length != manifest.weightsSizeBytes ||
         await sha256Hex(bytes) != manifest.weightsSha256) {
-      return null;
+      return refuse('weights missing or not the manifest\'s');
     }
-    return ModelReplyWriter(openRuntime(bytes, manifest), manifest);
-  } on Object {
-    return null;
+    final runtime = openRuntime(bytes, manifest);
+    log.version(model, weightsVersion(manifest.weightsSha256));
+    return ModelReplyWriter(runtime, manifest);
+  } on RayoOnlyFailure {
+    rethrow;
+  } on Object catch (e) {
+    return refuse('$e');
   }
 }

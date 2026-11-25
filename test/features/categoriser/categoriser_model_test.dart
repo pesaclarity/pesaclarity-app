@@ -104,7 +104,7 @@ void main() {
     expect(loaded.fineTunable, isNotNull);
     final scores = loaded.categoriser.score(
       CategoriserInput(
-        payee: 'DEMO FRESH MART TILL 000123',
+        payee: 'DEMO KALIMO TILL 000123',
         amountMinor: 120000,
         isInflow: false,
         occurredAt: DateTime.utc(2026, 3, 18, 9),
@@ -154,13 +154,52 @@ void main() {
       );
       // An unfamiliar payee goes to the model, all 27 labels.
       final scores = loaded.categoriser.score(
-        input('DEMO FRESH MART TILL 000123', TransactionKind.till),
+        input('DEMO KALIMO TILL 000123', TransactionKind.till),
       );
       expect(scores, hasLength(27));
       expect(scores.first.source, isNull);
       expect(loaded.categoriser.source, SuggestionSource.model);
     },
   );
+
+  test('shops and fuel stations as statements and SMS name them', () async {
+    final loaded = await loadCategoriser(
+      readAsset: asset,
+      openRuntime: openCategoriserRuntime,
+    );
+    addTearDown(loaded.categoriser.close);
+    expect(loaded.status, ModelStatus.loaded);
+    // Invented payees the model was not trained on, without a till number,
+    // as the app's readers give them. The shipped model before had these as
+    // family support, Fuliza repayments and tax.
+    for (final (payee, kind, amount, key) in [
+      ('EXAMPLE GROCERS', TransactionKind.till, 183550, 'groceries'),
+      (
+        'Merchant Payment to DEMO KALIMO SUPERMARKET',
+        null,
+        120000,
+        'groceries',
+      ),
+      ('DEMO FUEL STATION', TransactionKind.till, 350000, 'fuel'),
+      ('Pay Bill to 000123 - DEMO ENERGY', null, 300000, 'fuel'),
+      ('DEMO SCHOOL FEES', TransactionKind.paybill, 1500000, 'school_fees'),
+      ('EXAMPLE PHARMACY', TransactionKind.till, 42000, 'health'),
+      ('Pay Bill to 000123 - SHELL EXAMPLE', null, 300000, 'fuel'),
+    ]) {
+      final best = loaded.categoriser
+          .score(
+            CategoriserInput(
+              payee: payee,
+              amountMinor: amount,
+              isInflow: false,
+              occurredAt: DateTime.utc(2026, 9, 10, 10),
+              kind: kind,
+            ),
+          )
+          .first;
+      expect(best.key, key, reason: payee);
+    }
+  });
 
   // rayo gives the same floats on every kernel and thread count, and from
   // any compiler and flags (it is built with -ffp-contract=off). Another
