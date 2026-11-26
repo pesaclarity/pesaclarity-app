@@ -7,15 +7,15 @@ import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_role.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
-import 'package:pesaclarity/src/features/slm_experiment/domain/slm_answer.dart';
-import 'package:pesaclarity/src/features/slm_experiment/domain/slm_facts.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_answer.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_facts.dart';
 
 /// Made-up records, the fact sheets the app builds from them and the system
 /// text. pesaclarity-ml's training data copies this file and checks its own
 /// fact sheet writer gives the same text, word for word
 /// (tests/test_slm_facts.py there). Run with UPDATE_SLM_PARITY=1 to write it
 /// again after a change to SlmFacts, then copy it to pesaclarity-ml.
-const _fixture = 'test/features/slm_experiment/fixtures/slm_facts_parity.json';
+const _fixture = 'test/features/ask/model/fixtures/slm_facts_parity.json';
 
 const _names = {
   1: 'Groceries and household', 2: 'Rent and housing', 3: 'Transport', //

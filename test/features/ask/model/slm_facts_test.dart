@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
-import 'package:pesaclarity/src/features/slm_experiment/domain/slm_facts.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_facts.dart';
 
 var _id = 0;
 

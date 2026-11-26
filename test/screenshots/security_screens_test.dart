@@ -2,9 +2,9 @@
 // (tool/accessibility.sh): every row, with screenshots blocked and then
 // allowed, each at every text size, in light and dark. Not marketing
 // screenshots, so tool/screenshots.sh skips them. A made-up PIN.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/features/security/application/app_lock_controller.dart';
 import 'package:pesaclarity/src/features/security/data/screen_capture_blocker.dart';

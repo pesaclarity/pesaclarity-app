@@ -3,9 +3,9 @@
 // refused, the certificate question and turning off, each at every text
 // size, in light and dark. Not marketing screenshots, so tool/screenshots.sh
 // skips them. A made-up server, token and fingerprint.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/features/firefly/application/firefly_service.dart';
 import 'package:pesaclarity/src/features/firefly/application/firefly_settings.dart';

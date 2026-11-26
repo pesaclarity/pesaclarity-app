@@ -57,7 +57,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: "3.47.8"
+  FLUTTER_VERSION: "3.50.1"
   PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
   VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
   TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}

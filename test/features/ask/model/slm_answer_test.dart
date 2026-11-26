@@ -2,9 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
-import 'package:pesaclarity/src/features/slm_experiment/domain/slm_answer.dart';
-import 'package:pesaclarity/src/features/slm_experiment/domain/slm_facts.dart';
-import 'package:pesaclarity/src/features/slm_experiment/presentation/slm_experiment_screen.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_answer.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_facts.dart';
 
 void main() {
   group('SlmAnswer.parse', () {
@@ -40,12 +39,6 @@ void main() {
         expect(a.text, 'Words.', reason: bad);
       }
       expect(SlmAnswer.parse('Just words.').text, 'Just words.');
-    });
-
-    test('while it streams, the chart line is hidden', () {
-      expect(slmShownWhileRunning('{"chart":"ba'), '');
-      expect(slmShownWhileRunning('{"chart":"bar"}\nRent'), 'Rent');
-      expect(slmShownWhileRunning('Rent is'), 'Rent is');
     });
   });
 

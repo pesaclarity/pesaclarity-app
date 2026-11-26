@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../shared/semantic_ids.dart';

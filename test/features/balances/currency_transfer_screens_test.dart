@@ -6,8 +6,8 @@
 // Synthetic data only: invented accounts, numbers, amounts and rates. The
 // day's rate is 1 USD = 129.20 KES.
 import 'package:drift/drift.dart' hide isNull, isNotNull;
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/money/exchange_rates.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart' hide Tag;
 import 'package:pesaclarity/src/data/repositories/rate_history_repository.dart';

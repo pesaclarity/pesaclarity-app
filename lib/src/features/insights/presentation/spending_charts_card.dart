@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../domain/insights/insights_summary.dart';
@@ -188,7 +188,7 @@ class _BreakdownCard extends StatelessWidget {
               child: SizedBox.square(
                 dimension: 128,
                 child: CustomPaint(
-                  painter: SpendingRingPainter(
+                  painter: _RingPainter(
                     fractions: [
                       for (final s in chart.slices)
                         s.amountMinor / chart.totalMinor,
@@ -286,10 +286,8 @@ class _BreakdownCard extends StatelessWidget {
   }
 }
 
-/// A ring of [fractions] (adding up to one) in [colors], as the spending
-/// breakdown draws it.
-class SpendingRingPainter extends CustomPainter {
-  SpendingRingPainter({required this.fractions, required this.colors});
+class _RingPainter extends CustomPainter {
+  _RingPainter({required this.fractions, required this.colors});
 
   final List<double> fractions;
   final List<Color> colors;
@@ -322,7 +320,7 @@ class SpendingRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SpendingRingPainter old) =>
+  bool shouldRepaint(_RingPainter old) =>
       old.fractions != fractions || old.colors != colors;
 }
 

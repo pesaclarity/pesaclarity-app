@@ -5,6 +5,8 @@
          sign-in, backups and the privacy policy (spec: Mobile security).
          test/android/manifest_permissions_test.dart guards this list. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Ask downloads its money model on Wi-Fi only unless the person allows mobile data. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

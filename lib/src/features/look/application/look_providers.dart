@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart' show ThemeMode;
 
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../domain/look/look_settings.dart';

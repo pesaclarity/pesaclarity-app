@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/ask_repository.dart';
@@ -11,6 +11,7 @@ import '../../../theme/layout.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/ask_providers.dart';
 import '../application/ask_settings.dart';
+import 'ask_model_card.dart';
 import 'ask_strings.dart';
 
 /// Ask's settings for the open space.
@@ -87,6 +88,7 @@ class AskSettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const AskAnswersSection(),
           const SizedBox(height: Layout.cardGap),
           GroupedSection(
             children: [

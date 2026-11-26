@@ -40,7 +40,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  FLUTTER_VERSION: "3.47.8"
+  FLUTTER_VERSION: "3.50.1"
 
 jobs:
   changes:
@@ -196,10 +196,6 @@ jobs:
           # Test builds (dev) run the models on rayo or not at all, so a
           # rayo failure shows; release builds (main) keep the fallbacks.
           RAYO_ONLY: ${{ github.ref != 'refs/heads/main' }}
-          # The on-phone language model experiment: its screen only, off
-          # main. The model itself is in the iPhone test build alone (the
-          # APK size limit), so here the screen says it is not in the build.
-          SLM_EXPERIMENT: ${{ github.ref != 'refs/heads/main' }}
         run: |
           # The client id only helps when the app is signed with the dev key.
           [ "$DEV_SIGNED" = true ] || GOOGLE_CLIENT_ID=""
@@ -231,8 +227,7 @@ jobs:
             --dart-define=PESACLARITY_SUPPORT_PAYEES="$SUPPORT_PAYEES" \
             --dart-define=PESACLARITY_SUPPORT_COSTS_URL="$SUPPORT_COSTS_URL" \
             --dart-define=PESACLARITY_DISTRIBUTION=website \
-            --dart-define=RAYO_ONLY="$RAYO_ONLY" \
-            --dart-define=SLM_EXPERIMENT="$SLM_EXPERIMENT"
+            --dart-define=RAYO_ONLY="$RAYO_ONLY"
           name="pesaclarity-$BUILD_NAME-${GITHUB_SHA::7}-$FLAVOR"
           out="$RUNNER_TEMP/apks"
           mkdir -p "$out"

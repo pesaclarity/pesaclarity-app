@@ -1,25 +1,27 @@
-name: Phone language model (experiment)
+name: Ask money models
 
-# The language model the iPhone test build carries for the on-phone model
-# experiment (SLM_EXPERIMENT, test builds only): SmolLM2 fine-tuned on
-# synthetic data only to pick a chart and explain the app's facts
-# (pesaclarity-ml, docs/SLM.md and .github/workflows/slm-fine-tune.yml, which
-# trains it from Hugging Face's files checked against the pinned revision,
-# converts it with rayo-convert at the rayo commit the app pins and checks
-# rayo's replies against torch's). This takes the .weights from
-# pesaclarity-ml's `slm-models` prerelease, checks it against the SHA-256
-# pinned here, and puts it, its SHA256SUMS and the licence on this
-# repository's `slm-models` prerelease. Later runs find it there and stop.
-# Called by ios-build.yml and ios-model-test.yml; never by a release
-# workflow.
+# Ask's money models, which people download on their phone when they ask
+# for them (Ask settings; tool/ask_models.json): Light (SmolLM2-135M) and
+# Full (SmolLM2-360M), fine-tuned on synthetic data only to pick a chart and
+# explain the app's facts (pesaclarity-ml, docs/SLM.md and
+# .github/workflows/slm-fine-tune.yml and slm-lean.yml, which train them from
+# Hugging Face's files checked against pinned revisions, convert them with
+# rayo-convert at the rayo commit the app pins and check rayo's replies
+# against torch's). This takes each .weights from pesaclarity-ml's
+# `slm-models` prerelease, checks it against the SHA-256 pinned here (the
+# same as the catalogue's), and puts it, SHA256SUMS, the licence and the
+# evaluation reports on this repository's `slm-models` prerelease, where
+# the catalogue's URLs point. Later runs find them there and stop. Called by
+# ios-model-test.yml (which runs Light on rayo in a simulator); never by a
+# release workflow.
 on:
   workflow_call:
     outputs:
       sha256:
-        description: SHA-256 of the .weights on the slm-models release
+        description: SHA-256 of Light's .weights on the slm-models release
         value: ${{ jobs.model.outputs.sha256 }}
       asset:
-        description: The .weights file's name on the slm-models release
+        description: Light's .weights file name on the slm-models release
         value: ${{ jobs.model.outputs.asset }}
   workflow_dispatch:
 
@@ -27,16 +29,18 @@ permissions:
   contents: write
 
 env:
-  ASSET: __ASSET__
-  SHA256: __SHA256__
+  LIGHT: __LIGHT_FILE__
+  LIGHT_SHA256: __LIGHT_SHA__
+  FULL: __FULL_FILE__
+  FULL_SHA256: __FULL_SHA__
   TAG: slm-models
   ML_REPO: pesaclarity/pesaclarity-ml
 
 jobs:
   model:
-    name: Fine-tuned SmolLM2 for rayo
+    name: Light and Full for rayo
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     outputs:
       sha256: ${{ steps.done.outputs.sha256 }}
       asset: ${{ steps.done.outputs.asset }}
@@ -47,29 +51,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          sum="$(gh release download "$TAG" -p SHA256SUMS -O - 2>/dev/null | awk -v a="$ASSET" '$2 == a {print $1}' || true)"
-          if [ "$sum" = "$SHA256" ]; then
+          sums="$(gh release download "$TAG" -p SHA256SUMS -O - 2>/dev/null || true)"
+          if echo "$sums" | grep -qxF "$LIGHT_SHA256  $LIGHT" && echo "$sums" | grep -qxF "$FULL_SHA256  $FULL"; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Take it from pesaclarity-ml and check it
+      - name: Take them from pesaclarity-ml and check them
         if: steps.have.outputs.have != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          gh release download "$TAG" -R "$ML_REPO" -p "$ASSET" -p SHA256SUMS -p MODEL-LICENCE.txt -p SLM-EVAL.md --clobber
-          echo "$SHA256  $ASSET" | sha256sum -c -
-          grep -F "$SHA256  $ASSET" SHA256SUMS
-          # This file's line and the sources it was trained from.
-          (grep -F "  $ASSET" SHA256SUMS; grep '  source-' SHA256SUMS) > SUMS.new
-          mv SUMS.new SHA256SUMS
+          gh release download "$TAG" -R "$ML_REPO" -p "$LIGHT" -p "$FULL" -p SHA256SUMS \
+            -p MODEL-LICENCE.txt -p 'SLM-*.md' --clobber
+          mv SHA256SUMS ML-SHA256SUMS
+          printf '%s  %s\n%s  %s\n' "$LIGHT_SHA256" "$LIGHT" "$FULL_SHA256" "$FULL" > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          # The sources they were trained from, as pesaclarity-ml lists them.
+          grep '  source-' ML-SHA256SUMS >> SHA256SUMS || true
           cat SHA256SUMS
 
-      - name: Put it on the slm-models prerelease
+      - name: Put them on the slm-models prerelease
         if: steps.have.outputs.have != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,9 +83,9 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease \
-            --title "On-phone language model (experiment, test builds only)" \
-            --notes "Models for the SLM experiment in iPhone test builds. Not used by release builds."
-          gh release upload "$TAG" "$ASSET" SHA256SUMS MODEL-LICENCE.txt SLM-EVAL.md --clobber
+            --title "Ask money models" \
+            --notes "Ask's downloadable money models (Light and Full). See tool/ask_models.json."
+          gh release upload "$TAG" "$LIGHT" "$FULL" SHA256SUMS MODEL-LICENCE.txt SLM-*.md --clobber
 
       - id: done
         name: The release's checksum
@@ -88,8 +93,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          sum="$(gh release download "$TAG" -p SHA256SUMS -O - | awk -v a="$ASSET" '$2 == a {print $1}')"
-          test "$sum" = "$SHA256"
-          echo "sha256=$sum" >> "$GITHUB_OUTPUT"
-          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
-          echo "$ASSET $sum"
+          sums="$(gh release download "$TAG" -p SHA256SUMS -O -)"
+          echo "$sums" | grep -qxF "$LIGHT_SHA256  $LIGHT"
+          echo "$sums" | grep -qxF "$FULL_SHA256  $FULL"
+          echo "sha256=$LIGHT_SHA256" >> "$GITHUB_OUTPUT"
+          echo "asset=$LIGHT" >> "$GITHUB_OUTPUT"

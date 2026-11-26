@@ -10,7 +10,7 @@ on:
     paths:
       - assets/models/**
       - integration_test/**
-      - lib/src/features/slm_experiment/data/**
+      - lib/src/features/ask/model/**
       - .github/workflows/slm-model.yml
       - lib/src/core/ml/**
       - lib/src/domain/ml/**
@@ -30,7 +30,7 @@ on:
     paths:
       - assets/models/**
       - integration_test/**
-      - lib/src/features/slm_experiment/data/**
+      - lib/src/features/ask/model/**
       - .github/workflows/slm-model.yml
       - lib/src/core/ml/**
       - lib/src/domain/ml/**
@@ -55,12 +55,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.47.8"
+  FLUTTER_VERSION: "3.50.1"
 
 jobs:
-  # The on-phone language model experiment's file (test builds only).
+  # Ask's money model file, as the app downloads it.
   slm-model:
-    name: Language model (experiment)
+    name: Language model
     permissions:
       contents: write
     uses: ./.github/workflows/slm-model.yml
@@ -102,7 +102,7 @@ jobs:
         run: flutter test integration_test/rayo_models_test.dart -d "$SIMULATOR" --dart-define=RAYO_ONLY=true
 
       # The simulator reads the file where the runner put it.
-      - name: Run the language model on rayo (experiment)
+      - name: Run the language model on rayo
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -114,7 +114,7 @@ jobs:
           gh release download slm-models -p "$ASSET" -D "$RUNNER_TEMP/slm" --clobber
           model="$RUNNER_TEMP/slm/$ASSET"
           echo "$SHA256  $model" | shasum -a 256 -c -
-          flutter test integration_test/slm_experiment_test.dart -d "$SIMULATOR" \
-            --dart-define=RAYO_ONLY=true --dart-define=SLM_EXPERIMENT=true \
+          flutter test integration_test/ask_model_test.dart -d "$SIMULATOR" \
+            --dart-define=RAYO_ONLY=true \
             --dart-define=SLM_MODEL_PATH="$model" 2>&1 | tee "$RUNNER_TEMP/slm.log"
           grep -E "SLM (stats|choice|answer|check)" "$RUNNER_TEMP/slm.log" >> "$GITHUB_STEP_SUMMARY" || true

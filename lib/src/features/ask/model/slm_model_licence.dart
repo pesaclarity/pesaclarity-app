@@ -1,15 +1,26 @@
-// The model's licence, shown in the licences page of test builds only.
+import 'package:flutter/foundation.dart';
 
-/// SmolLM2-__SIZE__-Instruct, by Hugging Face (HuggingFaceTB), Apache-2.0,
-/// fine-tuned by Pesa Clarity.
-const slmModelName = 'SmolLM2-__SIZE__-Instruct, fine-tuned';
+// The money models' licence, on the licences page. The models are
+// downloaded only when the person asks (Ask settings, Answers).
+
+/// SmolLM2, by Hugging Face (HuggingFaceTB), Apache-2.0.
+const slmModelName = 'SmolLM2 (Ask money model)';
 
 const slmModelAttribution =
-    'Based on SmolLM2-__SIZE__-Instruct, by Hugging Face (huggingface.co/'
-    'HuggingFaceTB/SmolLM2-__SIZE__-Instruct), licensed under the Apache '
-    'License 2.0. Modified by Pesa Clarity: fine-tuned on made-up data to '
-    'pick a chart and explain the facts (pesaclarity-ml, docs/SLM.md), and '
-    'converted to 4-bit weights for rayo.';
+    'Based on SmolLM2-135M-Instruct (Light) and SmolLM2-360M-Instruct '
+    '(Full), by Hugging Face (huggingface.co/HuggingFaceTB), licensed under '
+    'the Apache License 2.0. Modified by Pesa Clarity: fine-tuned on made-up '
+    'data only to pick a chart and explain the app\'s facts '
+    '(pesaclarity-ml, docs/SLM.md), and converted to int8 weights for rayo.';
+
+/// Puts the models' licence on the licences page.
+void registerSlmLicence() => LicenseRegistry.addLicense(
+  () => Stream.value(
+    const LicenseEntryWithLineBreaks([
+      slmModelName,
+    ], '$slmModelAttribution\n\n$slmModelLicence'),
+  ),
+);
 
 const slmModelLicence = r'''
 
