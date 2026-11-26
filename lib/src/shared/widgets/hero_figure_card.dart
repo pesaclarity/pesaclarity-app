@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../features/security/application/balance_visibility.dart';
 import '../../theme/app_typography.dart';

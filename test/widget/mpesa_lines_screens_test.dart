@@ -1,9 +1,9 @@
 // The screens for two M-Pesa lines: what they say, what their buttons do,
 // and that each fits at every text size the phone offers (an overflow
 // reports a Flutter error, which fails the test). Made-up data only.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
 import 'package:pesaclarity/src/domain/accounts/mpesa_lines.dart';
 import 'package:pesaclarity/src/features/accounts/application/mpesa_lines_providers.dart';

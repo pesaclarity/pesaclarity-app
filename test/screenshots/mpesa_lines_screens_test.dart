@@ -4,9 +4,9 @@
 // the rows on Home, each at every text size, in light and dark. Not
 // marketing screenshots, so tool/screenshots.sh skips them. Made-up names
 // and amounts.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../helpers/mpesa_lines_seed.dart';
 import '../helpers/test_app.dart';

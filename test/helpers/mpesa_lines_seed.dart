@@ -2,8 +2,8 @@
 // and "Shop line" (SIM 2), before or after the split, on Android or on
 // iPhone. Made-up names, numbers and amounts only.
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';

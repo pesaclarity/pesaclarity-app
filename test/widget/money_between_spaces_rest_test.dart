@@ -3,9 +3,9 @@
 // on Pay yourself by bank, the restore check's card and sheet, and the
 // question on Clear data. Made-up records only.
 import 'package:drift/drift.dart' show StringExpressionOperators, Value;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';

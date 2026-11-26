@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'features/app_status/presentation/update_check_sheet.dart';
 import 'features/app_status/presentation/update_required_screen.dart';
