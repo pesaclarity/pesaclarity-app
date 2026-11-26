@@ -4,6 +4,7 @@
 // Every reply is the app's own: Ask's engine reading the seeded records,
 // with the rules question reader and the template sentences, which is what
 // the app uses when its trained reader and writer cannot run.
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,9 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/ask/application/ask_providers.dart';
+import 'package:pesaclarity/src/features/ask/model/ask_model_catalogue.dart';
+import 'package:pesaclarity/src/features/ask/model/ask_model_controller.dart';
+import 'package:pesaclarity/src/features/ask/model/ask_model_download.dart';
 import 'package:pesaclarity/src/features/ask/presentation/ask_conversations_screen.dart';
 import 'package:pesaclarity/src/features/ask/presentation/ask_screen.dart';
 import 'package:pesaclarity/src/features/ask/presentation/ask_settings_screen.dart';
@@ -55,8 +59,9 @@ final _today = [
 /// Pumps Ask at [location], given the ids of [_today]'s conversations.
 Future<void> _pump(
   WidgetTester tester,
-  String Function(List<int> today) location,
-) async {
+  String Function(List<int> today) location, {
+  AskModelState? model,
+}) async {
   _clock = personalNow;
   final db = openTestDatabase();
   final c = ProviderContainer(
@@ -70,6 +75,10 @@ Future<void> _pump(
       // the trained reader and writer cannot run, as in a widget test.
       askReaderRuntimeOpenerProvider.overrideWithValue(null),
       askWriterRuntimeOpenerProvider.overrideWithValue(null),
+      if (model != null)
+        askModelControllerProvider.overrideWith(() => _FixedModel(model)),
+      // The replies are the rules' own; the model's are tested elsewhere.
+      askModelGeneratorProvider.overrideWithValue(null),
     ],
   );
   addTearDown(c.dispose);
@@ -126,7 +135,84 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+/// Ask's money model as a capable phone sees it, made-up sizes.
+class _FixedModel extends AskModelController {
+  _FixedModel(this.fixed);
+
+  final AskModelState fixed;
+
+  @override
+  AskModelState build() => fixed;
+}
+
+AskModelEntry _model(AskModelTier tier, String params, int mb, int ram) =>
+    AskModelEntry(
+      tier: tier,
+      file: '${tier.name}.weights',
+      url: '${askModelUrlPrefix}slm-models/${tier.name}.weights',
+      sizeBytes: mb * 1000000,
+      sha256: '0' * 64,
+      minRamMb: ram,
+      parameters: params,
+      licence: 'Apache-2.0',
+      credit: 'SmolLM2, fine-tuned for Pesa Clarity',
+    );
+
+final _light = _model(AskModelTier.light, '135M', 72, 3072);
+final _full = _model(AskModelTier.full, '360M', 168, 4096);
+final _catalogue = AskModelCatalogue([_light, _full]);
+final _capable = AskModelState(
+  loaded: true,
+  catalogue: _catalogue,
+  capable: [_light, _full],
+  directory: '/models',
+);
+
+Future<void> _scrollToEnd(WidgetTester tester) async {
+  await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  screenshot('ask-model-offer', (tester) async {
+    await _pump(
+      tester,
+      (today) => AppRoutes.askConversation(today[1]),
+      model: _capable,
+    );
+    await _scrollToEnd(tester);
+    await snap(tester);
+  });
+
+  screenshot('ask-model-downloading', (tester) async {
+    await _pump(
+      tester,
+      (today) => AppRoutes.askConversation(today[1]),
+      model: _capable.copyWith(
+        offerDone: true,
+        phase: AskModelPhase.downloading,
+        target: () => _light,
+        progress: const AskModelProgress(30000000, 72000000),
+        secondsLeft: () => 70,
+      ),
+    );
+    await _scrollToEnd(tester);
+    await snap(tester);
+  });
+
+  screenshot('ask-model-settings', (tester) async {
+    await _pump(
+      tester,
+      (_) => AppRoutes.askSettings,
+      model: _capable.copyWith(
+        offerDone: true,
+        installed: () => AskModelTier.light,
+        selected: () => AskModelTier.light,
+      ),
+    );
+    await snap(tester);
+  });
+
   screenshot('ask', (tester) async {
     await _pump(tester, (today) => AppRoutes.askConversation(today[1]));
     await snap(tester);

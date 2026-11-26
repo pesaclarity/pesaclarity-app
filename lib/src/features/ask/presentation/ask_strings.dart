@@ -80,4 +80,70 @@ abstract final class AskStrings {
     'days30': '30 days',
     'days7': '7 days',
   };
+
+  // The money model: the offer, the download and Ask settings, Answers.
+  static const getBetterAnswers = 'Get better answers';
+  static const gettingBetterAnswers = 'Getting better answers';
+  static const offerBody =
+      'Download a small money model so Ask understands more questions, '
+      'on this phone.';
+  static const offerFootnote =
+      'Wi-Fi only. Change it any time in Ask settings. '
+      'Ask works as it does today without it.';
+  static const notNow = 'Not now';
+  static const keepsWorking = 'Ask keeps working while this downloads.';
+  static const waitingForWifi = 'Waiting for Wi-Fi';
+  static const checkingModel = 'Checking the model on this phone';
+  static const tryAgain = 'Try again';
+  static const failedNetwork =
+      'The download stopped. Ask works as before; try again on Wi-Fi.';
+  static const failedSpace =
+      'There is not enough free space on this phone for the model.';
+  static const failedMismatch =
+      "The downloaded file didn't check out, so it was deleted.";
+  static const failedTooSlow =
+      'This phone is too slow for the model, so Ask answers as before.';
+  static const answers = 'Answers';
+  static const noModel = 'No model';
+  static const noModelDetail = 'Quick answers, as before';
+  static const mobileData = 'Download on mobile data';
+  static const mobileDataDetail = 'Otherwise only on Wi-Fi';
+  static const deleteModel = 'Delete downloaded model';
+  static const deleteModelQuestion = 'Delete the downloaded model?';
+  static const deleteModelBody =
+      'Ask answers as before. You can download it again any time.';
+  static String frees(int mb) => 'Frees $mb MB';
+  static const wifi = 'Wi-Fi';
+  static const mobile = 'Mobile data';
+
+  /// `Light`, `Full`.
+  static const tierShort = {'light': 'Light', 'full': 'Full'};
+  static String tierName(String tier) => '${tierShort[tier]} model';
+
+  /// What sets a model apart: Light is faster, Full needs more memory.
+  static String tierNote(String tier, int minRamMb) => tier == 'light'
+      ? 'faster'
+      : 'needs ${(minRamMb / 1024).round()} GB memory';
+
+  /// `135M · 72 MB · faster`.
+  static String tierDetail(String tier, String params, int mb, int ramMb) =>
+      '$params · $mb MB · ${tierNote(tier, ramMb)}';
+
+  /// `Light · 135M · ~72 MB · faster`.
+  static String offerLine(String tier, String params, int mb, int ramMb) =>
+      '${tierShort[tier]} · $params · ~$mb MB · ${tierNote(tier, ramMb)}';
+  static String download(String tier, int mb) =>
+      'Download ${tierShort[tier]} ($mb MB)';
+  static String modelCredit(String credit, String licence) =>
+      'Model: $credit ($licence)';
+
+  /// `30 of 72 MB · Wi-Fi · about 1 min left`.
+  static String progress(int gotMb, int totalMb, String network, int? secs) => [
+    '$gotMb of $totalMb MB',
+    network,
+    if (secs != null)
+      secs < 60
+          ? 'less than a min left'
+          : 'about ${(secs / 60).round()} min left',
+  ].join(' · ');
 }

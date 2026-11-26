@@ -6,17 +6,6 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'package:rayo/rayo.dart';
 
-/// The model file the iPhone test build puts in the app (ios-build.yml).
-const slmModelFile = 'smollm2-360m-instruct-q4.weights';
-
-/// Where the test build puts [slmModelFile]: `Runner.app/slm/` on iOS.
-/// Android test builds leave it out (their size limit), so null there.
-String? slmModelPath() {
-  if (!Platform.isIOS) return null;
-  final app = File(Platform.resolvedExecutable).parent.path;
-  return '$app/slm/$slmModelFile';
-}
-
 /// How a reply went.
 class SlmStats {
   const SlmStats({
@@ -82,16 +71,18 @@ abstract interface class SlmGenerator {
   Future<void> close();
 }
 
-/// [slmModelFile] on rayo, in a long-lived isolate so the screen never
-/// waits. There is no other engine: when rayo cannot run it (or the file is
-/// not in this build), the reply fails and says why. Nothing is written
-/// anywhere: prompts and replies live in memory only.
+/// The downloaded money model at [path] on rayo, in a long-lived isolate so
+/// Ask never waits. When rayo cannot run it, the reply fails and says why,
+/// and Ask answers as it does without a model. Nothing is written anywhere:
+/// prompts and replies live in memory only.
 class RayoSlmGenerator implements SlmGenerator {
-  RayoSlmGenerator({String? path, bool Function() available = rayoAvailable})
-    : _path = path ?? slmModelPath(),
-      _isAvailable = available;
+  RayoSlmGenerator({
+    required this.path,
+    bool Function() available = rayoAvailable,
+  }) : _isAvailable = available;
 
-  final String? _path;
+  /// The model file.
+  final String path;
   final bool Function() _isAvailable;
   final Pointer<Int32> _stop = malloc<Int32>()..value = 0;
   Isolate? _isolate;
@@ -104,12 +95,10 @@ class RayoSlmGenerator implements SlmGenerator {
   Future<void> _start() async {
     if (_ready != null) return _ready!.future;
     final ready = _ready = Completer<void>();
-    final path = _path;
-    if (path == null || !File(path).existsSync()) {
+    final path = this.path;
+    if (!File(path).existsSync()) {
       _ready = null;
-      throw StateError(
-        'The model is not in this build (only the iPhone test build has it).',
-      );
+      throw StateError('The model file is not on this phone.');
     }
     if (!_isAvailable()) {
       _ready = null;
@@ -213,8 +202,10 @@ class RayoSlmGenerator implements SlmGenerator {
       generator = RayoGenerator(
         model,
         tokenizer,
-        temperature: 0.3,
-        maxTokens: 320,
+        // Greedy: the chart line has one right spelling.
+        temperature: 0,
+        repetitionPenalty: 1,
+        maxTokens: 200,
         context: 2048,
       );
     } on Object catch (e) {

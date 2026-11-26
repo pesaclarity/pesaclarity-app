@@ -21,6 +21,7 @@ import '../application/ask_providers.dart';
 import '../application/ask_settings.dart';
 import 'ask_answer_view.dart';
 import 'ask_app_bar.dart';
+import 'ask_model_card.dart';
 import 'ask_strings.dart';
 
 /// Ask: a conversation about the open space's money.
@@ -298,6 +299,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                                 onTap: _send,
                               ),
                           ],
+                        const AskModelCard(),
                         if (session.busy)
                           Padding(
                             padding: const EdgeInsets.all(8),

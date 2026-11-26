@@ -32,10 +32,11 @@ much did I spend on food last month?". Small models that ship inside the
 app read your question and word the answer, on your phone. Every number
 comes from your own records in the space you have open.
 
-- Nothing is sent anywhere. Your questions, the answers and the records they come from never leave your phone, and Ask works without internet.
+- Nothing about your money is sent anywhere. Your questions, the answers and the records they come from never leave your phone, and Ask works without internet.
 - Ask has no federated learning. "Improve the app" never includes anything from Ask.
 - Conversations are kept in the space's encrypted database for as long as you choose in Ask settings: until you delete them, or for a year, 90, 30 or 7 days. You can also switch saving off.
 - Words you teach Ask, such as "chakula" for Food, stay in that space too.
+- If you choose, Ask downloads a small money model (Ask settings, Answers). The file comes from GitHub (Microsoft), where the app is published, so GitHub sees that one download request, with your IP address as for any website visit. No questions, answers, records or other data of yours are sent. The model then runs on your phone only, is kept out of backups, and you can delete it any time.
 - You can delete one conversation, or every conversation in a space. Backups leave conversations out.
 
 ## What our server holds

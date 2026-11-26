@@ -16,6 +16,10 @@ const _allowed = {
   // Scanning a shared space's join request or invite (decision 0031):
   // only while the scanner is open, with a file as the fallback.
   'android.permission.CAMERA',
+  // Ask downloads its optional money model on Wi-Fi only unless the person
+  // allows mobile data: whether the network is metered (a normal
+  // permission, nothing to ask).
+  'android.permission.ACCESS_NETWORK_STATE',
 };
 
 /// Asked for by the camera plugin, never used, and removed from the

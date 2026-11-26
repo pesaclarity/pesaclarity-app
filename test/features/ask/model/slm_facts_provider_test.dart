@@ -4,12 +4,12 @@ import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/domain/ask/data_source.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/features/ask/application/ask_providers.dart';
+import 'package:pesaclarity/src/features/ask/model/slm_facts_loader.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/insights/application/insights_providers.dart';
 import 'package:pesaclarity/src/features/plan/application/budget_alert_providers.dart';
 import 'package:pesaclarity/src/features/plan/application/plan_providers.dart'
     hide paydayProvider;
-import 'package:pesaclarity/src/features/slm_experiment/data/slm_facts_loader.dart';
 
 /// Answers every read after a real async gap, with nothing in the space.
 class _SlowSource implements AskDataSource {

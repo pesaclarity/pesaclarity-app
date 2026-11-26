@@ -97,6 +97,10 @@ enum ReplyKind {
   thanks,
   bye,
   help,
+
+  /// A question only the downloaded money model could answer, in its words
+  /// from the app's facts.
+  model,
 }
 
 /// One line under an answer, such as a payee and what went to them.
@@ -341,6 +345,29 @@ class AskAnswer {
     clarifyWord: clarifyWord,
     askPeriod: askPeriod,
     suggestions: suggestions,
+    context: context,
+    link: link,
+  );
+
+  /// This answer in the money model's [sentence], with [modelChart] (drawn
+  /// from the app's numbers) in place of its own chart when there is one.
+  /// A question the rules could not answer becomes [ReplyKind.model].
+  AskAnswer byModel(String sentence, AskChart? modelChart) => AskAnswer(
+    kind: kind == ReplyKind.cant ? ReplyKind.model : kind,
+    // Braces would read as placeholders.
+    template: sentence.replaceAll('{', '(').replaceAll('}', ')'),
+    asOf: asOf,
+    facts: facts,
+    headline: headline,
+    figureMinor: figureMinor,
+    figureText: figureText,
+    rows: rows,
+    totalRows: totalRows,
+    chart: modelChart ?? chart,
+    choices: choices,
+    clarifyWord: clarifyWord,
+    askPeriod: askPeriod,
+    suggestions: kind == ReplyKind.cant ? const [] : suggestions,
     context: context,
     link: link,
   );
