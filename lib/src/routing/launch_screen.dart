@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Shown while app lock settings and saved onboarding state load.
 class LaunchScreen extends StatelessWidget {

@@ -4,7 +4,7 @@ Thank you for helping. The organisation-wide code of conduct, security policy an
 
 ## Set up
 
-1. Install Flutter stable (3.47 or later). For device builds, install the Android SDK and JDK 17.
+1. Install Flutter stable (3.50 or later). For device builds, install the Android SDK and JDK 17.
 2. `flutter pub get`
 3. `dart run build_runner build --delete-conflicting-outputs` (re-run after changing Drift tables)
 4. `flutter run --flavor foss`

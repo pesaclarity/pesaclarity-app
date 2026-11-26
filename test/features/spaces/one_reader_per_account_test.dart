@@ -1,10 +1,10 @@
 // Each account is read in one space, or shared through Business or
 // personal: a second space never switches it on, and an account two spaces
 // read already is left to Personal. Made-up data only.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
