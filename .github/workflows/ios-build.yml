@@ -29,7 +29,7 @@ permissions:
   contents: write
 
 env:
-  FLUTTER_VERSION: "3.47.8"
+  FLUTTER_VERSION: "3.50.1"
 
 jobs:
   # A cheap Linux check first, so an unchanged evening costs no macOS time.

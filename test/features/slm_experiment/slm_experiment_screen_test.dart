@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/features/slm_experiment/data/slm_facts_loader.dart';
 import 'package:pesaclarity/src/features/slm_experiment/data/slm_generator.dart';
 import 'package:pesaclarity/src/features/slm_experiment/domain/slm_facts.dart';

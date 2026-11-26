@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A [ListTile] with a value or control at its end, such as an amount, a
 /// button or a drop-down. It looks as a [ListTile] does while the title

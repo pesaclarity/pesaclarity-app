@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/features/statements/data/pdf_text_extractor.dart';
 import 'package:pesaclarity/src/features/statements/data/statement_file_picker.dart';
-
 import 'package:ujumbe/ujumbe.dart' show StatementPage;
 
 import '../helpers/statement_samples.dart';

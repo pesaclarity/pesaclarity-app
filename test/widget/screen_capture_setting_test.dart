@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/features/security/data/key_vault.dart';
 import 'package:pesaclarity/src/features/security/data/screen_capture_blocker.dart';
 import 'package:pesaclarity/src/features/security/data/secure_store.dart';
