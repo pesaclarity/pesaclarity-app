@@ -2,9 +2,9 @@
 // 1), for the accessibility check (tool/accessibility.sh): the Sharing row
 // in a space's settings, Share this space, a member's role in a chama,
 // adding a member, an update file ready to send, receiving one, Activity
-// with who added each transaction, Space history and joining. Not
-// marketing screenshots, so tool/screenshots.sh skips them. Made-up names
-// and amounts.
+// with who added each transaction, Space history and joining, and group
+// sync (fx-14). Not marketing screenshots, so tool/screenshots.sh skips
+// them. Made-up names and amounts.
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,7 +21,9 @@ import 'package:pesaclarity/src/features/activity/presentation/activity_screen.d
 import 'package:pesaclarity/src/features/backup/application/backup_providers.dart';
 import 'package:pesaclarity/src/features/backup/data/backup_sharing.dart';
 import 'package:pesaclarity/src/features/currency/application/currency_controller.dart';
+import 'package:pesaclarity/src/features/sharing/application/group_sync_controller.dart';
 import 'package:pesaclarity/src/features/sharing/application/share_providers.dart';
+import 'package:pesaclarity/src/features/sharing/presentation/group_sync_widgets.dart';
 import 'package:pesaclarity/src/features/sharing/presentation/share_scanner.dart';
 import 'package:pesaclarity/src/features/sharing/presentation/share_screens.dart';
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
@@ -31,6 +33,7 @@ import 'package:pesaclarity/src/shared/widgets/app_sheet.dart';
 
 import '../domain/fixtures.dart';
 import '../helpers/fake_app_lock.dart';
+import '../helpers/fixed_group_sync.dart';
 import '../helpers/share_phones.dart';
 import '../helpers/test_app.dart';
 import 'harness.dart';
@@ -329,6 +332,109 @@ void main() {
       await tester.pump();
     }
     await tester.pumpAndSettle();
+    await snap(tester);
+  });
+
+  // Group sync (decision 0033, fx-14), behind the build's sync switch.
+  Future<void> syncShot(WidgetTester tester, GroupSyncView view) async {
+    late Phone me;
+    await tester.runAsync(() async => (me, _) = await kilimani());
+    me.now = eat(2026, 11, 22, 9, 41).millisecondsSinceEpoch;
+    await _pump(
+      tester,
+      me,
+      const ShareSpaceScreen(spaceId: 'kilimani'),
+      overrides: groupSyncOverrides(FixedGroupSync(view)),
+    );
+    await snap(tester);
+  }
+
+  screenshot(
+    'group-sync-on',
+    (tester) => syncShot(
+      tester,
+      GroupSyncView(
+        phase: GroupSyncPhase.upToDate,
+        owner: true,
+        lastSyncAt: eat(2026, 11, 22, 9, 39),
+      ),
+    ),
+  );
+
+  screenshot(
+    'group-sync-offline',
+    (tester) => syncShot(
+      tester,
+      const GroupSyncView(
+        phase: GroupSyncPhase.offline,
+        owner: true,
+        toSend: 4,
+      ),
+    ),
+  );
+
+  screenshot(
+    'group-sync-error',
+    (tester) => syncShot(
+      tester,
+      const GroupSyncView(
+        phase: GroupSyncPhase.error,
+        owner: true,
+        problem: 'unauthorized',
+      ),
+    ),
+  );
+
+  screenshot(
+    'group-sync-receiving-only',
+    (tester) => syncShot(
+      tester,
+      const GroupSyncView(
+        phase: GroupSyncPhase.receivingOnly,
+        ownerName: 'Achieng',
+        toSend: 2,
+      ),
+    ),
+  );
+
+  screenshot(
+    'group-sync-member-off',
+    (tester) =>
+        syncShot(tester, const GroupSyncView(phase: GroupSyncPhase.off)),
+  );
+
+  screenshot('group-sync-turn-on', (tester) async {
+    late Phone me;
+    await tester.runAsync(() async => (me, _) = await kilimani());
+    await _pump(
+      tester,
+      me,
+      _opener(
+        (context, _) => showAppSheet<void>(
+          context: context,
+          builder: (_) => const TurnOnSyncSheet(space: _kilimani),
+        ),
+      ),
+    );
+    await _open(tester);
+    await snap(tester);
+  });
+
+  screenshot('group-sync-needs-premium', (tester) async {
+    late Phone me;
+    await tester.runAsync(() async => (me, _) = await kilimani());
+    await _pump(
+      tester,
+      me,
+      _opener(
+        (context, _) => showAppSheet<void>(
+          context: context,
+          builder: (_) =>
+              const SyncNeedsPremiumSheet(others: ['Jane', 'Brian']),
+        ),
+      ),
+    );
+    await _open(tester);
     await snap(tester);
   });
 }

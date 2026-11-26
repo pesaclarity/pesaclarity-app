@@ -11,6 +11,7 @@ import '../../../domain/forecast/cash_flow_forecast.dart';
 import '../../../domain/income/income_pattern.dart';
 import '../../../domain/income/income_sources.dart';
 import '../../../domain/income/make_it_last.dart';
+import '../../../domain/income/payday.dart';
 import '../../../domain/income/week_by_week.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/ledger/ledger_role.dart';
@@ -167,6 +168,19 @@ final incomePatternProvider = FutureProvider<IncomePattern>((ref) async {
   return IncomePattern.of(entries, today: today);
 });
 
+/// The main regular payday, learnt from the last [incomePatternDays] on
+/// day-to-day accounts; null without a regular income.
+final paydayProvider = FutureProvider<Payday?>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final today = CalendarDate.local(ref.watch(clockProvider)());
+  final entries = await _dayToDayEntries(
+    ref,
+    from: today.addDays(-incomePatternDays).startInstant,
+    to: today.addDays(1).startInstant,
+  );
+  return Payday.of(entries, today: today);
+});
+
 /// How the plan finds the next money for these [sources] and [pattern].
 NextMoneyBasis nextMoneyBasis(IncomeSources sources, IncomePattern pattern) {
   if (sources.irregular) return NextMoneyBasis.rolling;
@@ -208,7 +222,9 @@ final untilNextMoneyProvider = FutureProvider<UntilNextMoney?>((ref) async {
   final scheduledIds = scheduledCategoryIds(plan);
 
   final basis = nextMoneyBasis(sources, pattern);
-  final next = pattern.nextExpected(today);
+  // The main payday sets the next money, as Home's since payday block.
+  final payday = await ref.watch(paydayProvider.future);
+  final next = payday?.nextAfter(today) ?? pattern.nextExpected(today);
   final horizon = basis == NextMoneyBasis.rhythm && next != null
       ? next
       : today.addDays(rollingPlanDays);

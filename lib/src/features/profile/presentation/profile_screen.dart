@@ -39,11 +39,14 @@ import '../../reminders/presentation/reminders_settings_card.dart';
 import '../../security/presentation/device_warning_card.dart';
 import '../../security/presentation/security_settings_card.dart';
 import '../../settings/application/week_start_provider.dart';
+import '../../slm_experiment/presentation/slm_experiment_tile.dart';
+import '../../slm_experiment/slm_experiment_flag.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../statements/data/pdf_text_extractor.dart';
 import '../../subscriptions/application/subscriptions_providers.dart';
 import '../../support/application/support_providers.dart';
 import '../../timezone/application/timezone_controller.dart';
+import 'model_engine_tile.dart';
 
 /// Profile, one level under Home: accounts, settings, backup and privacy.
 class ProfileScreen extends ConsumerWidget {
@@ -327,7 +330,14 @@ class ProfileScreen extends ConsumerWidget {
       askRow,
     ];
     final data = [export, if (canImport) importRow, backup, fireflyRow];
-    final about = [privacy, ?support, buildRow];
+    final about = [
+      privacy,
+      ?support,
+      buildRow,
+      const ModelEngineTile(),
+      // Test builds only (SLM_EXPERIMENT); constant-folded away otherwise.
+      if (slmExperiment) const SlmExperimentTile(),
+    ];
 
     return Scaffold(
       appBar: AppBar(

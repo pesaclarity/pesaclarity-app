@@ -1,7 +1,7 @@
 name: pesaclarity
 description: Pesa Clarity turns M-Pesa and bank SMS into a clear daily plan, on the phone.
 publish_to: none
-version: 0.5.8+13
+version: 0.5.9+14
 
 environment:
   sdk: ^3.13.0
@@ -61,6 +61,8 @@ dev_dependencies:
   drift_dev: ^2.35.3
   flutter_lints: ^6.0.0
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
 # package:sqlite3 bundles SQLCipher through its build hook. This replaces

@@ -45,7 +45,7 @@ class PersonalHome extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Loads the week's first day, which Insights and the weekly habits use.
     ref.watch(weekStartControllerProvider);
-    final view = ref.watch(homePeriodViewProvider(HomePeriod.thisMonth)).value;
+    final view = ref.watch(homeSincePaydayViewProvider).value;
     final things = ref.watch(thingsToSortProvider);
     final over = ref.watch(overBudgetAlertsProvider);
     final bills = ref.watch(upcomingBillsProvider).value ?? const [];
@@ -63,11 +63,13 @@ class PersonalHome extends ConsumerWidget {
         const _SafeToday(),
         const BalanceWarningLine(),
         SectionLabel(
-          'This month',
+          view?.sincePayday ?? false ? 'Since payday' : 'This month',
           trailing: view == null
               ? null
               : Text(
-                  '1 – ${shortDate(view.span.last)}',
+                  view.sincePayday
+                      ? '${shortDate(view.span.first)} – ${shortDate(view.span.last)}'
+                      : '1 – ${shortDate(view.span.last)}',
                   style: Theme.of(context).textTheme.bodySmall!
                       .copyWith(color: PesaColors.of(context).textMuted),
                 ),
@@ -101,8 +103,9 @@ class PersonalHome extends ConsumerWidget {
   }
 }
 
-/// This month's Money in, Money out and Difference, then the fees in Money
-/// out. Each figure opens this month in Activity for its direction.
+/// Money in, Money out and Difference since payday (or this month without
+/// a regular income), then the fees in Money out. Each figure opens the
+/// same days in Activity for its direction.
 class _InOutCard extends StatelessWidget {
   const _InOutCard({required this.view});
 
@@ -240,7 +243,9 @@ class _SafeToday extends ConsumerWidget {
       line = below
           ? BalanceText.belowZero
           : left <= 0
-          ? "This month's day-to-day budget is used up"
+          ? (monthly.payCycle
+                ? "This pay cycle's day-to-day budget is used up"
+                : "This month's day-to-day budget is used up")
           : about(days <= 0 ? left : left ~/ days, days <= 0 ? 1 : days);
     } else {
       return const HeroFigureCard(

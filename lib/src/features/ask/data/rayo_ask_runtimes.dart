@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:rayo/rayo.dart';
 
+import '../../../core/ml/model_engines.dart';
 import '../../../domain/ask/model_question_reader.dart';
 import '../../../domain/ask/model_reply_writer.dart';
 import '../../../domain/ml/dart_ask_reader.dart';
@@ -10,26 +11,76 @@ import '../../../domain/reader/reader_tokens.dart';
 
 /// Opens `ask-reader.weights` on rayo, or on [DartAskReader] when rayo's
 /// native library cannot load here or refuses the file. Throws only when
-/// neither can read it.
-AskReaderRuntime openAskReader(Uint8List bytes) {
-  if (rayoAvailable()) {
+/// neither can read it. In a rayo-only build ([rayoOnly]) there is no Dart
+/// reader: rayo's failure is thrown as a [RayoOnlyFailure].
+AskReaderRuntime openAskReader(
+  Uint8List bytes, {
+  bool onlyRayo = rayoOnly,
+  bool Function() available = rayoAvailable,
+  AskReaderRuntime Function(Uint8List) openRayo = RayoAskReader.open,
+  ModelEngines? engines,
+}) {
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.askReader;
+  String reason;
+  if (available()) {
     try {
-      return RayoAskReader.open(bytes);
-    } on Object {
-      // The Dart reader reads the same file.
+      final reader = openRayo(bytes);
+      log.record(
+        model,
+        ModelEngine(
+          reader is RayoAskReader ? rayoEngineName(reader.kernels) : 'Rayo',
+        ),
+      );
+      return reader;
+    } on Object catch (e) {
+      reason = '$e';
     }
+  } else {
+    reason = "rayo's library cannot load here";
   }
-  return DartAskReader.parse(bytes);
+  if (onlyRayo) {
+    log.record(model, ModelEngine(ModelEngine.failed, reason: reason));
+    throw RayoOnlyFailure(model, reason);
+  }
+  final reader = DartAskReader.parse(bytes);
+  log.record(model, ModelEngine(ModelEngine.dartFallback, reason: reason));
+  return reader;
 }
 
 /// Opens `ask-writer.weights` on rayo. Throws when rayo's native library
-/// cannot load here, and Ask words its replies with the templates.
-AskWriterRuntime openAskWriter(Uint8List bytes, AskWriterManifest manifest) =>
-    RayoAskWriter.open(
+/// cannot load here, and Ask words its replies with the templates; in a
+/// rayo-only build the failure is a [RayoOnlyFailure], which Ask shows.
+AskWriterRuntime openAskWriter(
+  Uint8List bytes,
+  AskWriterManifest manifest, {
+  bool onlyRayo = rayoOnly,
+  bool Function() available = rayoAvailable,
+  ModelEngines? engines,
+}) {
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.askWriter;
+  try {
+    if (!available()) throw StateError("rayo's library cannot load here");
+    final writer = RayoAskWriter.open(
       bytes,
       length: manifest.length,
       vocab: manifest.vocabSize,
     );
+    log.record(model, ModelEngine(rayoEngineName(writer.kernels)));
+    return writer;
+  } on Object catch (e) {
+    log.record(
+      model,
+      ModelEngine(
+        onlyRayo ? ModelEngine.failed : ModelEngine.templates,
+        reason: '$e',
+      ),
+    );
+    if (onlyRayo) throw RayoOnlyFailure(model, '$e');
+    rethrow;
+  }
+}
 
 /// Runs [task] after the earlier runs queued on the same session, so two
 /// runs never overlap.
@@ -198,6 +249,9 @@ class RayoAskWriter implements AskWriterRuntime {
   final int _length;
   final int _vocab;
   final _queue = _Queue();
+
+  /// The kernels the session runs, such as `neon-dotprod`.
+  String get kernels => _session.kernels;
 
   @override
   Future<List<int>?> decode(WriterDecode request) {
