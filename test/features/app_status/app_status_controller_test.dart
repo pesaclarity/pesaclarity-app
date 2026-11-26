@@ -206,6 +206,15 @@ void main() {
       updateChannelFor(AppFlavor.foss, distribution: 'website'),
       UpdateChannel.website,
     );
+    // The Play build updates only through Play, even as a tester APK.
+    expect(
+      updateChannelFor(AppFlavor.play, distribution: 'website'),
+      UpdateChannel.play,
+    );
+    expect(
+      updateChannelFor(AppFlavor.play, distribution: ''),
+      UpdateChannel.play,
+    );
     expect(
       updateChannelFor(AppFlavor.appstore, distribution: ''),
       UpdateChannel.ios,
