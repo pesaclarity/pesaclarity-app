@@ -37,6 +37,8 @@ abstract final class SlmStrings {
       'A small model can get things wrong: check its numbers against '
       '"What the model saw".';
   static const licence = 'Model licence';
+  static const recordsFailed = "Couldn't read your records. Try again.";
+  static const retry = 'Retry';
 }
 
 class _Turn {
@@ -47,6 +49,9 @@ class _Turn {
   final StringBuffer answer = StringBuffer();
   SlmStats? stats;
   String? error;
+
+  /// The records could not be read, so the turn can be asked again.
+  bool canRetry = false;
   bool running = true;
 }
 
@@ -81,13 +86,15 @@ class _SlmExperimentScreenState extends ConsumerState<SlmExperimentScreen> {
     final SlmFacts facts;
     try {
       facts = await ref.read(slmFactsProvider.future);
-    } on Object catch (e) {
+    } on Object catch (error, stack) {
+      debugPrint('SLM experiment: reading records failed: $error\n$stack');
       if (!mounted) return;
       setState(
         () => _turns.add(
           _Turn(question, const SlmFacts([]))
             ..running = false
-            ..error = 'Could not read your records: $e',
+            ..canRetry = true
+            ..error = SlmStrings.recordsFailed,
         ),
       );
       return;
@@ -122,6 +129,13 @@ class _SlmExperimentScreenState extends ConsumerState<SlmExperimentScreen> {
         );
   }
 
+  void _retry(_Turn turn) {
+    if (_running) return;
+    setState(() => _turns.remove(turn));
+    ref.invalidate(slmFactsProvider);
+    unawaited(_ask(turn.question));
+  }
+
   void _stop() => ref.read(slmGeneratorProvider).stop();
 
   void _clear() {
@@ -131,6 +145,9 @@ class _SlmExperimentScreenState extends ConsumerState<SlmExperimentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Keeps the facts alive while the screen is open, so Ask never reads
+    // an auto-disposed provider that has no listener.
+    ref.watch(slmFactsProvider);
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
@@ -159,7 +176,11 @@ class _SlmExperimentScreenState extends ConsumerState<SlmExperimentScreen> {
                         child: Text(q),
                       ),
                     ),
-                  for (final turn in _turns) _TurnView(turn: turn),
+                  for (final turn in _turns)
+                    _TurnView(
+                      turn: turn,
+                      onRetry: _running ? null : () => _retry(turn),
+                    ),
                   if (_turns.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(SlmStrings.caution, style: muted),
@@ -230,9 +251,10 @@ class _SlmExperimentScreenState extends ConsumerState<SlmExperimentScreen> {
 }
 
 class _TurnView extends StatelessWidget {
-  const _TurnView({required this.turn});
+  const _TurnView({required this.turn, this.onRetry});
 
   final _Turn turn;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +286,15 @@ class _TurnView extends StatelessWidget {
                 turn.error!,
                 key: const Key('slm-error'),
                 style: theme.textTheme.bodyMedium,
+              ),
+            if (turn.canRetry)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: const Key('slm-retry'),
+                  onPressed: onRetry,
+                  child: const Text(SlmStrings.retry),
+                ),
               ),
             if (turn.facts.sections.isNotEmpty)
               Theme(
