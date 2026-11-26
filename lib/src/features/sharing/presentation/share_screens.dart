@@ -571,6 +571,7 @@ class _RoleSheetState extends ConsumerState<RoleSheet> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text('Remove $name?'),
         content: Text(
           "$name's phone keeps what it already has; nothing can take that "
@@ -1521,6 +1522,7 @@ class _JoinSpaceScreenState extends ConsumerState<JoinSpaceScreen> {
             onPressed: () => showDialog<void>(
               context: context,
               builder: (context) => AlertDialog(
+                scrollable: true,
                 title: const Text("Don't join"),
                 content: Text(
                   'The words differ, so this invite may not be from $owner. '

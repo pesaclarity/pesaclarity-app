@@ -299,6 +299,7 @@ class _NameDialogState extends State<_NameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
+    scrollable: true,
     title: const Text('Start a tab'),
     content: LabeledField(
       label: 'Name',
