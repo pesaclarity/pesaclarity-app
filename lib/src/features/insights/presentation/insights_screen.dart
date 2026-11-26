@@ -138,6 +138,23 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   }
 
   List<Widget> _insights(InsightsSummary summary) => [
+    // Until next money, runway, the month-end forecast and financial
+    // health: Home's old cards, now here.
+    Card(
+      child: ListTile(
+        key: const Key('insights-this-month'),
+        title: const Text('Your month'),
+        subtitle: const Text(
+          'Until next money, runway, month-end forecast, financial health',
+        ),
+        trailing: Icon(
+          Icons.chevron_right,
+          color: PesaColors.of(context).textMuted,
+        ),
+        onTap: () => context.push(AppRoutes.moreThisMonth),
+      ),
+    ),
+    const SizedBox(height: Layout.cardGap),
     if (!summary.hasData)
       const _EmptyCard()
     else ...[

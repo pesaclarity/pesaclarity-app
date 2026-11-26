@@ -30,6 +30,8 @@ import '../features/documents/presentation/document_settings_screen.dart';
 import '../features/firefly/presentation/firefly_screen.dart';
 import '../features/goals/presentation/goals_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/home/presentation/more_this_month_screen.dart';
+import '../features/home/presentation/things_to_sort_screen.dart';
 import '../features/hours/presentation/hours_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
 import '../features/income/presentation/week_by_week_screen.dart';
@@ -54,6 +56,8 @@ import '../features/review/presentation/review_inbox_screen.dart';
 import '../features/review/presentation/review_message_screen.dart';
 import '../features/sales/presentation/sell_screen.dart';
 import '../features/security/application/app_lock_controller.dart';
+import '../features/sharing/presentation/approval_screens.dart';
+import '../features/sharing/presentation/share_screens.dart';
 import '../features/sms/presentation/connect_messages_screen.dart';
 import '../features/sms/presentation/paste_messages_screen.dart';
 import '../features/sms/presentation/sms_scan_screen.dart';
@@ -227,6 +231,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => const WeekByWeekScreen(),
                   ),
                   GoRoute(
+                    path: 'sort',
+                    builder: (context, state) => const ThingsToSortScreen(),
+                  ),
+
+                  GoRoute(
                     path: 'spaces/add',
                     builder: (context, state) => const AddSpaceScreen(),
                   ),
@@ -348,6 +357,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 const DeleteAllScreen(),
                           ),
                           GoRoute(
+                            path: 'join-request',
+                            builder: (context, state) =>
+                                const JoinRequestScreen(),
+                          ),
+                          GoRoute(
+                            path: 'join',
+                            builder: (context, state) =>
+                                JoinSpaceScreen(invite: state.extra! as String),
+                          ),
+                          GoRoute(
                             path: ':id',
                             builder: (context, state) => SpaceSettingsScreen(
                               spaceId: state.pathParameters['id']!,
@@ -358,6 +377,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                 builder: (context, state) => ClearSpaceScreen(
                                   spaceId: state.pathParameters['id']!,
                                 ),
+                              ),
+                              GoRoute(
+                                path: 'share',
+                                builder: (context, state) => ShareSpaceScreen(
+                                  spaceId: state.pathParameters['id']!,
+                                ),
+                                routes: [
+                                  GoRoute(
+                                    path: 'history',
+                                    builder: (context, state) =>
+                                        const SpaceHistoryScreen(),
+                                  ),
+                                  GoRoute(
+                                    path: 'approvals',
+                                    builder: (context, state) =>
+                                        const ApprovalsScreen(),
+                                  ),
+                                  GoRoute(
+                                    path: 'rules',
+                                    builder: (context, state) =>
+                                        const ShareRulesScreen(),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -449,6 +491,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.insights,
                 builder: (context, state) => const InsightsTab(),
                 routes: [
+                  GoRoute(
+                    path: 'month',
+                    builder: (context, state) => const MoreThisMonthScreen(),
+                  ),
                   GoRoute(
                     path: 'records',
                     builder: (context, state) => const FullRecordsScreen(),

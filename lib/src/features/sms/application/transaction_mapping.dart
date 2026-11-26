@@ -20,6 +20,16 @@ TransactionKind transactionKindFor(TransactionType type) => switch (type) {
   TransactionType.bank => TransactionKind.bank,
 };
 
+/// The ledger's kind for [parsed]: as [transactionKindFor] its type, but
+/// cash given to an M-Pesa agent, which the pack reads as money received,
+/// is a cash deposit.
+TransactionKind transactionKindOf(ParsedTransaction parsed) =>
+    parsed.packId == 'mpesa' &&
+        parsed.ruleId == 'deposit' &&
+        parsed.direction == Direction.incoming
+    ? TransactionKind.deposit
+    : transactionKindFor(parsed.type);
+
 TransactionDirection transactionDirectionFor(Direction direction) =>
     switch (direction) {
       Direction.incoming => TransactionDirection.inflow,
@@ -102,7 +112,7 @@ TransactionsCompanion transactionFromParsed(
     occurredAt: parsed.time,
     amountMinor: inCurrencyMinor(parsed.amountMinor, parsed.currency),
     direction: transactionDirectionFor(parsed.direction),
-    kind: Value(transactionKindFor(parsed.type)),
+    kind: Value(transactionKindOf(parsed)),
     feeMinor: Value(inCurrencyMinor(parsed.feeMinor ?? 0, parsed.currency)),
     currency: Value(parsed.currency),
     counterpartyKind: Value(counterparty?.kind),

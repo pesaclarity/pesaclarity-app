@@ -1,5 +1,6 @@
 import '../time/calendar.dart';
 import '../time/date_labels.dart';
+import '../time/week_start.dart';
 
 /// How a period was named, which decides its comparable period.
 enum PeriodKind { day, week, month, year, months, days, since, range, quarter }
@@ -29,12 +30,9 @@ class AskPeriod {
     _cap(month.next.firstDay, today),
   );
 
-  /// Monday to today.
-  factory AskPeriod.thisWeek(CalendarDate today) => AskPeriod(
-    PeriodKind.week,
-    today.addDays(1 - today.weekday),
-    today.addDays(1),
-  );
+  /// The first day of the week (see [FirstWeekday]) to today.
+  factory AskPeriod.thisWeek(CalendarDate today) =>
+      AskPeriod(PeriodKind.week, weekStartOn(today), today.addDays(1));
 
   /// This year so far.
   factory AskPeriod.thisYear(CalendarDate today) => AskPeriod(
@@ -166,8 +164,8 @@ class AskPeriod {
         if (from == today.addDays(-1)) return 'yesterday';
         return 'on ${dayLabel(from, thisYear: today.year)}';
       case PeriodKind.week:
-        if (from == today.addDays(1 - today.weekday)) return 'this week';
-        if (from == today.addDays(-6 - today.weekday)) return 'last week';
+        if (from == weekStartOn(today)) return 'this week';
+        if (from == weekStartOn(today).addDays(-7)) return 'last week';
         return 'that week';
       case PeriodKind.month:
         final m = from.yearMonth;
@@ -452,7 +450,7 @@ final _rules = <(RegExp, AskPeriod? Function(RegExpMatch, CalendarDate))>[
   (
     RegExp(r'\blast week\b|\bwiki (?:iliyopita|jana)\b'),
     (m, today) {
-      final start = today.addDays(-6 - today.weekday);
+      final start = weekStartOn(today).addDays(-7);
       return AskPeriod(PeriodKind.week, start, start.addDays(7));
     },
   ),

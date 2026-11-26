@@ -1,6 +1,7 @@
 import '../enums.dart';
 import 'features.dart';
 import 'model_manifest.dart';
+import 'rule_categoriser.dart';
 
 /// What a categoriser reads about one transaction.
 class CategoriserInput {
@@ -179,7 +180,9 @@ class ModelCategoriser implements Categoriser {
 /// such as airtime, a Fuliza repayment or charges, or the payee is a
 /// well-known one in the rules' table, such as Naivas or KPLC), that answer
 /// is used and [model] is not run. Every other transaction, a guess from a
-/// word in the payee's name included, goes to [model].
+/// word in the payee's name included, goes to [model]. Money in from a
+/// person ([fromPerson]) is one of [receivedFromPeopleKeys], so the model's
+/// scores are narrowed to those.
 ///
 /// The person's own choices for a payee and the payee's default category
 /// come before both, in `CategorySuggester` and `applyPayee`.
@@ -201,7 +204,20 @@ class RulesFirstCategoriser implements Categoriser {
           CategoryScore(s.key, s.confidence, source: s.source ?? rules.source),
       ];
     }
-    return model.score(input);
+    final scores = model.score(input);
+    if (!fromPerson(input)) return scores;
+    // Money from a person is one of the received categories: the model
+    // picks which, as if those were its only answers.
+    final received = [
+      for (final s in scores)
+        if (receivedFromPeopleKeys.contains(s.key)) s,
+    ];
+    final total = received.fold(0.0, (sum, s) => sum + s.confidence);
+    if (total <= 0) return ruled.isEmpty ? scores : ruled;
+    return [
+      for (final s in received)
+        CategoryScore(s.key, s.confidence / total, source: s.source),
+    ];
   }
 
   @override

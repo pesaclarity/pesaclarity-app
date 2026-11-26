@@ -14,7 +14,7 @@ import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_pro
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
-import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/more_this_month_screen.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
 
@@ -117,7 +117,10 @@ void main() {
           ),
           upcomingBillsProvider.overrideWith((ref) async => []),
         ],
-        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const MoreThisMonthScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

@@ -13,13 +13,27 @@ const _allowed = {
   // A Bluetooth receipt printer at the counter (business spaces).
   'android.permission.BLUETOOTH',
   'android.permission.BLUETOOTH_CONNECT',
+  // Scanning a shared space's join request or invite (decision 0031):
+  // only while the scanner is open, with a file as the fallback.
+  'android.permission.CAMERA',
 };
 
-Set<String> _permissionsIn(String path) {
+/// Asked for by the camera plugin, never used, and removed from the
+/// merged manifest.
+const _removed = {
+  'android.permission.RECORD_AUDIO',
+  'android.permission.WRITE_EXTERNAL_STORAGE',
+};
+
+Set<String> _permissionsIn(String path, {bool removed = false}) {
   final xml = File(path).readAsStringSync();
-  return RegExp(r'<uses-permission[^>]*android:name="([^"]+)"')
+  return RegExp(r'<uses-permission[^>]*>')
       .allMatches(xml)
-      .map((m) => m.group(1)!)
+      .map((m) => m.group(0)!)
+      .where((tag) => tag.contains('tools:node="remove"') == removed)
+      .map(
+        (tag) => RegExp(r'android:name="([^"]+)"').firstMatch(tag)!.group(1)!,
+      )
       .toSet();
 }
 
@@ -28,6 +42,13 @@ void main() {
     expect(
       _permissionsIn('android/app/src/main/AndroidManifest.xml'),
       _allowed,
+    );
+  });
+
+  test("the camera plugin's microphone and storage are removed", () {
+    expect(
+      _permissionsIn('android/app/src/main/AndroidManifest.xml', removed: true),
+      _removed,
     );
   });
 

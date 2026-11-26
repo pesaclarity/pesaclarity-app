@@ -2,6 +2,7 @@ import 'dart:math' show exp;
 import 'dart:typed_data';
 
 import '../ml/plain_weights.dart' show plainWeightsFormatVersion;
+import '../ml/rayo_only.dart';
 import 'reply_writer.dart';
 
 // The ask writer from pesaclarity-ml (`akili ask-writer`), as its
@@ -639,7 +640,8 @@ class ModelReplyWriter {
           mask: mask,
         ),
       );
-    } on Object {
+    } on Object catch (e) {
+      if (rayoOnly) throw RayoOnlyFailure(OnPhoneModel.askWriter, '$e');
       return null;
     }
     final tokens = ids == null

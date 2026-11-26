@@ -8,6 +8,7 @@ import '../../../data/database/database_providers.dart';
 import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/category_seeds.dart';
 import '../../../data/repositories/money_repair.dart';
+import '../../../domain/sharing/share_model.dart';
 import '../../../domain/spaces/business_setup.dart';
 import '../../../domain/spaces/kept_data.dart';
 import '../../../domain/spaces/space.dart';
@@ -35,6 +36,7 @@ import '../../backup/application/backup_service.dart';
 import '../../close/application/business_day_providers.dart';
 import '../../firefly/application/firefly_controller.dart';
 import '../../security/application/app_lock_controller.dart';
+import '../../sharing/presentation/share_screens.dart';
 import '../application/business_setup_providers.dart';
 import '../application/space_manager.dart';
 import '../application/spaces_providers.dart';
@@ -124,6 +126,13 @@ class _SpacesScreenState extends ConsumerState<SpacesScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => showOpenSpaceChoice(context),
+              ),
+              ListTile(
+                key: const Key('spaces-join'),
+                title: const Text('Join a shared space'),
+                subtitle: const Text('Send a join request to the owner'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(AppRoutes.joinRequest),
               ),
               ListTile(
                 key: const Key('spaces-recently-deleted'),
@@ -312,6 +321,10 @@ class SpaceSettingsScreen extends ConsumerWidget {
               },
               child: const Text('Open this space for its other settings'),
             ),
+          ],
+          if (open && canShare(space.kind)) ...[
+            const SectionLabel('Sharing'),
+            GroupedSection(children: [ShareSpaceTile(spaceId: space.id)]),
           ],
           const SectionLabel('Data'),
           GroupedSection(

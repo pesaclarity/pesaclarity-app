@@ -10,6 +10,7 @@ import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/insights_summary.dart';
 import '../../../domain/insights/spending_charts.dart';
 import '../../../domain/time/calendar.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../../sms/application/scan_range_provider.dart';
 
 /// This Nairobi month's leakages, its change on last month, and the
@@ -85,7 +86,11 @@ final spendingChartProvider = FutureProvider<SpendingChart>((ref) async {
   ref.watch(ledgerChangesProvider);
   final period = ref.watch(chartPeriodProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
-  final window = ChartWindow.of(period, today);
+  final window = ChartWindow.of(
+    period,
+    today,
+    weekStartsOn: ref.watch(weekStartsOnProvider),
+  );
   // A month before the previous window lets Fuliza repayments find draws.
   final from = window.previous(period).start.yearMonth.previous.startInstant;
   final entries = await ref

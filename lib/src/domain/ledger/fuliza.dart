@@ -4,9 +4,11 @@ import 'ledger_entry.dart';
 
 /// Fuliza draws, repayments and the fees hidden in the repayments.
 ///
-/// Fuliza fees are repayments minus draws. Each repayment first clears the
-/// draws still outstanding and only the excess is a fee, dated on the
-/// repayment. Over a full draw-and-repay cycle the fees
+/// Fuliza fees are repayments minus what was drawn, access fees included:
+/// the access fee a draw's message names is its own fee, counted on the
+/// draw, so it is owed with the draw. Each repayment first clears what is
+/// still outstanding and only the excess (daily charges) is a fee, dated on
+/// the repayment. Over a full draw-and-repay cycle the fees
 /// equal repayments minus draws, and a draw on the 30th repaid on the 2nd
 /// never shows a negative fee in either month.
 ///
@@ -15,7 +17,11 @@ import 'ledger_entry.dart';
 /// person added by hand, for a draw whose message never came, is never a
 /// fee.
 class FulizaLedger {
-  FulizaLedger._(this._feeByRepaymentId, this.outstandingMinor);
+  FulizaLedger._(
+    this._feeByRepaymentId,
+    this._principalByRepaymentId,
+    this.outstandingMinor,
+  );
 
   /// Works through [entries] in time order. Entries other than Fuliza draws
   /// and repayments are ignored.
@@ -31,30 +37,44 @@ class FulizaLedger {
           ..sort(compareFulizaEntries);
 
     final fees = <int, int>{};
+    final principals = <int, int>{};
     var outstanding = 0;
+    var accessFees = 0;
     for (final entry in fuliza) {
       if (entry.kind == TransactionKind.fulizaDraw) {
         outstanding += entry.amountMinor;
+        // The access fee is owed with the draw and counted as a fee on it
+        // (its transaction cost), so paying it back is no second fee.
+        accessFees += entry.feeMinor;
       } else {
-        final principal = entry.amountMinor < outstanding
-            ? entry.amountMinor
-            : outstanding;
+        var left = entry.amountMinor;
+        final principal = left < outstanding ? left : outstanding;
         outstanding -= principal;
-        fees[entry.id] = entry.source == TransactionSource.manual
-            ? 0
-            : entry.amountMinor - principal;
+        left -= principal;
+        final access = left < accessFees ? left : accessFees;
+        accessFees -= access;
+        left -= access;
+        principals[entry.id] = principal;
+        fees[entry.id] = entry.source == TransactionSource.manual ? 0 : left;
       }
     }
-    return FulizaLedger._(fees, outstanding);
+    return FulizaLedger._(fees, principals, outstanding + accessFees);
   }
 
   final Map<int, int> _feeByRepaymentId;
+  final Map<int, int> _principalByRepaymentId;
 
-  /// Draws not yet repaid at the end of the entries.
+  /// Draws and their access fees not yet repaid at the end of the entries.
   final int outstandingMinor;
 
   /// The fee share of a repayment; zero for anything else.
   int feeOf(LedgerEntry entry) => _feeByRepaymentId[entry.id] ?? 0;
+
+  /// What a repayment paid off the amounts drawn, leaving out the access
+  /// fees (counted on their draws) and any further fee ([feeOf]); the
+  /// whole amount for anything else.
+  int principalOf(LedgerEntry entry) =>
+      _principalByRepaymentId[entry.id] ?? entry.amountMinor - feeOf(entry);
 
   /// Draws, repayments and fees whose Nairobi date falls in [month].
   FulizaMonth month(Iterable<LedgerEntry> entries, YearMonth month) {
@@ -67,6 +87,7 @@ class FulizaLedger {
       if (entry.kind == TransactionKind.fulizaDraw) {
         draws += entry.amountMinor;
         drawCount++;
+        fees += entry.feeMinor;
       } else if (entry.kind == TransactionKind.fulizaRepayment) {
         repayments += entry.amountMinor;
         fees += feeOf(entry);

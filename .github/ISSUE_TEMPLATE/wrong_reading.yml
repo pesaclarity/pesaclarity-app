@@ -1,0 +1,71 @@
+name: A message or number reads wrongly
+description: An SMS was missed or read wrongly, or a balance, total or safe-to-spend figure is off.
+labels: [bug, parsing, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste real messages. Rewrite the message with made-up names, amounts, phone numbers and reference codes, keeping the exact wording and punctuation; that's what the parser matches on.
+        Asking for a bank, Sacco or wallet we don't read yet? Use the **New bank, Sacco or wallet** link instead.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What's wrong
+      options:
+        - A message was missed
+        - A message was read with the wrong amount, type, account or payee
+        - A message landed in the wrong category
+        - A balance or total is wrong
+        - Safe to spend, the forecast or the health score looks wrong
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: sender
+    attributes:
+      label: SMS sender
+      description: The sender name the message came from, if it was a message.
+      placeholder: MPESA
+  - type: textarea
+    id: message
+    attributes:
+      label: The message, rewritten with made-up values
+      render: text
+      placeholder: "ABC1DEF2GH Confirmed. Ksh1,000.00 sent to JANE DOE 0700000000 on 1/1/26 at 9:00 AM. New M-PESA balance is Ksh5,000.00..."
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the app showed
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should show
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build
+      options:
+        - Android, Play build (play)
+        - Android, F-Droid build (foss)
+        - iPhone
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Profile › Build shows it.
+      placeholder: 0.5.7 · foss
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: Every name, number, amount and reference above is made up.
+          required: true

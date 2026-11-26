@@ -130,6 +130,8 @@ final planViewProvider = FutureProvider.family<PlanView, YearMonth>((
   ref,
   month,
 ) async {
+  // Spent and paid follow every change to the ledger.
+  ref.watch(ledgerChangesProvider);
   await ref.watch(monthCloseProvider.future);
   final repository = ref.watch(planRepositoryProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
@@ -184,6 +186,7 @@ class PaydayProposal {
 
 /// The payday autopilot: null outside the days after this month's payday.
 final paydayProvider = FutureProvider<PaydayProposal?>((ref) async {
+  ref.watch(ledgerChangesProvider);
   await ref.watch(monthCloseProvider.future);
   final now = ref.watch(clockProvider)();
   final today = CalendarDate.local(now);

@@ -123,6 +123,20 @@ Some of them store data outside Kenya. We use them under their data
 processing terms, as the Kenya Data Protection Act 2019 requires for
 transfers abroad.
 
+## Shared spaces
+
+A Household or a chama/savings group space can be shared with other
+people. Members share that space's budget, transactions, goals and
+member list. Your personal space is never included.
+
+- You share by sending an encrypted file (.pcshare) through any app you choose, such as WhatsApp, email or Bluetooth. Our server is not involved.
+- Each file is end-to-end encrypted with AES-256-GCM, using a key for that space and each member's X25519 key. The app that carries the file, and Pesa Clarity, cannot read it.
+- When you join, your phone makes its own key. The private key never leaves your phone. A join request holds your name and public key, and safety words let you both check it.
+- Approvals and declines are signed on the approver's phone. A record of who changed or approved what is kept in the space's history on members' phones.
+- The camera is used only to scan join and invite QR codes. The images are not stored or sent.
+- Members you share with can see the shared space's data and keep copies. Leaving or removing someone stops future updates, but cannot erase copies already on their phones.
+- Shared data stays on members' phones, encrypted. Deleting a space deletes it from your phone.
+
 ## Firefly III
 
 Firefly III is a free personal finance manager that people run on their

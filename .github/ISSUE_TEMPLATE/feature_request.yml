@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest something new, or a change to how something works.
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app
+      options:
+        - Onboarding
+        - SMS capture or iPhone Shortcuts
+        - Statement import
+        - Review inbox
+        - Home or safe to spend
+        - Activity
+        - Balances
+        - Plan
+        - Goals or debts
+        - Insights or Ask
+        - Subscriptions
+        - Backup and restore
+        - Sign-in, app lock or security
+        - Export
+        - Reminders
+        - Profile or settings
+        - Something new
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Principles
+      options:
+        - label: This keeps financial data on the phone and needs no ads or paid tier.
+          required: true

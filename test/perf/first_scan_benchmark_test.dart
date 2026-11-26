@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesaclarity/src/core/money/money.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
+import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:ujumbe/ujumbe.dart';
 
 import '../helpers/fake_sms_source.dart';
@@ -187,7 +188,7 @@ void main() {
     // Home's lead card with its figure: work on the database between
     // frames until it shows.
     final figure = find.descendant(
-      of: find.byKey(const Key('until-next-money')),
+      of: find.byKey(const Key('home-safe')),
       matching: find.textContaining('KES '),
     );
     for (var i = 0; i < 60 && figure.evaluate().isEmpty; i++) {
@@ -210,7 +211,11 @@ void main() {
         '${home.inMilliseconds} ms',
       );
     }
-    expect(stored, hasLength(_messages));
+    // Agent withdrawals and deposits also write their side in Cash in hand.
+    expect(
+      stored!.where((t) => t.source != TransactionSource.manual),
+      hasLength(_messages),
+    );
     expect(home.inSeconds, lessThan(_ceilingSeconds));
   });
 }

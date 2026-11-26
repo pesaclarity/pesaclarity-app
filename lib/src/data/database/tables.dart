@@ -49,6 +49,10 @@ class Accounts extends Table {
   /// purchase paid by another space.
   IntColumn get linkedAccountId => integer().nullable()();
 
+  /// Its stable id in a shared space (decision 0031): a UUID, the same on
+  /// every member's phone. Given to every row, shared or not.
+  TextColumn get shareUid => text().nullable()();
+
   /// Left out of account lists (My accounts shows it under Hidden
   /// accounts). It still counts in totals and keeps its history.
   BoolColumn get hidden => boolean().withDefault(const Constant(false))();
@@ -107,6 +111,10 @@ class Categories extends Table {
   /// Counts towards the day-to-day budget behind safe-to-spend.
   BoolColumn get isDailySpending =>
       boolean().withDefault(const Constant(false))();
+
+  /// Its stable id in a shared space (decision 0031): a UUID, the same on
+  /// every member's phone. Given to every row, shared or not.
+  TextColumn get shareUid => text().nullable()();
 }
 
 class Tags extends Table {
@@ -411,6 +419,15 @@ class Transactions extends Table {
   /// in a bank's send to a mobile wallet. The other side's message prints
   /// it as its receipt, so the two pair as one own transfer (decision 0030).
   TextColumn get linkedReceiptNo => text().nullable()();
+
+  /// Its stable id in a shared space (decision 0031): a UUID, the same on
+  /// every member's phone. Given to every row, shared or not.
+  TextColumn get shareUid => text().nullable()();
+
+  /// In a shared space: the member who added it, and who typed it in for
+  /// them when that was someone else. Null outside shared spaces.
+  TextColumn get addedBy => text().nullable()();
+  TextColumn get recordedBy => text().nullable()();
   TextColumn get source => textEnum<TransactionSource>()();
 
   /// Hash of the source SMS for dedupe; the message text itself is never kept.
@@ -663,6 +680,10 @@ class BudgetItems extends Table {
   IntColumn get amountMinor => integer()();
   TextColumn get kind => textEnum<BudgetItemKind>()();
   BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
+
+  /// Its stable id in a shared space (decision 0031): a UUID, the same on
+  /// every member's phone. Given to every row, shared or not.
+  TextColumn get shareUid => text().nullable()();
 }
 
 /// Frozen month-end results per category; a null category is Uncategorised.
@@ -1359,4 +1380,109 @@ class FireflyAccounts extends Table {
 
   @override
   Set<Column> get primaryKey => {key};
+}
+
+/// A shared space's change log (decision 0031): every change from every
+/// member, field by field, in hybrid logical clock order.
+@DataClassName('ShareChangeRow')
+class ShareChanges extends Table {
+  /// The order this phone learnt of it, for sending only what is new.
+  IntColumn get seq => integer().autoIncrement()();
+
+  /// The change's clock, which is also its id.
+  TextColumn get hlc => text().unique()();
+  TextColumn get entity => text()();
+  TextColumn get record => text()();
+  TextColumn get field => text()();
+
+  /// JSON.
+  TextColumn get value => text().nullable()();
+  TextColumn get previous => text().nullable()();
+  TextColumn get base => text().nullable()();
+  TextColumn get author => text()();
+  TextColumn get recordedBy => text().nullable()();
+
+  /// The update file it came in, or null when made on this phone.
+  TextColumn get fromFile => text().nullable()();
+  DateTimeColumn get loggedAt => dateTime()();
+
+  /// The change it lost to, when two members changed the same field.
+  TextColumn get lostTo => text().nullable()();
+
+  /// The change it won over.
+  TextColumn get wonOver => text().nullable()();
+}
+
+/// This phone's side of a shared space: its own member id and key pair,
+/// and the space keys. One row, in the shared space's own encrypted
+/// database.
+@DataClassName('ShareStateRow')
+class ShareState extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+  TextColumn get spaceShareId => text()();
+  TextColumn get myMemberId => text()();
+  TextColumn get ownerId => text()();
+  BlobColumn get seed => blob()();
+  IntColumn get epoch => integer()();
+
+  /// Every space key this phone has had, by epoch, as JSON.
+  TextColumn get keys => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// What this phone knows of each other member: what was last sent to them,
+/// when their last file came, and whether the safety words were checked.
+@DataClassName('SharePeerRow')
+class SharePeers extends Table {
+  TextColumn get memberId => text()();
+  IntColumn get sentUpTo => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastSentAt => dateTime().nullable()();
+  DateTimeColumn get lastFromAt => dateTime().nullable()();
+  BoolColumn get wordsChecked => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get joinedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {memberId};
+}
+
+/// Records changed on this phone since they were last put in the log;
+/// kept by triggers while the space is shared.
+@DataClassName('ShareDirtyRow')
+class ShareDirty extends Table {
+  TextColumn get entity => text()();
+  IntColumn get rowId => integer()();
+
+  /// When, in milliseconds.
+  IntColumn get at => integer()();
+
+  /// For a removed row, its share id.
+  TextColumn get removedUid => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {entity, rowId};
+}
+
+/// Each shared record's fields as last put in the log, to tell what
+/// changed.
+@DataClassName('ShareSeenRow')
+class ShareSeen extends Table {
+  TextColumn get entity => text()();
+  TextColumn get uid => text()();
+  TextColumn get fields => text()();
+
+  @override
+  Set<Column> get primaryKey => {entity, uid};
+}
+
+/// Update files already opened: opening one twice changes nothing.
+@DataClassName('ShareFileRow')
+class ShareFiles extends Table {
+  TextColumn get fileId => text()();
+  TextColumn get fromMember => text()();
+  DateTimeColumn get appliedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {fileId};
 }

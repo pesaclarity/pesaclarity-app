@@ -314,6 +314,8 @@ void main() {
     await pumpInsights(tester);
 
     await tester.scrollUntilVisible(find.byKey(const Key('slice-0')), 200);
+    await tester.ensureVisible(find.byKey(const Key('slice-0')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('slice-0')));
     await tester.pumpAndSettle();
     expect(

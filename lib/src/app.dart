@@ -11,6 +11,7 @@ import 'features/firefly/presentation/firefly_when_online.dart';
 import 'features/look/application/look_providers.dart';
 import 'features/look/presentation/field_style_theme.dart';
 import 'features/security/presentation/lock_screen.dart';
+import 'features/sharing/presentation/group_sync_when_open.dart';
 import 'routing/app_router.dart';
 import 'shared/accessibility.dart';
 import 'shared/widgets/amounts_hidden.dart';
@@ -46,9 +47,11 @@ class PesaClarityApp extends ConsumerWidget {
                 child: KeepSessionFresh(
                   child: BackupWhenOnline(
                     child: FireflyWhenOnline(
-                      child: LearnWhenDue(
-                        child: AskBeforeUpdateCheck(
-                          child: CrashReportsOnStart(child: child!),
+                      child: GroupSyncWhenOpen(
+                        child: LearnWhenDue(
+                          child: AskBeforeUpdateCheck(
+                            child: CrashReportsOnStart(child: child!),
+                          ),
                         ),
                       ),
                     ),

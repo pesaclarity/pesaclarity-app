@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart' show AccountType;
 import '../../../data/repositories/balances_repository.dart';
 import '../../../domain/ledger/balance_check.dart';
 import '../../../domain/time/calendar.dart';
@@ -179,6 +180,9 @@ class BalanceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final check = balance.check;
+    if (balance.account.type == AccountType.cash && balance.heldMinor < 0) {
+      return const Tag(BalanceText.cashBelowZero, tone: Tone.warning);
+    }
     return switch (check.status) {
       BalanceStatus.matches => const Tag(
         BalanceText.matches,

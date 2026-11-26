@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ml/rayo_retry.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/reader_templates_repository.dart';
@@ -42,14 +43,17 @@ final readerAssetReaderProvider = Provider<AssetReader>(
 /// The trained reader (`assets/models/reader/reader.weights`) when bundled
 /// and rayo runs it, else the rules reader. Loaded the first time a message
 /// needs reading.
-final messageReaderProvider = FutureProvider<MessageReader>((ref) async {
-  final reader = await loadReader(
-    readAsset: ref.watch(readerAssetReaderProvider),
-    openRuntime: ref.watch(readerRuntimeOpenerProvider),
-  );
-  ref.onDispose(reader.close);
-  return reader;
-});
+final messageReaderProvider = FutureProvider<MessageReader>(
+  retry: noRetryOnRayoFailure,
+  (ref) async {
+    final reader = await loadReader(
+      readAsset: ref.watch(readerAssetReaderProvider),
+      openRuntime: ref.watch(readerRuntimeOpenerProvider),
+    );
+    ref.onDispose(reader.close);
+    return reader;
+  },
+);
 
 /// Messages waiting to be checked, oldest first.
 ///

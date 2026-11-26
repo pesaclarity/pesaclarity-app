@@ -16,7 +16,15 @@ import 'gifts_screen.dart';
 /// the thank-you when a gift's M-Pesa message comes in. Only in the F-Droid
 /// build, and never when [moneyTight].
 class SupportHomeCard extends ConsumerStatefulWidget {
-  const SupportHomeCard({required this.moneyTight, super.key});
+  const SupportHomeCard({
+    required this.moneyTight,
+    this.thanksOnly = false,
+    super.key,
+  });
+
+  /// Only thanks a gift as it comes in, without the card: Home keeps the
+  /// thanks while the card itself is in Things to sort.
+  final bool thanksOnly;
 
   /// Today's money is spent, the plan is used up or a payment may not go
   /// through.
@@ -55,7 +63,7 @@ class _SupportHomeCardState extends ConsumerState<SupportHomeCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(supportConfigProvider) == null) {
+    if (widget.thanksOnly || ref.watch(supportConfigProvider) == null) {
       return const SizedBox.shrink();
     }
     final state = ref.watch(supportStateProvider).value;

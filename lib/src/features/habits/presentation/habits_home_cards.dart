@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/habits/week_check_in.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../application/habits_providers.dart';
 import 'habits_sheets.dart';
 import 'habits_text.dart';
@@ -19,7 +20,9 @@ class SundayCheckInCard extends ConsumerWidget {
     if (settings == null || !settings.sundayCheckIn || week == null) {
       return const SizedBox.shrink();
     }
-    if (!isCheckInDay(week.end)) return const SizedBox.shrink();
+    if (!isCheckInDay(week.end, ref.watch(weekStartsOnProvider))) {
+      return const SizedBox.shrink();
+    }
     return _HabitCard(
       key: const Key('home-check-in'),
       title: HabitsText.checkInTitle,

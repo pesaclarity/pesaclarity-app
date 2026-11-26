@@ -2,6 +2,7 @@ import '../debts/debt.dart';
 import '../enums.dart';
 import '../subscriptions/subscriptions.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 import 'month_plan.dart';
 
 /// Where a calendar bill comes from.
@@ -209,13 +210,12 @@ class BillsMonth {
   }
 }
 
-/// The days a month grid shows, Monday first: from the Monday on or before
-/// the 1st to the Sunday on or after the last day.
-List<CalendarDate> calendarGridDays(YearMonth month) {
-  final first = month.firstDay;
-  final start = first.addDays(1 - first.weekday);
-  final last = month.lastDay;
-  final end = last.addDays(7 - last.weekday);
+/// The days a month grid shows, from the first day of the week on or
+/// before the 1st to the last day of the week on or after the month's last
+/// day (weeks start on [weekStartsOn], see [FirstWeekday]).
+List<CalendarDate> calendarGridDays(YearMonth month, {int? weekStartsOn}) {
+  final start = weekStartOn(month.firstDay, weekStartsOn);
+  final end = weekEndOn(month.lastDay, weekStartsOn);
   return [for (var d = start; !d.isAfter(end); d = d.addDays(1)) d];
 }
 

@@ -12,6 +12,7 @@ import '../../domain/spaces/space_categories.dart';
 import '../repositories/firefly_triggers.dart';
 import '../repositories/journal_repository.dart';
 import '../repositories/sacco_links.dart';
+import '../repositories/share_triggers.dart';
 import 'tables.dart';
 
 export '../../domain/enums.dart';
@@ -81,13 +82,19 @@ part 'app_database.g.dart';
     FireflySent,
     FireflyAccounts,
     SaccoDetails,
+    ShareChanges,
+    ShareState,
+    SharePeers,
+    ShareDirty,
+    ShareSeen,
+    ShareFiles,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 47;
+  int get schemaVersion => 48;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +103,7 @@ class AppDatabase extends _$AppDatabase {
       await createJournalTriggers(this);
       await createFireflyTriggers(this);
       await seedDefaultCategories();
+      await createShareTriggers(this);
     },
     onUpgrade: (m, from, to) async {
       // Earlier steps read payees with every column, so this one goes first.
@@ -401,6 +409,35 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(saccoDetails);
         }
         await mergeSaccos(this, DateTime.now());
+      }
+      // Sharing a space by file (decision 0031, stage 1): a stable id on
+      // every record that can be shared, who added a transaction, and the
+      // change log. Each step checks first, so it is safe to run twice.
+      if (from < 48) {
+        for (final (table, column)
+            in <(TableInfo<Table, Object?>, GeneratedColumn<Object>)>[
+              (accounts, accounts.shareUid),
+              (categories, categories.shareUid),
+              (budgetItems, budgetItems.shareUid),
+              (transactions, transactions.shareUid),
+              (transactions, transactions.addedBy),
+              (transactions, transactions.recordedBy),
+            ]) {
+          await _addColumnIfMissing(m, table, column);
+        }
+        for (final TableInfo<Table, Object?> table in [
+          shareChanges,
+          shareState,
+          sharePeers,
+          shareDirty,
+          shareSeen,
+          shareFiles,
+        ]) {
+          if (!await _exists('table', table.actualTableName)) {
+            await m.createTable(table);
+          }
+        }
+        await createShareTriggers(this);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

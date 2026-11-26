@@ -117,6 +117,15 @@ class BalancesOverview {
       )
       .length;
 
+  /// Cash accounts that count on hand and hold less than nothing: more was
+  /// put in at agents than the records took out, so the person should set
+  /// what they have.
+  List<AccountBalance> get cashBelowZero => [
+    for (final a in accounts)
+      if (a.account.type == AccountType.cash && !a.isSavings && a.heldMinor < 0)
+        a,
+  ];
+
   /// What the day-to-day accounts are worth, in the base currency: savings
   /// are left out, as On hand leaves them out.
   int totalMinor(String base) => accounts
@@ -127,12 +136,40 @@ class BalancesOverview {
       accounts.where((a) => a.account.id == id).firstOrNull;
 }
 
-/// Every account with its balance, Fuliza owed and balance check.
+/// The open space's accounts of M-Pesa lines the person stopped tracking
+/// ("Don't track this line"): their balance leaves every total, wherever
+/// it is shown, though the account and its past records stay.
+final untrackedAccountIdsProvider = FutureProvider<Set<int>>((ref) async {
+  ref.watch(ledgerChangesProvider);
+  final accounts = await ref.watch(accountsRepositoryProvider).all();
+  // Only line accounts can be untracked: without one, the lines kept in
+  // Personal need not be read.
+  if (!accounts.any((a) => lineOfReference(a.reference) != null)) {
+    return const {};
+  }
+  final lines = await ref.watch(mpesaLinesProvider.future);
+  if (!lines.split) return const {};
+  return untrackedAccountIds(lines, accounts);
+});
+
+/// The ids of [accounts] that are lines of [lines] no longer tracked.
+Set<int> untrackedAccountIds(MpesaLines lines, Iterable<Account> accounts) => {
+  for (final a in accounts)
+    if (lineOfReference(a.reference) case final id?)
+      if (lines.line(id) case final line? when !line.tracked) a.id,
+};
+
+/// Every account with its balance, Fuliza owed and balance check. A line
+/// no longer tracked is left out (see [untrackedAccountIdsProvider]).
 final balancesOverviewProvider = FutureProvider<BalancesOverview>((ref) async {
   ref.watch(ledgerChangesProvider);
   final now = ref.watch(clockProvider)();
   final repository = ref.watch(accountsRepositoryProvider);
-  final rows = await repository.all();
+  final untracked = await ref.watch(untrackedAccountIdsProvider.future);
+  final rows = [
+    for (final row in await repository.all())
+      if (!untracked.contains(row.id)) row,
+  ];
   final openings = {for (final o in await repository.openings()) o.id: o};
   var from = now;
   for (final o in openings.values) {
@@ -238,9 +275,10 @@ final fulizaAutoProvider = FutureProvider<Map<int, FulizaAuto>>((ref) async {
 final onHandProvider = FutureProvider<OnHand?>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
+  final untracked = await ref.watch(untrackedAccountIdsProvider.future);
   final accounts = [
     for (final a in await ref.watch(accountsRepositoryProvider).openings())
-      if (!a.isSavings) a,
+      if (!a.isSavings && !untracked.contains(a.id)) a,
   ];
   if (accounts.isEmpty) return null;
   var from = today.startInstant;

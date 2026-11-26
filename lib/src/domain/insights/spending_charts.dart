@@ -4,6 +4,7 @@ import '../ledger/fuliza.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 
 /// The stretch of time a chart covers.
 enum ChartPeriod { week, month, year }
@@ -12,22 +13,26 @@ enum ChartPeriod { week, month, year }
 class ChartWindow {
   const ChartWindow(this.start, this.end);
 
-  /// The [period] holding [today]; weeks start on Monday.
-  factory ChartWindow.of(ChartPeriod period, CalendarDate today) =>
-      switch (period) {
-        ChartPeriod.week => ChartWindow(
-          today.addDays(1 - today.weekday),
-          today.addDays(8 - today.weekday),
-        ),
-        ChartPeriod.month => ChartWindow(
-          today.yearMonth.firstDay,
-          today.yearMonth.next.firstDay,
-        ),
-        ChartPeriod.year => ChartWindow(
-          CalendarDate(today.year, 1, 1),
-          CalendarDate(today.year + 1, 1, 1),
-        ),
-      };
+  /// The [period] holding [today]; weeks start on [weekStartsOn] (see
+  /// [FirstWeekday]).
+  factory ChartWindow.of(
+    ChartPeriod period,
+    CalendarDate today, {
+    int? weekStartsOn,
+  }) => switch (period) {
+    ChartPeriod.week => ChartWindow(
+      weekStartOn(today, weekStartsOn),
+      weekStartOn(today, weekStartsOn).addDays(7),
+    ),
+    ChartPeriod.month => ChartWindow(
+      today.yearMonth.firstDay,
+      today.yearMonth.next.firstDay,
+    ),
+    ChartPeriod.year => ChartWindow(
+      CalendarDate(today.year, 1, 1),
+      CalendarDate(today.year + 1, 1, 1),
+    ),
+  };
 
   final CalendarDate start;
   final CalendarDate end;
