@@ -144,4 +144,40 @@ void main() {
       await g.close();
     },
   );
+
+  testWidgets('records that cannot be read: a plain message and Retry', (
+    tester,
+  ) async {
+    final fake = _FakeGenerator();
+    var reads = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          slmGeneratorProvider.overrideWithValue(fake),
+          slmFactsProvider.overrideWith((ref) async {
+            reads++;
+            if (reads == 1) throw StateError('Cannot use the Ref of thing');
+            return _facts;
+          }),
+        ],
+        child: const MaterialApp(home: SlmExperimentScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byKey(const Key('slm-input')), 'hello');
+    await tester.tap(find.byKey(const Key('slm-ask')));
+    await tester.pump();
+    expect(find.text("Couldn't read your records. Try again."), findsOneWidget);
+    expect(find.textContaining('Cannot use the Ref'), findsNothing);
+    expect(find.textContaining('StateError'), findsNothing);
+    expect(fake.question, isNull);
+
+    await tester.tap(find.byKey(const Key('slm-retry')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('slm-retry')), findsNothing);
+    expect(fake.question, 'hello');
+    expect(fake.system, contains('Rent: KES 15,000'));
+  });
 }
