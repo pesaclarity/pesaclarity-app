@@ -6,12 +6,12 @@ import '../../../core/time/clock.dart';
 import '../../../domain/ask/periods.dart';
 import '../../../domain/budget/budget_alerts.dart';
 import '../../../domain/time/calendar.dart';
-import '../../ask/application/ask_providers.dart';
 import '../../income/application/income_providers.dart';
 import '../../insights/application/insights_providers.dart';
 import '../../plan/application/budget_alert_providers.dart';
 import '../../plan/application/plan_providers.dart' hide paydayProvider;
-import '../domain/slm_facts.dart';
+import '../application/ask_providers.dart';
+import 'slm_facts.dart';
 
 /// The facts for the model, from the open space's records, read on the
 /// phone through the same sources Ask and the screens use. Never sent

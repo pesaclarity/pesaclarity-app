@@ -1,9 +1,12 @@
 import ContactsUI
 import Flutter
+import Network
 import UIKit
 
 /// `com.pesaclarity.app/device`: the name shown in the signed-in phones list,
 /// and whether the iPhone is charging, so on-phone learning runs only then.
+/// For Ask's money model: memory, free space, whether the network is not
+/// expensive (Wi-Fi), and keeping the model out of iCloud backups.
 final class DeviceChannel {
   private let methods: FlutterMethodChannel
 
@@ -19,6 +22,33 @@ final class DeviceChannel {
         device.isBatteryMonitoringEnabled = true
         let state = device.batteryState
         result(state == .charging || state == .full)
+      case "memory":
+        result(Int64(ProcessInfo.processInfo.physicalMemory))
+      case "freeSpace":
+        let url = URL(fileURLWithPath: call.arguments as? String ?? NSHomeDirectory())
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        result(values?.volumeAvailableCapacityForImportantUsage)
+      case "unmetered":
+        let monitor = NWPathMonitor()
+        var answered = false
+        monitor.pathUpdateHandler = { path in
+          DispatchQueue.main.async {
+            if answered { return }
+            answered = true
+            monitor.cancel()
+            result(path.status == .satisfied && !path.isExpensive)
+          }
+        }
+        monitor.start(queue: DispatchQueue.global(qos: .utility))
+      case "excludeFromBackup":
+        guard let path = call.arguments as? String else {
+          result(false)
+          return
+        }
+        var url = URL(fileURLWithPath: path)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        result((try? url.setResourceValues(values)) != nil)
       default:
         result(FlutterMethodNotImplemented)
       }

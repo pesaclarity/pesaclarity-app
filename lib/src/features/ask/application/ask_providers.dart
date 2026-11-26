@@ -21,6 +21,10 @@ import '../../spaces/application/spaces_providers.dart';
 import '../data/app_ask_data_source.dart';
 import '../data/ask_model_store.dart';
 import '../data/rayo_ask_runtimes.dart';
+import '../model/ask_model_controller.dart';
+import '../model/model_answer.dart';
+import '../model/slm_facts.dart';
+import '../model/slm_facts_loader.dart';
 import 'ask_settings.dart';
 
 /// Opens `ask-reader.weights` on rayo, the same in every build, or in plain
@@ -254,12 +258,16 @@ class AskController extends Notifier<AskSession> {
               now.difference(state.lastAt!) >= AskContext.idle
           ? AskContext.empty
           : state.context;
-      final AskTurn turn;
+      AskTurn turn;
       try {
         turn = await engine.ask(text, context: context, now: now);
       } on RayoOnlyFailure catch (e) {
         _rayoFailed(e, now);
         return;
+      }
+      final worded = await _byModel(text, turn.answer);
+      if (!identical(worded, turn.answer)) {
+        turn = AskTurn(turn.understanding, turn.context, worded);
       }
       await _record(
         AskMessage(
@@ -275,6 +283,28 @@ class AskController extends Notifier<AskSession> {
     } finally {
       state = state.copyWith(busy: false);
     }
+  }
+
+  /// [fallback] in the downloaded money model's words when one is chosen
+  /// and it answers in time from the facts with grounded numbers; else
+  /// [fallback] itself, unchanged.
+  Future<AskAnswer> _byModel(String question, AskAnswer fallback) async {
+    final generator = ref.read(askModelGeneratorProvider);
+    if (generator == null) return fallback;
+    final SlmFacts facts;
+    try {
+      facts = await ref
+          .read(slmFactsProvider.future)
+          .timeout(modelAnswerTimeout);
+    } on Object {
+      return fallback;
+    }
+    return answerWithModel(
+      generator: generator,
+      question: question,
+      facts: facts,
+      fallback: fallback,
+    );
   }
 
   /// In a rayo-only build, says what rayo could not run in place of an

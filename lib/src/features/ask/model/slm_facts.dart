@@ -63,7 +63,7 @@ class SlmFactSection {
 /// app, never by the model, and the whole stays under [maxChars] so the
 /// prompt is about 1,500 tokens at most.
 class SlmFacts {
-  const SlmFacts(this.sections);
+  const SlmFacts(this.sections, {this.input});
 
   /// About 1,200 tokens of facts at roughly 3.5 characters a token.
   static const maxChars = 4200;
@@ -72,6 +72,9 @@ class SlmFacts {
   static const topCount = 5;
 
   final List<SlmFactSection> sections;
+
+  /// What the facts were worked out from, for the chart's numbers.
+  final SlmFactsInput? input;
 
   int get lineCount => sections.fold(0, (n, s) => n + s.lines.length);
 
@@ -250,11 +253,11 @@ class SlmFacts {
     }
     sections.add(SlmFactSection('Last 3 months', trend));
 
-    return SlmFacts(sections)._capped();
+    return SlmFacts(sections)._capped(input);
   }
 
   /// Drops lines from the end of the longest sections until the text fits.
-  SlmFacts _capped() {
+  SlmFacts _capped(SlmFactsInput input) {
     final kept = [
       for (final s in sections) SlmFactSection(s.title, [...s.lines]),
     ];
@@ -267,18 +270,23 @@ class SlmFacts {
       longest.lines.removeLast();
       facts = SlmFacts(kept);
     }
-    return facts;
+    return SlmFacts(facts.sections, input: input);
   }
 }
 
-/// The system text: what the model may do with the facts.
+/// The system text: what the model may do with the facts. The fine-tuned
+/// model was taught with exactly this text (pesaclarity-ml, docs/SLM.md):
+/// change it only with the training data.
 const slmSystemPrompt =
     'You help one person understand their own money. Use only the facts '
-    'below; they were worked out by the app and are correct. Do not add, '
-    'subtract or invent any number: quote amounts exactly as written. '
-    'Explain, compare and suggest in plain words, in at most 6 short '
-    'sentences. If the facts do not answer the question, say you are not '
-    'sure.';
+    'below; they were worked out by the app and are correct. First write '
+    'one line of JSON that picks a chart: {"chart":"bar|line|donut|none",'
+    '"data":"top_categories|top_payees|in_out_weeks|budget_vs_spent|'
+    'months_trend|fees|none","period":"since_payday|this_month|'
+    'last_3_months"}. Then answer in 2 or 3 short, plain sentences. Do not '
+    'add, subtract or invent any number: quote amounts exactly as written. '
+    'If the facts do not answer the question, say you are not sure and pick '
+    '"none".';
 
 /// The system text with [facts] after it.
 String slmSystem(SlmFacts facts) => '$slmSystemPrompt\n\nFacts:\n${facts.text}';

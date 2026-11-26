@@ -1,7 +1,15 @@
 {
-  "version": "2.6",
-  "updated": "2026-11-23",
+  "version": "2.7",
+  "updated": "2026-11-26",
   "changes": [
+    {
+      "version": "2.7",
+      "date": "2026-11-26",
+      "items": [
+        "Ask can download a small money model if you choose. The file comes from GitHub, so GitHub sees that one download request, like any website visit. No questions, records or other data of yours are sent.",
+        "The model runs on your phone, is kept out of backups, and can be deleted any time in Ask settings."
+      ]
+    },
     {
       "version": "2.6",
       "date": "2026-11-23",
