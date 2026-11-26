@@ -23,39 +23,40 @@ void main() {
   Future<List<TransactionRecord>> rows(WidgetTester tester) async =>
       (await tester.runAsync(() => db.select(db.transactions).get()))!;
 
-  testAppWidgets('Home: below zero once Fuliza is counted, so 0 is safe', (
-    tester,
-  ) async {
-    await pumpBalances(tester, db, AppRoutes.home);
-    expect(find.text('KES 0'), findsOneWidget);
-    expect(
-      find.textContaining("You're below zero once Fuliza is counted"),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('home-on-hand')),
-        matching: find.text('-1,150'),
-      ),
-      findsOneWidget,
-    );
-    // M-Pesa's counted-twice payment shows as a line under the card.
-    expect(find.byKey(const Key('home-balance-warning')), findsOneWidget);
-    expect(find.text("M-Pesa doesn't add up"), findsOneWidget);
+  testAppWidgets(
+    'Your month: below zero once Fuliza is counted, so 0 is safe',
+    (tester) async {
+      await pumpBalances(tester, db, AppRoutes.moreThisMonth);
+      expect(find.text('KES 0'), findsOneWidget);
+      expect(
+        find.textContaining("You're below zero once Fuliza is counted"),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('home-on-hand')),
+          matching: find.text('-1,150'),
+        ),
+        findsOneWidget,
+      );
+      // M-Pesa's counted-twice payment shows as a line under the card.
+      expect(find.byKey(const Key('home-balance-warning')), findsOneWidget);
+      expect(find.text("M-Pesa doesn't add up"), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('home-on-hand')));
-    await settle(tester);
-    expect(find.text('On hand: -KES 1,150'), findsOneWidget);
-    expect(find.text('Example Sacco'), findsNothing);
-    expect(
-      find.descendant(
-        of: find.byKey(Key('on-hand-account-${ids.mpesa}')),
-        matching: find.text('-1,300'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Includes 1,300 Fuliza owed'), findsOneWidget);
-  });
+      await tester.tap(find.byKey(const Key('home-on-hand')));
+      await settle(tester);
+      expect(find.text('On hand: -KES 1,150'), findsOneWidget);
+      expect(find.text('Example Sacco'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(Key('on-hand-account-${ids.mpesa}')),
+          matching: find.text('-1,300'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Includes 1,300 Fuliza owed'), findsOneWidget);
+    },
+  );
 
   testAppWidgets('Balances lists accounts, savings apart, with badges', (
     tester,
@@ -94,11 +95,11 @@ void main() {
     expect(find.byKey(const Key('account-set-balance')), findsOneWidget);
   });
 
-  testAppWidgets('Home: On hand below zero takes the danger colour', (
+  testAppWidgets('Your month: On hand below zero takes the danger colour', (
     tester,
   ) async {
     for (final theme in [AppTheme.light, AppTheme.dark]) {
-      await pumpBalances(tester, db, AppRoutes.home, theme: theme);
+      await pumpBalances(tester, db, AppRoutes.moreThisMonth, theme: theme);
       final colors = theme.extension<PesaColors>()!;
       final onHand = find.byKey(const Key('home-on-hand'));
       final figure = tester.widget<Text>(
@@ -144,10 +145,12 @@ void main() {
     // The list builds rows as they come into view, so its length grows as
     // it scrolls: drag until it stops at the end.
     final list = tester.state<ScrollableState>(
-      find.descendant(
-        of: find.byType(ListView).first,
-        matching: find.byType(Scrollable),
-      ),
+      find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     do {
       await tester.drag(find.byType(ListView).first, const Offset(0, -4000));

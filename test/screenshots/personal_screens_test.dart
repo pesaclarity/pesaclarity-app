@@ -10,6 +10,8 @@ import 'package:pesaclarity/src/features/currency/application/currency_controlle
 import 'package:pesaclarity/src/features/debts/presentation/debts_screen.dart';
 import 'package:pesaclarity/src/features/goals/presentation/goals_screen.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/more_this_month_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/things_to_sort_screen.dart';
 import 'package:pesaclarity/src/features/insights/presentation/insights_screen.dart';
 import 'package:pesaclarity/src/features/plan/presentation/plan_screen.dart';
 import 'package:pesaclarity/src/features/spaces/application/spaces_providers.dart';
@@ -24,9 +26,9 @@ import 'personal_records.dart';
 Widget _shell(Widget screen, int tab, {Widget? root}) =>
     tabShell(screen, tabs: personalTabs, index: tab, root: root);
 
-Future<void> _pump(WidgetTester tester, Widget home) async {
+Future<void> _pump(WidgetTester tester, Widget home, {bool seed = true}) async {
   final db = openTestDatabase();
-  await tester.runAsync(() => PersonalRecords(db).seed());
+  if (seed) await tester.runAsync(() => PersonalRecords(db).seed());
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -46,6 +48,31 @@ Future<void> _pump(WidgetTester tester, Widget home) async {
 void main() {
   screenshot('home', (tester) async {
     await _pump(tester, _shell(const HomeScreen(), 0));
+    await snap(tester);
+  });
+
+  // Home's list of things to sort, opened from its row (fx-12c).
+  screenshot('home-things-to-sort', (tester) async {
+    await _pump(
+      tester,
+      _shell(const ThingsToSortScreen(), 0, root: const HomeScreen()),
+    );
+    await snap(tester);
+  });
+
+  // Insights › Your month: until next money, runway, forecast and health,
+  // off Home (fx-12).
+  screenshot('insights-your-month', (tester) async {
+    await _pump(
+      tester,
+      _shell(const MoreThisMonthScreen(), 4, root: const InsightsScreen()),
+    );
+    await snap(tester);
+  });
+
+  // Home before anything is read (fx-12d).
+  screenshot('home-new-user', (tester) async {
+    await _pump(tester, _shell(const HomeScreen(), 0), seed: false);
     await snap(tester);
   });
 

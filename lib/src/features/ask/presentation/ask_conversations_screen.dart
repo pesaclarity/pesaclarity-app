@@ -6,11 +6,13 @@ import '../../../core/time/clock.dart';
 import '../../../data/repositories/ask_repository.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../domain/time/date_labels.dart';
+import '../../../domain/time/week_start.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/format/date_labels.dart' show formatTime;
 import '../../../shared/widgets/states.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../application/ask_providers.dart';
 import 'ask_answer_view.dart';
@@ -42,7 +44,7 @@ class _AskConversationsScreenState
       for (final c in all ?? const <AskConversation>[])
         if (q.isEmpty || c.title.toLowerCase().contains(q)) c,
     ];
-    final weekStart = today.addDays(1 - today.weekday);
+    final weekStart = weekStartOn(today, ref.watch(weekStartsOnProvider));
     final groups = <String, List<AskConversation>>{};
     for (final c in shown) {
       final day = CalendarDate.local(c.updatedAt);

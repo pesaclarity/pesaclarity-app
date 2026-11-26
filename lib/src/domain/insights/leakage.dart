@@ -51,9 +51,11 @@ class LeakageBreakdown {
       if (entry.occurredAt.isBefore(from) || !entry.occurredAt.isBefore(to)) {
         continue;
       }
-      // A draw's access fee is a Fuliza charge in the journal.
-      if (journal == null || entry.kind != TransactionKind.fulizaDraw) {
+      // A draw's access fee is a Fuliza charge, as the journal posts it.
+      if (entry.kind != TransactionKind.fulizaDraw) {
         fees += entry.feeMinor;
+      } else if (journal == null) {
+        fulizaFees += entry.feeMinor;
       }
       // What an own transfer across currencies cost to exchange.
       fees += entry.exchangeCostMinor ?? 0;

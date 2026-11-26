@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,6 +55,9 @@ import '../../payees/presentation/transaction_sheet.dart';
 import '../../savings/application/savings_providers.dart';
 import '../../savings/presentation/savings_prompt_card.dart';
 import '../../security/application/balance_visibility.dart';
+import '../../settings/application/week_start_provider.dart';
+import '../../sharing/application/share_providers.dart';
+import '../../sharing/presentation/group_sync_widgets.dart';
 import '../../sms/application/message_recheck.dart';
 import '../application/activity_providers.dart';
 import 'move_chosen.dart';
@@ -130,6 +134,19 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final loaded = ref.watch(activityEntriesProvider(from));
     final entries = loaded.value ?? const <LedgerEntry>[];
     final plain = ref.watch(activityAccountsProvider).value ?? const {};
+    final addedByOnly = ref.watch(addedByLinesProvider).value ?? const {};
+    final waiting = ref.watch(myWaitingLinesProvider).value ?? const {};
+    // "Added by Brian · you asked to change it to 540 · Waiting for
+    // approval": a change of this member's that needed approval.
+    final addedBy = waiting.isEmpty
+        ? addedByOnly
+        : {
+            ...addedByOnly,
+            for (final MapEntry(:key, :value) in waiting.entries)
+              key: addedByOnly[key] == null
+                  ? _cap(value)
+                  : '${addedByOnly[key]} · $value',
+          };
     final lineAccounts = ref.watch(readLineAccountsProvider);
     final hiddenLines = ref.watch(hiddenLineAccountsProvider);
     // The menu names each M-Pesa line; the rows do only where this space
@@ -193,6 +210,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       ),
       today: today,
       journal: ref.watch(activityJournalProvider).value,
+      weekStartsOn: ref.watch(weekStartsOnProvider),
     );
 
     final askFilter = askAboutFilter(_filter, categories, today);
@@ -313,6 +331,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           code: code,
           fulizaAuto: fulizaAuto,
           asked: asked(line),
+          addedBy: addedBy,
         ),
       ),
       // Outside the rows, so a long press never chooses them.
@@ -343,15 +362,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             enabled: askFilter != null,
             label: askFilter?.$1,
             route: askFilter?.$2 ?? AppRoutes.ask,
-            builder: (context, bottomPadding) => ListView.builder(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
-              itemCount: head.length + feed.length + tail.length,
-              itemBuilder: (context, i) {
-                if (i < head.length) return head[i];
-                i -= head.length;
-                if (i < feed.length) return feedItem(feed[i]);
-                return tail[i - feed.length];
-              },
+            builder: (context, bottomPadding) => GroupSyncRefresh(
+              child: ListView.builder(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
+                itemCount: head.length + feed.length + tail.length,
+                itemBuilder: (context, i) {
+                  if (i < head.length) return head[i];
+                  i -= head.length;
+                  if (i < feed.length) return feedItem(feed[i]);
+                  return tail[i - feed.length];
+                },
+              ),
             ),
           ),
         ),
@@ -557,9 +578,14 @@ class _ActivityRow extends StatelessWidget {
     this.code,
     this.fulizaAuto = const {},
     this.asked = false,
+    this.addedBy = const {},
   });
 
   final ActivityLine line;
+
+  /// In a shared space, "Added by Jane" under what someone else added, by
+  /// transaction id (decision 0031).
+  final Map<int, String> addedBy;
 
   /// Whether a savings app's question shows under this row: the row is
   /// then the top of the question's card.
@@ -797,6 +823,7 @@ class _ActivityRow extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     final nameStyle = Theme.of(context).textTheme.titleMedium;
+    final by = line is EntryLine ? addedBy[(line as EntryLine).entry.id] : null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -811,13 +838,36 @@ class _ActivityRow extends StatelessWidget {
             Expanded(
               child: BesideOrUnder(
                 gap: 12,
-                // The subtitle may be a DetailLine, which fits itself.
-                leadMinWidth: RowName.widestWord(context, title, nameStyle),
+                // The subtitle may be a DetailLine, which fits itself; a
+                // plain Text subtitle (such as "Uncategorised · Tap to
+                // choose") must keep its widest word whole too.
+                leadMinWidth: math.max(
+                  RowName.widestWord(context, title, nameStyle),
+                  subtitle is Text && subtitle.data != null
+                      ? RowName.widestWord(
+                          context,
+                          subtitle.data!,
+                          subtitle.style,
+                        )
+                      : 0,
+                ),
                 lead: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     RowName(title, style: nameStyle),
                     subtitle,
+                    if (by != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          by,
+                          key: const Key('activity-added-by'),
+                          style: Theme.of(context).textTheme.bodySmall!
+                              .copyWith(
+                                color: PesaColors.of(context).textMuted,
+                              ),
+                        ),
+                      ),
                   ],
                 ),
                 end: Row(
@@ -1146,3 +1196,5 @@ class _Choosable extends StatelessWidget {
     ),
   );
 }
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);

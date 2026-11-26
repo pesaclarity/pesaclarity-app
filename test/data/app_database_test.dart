@@ -339,6 +339,18 @@ void main() {
           'DROP TRIGGER firefly_outbox_transaction_$kind',
         );
       }
+      // So are the shared-space triggers (version 48), which read
+      // columns the earlier steps drop.
+      for (final table in [
+        'accounts',
+        'categories',
+        'transactions',
+        'budget_items',
+      ]) {
+        for (final kind in ['uid_insert', 'insert', 'update', 'delete']) {
+          await old.customStatement('DROP TRIGGER ${table}_share_$kind');
+        }
+      }
       await old.customStatement('DROP TABLE app_settings');
       await old.customStatement('PRAGMA user_version = 4');
       return old;
@@ -920,7 +932,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 47);
+      expect(db.schemaVersion, 48);
       expect((await columns(db, 'transactions'))['lent_loan_id'], isFalse);
       await db.customStatement('PRAGMA user_version = 45');
       await db.close();
@@ -959,7 +971,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 47);
+      expect(db.schemaVersion, 48);
       expect((await columns(db, 'accounts'))['family_of'], isFalse);
       expect(
         (await columns(db, 'transactions'))['other_balance_minor'],
@@ -987,7 +999,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 47);
+      expect(db.schemaVersion, 48);
       expect(await columns(db, 'transactions'), contains('linked_receipt_no'));
       await db.customStatement('PRAGMA user_version = 43');
       await db.close();
@@ -1040,7 +1052,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 47);
+      expect(db.schemaVersion, 48);
       expect(
         (await columns(db, 'accounts')).keys,
         containsAll(['linked_space_id', 'linked_account_id']),
@@ -1220,7 +1232,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 47);
+      expect(db.schemaVersion, 48);
       expect((await columns(db, 'accounts'))['product'], isFalse);
       expect((await columns(db, 'goals'))['saved_in_pocket_id'], isFalse);
       expect(

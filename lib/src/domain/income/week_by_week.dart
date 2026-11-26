@@ -2,6 +2,7 @@ import '../books/journal_balances.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_totals.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 
 /// Complete weeks before this one that set what a usual week is.
 const usualWeeksCount = 8;
@@ -16,10 +17,11 @@ const rainyDaySharePercent = 50;
 /// Suggested rainy day fund amounts are rounded down to this many minor units.
 const rainyDayStepMinor = 10000;
 
-/// The Monday that starts [date]'s week.
-CalendarDate weekStartOf(CalendarDate date) => date.addDays(1 - date.weekday);
+/// The day that starts [date]'s week (see [weekStartOn]).
+CalendarDate weekStartOf(CalendarDate date, [int? weekStartsOn]) =>
+    weekStartOn(date, weekStartsOn);
 
-/// Money in and out for one week, Monday to Sunday.
+/// Money in and out for one week, from the day the week starts on.
 class WeekFlow {
   const WeekFlow({
     required this.start,
@@ -117,8 +119,9 @@ class WeekByWeek {
     required CalendarDate today,
     RainyDayFund fund = const RainyDayFund(),
     JournalBalances? journal,
+    int? weekStartsOn,
   }) {
-    final thisWeek = weekStartOf(today);
+    final thisWeek = weekStartOf(today, weekStartsOn);
     final weeks = <WeekFlow>[];
     for (var i = usualWeeksCount; i >= 0; i--) {
       final start = thisWeek.addDays(-7 * i);

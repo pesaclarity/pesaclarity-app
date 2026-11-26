@@ -42,6 +42,13 @@ abstract final class AppRoutes {
 
   /// Business and gigs: this week against a usual one, and the fund.
   static const weekByWeek = '/home/week';
+
+  /// Personal Home: everything that wants a moment, in one list.
+  static const thingsToSort = '/home/sort';
+
+  /// Insights › Your month: until next money, runway, the month-end
+  /// forecast and financial health.
+  static const moreThisMonth = '/insights/month';
   static String reviewMessage(int id) => '/home/review/$id';
   static const profile = '/home/profile';
   static const myAccounts = '/home/profile/accounts';
@@ -68,6 +75,14 @@ abstract final class AppRoutes {
   static const deleteAll = '/home/profile/spaces/delete-all';
   static String spaceSettings(String id) => '/home/profile/spaces/$id';
   static String clearSpace(String id) => '/home/profile/spaces/$id/clear';
+  static String shareSpace(String id) => '/home/profile/spaces/$id/share';
+  static String spaceHistory(String id) =>
+      '/home/profile/spaces/$id/share/history';
+  static String shareApprovals(String id) =>
+      '/home/profile/spaces/$id/share/approvals';
+  static String shareRules(String id) => '/home/profile/spaces/$id/share/rules';
+  static const joinSpace = '/home/profile/spaces/join';
+  static const joinRequest = '/home/profile/spaces/join-request';
   static const supportGifts = '/home/profile/support/gifts';
   static const signIn = '/home/profile/sign-in';
   static const devices = '/home/profile/devices';

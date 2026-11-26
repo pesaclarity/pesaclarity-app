@@ -84,6 +84,7 @@ class OpeningLine {
 /// The business's M-Pesa, till and bank accounts (not cash or savings),
 /// each with today's balance as far as the records know.
 final openingLinesProvider = FutureProvider<List<OpeningLine>>((ref) async {
+  ref.watch(ledgerChangesProvider);
   final now = ref.watch(clockProvider)();
   final accounts = await ref.watch(accountsRepositoryProvider).openings();
   final names = {

@@ -1,7 +1,7 @@
 name: pesaclarity
 description: Pesa Clarity turns M-Pesa and bank SMS into a clear daily plan, on the phone.
 publish_to: none
-version: 0.5.8+13
+version: 0.5.9+14
 
 environment:
   sdk: ^3.13.0
@@ -11,6 +11,11 @@ dependencies:
   flutter:
     sdk: flutter
   archive: ^4.6.0
+  barcode: ^2.2.9
+  # Reads join requests and invites from the other phone's QR code.
+  # zxing-cpp, compiled from source by its build, with the camera plugin
+  # (CameraX): no Google ML Kit, so the play and foss builds share it.
+  flutter_zxing: 3.1.0
   drift: ^2.35.4
   flutter_riverpod: ^3.5.0
   flutter_secure_storage: ^11.2.0
@@ -56,6 +61,8 @@ dev_dependencies:
   drift_dev: ^2.35.3
   flutter_lints: ^6.0.0
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
 # package:sqlite3 bundles SQLCipher through its build hook. This replaces

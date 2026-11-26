@@ -134,6 +134,8 @@ class DebtsOverview {
 }
 
 final debtsOverviewProvider = FutureProvider<DebtsOverview>((ref) async {
+  // Fuliza and repayments are read from the ledger: follow its changes.
+  ref.watch(ledgerChangesProvider);
   final now = ref.watch(clockProvider)();
   final today = CalendarDate.local(now);
   final repository = ref.watch(debtsRepositoryProvider);

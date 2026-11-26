@@ -3,10 +3,10 @@ import '../../../domain/habits/week_check_in.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 
-/// The words of no-spend days and the Sunday check-in.
+/// The words of no-spend days and the weekly check-in.
 abstract final class HabitsText {
   static const checkInTitle = 'Your week in three lines';
-  static const checkInReady = 'Sunday check-in · ready';
+  static const checkInReady = 'Weekly check-in · ready';
   static const weekTitle = 'Your week';
   static const whatChanged = 'What changed';
   static const wentWell = 'One thing that went well';
@@ -27,7 +27,7 @@ abstract final class HabitsText {
   static const habits = 'Habits';
   static const noSpendSetting = 'No-spend days on Home';
   static const noSpendSettingDetail = 'A count for the week and a plain streak';
-  static const checkInSetting = 'Sunday check-in';
+  static const checkInSetting = 'Weekly check-in';
   static const checkInSettingDetail = 'Three lines on your week, on Home';
   static const notifyMe = 'Notify me';
   static const notifyNeedsReminders = 'Shows while Reminders is on';

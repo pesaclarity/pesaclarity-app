@@ -29,6 +29,7 @@ import '../../../domain/time/calendar.dart';
 import '../../../shared/format/date_labels.dart';
 import '../../habits/application/habits_providers.dart';
 import '../../home/application/safe_to_spend_provider.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../../tax/application/tax_providers.dart';
 import '../data/reminder_notifications.dart';
@@ -286,6 +287,7 @@ class ReminderSync {
     return checkInReminder(
       now: now,
       settings: await _ref.read(habitSettingsProvider.future),
+      weekStartsOn: await _ref.read(weekStartControllerProvider.future),
     );
   }
 

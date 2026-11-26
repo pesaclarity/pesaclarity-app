@@ -2,6 +2,7 @@ import '../../core/money/money.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 import 'no_spend_days.dart';
 
 /// A change in spending smaller than this, in minor units (KES 100), is
@@ -38,7 +39,7 @@ class WeekCheckIn {
 
   /// Spending as Home counts it: leaving out Plan's bills, moves between
   /// the person's own accounts and savings. Last week covers the same
-  /// days, Monday to the same weekday.
+  /// days, from the first day of the week to the same weekday.
   factory WeekCheckIn.of(
     Iterable<LedgerEntry> entries, {
     required CalendarDate today,
@@ -47,7 +48,7 @@ class WeekCheckIn {
     String? currency,
   }) {
     currency ??= BaseCurrency.code;
-    final start = today.addDays(1 - today.weekday);
+    final start = weekStartOn(today, noSpend.weekStartsOn);
     final days = start.daysUntil(today) + 1;
     Map<int?, int> spentBetween(CalendarDate from, int length) {
       final by = <int?, int>{};
@@ -157,5 +158,7 @@ class WeekCheckIn {
   bool get aboutTheSame => changeMinor.abs() < checkInSameMinor;
 }
 
-/// The Sunday check-in shows on Sundays only.
-bool isCheckInDay(CalendarDate date) => date.weekday == DateTime.sunday;
+/// The weekly check-in shows on the last day of the week only: Sunday for
+/// a week that starts on Monday.
+bool isCheckInDay(CalendarDate date, [int? weekStartsOn]) =>
+    date.weekday == lastWeekday(weekStartsOn);

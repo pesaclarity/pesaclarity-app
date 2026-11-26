@@ -53,11 +53,7 @@ Map<int?, int> spendingByCategory(
 }
 
 /// [entry]'s spending net of refunds, as it reads alone.
-int _spendingOf(LedgerEntry entry) => switch (roleOf(entry)) {
-  LedgerRole.spending => entry.amountMinor,
-  LedgerRole.reversal when entry.isInflow => -entry.amountMinor,
-  _ => 0,
-};
+int _spendingOf(LedgerEntry entry) => spendingOf(entry);
 
 /// Totals for one tag, for Insights.
 class TagSummary {

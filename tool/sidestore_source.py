@@ -7,9 +7,18 @@ shows Update whenever a newer build is published.
 
 import json
 import os
+import plistlib
+from pathlib import Path
 from datetime import datetime, timezone
 
 SITE = "https://pesaclarity.github.io"
+IOS = Path(__file__).resolve().parent.parent / "ios" / "Runner"
+
+# AltStore and SideStore refuse an app whose privacy permissions are not
+# listed in its source, so they are read from Info.plist and never drift.
+with open(IOS / "Info.plist", "rb") as f:
+    info = plistlib.load(f)
+PRIVACY = {k: v for k, v in info.items() if k.endswith("UsageDescription")}
 
 app = {
     "name": "Pesa Clarity",
@@ -34,7 +43,7 @@ app = {
             "minOSVersion": os.environ["MIN_OS"],
         }
     ],
-    "appPermissions": {"entitlements": [], "privacy": {}},
+    "appPermissions": {"entitlements": [], "privacy": PRIVACY},
 }
 
 print(

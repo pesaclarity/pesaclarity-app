@@ -16,6 +16,7 @@ import '../../../shared/widgets/form_fields.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../currency/application/currency_controller.dart';
 import '../../payees/presentation/category_picker.dart';
+import '../../sharing/application/share_providers.dart';
 import '../application/activity_providers.dart';
 
 /// Opens the sheet for adding a transaction by hand.
@@ -45,6 +46,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   int? _accountId;
   int? _categoryId;
   CalendarDate? _date;
+
+  /// In a shared space, who it is for when typed in for someone else.
+  String? _addedBy;
   var _saving = false;
 
   @override
@@ -82,7 +86,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
           ),
         );
     final name = _name.text.trim();
-    await ref
+    final id = await ref
         .read(transactionsRepositoryProvider)
         .add(
           TransactionsCompanion.insert(
@@ -101,6 +105,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
             categoryOverrideId: Value(_categoryId),
           ),
         );
+    if (_addedBy case final by?) {
+      await ref.read(shareRepositoryProvider)?.addedFor(id, by);
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -111,6 +118,8 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     final accounts = ref.watch(activityAccountsProvider).value ?? const {};
     final date = _date ?? today;
     final base = ref.watch(baseCurrencyProvider);
+    final shared = ref.watch(shareOverviewProvider).value;
+    final share = shared != null && shared.shared ? shared : null;
     final currency = _currency(accounts);
     final typed = parseMoneyMinor(_amount.text, currency: currency);
     final inBase = typed == null || currency == base
@@ -192,6 +201,24 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
               ],
               value: _accountId ?? accounts.keys.first,
               onChanged: (id) => setState(() => _accountId = id),
+            ),
+          ],
+          if (share != null && share.others.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('Added by', style: muted),
+            const SizedBox(height: 4),
+            ChoiceMenu<String>(
+              key: const Key('add-transaction-added-by'),
+              name: 'Added by',
+              expand: true,
+              options: [
+                (share.myId!, 'You'),
+                for (final m in share.others)
+                  if (m.role.canSend) (m.id, m.name),
+              ],
+              value: _addedBy ?? share.myId!,
+              onChanged: (id) =>
+                  setState(() => _addedBy = id == share.myId ? null : id),
             ),
           ],
           const SizedBox(height: 12),

@@ -5,11 +5,13 @@ import '../../../data/repositories/accounts_repository.dart';
 import '../../../data/repositories/debts_repository.dart';
 import '../../../data/repositories/goals_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
+import '../../../data/repositories/transactions_repository.dart';
 import '../../../domain/debts/payoff_plan.dart';
 import '../../../domain/goals/debt_progress.dart';
 import '../../../domain/goals/net_worth.dart';
 import '../../../domain/goals/savings_goal.dart';
 import '../../../domain/time/calendar.dart';
+import '../../balances/application/balances_providers.dart';
 import '../../debts/application/debt_plan_provider.dart';
 import '../../lending/application/lending_providers.dart';
 import 'goals_aside_providers.dart';
@@ -41,6 +43,8 @@ class GoalsOverview {
 }
 
 final goalsOverviewProvider = FutureProvider<GoalsOverview>((ref) async {
+  // Balances set by hand, and every other change, show at once.
+  ref.watch(ledgerChangesProvider);
   final now = ref.watch(clockProvider)();
   final today = CalendarDate.local(now);
   final month = today.yearMonth;
@@ -54,7 +58,11 @@ final goalsOverviewProvider = FutureProvider<GoalsOverview>((ref) async {
     await debtsRepository.startingBalances(),
   );
 
-  final accounts = await ref.watch(accountsRepositoryProvider).openings();
+  final untracked = await ref.watch(untrackedAccountIdsProvider.future);
+  final accounts = [
+    for (final a in await ref.watch(accountsRepositoryProvider).openings())
+      if (!untracked.contains(a.id)) a,
+  ];
   final journal = await readJournal(ref);
 
   final netWorth = NetWorth.at(

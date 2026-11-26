@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/features/home/application/health_index_provider.
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/things_to_sort_screen.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/features/support/application/support_providers.dart';
@@ -89,7 +90,11 @@ List<Override> _overrides(
   if (opener != null) supportOpenerProvider.overrideWithValue(opener),
 ];
 
-Future<void> _home(WidgetTester tester, List<Override> overrides) async {
+Future<void> _home(
+  WidgetTester tester,
+  List<Override> overrides, {
+  Widget screen = const HomeScreen(),
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -101,7 +106,7 @@ Future<void> _home(WidgetTester tester, List<Override> overrides) async {
         healthIndexProvider.overrideWith((ref) async => null),
         upcomingBillsProvider.overrideWith((ref) async => []),
       ],
-      child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+      child: MaterialApp(theme: AppTheme.light, home: screen),
     ),
   );
   await settleFrames(tester);
@@ -157,7 +162,7 @@ void main() {
     });
   });
 
-  testAppWidgets('Home asks after 30 days, under the red card', (tester) async {
+  testAppWidgets('Things to sort asks after 30 days', (tester) async {
     final db = openTestDatabase();
     await tester.runAsync(
       () => _remember(
@@ -165,7 +170,7 @@ void main() {
         SupportState(firstSeenAt: _now.subtract(const Duration(days: 40))),
       ),
     );
-    await _home(tester, _overrides(db));
+    await _home(tester, _overrides(db), screen: const ThingsToSortScreen());
     expect(find.byKey(const Key('home-support')), findsOneWidget);
     expect(find.text('Pesa Clarity is free'), findsOneWidget);
     expect(

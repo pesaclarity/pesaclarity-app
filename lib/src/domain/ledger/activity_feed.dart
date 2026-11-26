@@ -1,6 +1,7 @@
 import '../../core/money/money.dart';
 import '../books/journal_balances.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 import 'activity_lines.dart';
 import 'ledger_entry.dart';
 import 'ledger_role.dart';
@@ -242,7 +243,7 @@ class WeekInOut {
     required this.outMinor,
   });
 
-  /// The Monday the week starts on.
+  /// The day the week starts on.
   final CalendarDate start;
 
   /// Money in ([LedgerTotals.moneyInMinor]): income and money from people
@@ -253,7 +254,8 @@ class WeekInOut {
   final int outMinor;
 }
 
-/// The week to date containing [today], Monday first, from [history].
+/// The week to date containing [today], from the day the week starts on
+/// ([weekStartsOn], see [FirstWeekday]), from [history].
 ///
 /// Totals follow [LedgerTotals], so own transfers are neither in nor out;
 /// with the space's [journal], what went out is read from its postings.
@@ -262,9 +264,10 @@ WeekInOut weekInOut(
   required CalendarDate today,
   String? currency,
   JournalBalances? journal,
+  int? weekStartsOn,
 }) {
   currency ??= BaseCurrency.code;
-  final start = startOfWeek(today);
+  final start = startOfWeek(today, weekStartsOn);
   final totals = LedgerTotals.of(
     history,
     from: start.startInstant,
@@ -279,9 +282,9 @@ WeekInOut weekInOut(
   );
 }
 
-/// The Monday on or before [date].
-CalendarDate startOfWeek(CalendarDate date) =>
-    date.addDays(-(date.weekday - DateTime.monday));
+/// The first day of the week on or before [date] (see [weekStartOn]).
+CalendarDate startOfWeek(CalendarDate date, [int? weekStartsOn]) =>
+    weekStartOn(date, weekStartsOn);
 
 /// `2026-10-05` for 5 October 2026.
 String formatCalendarDate(CalendarDate date) =>

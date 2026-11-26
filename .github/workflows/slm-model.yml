@@ -1,0 +1,146 @@
+name: Phone language model (experiment)
+
+# The language model the iPhone test build carries for the on-phone model
+# experiment (SLM_EXPERIMENT, test builds only). Makes it once: downloads
+# the model from Hugging Face at a fixed revision, checks every file against
+# the hashes Hugging Face lists for that revision, converts it with
+# rayo-convert (4-bit, 2048 tokens) at the rayo commit the app pins, tries
+# it with rayo's chat program, and puts the .weights, its SHA256SUMS and the
+# model's licence on the `slm-models` prerelease. Later runs find it there
+# and stop. Called by ios-build.yml and ios-model-test.yml; never by a
+# release workflow.
+on:
+  workflow_call:
+    outputs:
+      sha256:
+        description: SHA-256 of the .weights on the slm-models release
+        value: ${{ jobs.model.outputs.sha256 }}
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  MODEL: HuggingFaceTB/SmolLM2-360M-Instruct
+  ASSET: smollm2-360m-instruct-q4.weights
+  TAG: slm-models
+  # The rayo commit pubspec.yaml pins, so the file suits the app's rayo.
+  RAYO_REF: cdd7f559b6cfe88fa917d4760bebca9bdc5dad37
+
+jobs:
+  model:
+    name: SmolLM2-360M for rayo (q4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      sha256: ${{ steps.done.outputs.sha256 }}
+    steps:
+      - id: have
+        name: Already on the release?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          names="$(gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null || true)"
+          if echo "$names" | grep -qx "$ASSET" && echo "$names" | grep -qx SHA256SUMS; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v6
+        if: steps.have.outputs.have != 'true'
+        with:
+          python-version: "3.12"
+
+      # Each file is checked against the revision's own listing: LFS files
+      # by their SHA-256, small ones by their git blob hash.
+      - name: Download the model and check its files
+        if: steps.have.outputs.have != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/src"
+          rev="$(curl -fsSL "https://huggingface.co/api/models/$MODEL/revision/main" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          echo "REVISION=$rev" >> "$GITHUB_ENV"
+          echo "Revision $rev"
+          curl -fsSL "https://huggingface.co/api/models/$MODEL/tree/$rev" > "$RUNNER_TEMP/tree.json"
+          : > "$RUNNER_TEMP/SOURCES"
+          for f in config.json generation_config.json tokenizer.json tokenizer_config.json \
+                   special_tokens_map.json model.safetensors; do
+            curl -fsSL -o "$RUNNER_TEMP/src/$f" "https://huggingface.co/$MODEL/resolve/$rev/$f"
+            python3 - "$RUNNER_TEMP/tree.json" "$RUNNER_TEMP/src/$f" "$f" >> "$RUNNER_TEMP/SOURCES" <<'PY'
+          import hashlib, json, sys
+          tree, path, name = sys.argv[1:]
+          entry = next(e for e in json.load(open(tree)) if e["path"] == name)
+          data = open(path, "rb").read()
+          sha256 = hashlib.sha256(data).hexdigest()
+          if "lfs" in entry:
+              want, got = entry["lfs"]["oid"], sha256
+          else:
+              want = entry["oid"]
+              got = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+          if want != got:
+              sys.exit(f"{name}: expected {want}, got {got}")
+          print(f"{sha256}  {name}")
+          PY
+          done
+          cat "$RUNNER_TEMP/SOURCES"
+
+      - uses: actions/checkout@v7
+        if: steps.have.outputs.have != 'true'
+        with:
+          repository: pesaclarity/rayo
+          ref: ${{ env.RAYO_REF }}
+          path: rayo
+
+      - name: Convert with rayo-convert
+        if: steps.have.outputs.have != 'true'
+        run: |
+          set -euo pipefail
+          pip install "./rayo/convert[chat]"
+          rayo-convert "$RUNNER_TEMP/src" -o "$RUNNER_TEMP/$ASSET" --weights q4 --context 2048
+          ls -l "$RUNNER_TEMP/$ASSET"
+
+      # A short greedy reply with rayo's own chat program, to see the file
+      # works and how fast it is on this runner.
+      - name: Try it with rayo
+        if: steps.have.outputs.have != 'true'
+        continue-on-error: true
+        run: |
+          make -C rayo
+          echo "Where did most of my money go? Food KES 12,400; Rent KES 15,000." \
+            | rayo/examples/chat/chat "$RUNNER_TEMP/$ASSET" --temp 0 --max-tokens 64 \
+                --context 2048 --kv int8 \
+                --system "Use only the facts the person gives. Quote amounts exactly." \
+            | tee "$RUNNER_TEMP/try.txt"
+
+      - name: Put it on the slm-models prerelease
+        if: steps.have.outputs.have != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          (sha256sum "$ASSET"; sed 's/  /  source\//' SOURCES) > SHA256SUMS
+          cat > MODEL-LICENCE.txt <<EOF
+          $MODEL (revision $REVISION), by Hugging Face, Apache License 2.0.
+          Converted to 4-bit weights with rayo-convert (pesaclarity/rayo $RAYO_REF):
+          rayo-convert src -o $ASSET --weights q4 --context 2048
+          EOF
+          cat /usr/share/common-licenses/Apache-2.0 >> MODEL-LICENCE.txt
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease \
+            --title "On-phone language model (experiment, test builds only)" \
+            --notes "Models for the SLM experiment in iPhone test builds. Not used by release builds."
+          gh release upload "$TAG" "$ASSET" SHA256SUMS MODEL-LICENCE.txt --clobber
+
+      - id: done
+        name: The release's checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          sum="$(gh release download "$TAG" -p SHA256SUMS -O - | awk -v a="$ASSET" '$2 == a {print $1}')"
+          test -n "$sum"
+          echo "sha256=$sum" >> "$GITHUB_OUTPUT"
+          echo "$ASSET $sum"

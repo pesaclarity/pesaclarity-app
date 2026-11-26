@@ -13,6 +13,7 @@ import '../../../domain/habits/week_check_in.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/time/calendar.dart';
 import '../../reminders/application/reminders_controller.dart';
+import '../../settings/application/week_start_provider.dart';
 
 /// Profile › Habits. A change reschedules the reminders, which carry the
 /// Sunday check-in notification.
@@ -103,6 +104,7 @@ final noSpendDaysProvider = FutureProvider<NoSpendDays?>((ref) async {
     historyFrom: records.historyFrom,
     scheduledCategoryIds: records.scheduledIds,
     cashAccountIds: records.cashIds,
+    weekStartsOn: ref.watch(weekStartsOnProvider),
   );
 });
 

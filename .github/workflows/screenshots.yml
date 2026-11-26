@@ -74,7 +74,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          name: screenshots-${{ github.run_id }}-${{ github.sha }}
           path: ${{ runner.temp }}/screenshots
           retention-days: 30
 
@@ -99,7 +99,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          name: screenshots-${{ github.run_id }}-${{ github.sha }}
           path: ${{ runner.temp }}/screenshots
 
       - id: tag
@@ -159,7 +159,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: screenshots-${{ github.ref_name }}-${{ github.sha }}
+          name: screenshots-${{ github.run_id }}-${{ github.sha }}
           path: ${{ runner.temp }}/screenshots
 
       - name: Redraw the listing's screenshots

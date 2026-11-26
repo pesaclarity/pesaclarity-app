@@ -3,18 +3,33 @@ import 'dart:typed_data';
 
 import 'package:rayo/rayo.dart';
 
+import '../../../core/ml/model_engines.dart';
 import '../../../domain/reader/message_reading.dart';
 import '../../../domain/reader/model_reader.dart';
 import '../../../domain/reader/reader_tokens.dart';
 
 /// Opens `reader.weights` on rayo. Throws when rayo's native library cannot
 /// load here or refuses the file, and the review inbox uses the rules
-/// reader.
-ReaderRuntime openMessageReader(Uint8List bytes) {
-  if (!rayoAvailable()) {
-    throw StateError("rayo's library cannot load here");
+/// reader (or, in a rayo-only build, says why it has none).
+ReaderRuntime openMessageReader(
+  Uint8List bytes, {
+  bool Function() available = rayoAvailable,
+  ModelEngines? engines,
+}) {
+  final log = engines ?? ModelEngines.instance;
+  const model = OnPhoneModel.messageReader;
+  try {
+    if (!available()) throw StateError("rayo's library cannot load here");
+    final reader = RayoMessageReader.open(bytes);
+    log.record(model, ModelEngine(rayoEngineName(reader.kernels)));
+    return reader;
+  } on Object catch (e) {
+    log.record(
+      model,
+      ModelEngine(rayoOnly ? ModelEngine.failed : 'Rules', reason: '$e'),
+    );
+    rethrow;
   }
-  return RayoMessageReader.open(bytes);
 }
 
 /// The message reader on rayo: `reader.weights` with its graph (pesaclarity-ml

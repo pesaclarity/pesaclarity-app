@@ -10,6 +10,7 @@ import '../../../domain/health/health_index.dart';
 import '../../../domain/health/health_inputs.dart';
 import '../../../domain/plan/month_plan.dart';
 import '../../../domain/time/calendar.dart';
+import '../../balances/application/balances_providers.dart';
 
 /// The index for the last full month, and its change on the month before.
 class HealthOnHome {
@@ -29,7 +30,12 @@ final healthIndexProvider = FutureProvider<HealthOnHome?>((ref) async {
   final month = today.yearMonth.previous;
   final before = month.previous;
 
-  final accounts = await ref.watch(accountsRepositoryProvider).openings();
+  // A line no longer tracked is not savings: it leaves every total.
+  final untracked = await ref.watch(untrackedAccountIdsProvider.future);
+  final accounts = [
+    for (final a in await ref.watch(accountsRepositoryProvider).openings())
+      if (!untracked.contains(a.id)) a,
+  ];
   final plans = ref.watch(planRepositoryProvider);
   final monthPlan = await plans.monthPlan(month);
   final beforePlan = await plans.monthPlan(before);

@@ -14,6 +14,7 @@ import '../../../domain/income/income_sources.dart';
 import '../../../domain/spaces/space.dart';
 import '../../../domain/spaces/space_summary.dart';
 import '../../../domain/time/calendar.dart';
+import '../../balances/application/balances_providers.dart';
 import '../../income/application/income_providers.dart';
 import '../../payees/application/payee_providers.dart';
 
@@ -142,7 +143,12 @@ final spaceSummaryProvider = FutureProvider<SpaceSummary?>((ref) async {
   final space = ref.watch(activeSpaceProvider);
   if (space.kind == SpaceKind.personal) return null;
   final today = CalendarDate.local(ref.watch(clockProvider)());
-  final accounts = await ref.watch(accountsRepositoryProvider).openings();
+  // A line no longer tracked leaves the balance.
+  final untracked = await ref.watch(untrackedAccountIdsProvider.future);
+  final accounts = [
+    for (final a in await ref.watch(accountsRepositoryProvider).openings())
+      if (!untracked.contains(a.id)) a,
+  ];
   var from = today.addDays(-31 * farmSeasonMonths).startInstant;
   for (final a in accounts) {
     if (a.openingDate.isBefore(from)) from = a.openingDate;

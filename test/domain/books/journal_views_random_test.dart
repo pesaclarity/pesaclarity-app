@@ -657,7 +657,7 @@ void main() {
       expect(p.balanceOf(BookAccount.moneyInTransit, currency: 'KES'), 0);
 
       // Fees: the journal counts what a transfer lost on the way, and
-      // Fuliza's fee once, where the transactions alone count it twice.
+      // Fuliza's fee once, as the transactions alone now count it too.
       final transactions = [
         for (final e in personal)
           if (!e.isBalanceRecord) e,
@@ -671,7 +671,7 @@ void main() {
       );
       expect(
         posted.feesMinor,
-        plain.feesMinor + lost - twice,
+        plain.feesMinor + lost,
         reason: '$what: ${FulizaLedger.of(transactions)}',
       );
     }
