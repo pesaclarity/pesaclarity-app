@@ -98,6 +98,7 @@ Future<bool> confirmDelete(
   final yes = await showAdaptiveDialog<bool>(
     context: context,
     builder: (context) => AlertDialog.adaptive(
+      scrollable: true,
       title: Text(title),
       content: Text(body),
       actions: [

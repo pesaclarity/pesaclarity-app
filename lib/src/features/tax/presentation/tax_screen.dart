@@ -540,6 +540,7 @@ class _CertificateDialogState extends State<_CertificateDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
+    scrollable: true,
     title: Text('Certificate from ${widget.withheld.person}'),
     content: LabeledField(
       label: 'Certificate number',

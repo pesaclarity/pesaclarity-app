@@ -107,6 +107,7 @@ Future<void> _switchOn(
   final choose = await showAdaptiveDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
+      scrollable: true,
       title: Text('${reader.name} reads ${institution.name}'),
       content: Text(body),
       actions: [

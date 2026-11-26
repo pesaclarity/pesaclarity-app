@@ -40,6 +40,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     final confirmed = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text('Sign out ${device.name}?'),
         content: const Text(
           'That phone loses access to your account and backups straight '

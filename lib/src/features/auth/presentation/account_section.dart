@@ -228,6 +228,7 @@ class _DeleteAccountDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog.adaptive(
+      scrollable: true,
       title: const Text('Delete your account?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

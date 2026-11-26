@@ -206,6 +206,7 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     final code = widget.record.currency;
     final (one, other) = _baseFirst ? (widget.base, code) : (code, widget.base);
     return AlertDialog(
+      scrollable: true,
       title: const Text('The rate I got'),
       content: Form(
         key: _formKey,

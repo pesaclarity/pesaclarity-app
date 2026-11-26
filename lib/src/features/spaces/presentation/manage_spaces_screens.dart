@@ -1165,6 +1165,7 @@ class _DeleteAllScreenState extends ConsumerState<DeleteAllScreen> {
     final phoneOnly = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text(
           OfflineMessages.deleteAllNeedsConnection(
             backup: backup,

@@ -116,6 +116,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
     return showAdaptiveDialog<String>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text(title),
         content: TextField(
           key: const Key('review-edit-field'),

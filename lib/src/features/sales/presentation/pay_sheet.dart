@@ -652,6 +652,7 @@ class _LineRow extends StatelessWidget {
     return showAdaptiveDialog<String>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text(line.name),
         content: LabeledField(
           label: 'How much',

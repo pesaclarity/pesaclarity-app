@@ -138,6 +138,7 @@ class _ProgressDialog extends StatelessWidget {
     return PopScope(
       canPop: false,
       child: AlertDialog.adaptive(
+        scrollable: true,
         content: Row(
           children: [
             const SizedBox.square(
