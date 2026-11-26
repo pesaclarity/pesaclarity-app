@@ -36,7 +36,7 @@ The product spec, brand guide and design tokens live in [pesaclarity/docs](https
 
 ## Quick start
 
-You need Flutter stable (3.47 or later) and, for device builds, the Android SDK with JDK 17, or Xcode on a Mac for iPhone.
+You need Flutter stable (3.50 or later) and, for device builds, the Android SDK with JDK 17, or Xcode on a Mac for iPhone.
 
 ```sh
 flutter pub get

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/domain/spaces/line_routing.dart';
 import 'package:pesaclarity/src/domain/spaces/space.dart';
 import 'package:pesaclarity/src/features/spaces/application/routing_providers.dart';

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// [lead], such as a name, with [end], such as an amount or buttons,
 /// beside it at the end, as a [Row] with [lead] in an [Expanded] lays them

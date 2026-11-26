@@ -197,10 +197,10 @@ packages:
     dependency: transitive
     description:
       name: code_assets
-      sha256: "828110d598123b5ea96c00c9f3c72105bf79f8ee36c20a39b26209ade421ec57"
+      sha256: "1ef22a0be3af9370bd9481ac76db114db92bfe75d5ca2b2d7bc911764478a4d9"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.0"
+    version: "2.2.0"
   collection:
     dependency: transitive
     description:
@@ -250,13 +250,13 @@ packages:
     source: hosted
     version: "2.0.0"
   cupertino_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cupertino_ui
-      sha256: a47c4e7c66fd7444a063a602597fceb238f705c3f6b1322bc0053d0a2638ee6e
+      sha256: c3eaf7f5bdfee36deb0b14a4cbf7602f1b6b8d8b8576b81f38fc08c25881c94c
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.4"
+    version: "1.1.7"
   dart_style:
     dependency: transitive
     description:
@@ -603,10 +603,10 @@ packages:
     dependency: transitive
     description:
       name: image
-      sha256: "89ed75b2f8231fe676808c5564f9590d728024ded7ac782a7ed8474f1c95b72a"
+      sha256: bc13f61f0f5cb77936e78ae5dae3800f442718dac5d2bc4654f03c239230ed0c
       url: "https://pub.dev"
     source: hosted
-    version: "4.12.0"
+    version: "4.13.1"
   image_picker:
     dependency: transitive
     description:
@@ -829,13 +829,13 @@ packages:
     source: hosted
     version: "0.13.0"
   material_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: material_ui
-      sha256: e4031746f96c8316864d9b92bce375f1320a36ed56e166307e1e1bda9d90b4ab
+      sha256: a6b19012df437a356cbc01f8ea22a105e07194c47c9a6009da0032a0ce35c4ab
       url: "https://pub.dev"
     source: hosted
-    version: "1.8.0"
+    version: "1.11.1"
   meta:
     dependency: transitive
     description:
@@ -856,10 +856,10 @@ packages:
     dependency: transitive
     description:
       name: native_toolchain_c
-      sha256: "90eaad8059ebc2004a63810a4696ea9acdb02473e47ed3b6b3bafb100ac77e31"
+      sha256: "120b6fc66acd8a5ddeaeb1e59b78836bb3ec9919bd9d9dfb1e2401985710c2c0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.19.5"
+    version: "0.19.6"
   objective_c:
     dependency: transitive
     description:
@@ -960,26 +960,26 @@ packages:
     dependency: transitive
     description:
       name: pdfium_dart
-      sha256: caf60231f755418e66e76ad0699503b09b03bd8bd8949f1c7a532239c80d7531
+      sha256: b8cfc581c0267075f7052d803a46bbc05c7b3ced8537f432060366edd61679aa
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.2"
+    version: "0.4.4"
   pdfium_flutter:
     dependency: "direct main"
     description:
       name: pdfium_flutter
-      sha256: "4b98ef6d86ada59ad99abd07cf90871929fa733677d6fbcac83a4f575e759ac3"
+      sha256: "58a7a43d562c29a4f214a35f5c87b3dcb75ebb4b2ea689113a4dc367b08a1842"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.2"
+    version: "0.4.4"
   pdfrx_engine:
     dependency: "direct main"
     description:
       name: pdfrx_engine
-      sha256: "67faaaac9de5d0e76c3f5742d943e13731c70a5e3fdabf59e0c9049b10a1c5da"
+      sha256: "5ddceeebc1bc77a5c7f4723aae83ba87837b1a4080dfe73f4a684227bb60624c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.2"
+    version: "0.9.6"
   petitparser:
     dependency: transitive
     description:
@@ -1222,10 +1222,10 @@ packages:
     dependency: transitive
     description:
       name: synchronized
-      sha256: b3d516dbd3757ff2a458735e4f6cbac9ff261f576f6e87bcb17feabb39e657c5
+      sha256: a77637ebe1460f3b48cac89a790d2eb634f0a8593cab0d3f340c6db174ba9b94
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.6.1+1"
   term_glyph:
     dependency: transitive
     description:
@@ -1238,10 +1238,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
+      sha256: "0a10344e901e5b2e63819567951cb6a06673ed6b84f40462188ff5a0c41f371f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.12"
+    version: "0.7.14"
   timezone:
     dependency: "direct main"
     description:
@@ -1436,5 +1436,5 @@ packages:
     source: hosted
     version: "2.2.4"
 sdks:
-  dart: ">=3.13.0 <4.0.0"
-  flutter: ">=3.47.0"
+  dart: ">=3.14.0 <4.0.0"
+  flutter: ">=3.50.0"

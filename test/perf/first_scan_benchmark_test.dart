@@ -11,8 +11,8 @@
 //   flutter test test/perf/first_scan_benchmark_test.dart --dart-define=PERF_REPORT=true
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/money/money.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
