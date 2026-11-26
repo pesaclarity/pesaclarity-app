@@ -58,10 +58,6 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.50.1"
-  PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
-  VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
-  TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}
-  STATUS: ${{ inputs.status || vars.PLAY_TAG_STATUS }}
 
 jobs:
   # A job-level `if` sees repository and organisation variables only, not
@@ -92,6 +88,12 @@ jobs:
     if: needs.uploads.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     environment: ${{ github.event_name != 'pull_request' && 'production' || '' }}
+    # Job-level, so the production environment's variables are seen.
+    env:
+      PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
+      VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
+      TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}
+      STATUS: ${{ inputs.status || vars.PLAY_TAG_STATUS }}
     steps:
       - uses: actions/checkout@v7
 
