@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../data/repositories/debts_repository.dart';
@@ -380,6 +380,7 @@ Future<void> confirmReminder(
   final share = await showAdaptiveDialog<bool>(
     context: context,
     builder: (context) => AlertDialog.adaptive(
+      scrollable: true,
       title: Text('Reminder for $person'),
       content: Text(message),
       actions: [

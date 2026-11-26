@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/money.dart';
 import '../../../data/repositories/tax_repository.dart';
@@ -540,6 +540,7 @@ class _CertificateDialogState extends State<_CertificateDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
+    scrollable: true,
     title: Text('Certificate from ${widget.withheld.person}'),
     content: LabeledField(
       label: 'Certificate number',

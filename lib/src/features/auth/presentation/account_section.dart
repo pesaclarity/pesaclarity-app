@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../routing/app_routes.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -228,6 +228,7 @@ class _DeleteAccountDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog.adaptive(
+      scrollable: true,
       title: const Text('Delete your account?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

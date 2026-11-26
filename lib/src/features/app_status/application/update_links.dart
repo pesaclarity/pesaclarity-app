@@ -9,13 +9,15 @@ import '../../../config/links.dart';
 enum UpdateChannel { play, foss, ios, website }
 
 /// Set to `website` for the APKs on the download page, so their update
-/// button goes there instead of to a store.
+/// button goes there instead of to a store. The Play build ignores it: it
+/// updates only through Google Play, wherever it was installed from.
 const _distribution = String.fromEnvironment('PESACLARITY_DISTRIBUTION');
 
 UpdateChannel updateChannelFor(
   AppFlavor flavor, {
   required String distribution,
 }) {
+  if (flavor == AppFlavor.play) return UpdateChannel.play;
   if (distribution == 'website') return UpdateChannel.website;
   return switch (flavor) {
     AppFlavor.play => UpdateChannel.play,

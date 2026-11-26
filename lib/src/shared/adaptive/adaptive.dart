@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/layout.dart';
 import '../../theme/pesa_colors.dart';
@@ -98,6 +98,7 @@ Future<bool> confirmDelete(
   final yes = await showAdaptiveDialog<bool>(
     context: context,
     builder: (context) => AlertDialog.adaptive(
+      scrollable: true,
       title: Text(title),
       content: Text(body),
       actions: [

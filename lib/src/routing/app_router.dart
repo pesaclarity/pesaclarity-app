@@ -75,6 +75,7 @@ import '../features/subscriptions/presentation/subscriptions_screen.dart';
 import '../features/support/presentation/gifts_screen.dart';
 import '../features/support/presentation/support_screen.dart';
 import '../features/tax/presentation/tax_screen.dart';
+import 'app_page.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'launch_screen.dart';
@@ -109,19 +110,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       askSpace: ref.read(spaceQuestionProvider),
     ),
     routes: [
-      GoRoute(
+      AppRoute(
         path: AppRoutes.launch,
         builder: (context, state) => const LaunchScreen(),
       ),
-      GoRoute(
+      AppRoute(
         path: AppRoutes.chooseSpace,
         builder: (context, state) => const ChooseSpaceScreen(),
       ),
-      GoRoute(
+      AppRoute(
         path: AppRoutes.closeDay,
         builder: (context, state) => const CloseDayScreen(),
       ),
-      GoRoute(
+      AppRoute(
         path: AppRoutes.ask,
         builder: (context, state) => AskScreen(
           categoryId: int.tryParse(state.uri.queryParameters['category'] ?? ''),
@@ -130,11 +131,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           to: parseCalendarDate(state.uri.queryParameters['to']),
         ),
         routes: [
-          GoRoute(
+          AppRoute(
             path: 'conversations',
             builder: (context, state) => const AskConversationsScreen(),
             routes: [
-              GoRoute(
+              AppRoute(
                 path: ':id',
                 builder: (context, state) => AskScreen(
                   conversationId: int.tryParse(state.pathParameters['id']!),
@@ -142,35 +143,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
+          AppRoute(
             path: 'settings',
             builder: (context, state) => const AskSettingsScreen(),
           ),
         ],
       ),
-      GoRoute(
+      AppRoute(
         path: AppRoutes.sell,
         builder: (context, state) =>
             SellScreen(billed: state.uri.queryParameters['for'] == 'billed'),
       ),
-      GoRoute(
+      AppRoute(
         path: AppRoutes.onboarding,
         builder: (context, state) => const WelcomeScreen(),
         routes: [
-          GoRoute(
+          AppRoute(
             path: 'currency',
             builder: (context, state) => const SetupCurrencyScreen(),
           ),
-          GoRoute(
+          AppRoute(
             path: 'income',
             builder: (context, state) =>
                 const IncomeSourcesScreen(onboarding: true),
           ),
-          GoRoute(
+          AppRoute(
             path: 'accounts',
             builder: (context, state) => const MyAccountsScreen(),
             routes: [
-              GoRoute(
+              AppRoute(
                 path: 'scan',
                 // iPhone has no inbox to scan; it connects Shortcuts instead.
                 builder: (context, state) =>
@@ -178,18 +179,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     ? const ConnectMessagesScreen(onboarding: true)
                     : const SmsScanScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'insight',
                     builder: (context, state) => const FirstInsightScreen(),
                     routes: [
-                      GoRoute(
+                      AppRoute(
                         path: 'about',
                         builder: (context, state) =>
                             const AboutYouScreen(onboarding: true),
                       ),
                     ],
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'paste',
                     builder: (context, state) =>
                         const PasteMessagesScreen(onboarding: true),
@@ -202,19 +203,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Branches in [ShellBranch] order.
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => AppShell(navigationShell: shell),
+        pageBuilder: (context, state, shell) =>
+            appPage(state, AppShell(navigationShell: shell)),
         branches: [
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.home,
                 builder: (context, state) => const HomeScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'review',
                     builder: (context, state) => const ReviewInboxScreen(),
                     routes: [
-                      GoRoute(
+                      AppRoute(
                         path: ':id',
                         builder: (context, state) => ReviewMessageScreen(
                           itemId: int.parse(state.pathParameters['id']!),
@@ -222,179 +224,179 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       ),
                     ],
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'import',
                     builder: (context, state) => const StatementImportScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'week',
                     builder: (context, state) => const WeekByWeekScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'sort',
                     builder: (context, state) => const ThingsToSortScreen(),
                   ),
 
-                  GoRoute(
+                  AppRoute(
                     path: 'spaces/add',
                     builder: (context, state) => const AddSpaceScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'spaces/sells',
                     builder: (context, state) => const WhatYouSellScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'spaces/start',
                     builder: (context, state) => const StartRecordsScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'spaces/routing',
                     builder: (context, state) =>
                         const BusinessOrPersonalScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'profile',
                     builder: (context, state) => const ProfileScreen(),
                     routes: [
-                      GoRoute(
+                      AppRoute(
                         path: 'accounts',
                         builder: (context, state) =>
                             const MyAccountsSettingsScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'choose',
                             builder: (context, state) =>
                                 const ChooseAccountsScreen(),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: 'paste',
                             builder: (context, state) =>
                                 const PasteMessagesScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'balances',
                         builder: (context, state) => const BalancesScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'check',
                             builder: (context, state) =>
                                 const BalanceCheckScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'backup',
                         builder: (context, state) => const BackupScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'setup',
                             builder: (context, state) =>
                                 const BackupSetupScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'firefly',
                         builder: (context, state) => const FireflyScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'privacy',
                         builder: (context, state) => const PrivacyScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'policy',
                             builder: (context, state) => const PolicyScreen(),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: 'terms',
                             builder: (context, state) => const TermsScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'about',
                         builder: (context, state) => const AboutYouScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'connect',
                         builder: (context, state) =>
                             const ConnectMessagesScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'payees',
                         builder: (context, state) => const PayeesScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'currency',
                         builder: (context, state) => const BaseCurrencyScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'converter',
                             builder: (context, state) =>
                                 const ConverterScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'income',
                         builder: (context, state) =>
                             const IncomeSourcesScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'spaces',
                         builder: (context, state) => const SpacesScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'deleted',
                             builder: (context, state) =>
                                 const RecentlyDeletedScreen(),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: 'delete-all',
                             builder: (context, state) =>
                                 const DeleteAllScreen(),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: 'join-request',
                             builder: (context, state) =>
                                 const JoinRequestScreen(),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: 'join',
                             builder: (context, state) =>
                                 JoinSpaceScreen(invite: state.extra! as String),
                           ),
-                          GoRoute(
+                          AppRoute(
                             path: ':id',
                             builder: (context, state) => SpaceSettingsScreen(
                               spaceId: state.pathParameters['id']!,
                             ),
                             routes: [
-                              GoRoute(
+                              AppRoute(
                                 path: 'clear',
                                 builder: (context, state) => ClearSpaceScreen(
                                   spaceId: state.pathParameters['id']!,
                                 ),
                               ),
-                              GoRoute(
+                              AppRoute(
                                 path: 'share',
                                 builder: (context, state) => ShareSpaceScreen(
                                   spaceId: state.pathParameters['id']!,
                                 ),
                                 routes: [
-                                  GoRoute(
+                                  AppRoute(
                                     path: 'history',
                                     builder: (context, state) =>
                                         const SpaceHistoryScreen(),
                                   ),
-                                  GoRoute(
+                                  AppRoute(
                                     path: 'approvals',
                                     builder: (context, state) =>
                                         const ApprovalsScreen(),
                                   ),
-                                  GoRoute(
+                                  AppRoute(
                                     path: 'rules',
                                     builder: (context, state) =>
                                         const ShareRulesScreen(),
@@ -405,31 +407,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'support',
                         builder: (context, state) => const SupportScreen(),
                         routes: [
-                          GoRoute(
+                          AppRoute(
                             path: 'gifts',
                             builder: (context, state) => const GiftsScreen(),
                           ),
                         ],
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'subscriptions',
                         builder: (context, state) =>
                             const SubscriptionsScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'documents',
                         builder: (context, state) =>
                             const DocumentSettingsScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'sign-in',
                         builder: (context, state) => const SignInScreen(),
                       ),
-                      GoRoute(
+                      AppRoute(
                         path: 'devices',
                         builder: (context, state) => const DevicesScreen(),
                       ),
@@ -441,7 +443,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.activity,
                 builder: (context, state) => ActivityScreen(
                   // A new filter from another tab starts a fresh screen.
@@ -455,11 +457,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.plan,
                 builder: (context, state) => const PlanScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'payday',
                     builder: (context, state) => const PaydayScreen(),
                   ),
@@ -469,15 +471,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.goals,
                 builder: (context, state) => const GoalsScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'debts',
                     builder: (context, state) => const DebtsScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'lending',
                     builder: (context, state) => const LendingScreen(),
                   ),
@@ -487,23 +489,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.insights,
                 builder: (context, state) => const InsightsTab(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'month',
                     builder: (context, state) => const MoreThisMonthScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'records',
                     builder: (context, state) => const FullRecordsScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'report',
                     builder: (context, state) => const MakeReportScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'tax',
                     builder: (context, state) => const TaxScreen(),
                   ),
@@ -513,7 +515,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.money,
                 builder: (context, state) => const MoneyScreen(),
               ),
@@ -521,25 +523,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.people,
                 builder: (context, state) => const PeopleScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'customer',
                     builder: (context, state) => CustomerStatementScreen(
                       name: state.uri.queryParameters['name'] ?? '',
                     ),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'messages',
                     builder: (context, state) => const ReminderMessagesScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'invoices',
                     builder: (context, state) => const InvoicesScreen(),
                     routes: [
-                      GoRoute(
+                      AppRoute(
                         path: 'new',
                         builder: (context, state) => MakeInvoiceScreen(
                           client: state.uri.queryParameters['client'],
@@ -547,7 +549,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       ),
                     ],
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'supplier/:id',
                     builder: (context, state) => SupplierStatementScreen(
                       debtId: int.parse(state.pathParameters['id']!),
@@ -559,21 +561,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
+              AppRoute(
                 path: AppRoutes.stock,
                 builder: (context, state) => const StockScreen(),
                 routes: [
-                  GoRoute(
+                  AppRoute(
                     path: 'item/:id',
                     builder: (context, state) => ItemScreen(
                       itemId: int.parse(state.pathParameters['id']!),
                     ),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'count',
                     builder: (context, state) => const CountStockScreen(),
                   ),
-                  GoRoute(
+                  AppRoute(
                     path: 'hours',
                     builder: (context, state) => HoursScreen(
                       week: state.uri.queryParameters['view'] == 'week',

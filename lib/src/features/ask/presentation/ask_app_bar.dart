@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The height of an Ask app bar with [title] and the space's name under
 /// it: the usual height, or more when [title] wraps to its second line in

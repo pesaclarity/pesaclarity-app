@@ -12,6 +12,7 @@ import 'package:pesaclarity/src/domain/categoriser/categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/features.dart';
 import 'package:pesaclarity/src/domain/categoriser/learning.dart';
 import 'package:pesaclarity/src/domain/categoriser/model_manifest.dart';
+import 'package:pesaclarity/src/domain/categoriser/rule_categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/trainable.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
@@ -200,6 +201,71 @@ void main() {
       expect(best.key, key, reason: payee);
     }
   });
+
+  test(
+    'transport, salary and money from people as statements name them',
+    () async {
+      final loaded = await loadCategoriser(
+        readAsset: asset,
+        openRuntime: openCategoriserRuntime,
+      );
+      addTearDown(loaded.categoriser.close);
+      expect(loaded.status, ModelStatus.loaded);
+      // Invented payees, the rules and the bundled model together.
+      for (final (payee, kind, inflow, amount, keys) in [
+        (
+          'EXAMPLE TAXI RIDES',
+          TransactionKind.till,
+          false,
+          45000,
+          ['transport'],
+        ),
+        (
+          'Pay Bill to 000123 - KENYA AIRWAYS',
+          null,
+          false,
+          950000,
+          ['transport'],
+        ),
+        ('MERCHANT PAYMENT TO UBER EXAMPLE', null, false, 52000, ['transport']),
+        ('EXAMPLE LTD SALARY', TransactionKind.bank, true, 6200000, ['salary']),
+        (
+          'PAYROLL CREDIT EXAMPLE LIMITED',
+          TransactionKind.bank,
+          true,
+          4500000,
+          ['salary'],
+        ),
+        (
+          'Customer Transfer from 0700***010 - MFANO KAMAU',
+          TransactionKind.bank,
+          true,
+          150000,
+          receivedFromPeopleKeys,
+        ),
+        (
+          'MFANO NJERI',
+          TransactionKind.received,
+          true,
+          80000,
+          receivedFromPeopleKeys,
+        ),
+      ]) {
+        final best = loaded.categoriser
+            .score(
+              CategoriserInput(
+                payee: payee,
+                amountMinor: amount,
+                isInflow: inflow,
+                occurredAt: DateTime.utc(2026, 9, 12, 9),
+                kind: kind,
+              ),
+            )
+            .first;
+        expect(keys, contains(best.key), reason: payee);
+      }
+    },
+  );
 
   // rayo gives the same floats on every kernel and thread count, and from
   // any compiler and flags (it is built with -ffp-contract=off). Another

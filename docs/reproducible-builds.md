@@ -6,7 +6,7 @@ The spec asks that anyone can confirm a published APK matches this source. F-Dro
 
 | Need | Status on `main` |
 | --- | --- |
-| Pinned Flutter SDK | CI pins `FLUTTER_VERSION: "3.47.8"`; `pubspec.yaml` only asks for `>=3.47.0`. Release builds must use the CI version exactly, and the F-Droid recipe must name the same Flutter tag as its srclib. |
+| Pinned Flutter SDK | CI pins `FLUTTER_VERSION: "3.50.1"`; `pubspec.yaml` only asks for `>=3.50.0`. Release builds must use the CI version exactly, and the F-Droid recipe must name the same Flutter tag as its srclib. |
 | Locked Dart dependencies | `pubspec.lock` is committed. The one git dependency (`ujumbe`) is pinned to a commit; switch it to a tag once one exists. |
 | Pinned Android toolchain | AGP 9.4.1, Kotlin 2.4.21 and Gradle 9.8.2 are pinned in `android/settings.gradle.kts` and `gradle-wrapper.properties`. JDK 17 (Temurin in CI). The compile and target SDK come from the Flutter version, so pinning Flutter pins them. |
 | Same build path | Flutter compiles the absolute path of a generated file (`.dart_tool/flutter_build/dart_plugin_registrant.dart`) into `libapp.so`, and native libraries built by package hooks, such as `libdartjni.so`, carry a build id that depends on it. Builds in two folders differ in both, so build a `foss` release in `/home/vagrant/build/com.pesaclarity.app`, the path F-Droid's builder uses. |

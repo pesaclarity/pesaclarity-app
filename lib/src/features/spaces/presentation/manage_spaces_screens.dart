@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/network/reachability.dart';
 import '../../../core/time/clock.dart';
@@ -1165,6 +1165,7 @@ class _DeleteAllScreenState extends ConsumerState<DeleteAllScreen> {
     final phoneOnly = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text(
           OfflineMessages.deleteAllNeedsConnection(
             backup: backup,

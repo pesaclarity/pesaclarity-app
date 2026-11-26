@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../shared/adaptive/adaptive.dart';
 import '../../../shared/offline_messages.dart';
@@ -40,6 +40,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     final confirmed = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text('Sign out ${device.name}?'),
         content: const Text(
           'That phone loses access to your account and backups straight '

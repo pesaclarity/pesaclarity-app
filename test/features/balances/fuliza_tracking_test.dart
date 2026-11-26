@@ -1,9 +1,9 @@
 // Fuliza is optional: it shows only for people who use it, and they can
 // stop tracking it. Made-up records (balances_harness.dart).
 import 'package:drift/drift.dart' hide isNull, isNotNull;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart'
     hide BudgetItem, Tag;

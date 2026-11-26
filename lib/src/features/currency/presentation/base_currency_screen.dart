@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/currency_data.dart';
 import '../../../core/money/exchange_rates.dart';
@@ -52,6 +52,7 @@ class BaseCurrencyScreen extends ConsumerWidget {
     final confirmed = await showAdaptiveDialog<bool>(
       context: context,
       builder: (context) => AlertDialog.adaptive(
+        scrollable: true,
         title: Text('Count in $code?'),
         content: Text(
           'Your plan, goals, debts, loans and subscriptions move to $code at '
@@ -347,6 +348,7 @@ class _OwnRateDialogState extends ConsumerState<_OwnRateDialog> {
     final code = _cleanCode;
     final hasOwn = widget.settings.ownRates.containsKey(code);
     return AlertDialog(
+      scrollable: true,
       title: const Text('Set my own rate'),
       content: Form(
         key: _formKey,

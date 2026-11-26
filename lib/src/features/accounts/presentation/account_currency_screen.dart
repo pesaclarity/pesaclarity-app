@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/exchange_rates.dart';
 import '../../../core/money/money.dart';
@@ -108,6 +108,7 @@ class _ChangeCurrencyDialog extends StatelessWidget {
         ? 'The 1 you added before stays in $from.'
         : 'The $count you added before stay in $from.';
     return AlertDialog.adaptive(
+      scrollable: true,
       key: const Key('account-currency-change'),
       title: Text('Count ${account.name} in $to?'),
       content: Column(

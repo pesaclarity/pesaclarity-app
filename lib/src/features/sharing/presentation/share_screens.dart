@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:barcode/barcode.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/share/share_codec.dart';
@@ -571,6 +571,7 @@ class _RoleSheetState extends ConsumerState<RoleSheet> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text('Remove $name?'),
         content: Text(
           "$name's phone keeps what it already has; nothing can take that "
@@ -1521,6 +1522,7 @@ class _JoinSpaceScreenState extends ConsumerState<JoinSpaceScreen> {
             onPressed: () => showDialog<void>(
               context: context,
               builder: (context) => AlertDialog(
+                scrollable: true,
                 title: const Text("Don't join"),
                 content: Text(
                   'The words differ, so this invite may not be from $owner. '

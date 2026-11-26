@@ -19,7 +19,8 @@ void main() {
     expect(offenders, isEmpty, reason: 'Use httpClientFactoryProvider');
   });
 
-  test('unpinned clients are used for Google Drive and public rates only', () {
+  test('unpinned clients are used for Google Drive, public rates and the '
+      'Ask model download from GitHub only', () {
     final users = [
       for (final file in Directory('lib').listSync(recursive: true))
         if (file is File &&
@@ -28,9 +29,14 @@ void main() {
           file.path.replaceAll(r'\', '/'),
     ]..sort();
     expect(users, [
+      'lib/src/features/ask/model/ask_model_controller.dart',
       'lib/src/features/backup/application/backup_providers.dart',
       'lib/src/features/currency/data/rates_client.dart',
     ]);
+    final model = File(users.first).readAsStringSync();
+    expect('.createUnpinned('.allMatches(model), hasLength(1));
+    expect(model, isNot(contains('Authorization')));
+    users.removeAt(0);
     final rates = File(users.last).readAsStringSync();
     expect('.createUnpinned('.allMatches(rates), hasLength(1));
     expect(rates, isNot(contains('Authorization')));

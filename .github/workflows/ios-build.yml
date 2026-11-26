@@ -27,7 +27,7 @@ permissions:
   contents: write
 
 env:
-  FLUTTER_VERSION: "3.47.8"
+  FLUTTER_VERSION: "3.50.1"
 
 jobs:
   # A cheap Linux check first, so an unchanged evening costs no macOS time.
@@ -116,6 +116,7 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app "$out/Payload/"
           (cd "$out" && zip -qr pesaclarity-ios-unsigned.ipa Payload)
           echo "IPA=$out/pesaclarity-ios-unsigned.ipa" >> "$GITHUB_ENV"
+          echo "IPA size: $(stat -f%z "$out/pesaclarity-ios-unsigned.ipa") bytes" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # A SideStore/AltStore source: a small list naming the newest build, so
       # testers who add it see Update in SideStore when a new one is out.
@@ -149,7 +150,8 @@ jobs:
 
       - name: Build for the simulator
         if: inputs.simulator
-        run: flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true
+        run: |
+          flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true
 
       - uses: actions/upload-artifact@v7
         if: inputs.simulator

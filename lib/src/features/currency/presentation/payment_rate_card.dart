@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/money/exchange_rates.dart';
 import '../../../data/database/app_database.dart';
@@ -206,6 +206,7 @@ class _RateGotDialogState extends ConsumerState<_RateGotDialog> {
     final code = widget.record.currency;
     final (one, other) = _baseFirst ? (widget.base, code) : (code, widget.base);
     return AlertDialog(
+      scrollable: true,
       title: const Text('The rate I got'),
       content: Form(
         key: _formKey,

@@ -4,10 +4,10 @@
 // receiving changes that wait, Changes to approve, and a member's own
 // waiting change in Activity. Not marketing screenshots, so
 // tool/screenshots.sh skips them. Made-up names and amounts.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/core/time/clock.dart';
 import 'package:pesaclarity/src/data/database/database_providers.dart';
 import 'package:pesaclarity/src/domain/sharing/share_model.dart';

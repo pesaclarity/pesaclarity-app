@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../data/database/space_databases.dart';
 import '../../../data/repositories/institutions_repository.dart';
@@ -107,6 +107,7 @@ Future<void> _switchOn(
   final choose = await showAdaptiveDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
+      scrollable: true,
       title: Text('${reader.name} reads ${institution.name}'),
       content: Text(body),
       actions: [

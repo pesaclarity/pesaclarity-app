@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/time/clock.dart';
 import '../../../domain/accounts/mpesa_lines.dart';
@@ -585,6 +585,7 @@ class _LineSheetState extends ConsumerState<LineSheet> {
       final yes = await showAdaptiveDialog<bool>(
         context: context,
         builder: (context) => AlertDialog.adaptive(
+          scrollable: true,
           title: const Text(LinesText.mergeQuestion),
           content: Text(
             LinesText.mergeBody(

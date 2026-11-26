@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
 import 'package:pesaclarity/src/data/repositories/app_settings_repository.dart';
 import 'package:pesaclarity/src/features/privacy/application/consent_controller.dart';
@@ -32,8 +32,8 @@ void main() {
     expect(choice(tester, 'Help improve the app').value, isTrue);
     expect(choice(tester, 'Contribute to licensed models').value, isFalse);
     expect(choice(tester, 'Send crash reports').value, isFalse);
-    await scrollTo(tester, find.text('Version 2.6 · updated 23 Nov 2026'));
-    expect(find.text('Version 2.6 · updated 23 Nov 2026'), findsOneWidget);
+    await scrollTo(tester, find.text('Version 2.7 · updated 26 Nov 2026'));
+    expect(find.text('Version 2.7 · updated 26 Nov 2026'), findsOneWidget);
   });
 
   testAppWidgets('saves a choice with the policy version and time', (
@@ -53,7 +53,7 @@ void main() {
     final licensed =
         (saved!['choices']! as Map)['licensedModels'] as Map<String, Object?>;
     expect(licensed['value'], isTrue);
-    expect(licensed['policyVersion'], '2.6');
+    expect(licensed['policyVersion'], '2.7');
     expect(DateTime.tryParse(licensed['changedAt']! as String), isNotNull);
   });
 
@@ -64,8 +64,8 @@ void main() {
 
     await tapText(tester, 'Email me a copy');
     final draft = mailer.drafts.single;
-    expect(draft.subject, 'Pesa Clarity privacy policy, version 2.6');
-    expect(draft.body, startsWith('Privacy policy\nVersion 2.6'));
+    expect(draft.subject, 'Pesa Clarity privacy policy, version 2.7');
+    expect(draft.body, startsWith('Privacy policy\nVersion 2.7'));
     expect(draft.body, contains('WHAT STAYS ON YOUR PHONE'));
   });
 
@@ -130,14 +130,14 @@ void main() {
       () =>
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
-    expect(saved!['acceptedVersion'], '2.6');
+    expect(saved!['acceptedVersion'], '2.7');
     final licensed =
         (saved['choices']! as Map)['licensedModels'] as Map<String, Object?>;
     expect(licensed['value'], isTrue);
-    expect(licensed['policyVersion'], '2.6');
+    expect(licensed['policyVersion'], '2.7');
   });
 
-  testAppWidgets('asks someone who agreed to 2.4 to read 2.6', (tester) async {
+  testAppWidgets('asks someone who agreed to 2.4 to read 2.7', (tester) async {
     final db = openTestDatabase();
     await tester.runAsync(
       () => db
@@ -175,7 +175,7 @@ void main() {
       () =>
           DriftAppSettingsRepository(db).readJson(ConsentController.recordKey),
     );
-    expect(saved!['acceptedVersion'], '2.6');
+    expect(saved!['acceptedVersion'], '2.7');
   });
 
   testAppWidgets('opens the terms from Privacy', (tester) async {
