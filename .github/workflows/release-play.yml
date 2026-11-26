@@ -12,7 +12,7 @@ name: Release to Google Play
 # then those runs skip the upload job and say so in the run summary. Runs by
 # hand always build and upload.
 #
-# Runs in the "production" environment; its secrets and variables are used.
+# Runs in the "play-store" environment; its secrets and variables are used.
 # Secrets: PLAY_UPLOAD_KEYSTORE_BASE64, PLAY_UPLOAD_KEYSTORE_PASSWORD,
 # PLAY_UPLOAD_KEY_ALIAS, PLAY_UPLOAD_KEY_PASSWORD, PLAY_SERVICE_ACCOUNT_JSON.
 # Variables (required): PLAY_PACKAGE_NAME, PLAY_VERSION_CODE_OFFSET, and for
@@ -58,14 +58,10 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.50.1"
-  PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
-  VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
-  TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}
-  STATUS: ${{ inputs.status || vars.PLAY_TAG_STATUS }}
 
 jobs:
   # A job-level `if` sees repository and organisation variables only, not
-  # the production environment's, so the switch is a repository variable.
+  # the play-store environment's, so the switch is a repository variable.
   uploads:
     name: Play uploads on?
     runs-on: ubuntu-24.04
@@ -91,7 +87,13 @@ jobs:
     needs: uploads
     if: needs.uploads.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
-    environment: ${{ github.event_name != 'pull_request' && 'production' || '' }}
+    environment: ${{ github.event_name != 'pull_request' && 'play-store' || '' }}
+    # Job-level, so the play-store environment's variables are seen.
+    env:
+      PACKAGE_NAME: ${{ vars.PLAY_PACKAGE_NAME }}
+      VERSION_CODE_OFFSET: ${{ vars.PLAY_VERSION_CODE_OFFSET }}
+      TRACK: ${{ inputs.track || vars.PLAY_TAG_TRACK }}
+      STATUS: ${{ inputs.status || vars.PLAY_TAG_STATUS }}
     steps:
       - uses: actions/checkout@v7
 
