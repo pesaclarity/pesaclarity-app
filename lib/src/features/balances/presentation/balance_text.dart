@@ -253,6 +253,7 @@ abstract final class BalanceText {
   static const seeTheGap = 'See the gap';
   static const belowZeroFuliza = "You're below zero once Fuliza is counted";
   static const belowZero = "You're below zero across your accounts";
+  static const cashBelowZero = 'Cash in hand is below zero — set what you have';
   static const billsTakeIt = 'Bills due take what is on hand';
 
   // Own transfers.

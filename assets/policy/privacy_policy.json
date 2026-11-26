@@ -1,7 +1,16 @@
 {
-  "version": "2.5",
-  "updated": "2026-11-21",
+  "version": "2.6",
+  "updated": "2026-11-23",
   "changes": [
+    {
+      "version": "2.6",
+      "date": "2026-11-23",
+      "items": [
+        "Shared spaces, such as a Household or a chama, are shared by encrypted files you send through any app you choose. Pesa Clarity and our server cannot read them, and your personal space is never included.",
+        "The camera is used only to scan join and invite QR codes; the images are not stored or sent.",
+        "Members keep copies of a shared space's data on their phones. Leaving or removal stops future updates but cannot erase those copies."
+      ]
+    },
     {
       "version": "2.5",
       "date": "2026-11-21",

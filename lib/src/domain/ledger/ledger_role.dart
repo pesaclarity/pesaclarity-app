@@ -107,6 +107,13 @@ LedgerRole roleOf(LedgerEntry entry) {
       return LedgerRole.reversal;
     case TransactionKind.correction:
       return LedgerRole.correction;
+    // Cash taken out at an agent or put in: the person's own money moving
+    // between the wallet and their hand, never spending or income, unless
+    // they filed it under a category of their own.
+    case TransactionKind.withdrawal when entry.categoryType == null:
+      return LedgerRole.ownTransfer;
+    case TransactionKind.deposit when entry.categoryType == null:
+      return LedgerRole.ownTransfer;
     case TransactionKind.sent ||
         TransactionKind.received ||
         TransactionKind.paybill ||
@@ -145,6 +152,24 @@ LedgerRole roleOf(LedgerEntry entry) {
     null => LedgerRole.spending,
   };
 }
+
+/// What [entry] adds to spending as it reads alone: its amount when it is
+/// spending, less a refund's (a reversal coming in), otherwise zero. The
+/// one rule every spending figure (totals, categories, budgets, charts,
+/// tags, summaries) follows, so they all add up to the same number.
+int spendingOf(LedgerEntry entry) => switch (roleOf(entry)) {
+  LedgerRole.spending => entry.amountMinor,
+  LedgerRole.reversal when entry.isInflow => -entry.amountMinor,
+  _ => 0,
+};
+
+/// What [entry] adds to income as it reads alone: its amount when it is
+/// income, less money given back (a reversal going out), otherwise zero.
+int incomeOf(LedgerEntry entry) => switch (roleOf(entry)) {
+  LedgerRole.income when entry.isInflow => entry.amountMinor,
+  LedgerRole.reversal when entry.isOutflow => -entry.amountMinor,
+  _ => 0,
+};
 
 /// Whether [entry] is money moved into the person's own savings: an own
 /// transfer out under a savings category, such as one into a savings

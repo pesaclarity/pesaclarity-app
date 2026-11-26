@@ -1,0 +1,56 @@
+name: Hard to use or confusing
+description: Something works, but it's hard to find, takes too many steps, or the wording doesn't make sense.
+labels: [usability, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: If it's hard to use with a screen reader, larger text or reduced motion, say so below; we treat that as an accessibility issue.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What you were trying to do
+      placeholder: Mark a bill as paid from Home
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: What got in the way
+      description: Where you got stuck, what you expected to find, or which words confused you.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would make it easier
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of problem
+      multiple: true
+      options:
+        - Hard to find
+        - Too many steps
+        - Wording is unclear or wrong
+        - Not sure what a number means
+        - Hard to use with a screen reader, larger text or reduced motion
+        - Something else
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build
+      options:
+        - Android, Play build (play)
+        - Android, F-Droid build (foss)
+        - iPhone
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Profile › Build shows it.
+      placeholder: 0.5.7 · foss
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Blur or crop out anything real.

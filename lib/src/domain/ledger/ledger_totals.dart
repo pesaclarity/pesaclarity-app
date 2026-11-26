@@ -81,7 +81,7 @@ class LedgerTotals {
           // What came off what was borrowed: the journal counts Fuliza's
           // charges when they are charged, so they stay out.
           case LedgerRole.debtRepayment:
-            repayment += amount - fuliza.feeOf(entry);
+            repayment += fuliza.principalOf(entry);
           case LedgerRole.borrowing:
             borrowing += amount;
           case LedgerRole.ownTransfer when isSavedByTransfer(entry):
@@ -108,9 +108,8 @@ class LedgerTotals {
         case LedgerRole.saving:
           saving += amount;
         case LedgerRole.debtRepayment:
-          final fee = fuliza.feeOf(entry);
-          fees += fee;
-          repayment += amount - fee;
+          fees += fuliza.feeOf(entry);
+          repayment += fuliza.principalOf(entry);
         case LedgerRole.borrowing:
           borrowing += amount;
         case LedgerRole.ownTransfer:

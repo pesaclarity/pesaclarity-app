@@ -12,6 +12,7 @@ import 'package:pesaclarity/src/domain/categoriser/categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/features.dart';
 import 'package:pesaclarity/src/domain/categoriser/learning.dart';
 import 'package:pesaclarity/src/domain/categoriser/model_manifest.dart';
+import 'package:pesaclarity/src/domain/categoriser/rule_categoriser.dart';
 import 'package:pesaclarity/src/domain/categoriser/trainable.dart';
 import 'package:pesaclarity/src/domain/enums.dart';
 import 'package:pesaclarity/src/domain/ml/plain_weights.dart';
@@ -104,7 +105,7 @@ void main() {
     expect(loaded.fineTunable, isNotNull);
     final scores = loaded.categoriser.score(
       CategoriserInput(
-        payee: 'DEMO FRESH MART TILL 000123',
+        payee: 'DEMO KALIMO TILL 000123',
         amountMinor: 120000,
         isInflow: false,
         occurredAt: DateTime.utc(2026, 3, 18, 9),
@@ -154,11 +155,115 @@ void main() {
       );
       // An unfamiliar payee goes to the model, all 27 labels.
       final scores = loaded.categoriser.score(
-        input('DEMO FRESH MART TILL 000123', TransactionKind.till),
+        input('DEMO KALIMO TILL 000123', TransactionKind.till),
       );
       expect(scores, hasLength(27));
       expect(scores.first.source, isNull);
       expect(loaded.categoriser.source, SuggestionSource.model);
+    },
+  );
+
+  test('shops and fuel stations as statements and SMS name them', () async {
+    final loaded = await loadCategoriser(
+      readAsset: asset,
+      openRuntime: openCategoriserRuntime,
+    );
+    addTearDown(loaded.categoriser.close);
+    expect(loaded.status, ModelStatus.loaded);
+    // Invented payees the model was not trained on, without a till number,
+    // as the app's readers give them. The shipped model before had these as
+    // family support, Fuliza repayments and tax.
+    for (final (payee, kind, amount, key) in [
+      ('EXAMPLE GROCERS', TransactionKind.till, 183550, 'groceries'),
+      (
+        'Merchant Payment to DEMO KALIMO SUPERMARKET',
+        null,
+        120000,
+        'groceries',
+      ),
+      ('DEMO FUEL STATION', TransactionKind.till, 350000, 'fuel'),
+      ('Pay Bill to 000123 - DEMO ENERGY', null, 300000, 'fuel'),
+      ('DEMO SCHOOL FEES', TransactionKind.paybill, 1500000, 'school_fees'),
+      ('EXAMPLE PHARMACY', TransactionKind.till, 42000, 'health'),
+      ('Pay Bill to 000123 - SHELL EXAMPLE', null, 300000, 'fuel'),
+    ]) {
+      final best = loaded.categoriser
+          .score(
+            CategoriserInput(
+              payee: payee,
+              amountMinor: amount,
+              isInflow: false,
+              occurredAt: DateTime.utc(2026, 9, 10, 10),
+              kind: kind,
+            ),
+          )
+          .first;
+      expect(best.key, key, reason: payee);
+    }
+  });
+
+  test(
+    'transport, salary and money from people as statements name them',
+    () async {
+      final loaded = await loadCategoriser(
+        readAsset: asset,
+        openRuntime: openCategoriserRuntime,
+      );
+      addTearDown(loaded.categoriser.close);
+      expect(loaded.status, ModelStatus.loaded);
+      // Invented payees, the rules and the bundled model together.
+      for (final (payee, kind, inflow, amount, keys) in [
+        (
+          'EXAMPLE TAXI RIDES',
+          TransactionKind.till,
+          false,
+          45000,
+          ['transport'],
+        ),
+        (
+          'Pay Bill to 000123 - KENYA AIRWAYS',
+          null,
+          false,
+          950000,
+          ['transport'],
+        ),
+        ('MERCHANT PAYMENT TO UBER EXAMPLE', null, false, 52000, ['transport']),
+        ('EXAMPLE LTD SALARY', TransactionKind.bank, true, 6200000, ['salary']),
+        (
+          'PAYROLL CREDIT EXAMPLE LIMITED',
+          TransactionKind.bank,
+          true,
+          4500000,
+          ['salary'],
+        ),
+        (
+          'Customer Transfer from 0700***010 - MFANO KAMAU',
+          TransactionKind.bank,
+          true,
+          150000,
+          receivedFromPeopleKeys,
+        ),
+        (
+          'MFANO NJERI',
+          TransactionKind.received,
+          true,
+          80000,
+          receivedFromPeopleKeys,
+        ),
+      ]) {
+        final best = loaded.categoriser
+            .score(
+              CategoriserInput(
+                payee: payee,
+                amountMinor: amount,
+                isInflow: inflow,
+                occurredAt: DateTime.utc(2026, 9, 12, 9),
+                kind: kind,
+              ),
+            )
+            .first;
+        expect(keys, contains(best.key), reason: payee);
+      }
     },
   );
 

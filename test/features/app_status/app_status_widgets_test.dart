@@ -11,7 +11,7 @@ import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_pro
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
-import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/things_to_sort_screen.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/theme/app_theme.dart';
@@ -201,14 +201,16 @@ void main() {
     expect(find.byKey(const Key('update-required')), findsNothing);
   });
 
-  testWidgets('on Home the card sits under the lead card', (tester) async {
+  testWidgets('the card is in Things to sort, under When you have time', (
+    tester,
+  ) async {
     final db = openTestDatabase();
     await pump(
       tester,
       response: await tester.runAsync(
         () => signed(payload(notices: [updateNotice()])),
       ),
-      home: () => const HomeScreen(),
+      home: () => const ThingsToSortScreen(),
       extra: [
         appDatabaseProvider.overrideWithValue(db),
         pendingReviewProvider.overrideWith((ref) => Stream.value(const [])),
@@ -219,7 +221,7 @@ void main() {
         upcomingBillsProvider.overrideWith((ref) async => []),
       ],
     );
-    final lead = tester.getTopLeft(find.text('Safe to spend today'));
+    final lead = tester.getTopLeft(find.text('WHEN YOU HAVE TIME'));
     final card = tester.getTopLeft(find.text('Pesa Clarity 0.4.0 is ready'));
     expect(card.dy, greaterThan(lead.dy));
     await tester.pumpWidget(const SizedBox.shrink());

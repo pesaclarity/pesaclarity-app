@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ml/rayo_retry.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/database/database_providers.dart';
 import '../../../data/repositories/ask_repository.dart';
@@ -14,6 +15,7 @@ import '../../../domain/ask/periods.dart';
 import '../../../domain/ask/reply_writer.dart';
 import '../../../domain/ask/rule_question_reader.dart';
 import '../../../domain/ask/understanding.dart';
+import '../../../domain/ml/rayo_only.dart';
 import '../../../domain/time/calendar.dart';
 import '../../spaces/application/spaces_providers.dart';
 import '../data/app_ask_data_source.dart';
@@ -41,16 +43,19 @@ final askAssetReaderProvider = Provider<AssetReader>(
 );
 
 /// The trained question reader when bundled, else the rules.
-final questionReaderProvider = FutureProvider<QuestionReader>((ref) async {
-  final clock = ref.watch(clockProvider);
-  final reader = await loadAskReader(
-    readAsset: ref.watch(askAssetReaderProvider),
-    openRuntime: ref.watch(askReaderRuntimeOpenerProvider),
-    fallback: RuleQuestionReader(today: () => CalendarDate.local(clock())),
-  );
-  ref.onDispose(reader.close);
-  return reader;
-});
+final questionReaderProvider = FutureProvider<QuestionReader>(
+  retry: noRetryOnRayoFailure,
+  (ref) async {
+    final clock = ref.watch(clockProvider);
+    final reader = await loadAskReader(
+      readAsset: ref.watch(askAssetReaderProvider),
+      openRuntime: ref.watch(askReaderRuntimeOpenerProvider),
+      fallback: RuleQuestionReader(today: () => CalendarDate.local(clock())),
+    );
+    ref.onDispose(reader.close);
+    return reader;
+  },
+);
 
 /// The template sentences: every reply has one, and it stays whenever the
 /// trained writer cannot word a reply.
@@ -65,14 +70,17 @@ final askWriterRuntimeOpenerProvider = Provider<AskWriterRuntimeOpener?>(
 );
 
 /// The trained reply writer when bundled and usable, else null.
-final modelReplyWriterProvider = FutureProvider<ModelReplyWriter?>((ref) async {
-  final writer = await loadAskWriter(
-    readAsset: ref.watch(askAssetReaderProvider),
-    openRuntime: ref.watch(askWriterRuntimeOpenerProvider),
-  );
-  if (writer != null) ref.onDispose(writer.close);
-  return writer;
-});
+final modelReplyWriterProvider = FutureProvider<ModelReplyWriter?>(
+  retry: noRetryOnRayoFailure,
+  (ref) async {
+    final writer = await loadAskWriter(
+      readAsset: ref.watch(askAssetReaderProvider),
+      openRuntime: ref.watch(askWriterRuntimeOpenerProvider),
+    );
+    if (writer != null) ref.onDispose(writer.close);
+    return writer;
+  },
+);
 
 /// What Ask reads, from the open space only.
 final askDataSourceProvider = Provider<AskDataSource>((ref) {
@@ -80,17 +88,20 @@ final askDataSourceProvider = Provider<AskDataSource>((ref) {
   return AppAskDataSource(ref);
 });
 
-final askEngineProvider = FutureProvider<AskEngine>((ref) async {
-  final reader = await ref.watch(questionReaderProvider.future);
-  final wording = await ref.watch(modelReplyWriterProvider.future);
-  return AskEngine(
-    source: ref.watch(askDataSourceProvider),
-    reader: reader,
-    writer: ref.watch(replyWriterProvider),
-    wording: wording,
-    spaceKind: ref.watch(activeSpaceProvider).kind,
-  );
-});
+final askEngineProvider = FutureProvider<AskEngine>(
+  retry: noRetryOnRayoFailure,
+  (ref) async {
+    final reader = await ref.watch(questionReaderProvider.future);
+    final wording = await ref.watch(modelReplyWriterProvider.future);
+    return AskEngine(
+      source: ref.watch(askDataSourceProvider),
+      reader: reader,
+      writer: ref.watch(replyWriterProvider),
+      wording: wording,
+      spaceKind: ref.watch(activeSpaceProvider).kind,
+    );
+  },
+);
 
 /// Saved conversations in the open space, newest first.
 final askConversationsProvider = StreamProvider<List<AskConversation>>(
@@ -229,13 +240,27 @@ class AskController extends Notifier<AskSession> {
     final mine = AskMessage(role: AskRole.person, text: text, createdAt: now);
     state = state.copyWith(messages: [...state.messages, mine], busy: true);
     try {
-      final engine = await ref.read(askEngineProvider.future);
+      final AskEngine engine;
+      try {
+        engine = await ref.read(askEngineProvider.future);
+      } on Object catch (e) {
+        final failure = rayoFailureIn(e);
+        if (failure == null) rethrow;
+        _rayoFailed(failure, now);
+        return;
+      }
       final context =
           state.lastAt != null &&
               now.difference(state.lastAt!) >= AskContext.idle
           ? AskContext.empty
           : state.context;
-      final turn = await engine.ask(text, context: context, now: now);
+      final AskTurn turn;
+      try {
+        turn = await engine.ask(text, context: context, now: now);
+      } on RayoOnlyFailure catch (e) {
+        _rayoFailed(e, now);
+        return;
+      }
       await _record(
         AskMessage(
           role: AskRole.person,
@@ -250,6 +275,22 @@ class AskController extends Notifier<AskSession> {
     } finally {
       state = state.copyWith(busy: false);
     }
+  }
+
+  /// In a rayo-only build, says what rayo could not run in place of an
+  /// answer. Not saved: it is about the build, not the person's money.
+  void _rayoFailed(RayoOnlyFailure failure, DateTime now) {
+    final reply = AskMessage(
+      role: AskRole.reply,
+      text: '',
+      createdAt: now,
+      answer: AskAnswer(
+        kind: ReplyKind.cant,
+        template: '$failure'.replaceAll('{', '(').replaceAll('}', ')'),
+        asOf: now,
+      ),
+    );
+    state = state.copyWith(messages: [...state.messages, reply]);
   }
 
   /// The person picked [choice] (null for all of them) for [clarify].

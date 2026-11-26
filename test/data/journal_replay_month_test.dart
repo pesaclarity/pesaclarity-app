@@ -313,17 +313,22 @@ void main() {
     expect(held(BookAccount.money(kcb.id)), _kcbNow);
     expect(held(BookAccount.fulizaOwed(mpesa.id)), 0);
     expect(held(BookAccount.notYetSorted), 0);
+    // Cash taken out at the agent went into Cash in hand, made for it.
     expect(held(BookAccount.moneyInTransit), 0);
+    final cash = await (db.select(
+      db.accounts,
+    )..where((a) => a.type.equalsValue(AccountType.cash))).getSingle();
+    expect(held(BookAccount.money(cash.id)), _kes(1000));
     // The typed balance was a claim, and it never counted.
     expect(held(BookAccount.balanceCorrections), 0);
 
-    // On hand is the sum by hand: KES 602.35 on M-Pesa and KES 13,970 at
-    // KCB, nothing owed.
+    // On hand is the sum by hand: KES 602.35 on M-Pesa, KES 13,970 at KCB
+    // and KES 1,000 in hand, nothing owed.
     final read = await journal.read();
     final openings = await accounts.openings();
     expect(
       read.totalHeldAt(openings, at: monthEnd, where: (_) => true),
-      _kes(602, 35) + _kes(13970),
+      _kes(602, 35) + _kes(13970) + _kes(1000),
     );
 
     // Every figure read from the journal (stage 4) adds up with the books
@@ -342,21 +347,17 @@ void main() {
     // Money in from John twice; KCB's moves are own transfers.
     expect(totals.incomeMinor, _kes(7000));
     expect(totals.moneyInMinor, _kes(7000));
-    // Jane twice, the chemist, the grocer and the agent: the person's own
-    // KES 1,000 at KCB is not named yet, so it is spending too.
+    // Jane twice, the chemist and the grocer: the person's own KES 1,000
+    // at KCB is not named yet, so it is spending too. Cash taken out at the
+    // agent is the person's own money, never spending.
     expect(
       totals.spendingMinor,
-      _kes(1500) +
-          _kes(500) +
-          _kes(350) +
-          _kes(18000) +
-          _kes(1000) +
-          _kes(1000),
+      _kes(1500) + _kes(500) + _kes(350) + _kes(18000) + _kes(1000),
     );
     // Transaction costs 15 and 29, the transfer's 30, and Fuliza's 3.65.
     expect(totals.feesMinor, _kes(15) + _kes(29) + _kes(30) + _kes(3, 65));
     expect(totals.debtRepaymentMinor, _kes(365));
-    expect(totals.ownTransferMinor, _kes(3000) + _kes(2030));
+    expect(totals.ownTransferMinor, _kes(3000) + _kes(2030) + _kes(1000));
 
     final categories = {
       for (final c in await db.select(db.categories).get())
@@ -397,14 +398,15 @@ void main() {
     );
     expect(byCategory.values.fold(0, (a, b) => a + b), totals.spendingMinor);
     // What the month did to the money accounts is what came in less what
-    // went out, the opening walked back from the first reported balance.
+    // went out, the opening walked back from the first reported balance;
+    // Cash in hand is one of them.
     final opened = books.balanceOf(
       BookAccount.openingBalances,
       currency: 'KES',
     );
     expect(
       opened + books.profit(currency: 'KES', from: from, to: monthEnd),
-      _mpesaNow + _kcbNow,
+      _mpesaNow + _kcbNow + _kes(1000),
     );
   });
 }

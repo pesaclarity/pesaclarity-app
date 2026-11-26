@@ -2,6 +2,7 @@ import '../../core/money/money.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../time/calendar.dart';
+import '../time/week_start.dart';
 
 /// Cash paid out below this, in minor units (KES 100), does not break a
 /// no-spend day: a matatu fare or a snack is not a habit.
@@ -58,7 +59,11 @@ class DaySpend {
 /// [smallCashMinor]. Today is never counted until it is over. A plain
 /// count and streak, with no badges.
 class NoSpendDays {
-  const NoSpendDays({required this.today, required this.days});
+  const NoSpendDays({
+    required this.today,
+    required this.days,
+    this.weekStartsOn = DateTime.monday,
+  });
 
   /// Works out each day from [historyFrom] (the first day with records)
   /// to [today]. [scheduledCategoryIds] are Plan's bills; [cashAccountIds]
@@ -70,7 +75,9 @@ class NoSpendDays {
     Set<int> scheduledCategoryIds = const {},
     Set<int> cashAccountIds = const {},
     String? currency,
+    int? weekStartsOn,
   }) {
+    final firstDay = weekStartsOn ?? FirstWeekday.current;
     currency ??= BaseCurrency.code;
     final first = today.addDays(-noSpendLookBackDays);
     final spent = <CalendarDate, int>{};
@@ -104,7 +111,7 @@ class NoSpendDays {
     }
     final days = <DaySpend>[];
     // Through the end of this week, so the week shows its days to come.
-    final last = _weekStart(today).addDays(6);
+    final last = weekStartOn(today, firstDay).addDays(6);
     for (var d = first; !d.isAfter(last); d = d.addDays(1)) {
       days.add(
         DaySpend(
@@ -115,17 +122,20 @@ class NoSpendDays {
         ),
       );
     }
-    return NoSpendDays(today: today, days: days);
+    return NoSpendDays(today: today, days: days, weekStartsOn: firstDay);
   }
 
   final CalendarDate today;
 
+  /// The weekday the week starts on (see [FirstWeekday]).
+  final int weekStartsOn;
+
   /// Every day worked out, oldest first, through the end of this week.
   final List<DaySpend> days;
 
-  /// This week, Monday to Sunday.
+  /// This week, from the day it starts on.
   List<DaySpend> get week {
-    final start = _weekStart(today);
+    final start = weekStartOn(today, weekStartsOn);
     return [
       for (final d in days)
         if (!d.date.isBefore(start) && d.date.isBefore(start.addDays(7))) d,
@@ -167,7 +177,7 @@ class NoSpendDays {
   bool get weekIsBestThisMonth {
     final count = weekCount;
     if (count == 0) return false;
-    final start = _weekStart(today);
+    final start = weekStartOn(today, weekStartsOn);
     for (
       var w = start.addDays(-7);
       today.yearMonth.contains(w);
@@ -190,5 +200,3 @@ class NoSpendDays {
     return null;
   }
 }
-
-CalendarDate _weekStart(CalendarDate date) => date.addDays(1 - date.weekday);

@@ -140,31 +140,35 @@ void main() {
     expect(find.text('Emergency fund'), findsOneWidget);
   });
 
-  testAppWidgets('skipped at setup, it is offered once more on Home, then '
-      'only in Profile', (tester) async {
-    await toYourMoney(tester);
-    await tester.scrollUntilVisible(find.text('Go to Home'), 200);
-    await tapText(tester, 'Go to Home');
-    expect(find.byKey(const Key('home-about-you')), findsNothing);
+  testAppWidgets(
+    'skipped at setup, it is offered once more in Things to sort, then '
+    'only in Profile',
+    (tester) async {
+      await toYourMoney(tester);
+      await tester.scrollUntilVisible(find.text('Go to Home'), 200);
+      await tapText(tester, 'Go to Home');
+      expect(find.byKey(const Key('home-about-you')), findsNothing);
 
-    // The next day.
-    now = now.add(const Duration(days: 1));
-    await pump(tester);
-    await scrollTo(tester, find.byKey(const Key('home-about-you')));
-    await tester.tap(find.byKey(const Key('about-offer-close')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('home-about-you')), findsNothing);
+      // The next day.
+      now = now.add(const Duration(days: 1));
+      await pump(tester);
+      await openThingsToSort(tester);
+      await scrollTo(tester, find.byKey(const Key('home-about-you')));
+      await tester.tap(find.byKey(const Key('about-offer-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('home-about-you')), findsNothing);
 
-    now = now.add(const Duration(days: 1));
-    await pump(tester);
-    expect(find.byKey(const Key('home-about-you')), findsNothing);
+      now = now.add(const Duration(days: 1));
+      await pump(tester);
+      expect(find.byKey(const Key('home-about-you')), findsNothing);
 
-    await tester.tap(find.byTooltip('Profile'));
-    await tester.pumpAndSettle();
-    await tapText(tester, 'About you');
-    expect(find.text('Which best describes you now?'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('about-skip-all')));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
-  });
+      await tester.tap(find.byTooltip('Profile'));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'About you');
+      expect(find.text('Which best describes you now?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('about-skip-all')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
+    },
+  );
 }

@@ -376,7 +376,7 @@ class _PaymentRow extends StatelessWidget {
     final colors = PesaColors.of(context);
     final parsed = payment.parsed;
     final incoming = parsed.direction == Direction.incoming;
-    final kind = transactionKindFor(parsed.type);
+    final kind = transactionKindOf(parsed);
     final day = CalendarDate.local(parsed.time);
     final when =
         '${weekdayName(day).substring(0, 3)} ${shortDate(day)}, '

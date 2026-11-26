@@ -228,6 +228,7 @@ void main() {
     );
     await finishOnboarding(tester);
 
+    await openThingsToSort(tester);
     await tester.tap(find.byKey(const Key('home-review')));
     await tester.pumpAndSettle();
     expect(find.text('Messages to check'), findsOneWidget);
@@ -278,6 +279,7 @@ void main() {
       ],
     );
     await finishOnboarding(tester);
+    await openThingsToSort(tester);
     await tester.tap(find.byKey(const Key('home-review')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Suggested: A notice'), findsOneWidget);

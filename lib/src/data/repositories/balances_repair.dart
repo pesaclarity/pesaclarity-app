@@ -5,6 +5,7 @@ import '../../domain/ledger/message_twins.dart';
 import '../database/app_database.dart';
 import 'app_settings_repository.dart';
 import 'journal_repository.dart';
+import 'message_links.dart';
 import 'message_twins_store.dart';
 import 'own_moves.dart';
 import 'savings_links.dart';
@@ -30,8 +31,10 @@ const balancesRepairKey = 'ledger.balancesRepaired';
 /// version 3 brings the savings accounts in step with every payment, so
 /// money moved to and from M-Shwari, Ziidi or Etica MMF, once the person
 /// added it (decision 0026 item 5), is an own transfer. The accounts it
-/// made before that was asked stay, as added.
-const balancesRepairVersion = 3;
+/// made before that was asked stay, as added; version 4 gives agent
+/// withdrawals and deposits stored before they moved to and from a cash
+/// account their side there ([linkStoredAgentCash]).
+const balancesRepairVersion = 4;
 
 /// The readers' versions as one text, such as `0.4.0 kcb@0.4.2,mpesa@0.5.0`:
 /// the engine's [engine] and each pack's in [packs], by pack id, in order.
@@ -130,6 +133,7 @@ Future<BalancesRepair> repairBalances(AppDatabase db) async {
   // Turns the money moved to and from the M-Pesa family's accounts the
   // person has (decision 0026) into own transfers.
   await syncSavingsAccounts(db);
+  await linkStoredAgentCash(db);
   final paired = await DriftTransactionsRepository(db).pairOwnTransfers();
   await JournalRepository.markForRebuild(db);
   await JournalRepository(db).sync();

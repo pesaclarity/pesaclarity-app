@@ -11,6 +11,7 @@ import 'package:pesaclarity/src/domain/budget/safe_to_spend.dart';
 import 'package:pesaclarity/src/domain/budget/until_next_money.dart';
 import 'package:pesaclarity/src/domain/income/income_sources.dart';
 import 'package:pesaclarity/src/domain/income/make_it_last.dart';
+import 'package:pesaclarity/src/domain/income/payday.dart';
 import 'package:pesaclarity/src/domain/ledger/ledger_entry.dart';
 import 'package:pesaclarity/src/domain/spaces/money_between_spaces.dart';
 import 'package:pesaclarity/src/domain/time/calendar.dart';
@@ -19,7 +20,7 @@ import 'package:pesaclarity/src/features/home/application/cash_flow_forecast_pro
 import 'package:pesaclarity/src/features/home/application/health_index_provider.dart';
 import 'package:pesaclarity/src/features/home/application/safe_to_spend_provider.dart';
 import 'package:pesaclarity/src/features/home/application/upcoming_bills_provider.dart';
-import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/more_this_month_screen.dart';
 import 'package:pesaclarity/src/features/income/application/income_providers.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/features/spaces/application/money_between_spaces_providers.dart';
@@ -123,6 +124,69 @@ void main() {
       expect(result.spentBeforeTodayMinor, 2400000);
       expect(result.weekdayLimitMinor, 100000);
     });
+
+    test('follows the pay cycle, budget prorated, with a payday', () async {
+      final food = await category('Food', daily: true);
+      final account = await db
+          .into(db.accounts)
+          .insert(
+            AccountsCompanion.insert(
+              name: 'M-Pesa',
+              type: AccountType.mpesa,
+              openingDate: DateTime.utc(2026),
+            ),
+          );
+      await db
+          .into(db.recurring)
+          .insert(
+            RecurringCompanion.insert(
+              name: 'Food',
+              categoryId: Value(food),
+              amountMinor: 3100000,
+              frequency: RecurrenceFrequency.monthly,
+              startDate: DateTime.utc(2026),
+            ),
+          );
+      Future<void> spend(DateTime at, int amount) => db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              accountId: account,
+              occurredAt: at,
+              amountMinor: amount,
+              direction: TransactionDirection.outflow,
+              categoryOverrideId: Value(food),
+              source: TransactionSource.manual,
+            ),
+          );
+      await spend(DateTime.utc(2026, 10, 10, 9), 2000000); // before payday
+      await spend(DateTime.utc(2026, 10, 20, 9), 300000);
+
+      final paid = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => DateTime.utc(2026, 10, 26, 5)),
+          // Paid fortnightly, last on Thursday 15 October.
+          paydayProvider.overrideWith(
+            (ref) async =>
+                Payday(last: CalendarDate(2026, 10, 15), gapDays: 14),
+          ),
+        ],
+      );
+      addTearDown(paid.dispose);
+      paid.listen(safeToSpendTodayProvider, (_, _) {});
+      final result = (await paid.read(safeToSpendTodayProvider.future))!;
+      expect(result.payCycle, isTrue);
+      expect(result.periodFirst, CalendarDate(2026, 10, 15));
+      expect(result.periodLast, CalendarDate(2026, 10, 28));
+      // 14 of the 31 days from 15 Oct to 15 Nov.
+      expect(result.budgetMinor, 1400000);
+      expect(result.spentBeforeTodayMinor, 300000);
+      // Monday 26 to Wednesday 28: three weekdays.
+      expect(result.weekdaysLeft, 3);
+      expect(result.weekendDaysLeft, 0);
+      expect(result.weekdayLimitMinor, 1100000 ~/ 3);
+    });
   });
 
   testWidgets('Home shows what is safe to spend today', (tester) async {
@@ -146,7 +210,10 @@ void main() {
           healthIndexProvider.overrideWith((ref) async => null),
           upcomingBillsProvider.overrideWith((ref) async => []),
         ],
-        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const MoreThisMonthScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -172,7 +239,10 @@ void main() {
           healthIndexProvider.overrideWith((ref) async => null),
           upcomingBillsProvider.overrideWith((ref) async => []),
         ],
-        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const MoreThisMonthScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -250,7 +320,10 @@ void main() {
           healthIndexProvider.overrideWith((ref) async => null),
           upcomingBillsProvider.overrideWith((ref) async => []),
         ],
-        child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const MoreThisMonthScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -277,17 +350,10 @@ void main() {
     // Not enough history for a pace yet.
     expect(find.text('Shows after two weeks of records'), findsOneWidget);
     expect(find.text('—'), findsNothing);
-    expect(find.byKey(const Key('home-what-was-this')), findsOneWidget);
-    expect(find.text('Make it last'), findsOneWidget);
-    expect(
-      find.text('5,000 came in from Test Mum · until Mon 23 Nov'),
-      findsOneWidget,
-    );
-    expect(find.text('3,000 from Test Wanjiku'), findsOneWidget);
     // Only the red card's figure carries the currency code.
     expect(find.textContaining('KES'), findsOneWidget);
 
-    // The eye on the card hides every amount on Home.
+    // The eye on the card hides every amount.
     await tester.tap(
       find.descendant(
         of: find.byKey(const Key('until-next-money')),
@@ -300,11 +366,6 @@ void main() {
       find.textContaining('••••• on hand · ••••• for bills'),
       findsOneWidget,
     );
-    expect(
-      find.text('••••• came in from Test Mum · until Mon 23 Nov'),
-      findsOneWidget,
-    );
-    expect(find.text('••••• from Test Wanjiku'), findsOneWidget);
   });
 }
 

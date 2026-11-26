@@ -15,6 +15,7 @@ import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/layout.dart';
 import '../../../theme/pesa_colors.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../application/budget_alert_providers.dart';
 import '../application/plan_providers.dart';
 import 'plan_item_sheet.dart';
@@ -40,7 +41,7 @@ void openBillsCalendar(BuildContext context) {
   );
 }
 
-/// Plan's bills as a month grid, Monday first, and what is due on the
+/// Plan's bills as a month grid, from the day the week starts on, and what is due on the
 /// chosen day under it.
 class BillsCalendarView extends ConsumerWidget {
   const BillsCalendarView({required this.month, super.key});
@@ -90,7 +91,8 @@ class _MonthGrid extends ConsumerWidget {
     final theme = Theme.of(context);
     final colors = PesaColors.of(context);
     final month = bills.month;
-    final days = calendarGridDays(month);
+    final firstDay = ref.watch(weekStartsOnProvider);
+    final days = calendarGridDays(month, weekStartsOn: firstDay);
     final small = theme.textTheme.bodySmall!.copyWith(
       color: colors.mutedSmall(theme.colorScheme.onSurface),
     );
@@ -199,7 +201,10 @@ class _MonthGrid extends ConsumerWidget {
             ExcludeSemantics(
               child: Row(
                 children: [
-                  for (final w in _weekdays)
+                  for (final w in [
+                    for (var i = 0; i < 7; i++)
+                      _weekdays[(firstDay - 1 + i) % 7],
+                  ])
                     Expanded(
                       // Shrinks rather than break a day's name at large
                       // text: seven columns share a phone's width.

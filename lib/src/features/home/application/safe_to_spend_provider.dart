@@ -18,16 +18,25 @@ final safeToSpendTodayProvider = FutureProvider<SafeToSpend?>((ref) async {
   ref.watch(ledgerChangesProvider);
   final today = CalendarDate.local(ref.watch(clockProvider)());
   final month = today.yearMonth;
-  final budget = await ref
+  // Plan keeps monthly budgets; safe to spend follows the pay cycle when
+  // there is a regular payday (as Home's since payday block), with the
+  // month's budget prorated to it, and the calendar month otherwise.
+  final monthly = await ref
       .watch(planRepositoryProvider)
       .dayToDayBudgetMinor(month);
-  if (budget <= 0) return null;
+  if (monthly <= 0) return null;
+  final cycle = payCycleOf(
+    await ref.watch(paydayProvider.future),
+    today: today,
+  );
+  final first = cycle?.first ?? month.firstDay;
+  final budget = cycle == null
+      ? monthly
+      : prorateMonthlyBudget(monthly, first: cycle.first, last: cycle.last);
 
-  // Four weeks back for the weekend weight, or the whole month if longer.
+  // Four weeks back for the weekend weight, or the whole period if longer.
   final historyStart = today.addDays(-28);
-  final from = historyStart.isBefore(month.firstDay)
-      ? historyStart
-      : month.firstDay;
+  final from = historyStart.isBefore(first) ? historyStart : first;
   final entries = await ref
       .watch(transactionsRepositoryProvider)
       .ledgerEntries(
@@ -44,6 +53,8 @@ final safeToSpendTodayProvider = FutureProvider<SafeToSpend?>((ref) async {
     // Below zero once Fuliza is counted: nothing is safe to spend.
     onHandMinor: await _onHand(ref, today, goalsKeptMinor: goals.totalMinor),
     goalsKeptMinor: goals.totalMinor,
+    periodFirst: cycle?.first,
+    periodLast: cycle?.last,
   );
 });
 

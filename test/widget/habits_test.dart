@@ -104,11 +104,11 @@ void main() {
     expect(find.byKey(const Key('home-no-spend')), findsNothing);
   });
 
-  testAppWidgets('the Sunday check-in shows three lines', (tester) async {
+  testAppWidgets('the weekly check-in shows three lines', (tester) async {
     final db = openTestDatabase();
     await _pumpCards(tester, db: db, days: _week(_sunday), week: _week3);
     expect(find.text('Your week in three lines'), findsOneWidget);
-    expect(find.text('Sunday check-in · ready'), findsOneWidget);
+    expect(find.text('Weekly check-in · ready'), findsOneWidget);
     await tester.tap(find.byKey(const Key('home-check-in')));
     await tester.pumpAndSettle();
     expect(find.text('Mon 16 to Sun 22 Nov'), findsOneWidget);
@@ -169,7 +169,7 @@ void main() {
     await scrollTo(tester, find.text('HABITS'));
     expect(find.text('No-spend days on Home'), findsOneWidget);
     expect(find.text('Sunday at 18:00'), findsOneWidget);
-    await tapText(tester, 'Sunday check-in');
+    await tapText(tester, 'Weekly check-in');
     await settleFrames(tester);
     expect(find.text('Notify me'), findsNothing);
     expect(

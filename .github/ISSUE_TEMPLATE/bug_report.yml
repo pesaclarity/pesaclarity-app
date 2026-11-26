@@ -1,0 +1,105 @@
+name: Bug report
+description: Something breaks, crashes or works differently from what you expected.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste real SMS, statements, names, phone numbers or account numbers. Replace them with made-up values such as `0700 000 000`.
+        A message read wrongly, or a wrong total, has its own form: **A message or number reads wrongly**.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Plan\n2. Tap ...\n3. ..."
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How bad is it
+      options:
+        - The app crashes, freezes or won't open
+        - I lost data, or a backup or restore failed
+        - Something doesn't work, and there's no way around it
+        - Something doesn't work, but there's a way around it
+        - Minor
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app
+      options:
+        - Onboarding
+        - SMS capture or iPhone Shortcuts
+        - Statement import
+        - Review inbox
+        - Home or safe to spend
+        - Activity
+        - Balances
+        - Plan
+        - Goals or debts
+        - Insights or Ask
+        - Subscriptions
+        - Backup and restore
+        - Sign-in, app lock or security
+        - Export
+        - Reminders
+        - Profile or settings
+        - Other or not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build
+      options:
+        - Android, Play build (play)
+        - Android, F-Droid build (foss)
+        - iPhone
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Profile › Build shows it.
+      placeholder: 0.5.7 · foss
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone model and system version
+      placeholder: Tecno Spark 10, Android 13
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Did this work in an earlier version
+      options:
+        - Not sure
+        - "Yes"
+        - "No"
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recording
+      description: Blur or crop out anything real. On Android, release builds block screenshots unless Profile › Security › Allow screenshots and screen recording is on.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: Nothing above contains real messages, names, phone numbers, account numbers or amounts.
+          required: true

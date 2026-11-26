@@ -10,10 +10,14 @@ import 'src/data/database/database_providers.dart';
 import 'src/domain/spaces/space.dart';
 import 'src/features/look/application/look_providers.dart';
 import 'src/features/security/data/secure_store.dart';
+import 'src/features/slm_experiment/presentation/slm_experiment_tile.dart';
+import 'src/features/slm_experiment/slm_experiment_flag.dart';
 
 Future<void> main() async {
   StartupTimeline.start();
   final binding = WidgetsFlutterBinding.ensureInitialized();
+  // Test builds only: the experiment's model licence on the licences page.
+  if (slmExperiment) registerSlmLicence();
   // The space to open and the look, read before the first frame so the
   // lock screen already has the look. Each waits on the platform (files
   // and the keystore), so the three are read at once.

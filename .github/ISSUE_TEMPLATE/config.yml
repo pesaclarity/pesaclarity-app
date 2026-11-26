@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/pesaclarity/.github/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately, not as an issue.
+  - name: New bank, Sacco or wallet
+    url: https://github.com/pesaclarity/ujumbe-parsers/issues/new/choose
+    about: Parser packs live in ujumbe-parsers. Ask for a new institution there.
+  - name: Product spec
+    url: https://github.com/pesaclarity/docs/blob/main/spec/PRODUCT-SPEC.md
+    about: Read what we are building and why.

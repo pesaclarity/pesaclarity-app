@@ -254,6 +254,7 @@ class DriftTransactionsRepository implements TransactionsRepository {
           final accounts = await _db.select(_db.accounts).get();
           for (final id in inserted) {
             await markTransferToOwnAccount(_db, id, accounts: accounts);
+            await linkAgentCash(_db, id, accounts: accounts);
             await linkLoanRepayment(_db, id);
           }
         }

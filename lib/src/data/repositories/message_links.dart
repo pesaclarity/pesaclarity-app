@@ -2,8 +2,109 @@ import 'package:drift/drift.dart';
 
 import '../../domain/accounts/account_reference.dart';
 import '../../domain/debts/next_due.dart';
+import '../../domain/ledger/balances.dart';
 import '../../domain/time/calendar.dart';
 import '../database/app_database.dart';
+import 'accounts_repository.dart';
+
+/// Moves the new agent withdrawal or deposit [id] into or out of the
+/// person's cash account: its other side is written on the cash account
+/// and the two are paired, an own transfer, so cash never vanishes from
+/// the totals and only what they record as spent from cash counts. With no
+/// cash account yet, "Cash in hand" is made for it.
+Future<void> linkAgentCash(
+  AppDatabase db,
+  int id, {
+  required List<Account> accounts,
+}) async {
+  final row = await (db.select(
+    db.transactions,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
+  if (row == null ||
+      row.transferPairId != null ||
+      row.transferAccountId != null ||
+      row.categoryOverrideId != null) {
+    return;
+  }
+  final out = row.direction == TransactionDirection.outflow;
+  final agent = switch (row.kind) {
+    TransactionKind.withdrawal => out,
+    TransactionKind.deposit => !out,
+    _ => false,
+  };
+  if (!agent) return;
+  final from = accounts.where((a) => a.id == row.accountId).firstOrNull;
+  if (from == null ||
+      from.type == AccountType.cash ||
+      savingsAccountTypes.contains(from.type)) {
+    return;
+  }
+  final cashId = await DriftAccountsRepository(db)
+      .cashAccount(name: cashInHandName, openingDate: row.occurredAt);
+  final cash = await (db.select(
+    db.accounts,
+  )..where((a) => a.id.equals(cashId))).getSingle();
+  if (cash.openingDate.isAfter(row.occurredAt)) {
+    await (db.update(db.accounts)..where((a) => a.id.equals(cashId))).write(
+      AccountsCompanion(openingDate: Value(row.occurredAt)),
+    );
+  }
+  if (cash.currency != row.currency) return;
+  final mirror = await db
+      .into(db.transactions)
+      .insert(
+        TransactionsCompanion.insert(
+          accountId: cashId,
+          occurredAt: row.occurredAt,
+          amountMinor: row.amountMinor,
+          currency: Value(row.currency),
+          direction: out
+              ? TransactionDirection.inflow
+              : TransactionDirection.outflow,
+          kind: Value(row.kind),
+          source: TransactionSource.manual,
+          transferPairId: Value(id),
+        ),
+      );
+  await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+    TransactionsCompanion(transferPairId: Value(mirror)),
+  );
+}
+
+/// Runs [linkAgentCash] over every agent withdrawal and deposit stored in
+/// [db], oldest first, so those read before agent cash moved to a cash
+/// account get their side there too. Safe to run again: one already
+/// paired is left as it is. Returns how many it linked.
+Future<int> linkStoredAgentCash(AppDatabase db) async {
+  final rows =
+      await (db.select(db.transactions)
+            ..where(
+              (t) =>
+                  t.kind.isInValues(const [
+                    TransactionKind.withdrawal,
+                    TransactionKind.deposit,
+                  ]) &
+                  t.transferPairId.isNull() &
+                  t.transferAccountId.isNull() &
+                  t.categoryOverrideId.isNull(),
+            )
+            ..orderBy([(t) => OrderingTerm(expression: t.occurredAt)]))
+          .get();
+  if (rows.isEmpty) return 0;
+  var linked = 0;
+  for (final row in rows) {
+    final accounts = await db.select(db.accounts).get();
+    await linkAgentCash(db, row.id, accounts: accounts);
+    final after = await (db.select(
+      db.transactions,
+    )..where((t) => t.id.equals(row.id))).getSingle();
+    if (after.transferPairId != null) linked++;
+  }
+  return linked;
+}
+
+/// The name of the cash account made for the first agent withdrawal.
+const cashInHandName = 'Cash in hand';
 
 /// Marks the new transaction [id] as money moved to the person's own
 /// account when its message names the account number it went to and that

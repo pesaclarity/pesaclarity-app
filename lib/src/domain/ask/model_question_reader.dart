@@ -1,6 +1,7 @@
 import 'dart:isolate';
 
 import '../ml/plain_weights.dart';
+import '../ml/rayo_only.dart';
 import '../reader/reader_tokens.dart';
 import 'matcher.dart';
 import 'rule_question_reader.dart';
@@ -117,12 +118,17 @@ class ModelQuestionReader implements QuestionReader {
     this._manifest, {
     required this.fallback,
     this.minConfidence = 0.5,
+    this.onlyRayo = rayoOnly,
   });
 
   final AskReaderRuntime _runtime;
   final AskReaderManifest _manifest;
   final QuestionReader fallback;
   final double minConfidence;
+
+  /// Whether a failed run is thrown, as in a rayo-only build, rather than
+  /// read by the rules.
+  final bool onlyRayo;
 
   @override
   Understanding read(String question) {
@@ -134,7 +140,8 @@ class ModelQuestionReader implements QuestionReader {
     final (List<List<double>>, List<double>) outputs;
     try {
       outputs = _runtime.run(encodeTokens(tokens));
-    } on Object {
+    } on Object catch (e) {
+      if (onlyRayo) throw RayoOnlyFailure(OnPhoneModel.askReader, '$e');
       return rules ?? fallback.read(question);
     }
     return _reading(question, tokens, outputs, rules);
@@ -153,7 +160,8 @@ class ModelQuestionReader implements QuestionReader {
     final (List<List<double>>, List<double>) outputs;
     try {
       outputs = await _runInIsolate(_runtime, encodeTokens(tokens));
-    } on Object {
+    } on Object catch (e) {
+      if (onlyRayo) throw RayoOnlyFailure(OnPhoneModel.askReader, '$e');
       return rules ?? fallback.read(question);
     }
     return _reading(question, tokens, outputs, rules);

@@ -1,3 +1,5 @@
+import '../time/week_start.dart';
+
 /// Profile › Habits: which habit cards Home shows, and when the Sunday
 /// check-in notification comes.
 class HabitSettings {
@@ -62,9 +64,11 @@ class HabitSettings {
   };
 }
 
-/// `Sunday at 18:00`, or `Off`.
-String notifyLabel(int? minuteOfDay) {
+/// `Sunday at 18:00` (the last day of the week, see [lastWeekday]), or
+/// `Off`.
+String notifyLabel(int? minuteOfDay, {int? weekStartsOn}) {
   if (minuteOfDay == null) return 'Off';
   String two(int n) => n.toString().padLeft(2, '0');
-  return 'Sunday at ${two(minuteOfDay ~/ 60)}:${two(minuteOfDay % 60)}';
+  final day = weekdayFullName(lastWeekday(weekStartsOn));
+  return '$day at ${two(minuteOfDay ~/ 60)}:${two(minuteOfDay % 60)}';
 }

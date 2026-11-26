@@ -13,6 +13,7 @@ import 'package:pesaclarity/src/features/activity/presentation/activity_screen.d
 import 'package:pesaclarity/src/features/balances/presentation/balance_check_screen.dart';
 import 'package:pesaclarity/src/features/balances/presentation/balances_screen.dart';
 import 'package:pesaclarity/src/features/home/presentation/home_screen.dart';
+import 'package:pesaclarity/src/features/home/presentation/more_this_month_screen.dart';
 import 'package:pesaclarity/src/features/profile/presentation/profile_screen.dart';
 import 'package:pesaclarity/src/features/review/application/review_providers.dart';
 import 'package:pesaclarity/src/features/review/presentation/review_inbox_screen.dart';
@@ -252,6 +253,10 @@ Future<ProviderContainer> pumpBalances(
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.moreThisMonth,
+        builder: (_, _) => const MoreThisMonthScreen(),
       ),
       GoRoute(
         path: AppRoutes.activity,

@@ -28,10 +28,32 @@ typedef _PayeeRule = ({String key, List<String> payees, List<String> words});
 /// first match wins, so specific entries come before general ones (a
 /// matatu SACCO is transport, other SACCOs are savings).
 const _outflowPayees = <_PayeeRule>[
+  // Food delivery by the ride apps, before the rides themselves.
+  (key: 'eating_out', payees: ['uber eats', 'bolt food', 'glovo'], words: []),
   (
     key: 'transport',
-    payees: ['uber', 'bolt', 'little cab', 'sgr'],
-    words: ['matatu', 'fare'],
+    // Ride apps, rail, airlines and long-distance coaches; a matatu, taxi or
+    // boda boda in the name is as certain. Fuel stations are fuel.
+    payees: [
+      'uber',
+      'bolt',
+      'little cab',
+      'little ride',
+      'faras',
+      'sgr',
+      'madaraka express',
+      'kenya railways',
+      'kenya airways',
+      'jambojet',
+      'safarilink',
+      'easy coach',
+      'easycoach',
+      'modern coast',
+      'matatu',
+      'taxi',
+      'boda',
+    ],
+    words: ['fare', 'fares', 'shuttle', 'travellers', 'cab', 'cabs', 'bus'],
   ),
   (
     key: 'utilities',
@@ -40,7 +62,16 @@ const _outflowPayees = <_PayeeRule>[
   ),
   (
     key: 'fuel',
-    payees: ['shell', 'rubis', 'totalenergies', 'ola'],
+    payees: [
+      'shell',
+      'rubis',
+      'totalenergies',
+      'total energies',
+      'ola',
+      'vivo energy',
+      'astrol',
+      'hass petroleum',
+    ],
     words: ['petrol', 'fuel'],
   ),
   (
@@ -48,7 +79,11 @@ const _outflowPayees = <_PayeeRule>[
     payees: [
       'naivas',
       'quickmart',
+      'quick mart',
       'carrefour',
+      'khetias',
+      'eastmatt',
+      'mulleys',
       'chandarana',
       'magunas',
       'cleanshelf',
@@ -116,7 +151,13 @@ const _outflowPayees = <_PayeeRule>[
 ];
 
 const _inflowPayees = <_PayeeRule>[
-  (key: 'salary', payees: [], words: ['salary', 'payroll', 'wages']),
+  // Money in that names a salary or payroll is pay (a salary advance is a
+  // loan, which [_salaryAdvance] keeps out).
+  (
+    key: 'salary',
+    payees: ['salary', 'salaries', 'payroll', 'wages', 'net pay'],
+    words: [],
+  ),
   (
     key: 'allowance_bursary',
     payees: ['helb'],
@@ -141,17 +182,20 @@ class RuleCategoriser implements Categoriser {
     final tokens = tokenise(input.payee);
     bool named(String phrase) => _containsPhrase(tokens, phrase.split(' '));
     final table = input.isInflow ? _inflowPayees : _outflowPayees;
+    final advance = input.isInflow && _salaryAdvance.any(named);
     for (final rule in table) {
+      if (advance && rule.key == 'salary') continue;
       if (rule.payees.any(named)) {
         return [CategoryScore(rule.key, knownPayeeRuleConfidence)];
       }
     }
     for (final rule in table) {
+      if (advance && rule.key == 'salary') continue;
       if (rule.words.any(named)) {
         return [CategoryScore(rule.key, payeeRuleConfidence)];
       }
     }
-    if (input.isInflow && input.kind == TransactionKind.received) {
+    if (fromPerson(input)) {
       return const [CategoryScore('money_received', weakRuleConfidence)];
     }
     return const [];
@@ -168,6 +212,111 @@ class RuleCategoriser implements Categoriser {
 
   @override
   void close() {}
+}
+
+const _salaryAdvance = ['advance', 'loan'];
+
+/// The categories for money in from a person. Which one only the person
+/// knows (a payment, family support or a gift), so the model chooses among
+/// them ([RulesFirstCategoriser]), and without it the rules say
+/// `money_received`.
+const receivedFromPeopleKeys = [
+  'money_received',
+  'support_received',
+  'gifts_received',
+];
+
+/// Statement wording for a transfer from a person or a phone.
+const _transferFrom = [
+  'customer transfer from',
+  'funds received from',
+  'received from',
+];
+
+/// Words that make a sender a business, not a person.
+const _businessWords = {
+  'ltd',
+  'limited',
+  'plc',
+  'company',
+  'co',
+  'inc',
+  'enterprises',
+  'enterprise',
+  'traders',
+  'agencies',
+  'agency',
+  'services',
+  'solutions',
+  'consultants',
+  'consulting',
+  'investments',
+  'holdings',
+  'bank',
+  'sacco',
+  'fund',
+  'trust',
+  'foundation',
+  'group',
+  'chama',
+  'county',
+  'government',
+  'university',
+  'college',
+  'school',
+  'church',
+  'insurance',
+  'mpesa',
+  'pesa',
+  'safaricom',
+  'airtel',
+  'bulk',
+  'b2c',
+  'paybill',
+  'till',
+  'account',
+  'acc',
+  'reversal',
+  'refund',
+  'interest',
+  'dividend',
+};
+
+/// Money in that came from a person: M-PESA's "received from" a name (or a
+/// statement's transfer from a phone), with nothing in the name that makes
+/// it a business. Rules on the payee's words come first, so a salary or a
+/// bursary that names itself is not from a person.
+bool fromPerson(CategoriserInput input) {
+  if (!input.isInflow) return false;
+  final tokens = tokenise(input.payee);
+  bool named(String phrase) => _containsPhrase(tokens, phrase.split(' '));
+  final statementTransfer =
+      _transferFrom.any(named) ||
+      (input.kind == TransactionKind.bank && tokens.contains(phoneToken));
+  if (input.kind != TransactionKind.received && !statementTransfer) {
+    return false;
+  }
+  if (_inflowPayees.any((r) => [...r.payees, ...r.words].any(named))) {
+    return false;
+  }
+  final name = [
+    for (final t in tokens)
+      if (t != phoneToken &&
+          t != numToken &&
+          !const {
+            'customer',
+            'transfer',
+            'funds',
+            'received',
+            'from',
+          }.contains(t))
+        t,
+  ];
+  if (name.isEmpty) return input.kind == TransactionKind.received;
+  if (name.length > 4) return false;
+  return !name.any(
+    (t) => _businessWords.contains(t) || t.contains(RegExp('[0-9]')),
+  );
 }
 
 bool _containsPhrase(List<String> tokens, List<String> phrase) {

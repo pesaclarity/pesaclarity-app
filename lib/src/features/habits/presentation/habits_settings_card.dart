@@ -6,6 +6,7 @@ import '../../../shared/widgets/choice_menu.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../reminders/application/reminders_controller.dart';
+import '../../settings/application/week_start_provider.dart';
 import '../application/habits_providers.dart';
 import 'habits_text.dart';
 
@@ -61,7 +62,13 @@ class HabitsSettingsCard extends ConsumerWidget {
                     name: HabitsText.notifyMe,
                     options: [
                       for (final minute in HabitSettings.notifyChoices)
-                        (minute, notifyLabel(minute)),
+                        (
+                          minute,
+                          notifyLabel(
+                            minute,
+                            weekStartsOn: ref.watch(weekStartsOnProvider),
+                          ),
+                        ),
                     ],
                     value: settings.notifyMinuteOfDay,
                     itemKey: (minute) =>

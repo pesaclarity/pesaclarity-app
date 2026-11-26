@@ -1,3 +1,4 @@
+import '../../core/money/money.dart';
 import '../enums.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
@@ -83,23 +84,30 @@ class SpaceSummary {
         }
       }
       if (category?.key == 'member_loans' && e.isOutflow) loansOut++;
-      final counts =
-          role == LedgerRole.income ||
-          role == LedgerRole.spending ||
-          role == LedgerRole.tax;
-      if (category != null && counts) {
-        final (sum, income) = byCategory[category.name] ?? (0, e.isInflow);
-        byCategory[category.name] = (sum + e.amountMinor, income);
+      // As the totals count it: in the space's own currency, with a refund
+      // taking off what its category spent.
+      if (e.currency != BaseCurrency.code) continue;
+      final amount = role == LedgerRole.tax
+          ? e.amountMinor
+          : spendingOf(e) + incomeOf(e);
+      if (category != null && amount != 0) {
+        final income =
+            role == LedgerRole.income ||
+            (role == LedgerRole.reversal && e.isOutflow);
+        final (sum, isIncome) = byCategory[category.name] ?? (0, income);
+        byCategory[category.name] = (sum + amount, isIncome);
       }
     }
     final rows =
         [
-          for (final MapEntry(:key, :value) in byCategory.entries)
-            SummaryRow(name: key, amountMinor: value.$1, isIncome: value.$2),
-        ]..sort((a, b) {
-          if (a.isIncome != b.isIncome) return a.isIncome ? -1 : 1;
-          return b.amountMinor.compareTo(a.amountMinor);
-        });
+            for (final MapEntry(:key, :value) in byCategory.entries)
+              SummaryRow(name: key, amountMinor: value.$1, isIncome: value.$2),
+          ]
+          ..removeWhere((r) => r.amountMinor <= 0)
+          ..sort((a, b) {
+            if (a.isIncome != b.isIncome) return a.isIncome ? -1 : 1;
+            return b.amountMinor.compareTo(a.amountMinor);
+          });
 
     return SpaceSummary(
       kind: kind,

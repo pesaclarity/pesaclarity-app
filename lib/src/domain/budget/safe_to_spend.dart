@@ -1,4 +1,5 @@
 import '../../core/money/money.dart';
+import '../income/payday.dart';
 import '../ledger/ledger_entry.dart';
 import '../ledger/ledger_role.dart';
 import '../time/calendar.dart';
@@ -12,7 +13,8 @@ const minWeekendWeightPercent = 50;
 const maxWeekendWeightPercent = 300;
 
 /// How much the user can spend today without running out of their day-to-day
-/// budget before the month ends.
+/// budget before the period ends: the pay cycle when there is a regular
+/// payday (see [payCycleOf]), otherwise the calendar month.
 ///
 /// The limits are worked out from what was left at the start of today, so
 /// spending during the day lowers [leftTodayMinor] but not the limits
@@ -31,13 +33,18 @@ class SafeToSpend {
     required this.weekendLimitMinor,
     this.onHandMinor,
     this.goalsKeptMinor = 0,
+    this.periodFirst,
+    this.periodLast,
+    this.payCycle = false,
   });
 
   /// Works out today's limits.
   ///
-  /// [budgetMinor] is this month's day-to-day budget. [entries] may hold any
-  /// period: only day-to-day spending in [today]'s Nairobi month, up to and
-  /// including today, counts. Refunds in day-to-day categories reduce it.
+  /// [budgetMinor] is the period's day-to-day budget. The period runs from
+  /// [periodFirst] to [periodLast] (a pay cycle, see [payCycleOf]); without
+  /// them it is [today]'s calendar month. [entries] may hold any period:
+  /// only day-to-day spending in the period, up to and including today,
+  /// counts. Refunds in day-to-day categories reduce it.
   ///
   /// With goals kept aside ([goalsKeptMinor], already taken off
   /// [onHandMinor]), the days ahead share no more than the free money on
@@ -50,8 +57,17 @@ class SafeToSpend {
     String? currency,
     int? onHandMinor,
     int goalsKeptMinor = 0,
+    CalendarDate? periodFirst,
+    CalendarDate? periodLast,
   }) {
     currency ??= BaseCurrency.code;
+    final payCycle = periodFirst != null && periodLast != null;
+    final first = payCycle ? periodFirst : today.yearMonth.firstDay;
+    final last = payCycle ? periodLast : today.yearMonth.lastDay;
+    if (today.isBefore(first) || today.isAfter(last)) {
+      throw ArgumentError.value(today, 'today', 'must be in the period');
+    }
+    bool inPeriod(CalendarDate d) => !d.isBefore(first) && !d.isAfter(last);
     if (weekendWeightPercent <= 0) {
       throw ArgumentError.value(
         weekendWeightPercent,
@@ -59,13 +75,12 @@ class SafeToSpend {
         'must be positive',
       );
     }
-    final month = today.yearMonth;
     var before = 0;
     var onToday = 0;
     for (final entry in entries) {
       if (entry.currency != currency) continue;
       final date = entry.date;
-      if (!month.contains(date) || date.isAfter(today)) continue;
+      if (!inPeriod(date) || date.isAfter(today)) continue;
       final amount = dayToDaySpendOf(entry);
       if (date == today) {
         onToday += amount;
@@ -76,7 +91,7 @@ class SafeToSpend {
 
     var weekdays = 0;
     var weekendDays = 0;
-    for (var d = today; month.contains(d); d = d.addDays(1)) {
+    for (var d = today; inPeriod(d); d = d.addDays(1)) {
       d.isWeekend ? weekendDays++ : weekdays++;
     }
 
@@ -105,18 +120,28 @@ class SafeToSpend {
       weekendLimitMinor: weekendLimit,
       onHandMinor: onHandMinor,
       goalsKeptMinor: goalsKeptMinor,
+      periodFirst: first,
+      periodLast: last,
+      payCycle: payCycle,
     );
   }
 
   final CalendarDate today;
+
+  /// The period's first and last days, when worked out by [calculate].
+  final CalendarDate? periodFirst;
+  final CalendarDate? periodLast;
+
+  /// Whether the period is a pay cycle rather than the calendar month.
+  final bool payCycle;
   final int budgetMinor;
   final int spentBeforeTodayMinor;
   final int spentTodayMinor;
 
-  /// Weekdays left in the month, today included.
+  /// Weekdays left in the period, today included.
   final int weekdaysLeft;
 
-  /// Saturdays and Sundays left in the month, today included.
+  /// Saturdays and Sundays left in the period, today included.
   final int weekendDaysLeft;
   final int weekdayLimitMinor;
   final int weekendLimitMinor;
@@ -152,8 +177,8 @@ class SafeToSpend {
     return over > 0 ? over : 0;
   }
 
-  /// Day-to-day budget left this month after today's spending. Negative when
-  /// the budget is overspent.
+  /// Day-to-day budget left this period (pay cycle or month) after today's
+  /// spending. Negative when the budget is overspent.
   int get leftThisMonthMinor =>
       budgetMinor - spentBeforeTodayMinor - spentTodayMinor;
 
@@ -161,15 +186,47 @@ class SafeToSpend {
   bool get isBudgetUsedUp => budgetMinor - spentBeforeTodayMinor <= 0;
 }
 
+/// The pay cycle [today] falls in: from [payday]'s last arrival to the day
+/// before the next expected one, or to today once that is overdue. Null
+/// without a regular payday, when the calendar month is used instead.
+({CalendarDate first, CalendarDate last})? payCycleOf(
+  Payday? payday, {
+  required CalendarDate today,
+}) {
+  if (payday == null || payday.last.isAfter(today)) return null;
+  final end = payday.last.addDays(payday.gapDays - 1);
+  return (first: payday.last, last: end.isBefore(today) ? today : end);
+}
+
+/// A monthly day-to-day budget prorated to the days [first] to [last]: the
+/// budget times the period's days over the days from [first] to the same
+/// day a month later, so a monthly pay cycle gets the whole budget and a
+/// fortnight about half. A cycle of 28 to 31 days is a month's pay and
+/// keeps the whole budget. Rounded down.
+int prorateMonthlyBudget(
+  int monthlyMinor, {
+  required CalendarDate first,
+  required CalendarDate last,
+}) {
+  final days = first.daysUntil(last) + 1;
+  if (days >= 28 && days <= 31) return monthlyMinor;
+  final monthLater = _sameDayNextMonth(first);
+  final monthDays = first.daysUntil(monthLater);
+  return monthlyMinor * days ~/ monthDays;
+}
+
+/// The same day of the month after [d], or that month's last day.
+CalendarDate _sameDayNextMonth(CalendarDate d) {
+  final next = d.yearMonth.next;
+  final day = d.day > next.dayCount ? next.dayCount : d.day;
+  return CalendarDate(next.year, next.month, day);
+}
+
 /// What [entry] adds to day-to-day spending: its amount for spending in a
 /// day-to-day category, minus that for a refund in one, otherwise zero.
 int dayToDaySpendOf(LedgerEntry entry) {
   if (!entry.isDailySpending) return 0;
-  return switch (roleOf(entry)) {
-    LedgerRole.spending => entry.amountMinor,
-    LedgerRole.reversal when entry.isInflow => -entry.amountMinor,
-    _ => 0,
-  };
+  return spendingOf(entry);
 }
 
 /// Learns how much more the user spends on a weekend day than a weekday.

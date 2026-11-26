@@ -10,6 +10,7 @@ import '../../../domain/books/journal_balances.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/ledger_entry.dart';
 import '../../../domain/time/calendar.dart';
+import '../../settings/application/week_start_provider.dart';
 
 /// Days of history Activity loads at first; "Show older" adds as much again.
 const activityPageDays = 60;
@@ -21,7 +22,7 @@ final activityEntriesProvider =
     FutureProvider.family<List<LedgerEntry>, CalendarDate>((ref, from) async {
       ref.watch(ledgerChangesProvider);
       final today = CalendarDate.local(ref.watch(clockProvider)());
-      final monday = startOfWeek(today);
+      final monday = startOfWeek(today, ref.watch(weekStartsOnProvider));
       final start = from.isBefore(monday) ? from : monday;
       return ref
           .watch(transactionsRepositoryProvider)

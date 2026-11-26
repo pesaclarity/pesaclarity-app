@@ -2,6 +2,47 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
+## [0.5.9](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.8...v0.5.9) (2026-11-25)
+
+
+### Features
+
+* add group sync client for shared spaces, off by default ([6a0ef07](https://github.com/pesaclarity/pesaclarity-app/commit/6a0ef071c59e89ff178a489148aaa080a20a38d6))
+* add group sync client for shared spaces, off by default ([fda7187](https://github.com/pesaclarity/pesaclarity-app/commit/fda7187dc1b41822131e065a5ed97dec96ae5ef5))
+* **home:** money since payday ([6bea02c](https://github.com/pesaclarity/pesaclarity-app/commit/6bea02c7e1e17ebf082693195ad3d162d97cfaae))
+* **home:** show money since payday instead of the calendar month ([393932c](https://github.com/pesaclarity/pesaclarity-app/commit/393932c657d9a7e881c5eae98bb3500c3c946009))
+* rayo-only test builds and Model engine in Profile › About ([bccce39](https://github.com/pesaclarity/pesaclarity-app/commit/bccce3941b96c68d42deacbc246836c806b7a1a6))
+* rayo-only test builds, model engine in Profile › About, on-device model test ([349d078](https://github.com/pesaclarity/pesaclarity-app/commit/349d078dbe7fb05e1d774d7b4fb7151c63b2e466))
+* **sharing:** group sync screens behind the GROUP_SYNC switch ([d9d662b](https://github.com/pesaclarity/pesaclarity-app/commit/d9d662b0d83aaea7df82ce0499352beb95f4d566))
+* **sharing:** group sync screens behind the GROUP_SYNC switch ([aa7dab3](https://github.com/pesaclarity/pesaclarity-app/commit/aa7dab34d044fe63a2eab3af2356c83222a587e7))
+* **spaces:** group approvals for shared spaces ([90507d5](https://github.com/pesaclarity/pesaclarity-app/commit/90507d53bfb9c98eed809e99c217ad3df89e28bf))
+* **spaces:** group approvals for shared spaces ([c7d7c35](https://github.com/pesaclarity/pesaclarity-app/commit/c7d7c35fbdbec8d5437bb1b92b6968b9cfc8dcd7))
+* **spaces:** share a Household or chama space by encrypted file (0031 stage 1) ([58d60a8](https://github.com/pesaclarity/pesaclarity-app/commit/58d60a83813cc7831f3c8640c4fddd03e9052f6d))
+
+
+### Fixes
+
+* **activity:** keep a row's subtitle words whole at large text ([f5b3c7c](https://github.com/pesaclarity/pesaclarity-app/commit/f5b3c7cb3602de969463781aae04301d31eb4588))
+* **balances:** give old agent cash its Cash side, warn when cash is below zero ([657cc09](https://github.com/pesaclarity/pesaclarity-app/commit/657cc099b48df6f18a5e7cc4805ffba063a9e667))
+* **balances:** give old agent cash its Cash side, warn when cash is below zero ([c2a1079](https://github.com/pesaclarity/pesaclarity-app/commit/c2a10793cb5dee704dfcf237c3674d6466dd2d69))
+* **balances:** totals follow a corrected balance and leave out untracked lines ([22900c2](https://github.com/pesaclarity/pesaclarity-app/commit/22900c20a5f997157976699259f707280bcf758a))
+* **balances:** totals follow a corrected balance and leave out untracked lines ([0a6b1c7](https://github.com/pesaclarity/pesaclarity-app/commit/0a6b1c70222dc04f02c92f16a66d21b680e5e677))
+* **categoriser:** ship the model trained on payees as statements and SMS give them ([21bfe08](https://github.com/pesaclarity/pesaclarity-app/commit/21bfe080653e98b47845240b361cb5d0f4d276ad))
+* **categoriser:** ship the model trained on payees as statements and SMS give them ([ccb0c25](https://github.com/pesaclarity/pesaclarity-app/commit/ccb0c25fdb665914993b05ff2af26b39081332bf))
+* **ios:** list privacy permissions in the AltStore source ([4c35200](https://github.com/pesaclarity/pesaclarity-app/commit/4c352002da6edb905a873b9f4e4b56d52192e446))
+* **ios:** list privacy permissions in the AltStore source ([eb3f996](https://github.com/pesaclarity/pesaclarity-app/commit/eb3f9962ad2d1c46dbc752da357f3faa44d6099f))
+* **ledger:** agent cash goes into a Cash account ([5b031f0](https://github.com/pesaclarity/pesaclarity-app/commit/5b031f0c2a81d71548a45ed668b1fb2855d80ff4))
+* **ledger:** agent cash goes into a Cash account ([5d342db](https://github.com/pesaclarity/pesaclarity-app/commit/5d342dbfeb46f3af9b88de41079eb7e7e99de1d8))
+* **ledger:** cash at an agent is the person's own money ([f8b7d0e](https://github.com/pesaclarity/pesaclarity-app/commit/f8b7d0eb54da8b75217165012b064a1293883b39))
+* **ledger:** cash at an agent is the person's own money ([dae84c3](https://github.com/pesaclarity/pesaclarity-app/commit/dae84c3dd270f18c2f44227fa133c67cc22a5381))
+* **ledger:** count Fuliza's access fee once ([9ea1ba5](https://github.com/pesaclarity/pesaclarity-app/commit/9ea1ba51f095b4018c10c045e85c0cca4ba48f2a))
+* **ledger:** count Fuliza's access fee once ([a0d89a3](https://github.com/pesaclarity/pesaclarity-app/commit/a0d89a33f4c0b35b2821b4fc7e665a2024e64733))
+* safe to spend follows the pay cycle, not the calendar month ([28a60bd](https://github.com/pesaclarity/pesaclarity-app/commit/28a60bd45d32517b8f9a6812b1011d8b213a95e7))
+* safe to spend follows the pay cycle, not the calendar month ([d51778e](https://github.com/pesaclarity/pesaclarity-app/commit/d51778e81f75b7380bcf4696b4130c31922a4417))
+* **spaces:** join a shared space in two steps; scan codes with the camera ([4383640](https://github.com/pesaclarity/pesaclarity-app/commit/4383640c8de81b0b2690c917e93fdf0022193934))
+* **totals:** one spending rule, summary rows that add up, Plan refreshes ([6a0fc5f](https://github.com/pesaclarity/pesaclarity-app/commit/6a0fc5f32a34d98a67eee316f3e2ba49158a6bc8))
+* **totals:** one spending rule, summary rows that add up, Plan refreshes ([edf725e](https://github.com/pesaclarity/pesaclarity-app/commit/edf725ecb1a278e60152c249b1a7568f9c541661))
+
 ## [0.5.8](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.7...v0.5.8) (2026-11-23)
 
 

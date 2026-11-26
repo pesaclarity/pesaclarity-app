@@ -1,0 +1,65 @@
+name: Looks wrong
+description: Text is cut off, things overlap, colours or dark mode look off, or a screen doesn't fit your phone.
+labels: [ui, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Screenshots help most here. Blur or crop out anything real before you add them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What looks wrong
+      description: Which screen, and what you see.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: On Android, release builds block screenshots unless Profile › Security › Allow screenshots and screen recording is on.
+    validations:
+      required: true
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Light or dark mode
+      options:
+        - Light
+        - Dark
+        - Both
+        - Not sure
+  - type: dropdown
+    id: text_size
+    attributes:
+      label: Phone text or display size
+      description: Larger text settings often cause layouts to break.
+      options:
+        - Default
+        - Larger than default
+        - Smaller than default
+        - Not sure
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build
+      options:
+        - Android, Play build (play)
+        - Android, F-Droid build (foss)
+        - iPhone
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Profile › Build shows it.
+      placeholder: 0.5.7 · foss
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone model and system version
+      placeholder: Tecno Spark 10, Android 13
+    validations:
+      required: true
