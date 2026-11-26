@@ -213,8 +213,11 @@ class RayoSlmGenerator implements SlmGenerator {
       generator = RayoGenerator(
         model,
         tokenizer,
-        temperature: 0.3,
-        maxTokens: 320,
+        // Greedy, as the model was scored (pesaclarity-ml docs/SLM.md): the
+        // chart line has one right spelling.
+        temperature: 0,
+        repetitionPenalty: 1,
+        maxTokens: 200,
         context: 2048,
       );
     } on Object catch (e) {

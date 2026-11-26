@@ -123,14 +123,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SHA256: ${{ needs.slm-model.outputs.sha256 }}
+          ASSET: ${{ needs.slm-model.outputs.asset }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/slm"
-          gh release download slm-models -p smollm2-360m-instruct-q4.weights -D "$RUNNER_TEMP/slm" --clobber
-          echo "$SHA256  $RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" | shasum -a 256 -c -
+          gh release download slm-models -p "$ASSET" -D "$RUNNER_TEMP/slm" --clobber
+          echo "$SHA256  $RUNNER_TEMP/slm/$ASSET" | shasum -a 256 -c -
           for app in build/ios/iphoneos/Runner.app; do
             mkdir -p "$app/slm"
-            cp "$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" "$app/slm/"
+            cp "$RUNNER_TEMP/slm/$ASSET" "$app/slm/"
           done
 
       # An .ipa is the .app inside a Payload folder, zipped. Unsigned: the
@@ -177,10 +178,12 @@ jobs:
 
       - name: Build for the simulator
         if: inputs.simulator
+        env:
+          ASSET: ${{ needs.slm-model.outputs.asset }}
         run: |
           flutter build ios --simulator --debug --dart-define=RAYO_ONLY=true --dart-define=SLM_EXPERIMENT=true
           mkdir -p build/ios/iphonesimulator/Runner.app/slm
-          cp "$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights" build/ios/iphonesimulator/Runner.app/slm/
+          cp "$RUNNER_TEMP/slm/$ASSET" build/ios/iphonesimulator/Runner.app/slm/
 
       - uses: actions/upload-artifact@v7
         if: inputs.simulator

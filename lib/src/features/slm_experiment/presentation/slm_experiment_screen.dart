@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/slm_facts_loader.dart';
 import '../data/slm_generator.dart';
 import '../data/slm_model_licence.dart';
+import '../domain/slm_answer.dart';
 import '../domain/slm_facts.dart';
+import 'slm_chart_view.dart';
 
 /// The model the screen talks to: rayo only, closed with the screen.
 final slmGeneratorProvider = Provider.autoDispose<SlmGenerator>((ref) {
@@ -37,6 +39,18 @@ abstract final class SlmStrings {
       'A small model can get things wrong: check its numbers against '
       '"What the model saw".';
   static const licence = 'Model licence';
+  static const check = 'Check this number';
+  static const choseChart = 'Chart it picked';
+  static const noChart = 'No chart: its first line was not the chart schema';
+}
+
+/// The words of a reply as it comes in: the chart line is hidden once it
+/// starts with `{`, and its words appear after it.
+String slmShownWhileRunning(String raw) {
+  final t = raw.trimLeft();
+  if (!t.startsWith('{')) return t;
+  final nl = t.indexOf('\n');
+  return nl < 0 ? '' : t.substring(nl + 1).trimLeft();
 }
 
 class _Turn {
@@ -240,7 +254,15 @@ class _TurnView extends StatelessWidget {
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
-    final answer = turn.answer.toString().trim();
+    final raw = turn.answer.toString();
+    final parsed = turn.running ? null : SlmAnswer.parse(raw);
+    final answer = parsed?.text ?? slmShownWhileRunning(raw).trim();
+    final choice = parsed?.choice;
+    final input = turn.facts.input;
+    final flagged = parsed == null
+        ? const <String>[]
+        : ungroundedNumbers(answer, turn.facts.text);
+    final firstLine = raw.trimLeft().split('\n').first.trim();
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: Padding(
@@ -258,6 +280,28 @@ class _TurnView extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: LinearProgressIndicator(),
+              ),
+            if (flagged.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final n in flagged)
+                      Chip(
+                        key: Key('slm-check-$n'),
+                        avatar: const Icon(Icons.error_outline, size: 16),
+                        label: Text('${SlmStrings.check}: $n'),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ),
+            if (choice != null && choice.draws && input != null)
+              SlmChartView(
+                choice: choice,
+                points: slmChartPoints(input, choice),
               ),
             if (turn.error != null)
               Text(
@@ -277,7 +321,19 @@ class _TurnView extends StatelessWidget {
                     '${SlmStrings.saw} (${turn.facts.lineCount} facts)',
                     style: theme.textTheme.bodyMedium,
                   ),
-                  children: [SelectableText(turn.facts.text, style: muted)],
+                  children: [
+                    SelectableText(turn.facts.text, style: muted),
+                    if (parsed != null) ...[
+                      const SizedBox(height: 8),
+                      SelectableText(
+                        choice != null
+                            ? '${SlmStrings.choseChart}: $firstLine'
+                            : SlmStrings.noChart,
+                        key: const Key('slm-choice'),
+                        style: muted,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             if (turn.stats != null)

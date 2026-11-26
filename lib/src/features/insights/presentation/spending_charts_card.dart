@@ -188,7 +188,7 @@ class _BreakdownCard extends StatelessWidget {
               child: SizedBox.square(
                 dimension: 128,
                 child: CustomPaint(
-                  painter: _RingPainter(
+                  painter: SpendingRingPainter(
                     fractions: [
                       for (final s in chart.slices)
                         s.amountMinor / chart.totalMinor,
@@ -286,8 +286,10 @@ class _BreakdownCard extends StatelessWidget {
   }
 }
 
-class _RingPainter extends CustomPainter {
-  _RingPainter({required this.fractions, required this.colors});
+/// A ring of [fractions] (adding up to one) in [colors], as the spending
+/// breakdown draws it.
+class SpendingRingPainter extends CustomPainter {
+  SpendingRingPainter({required this.fractions, required this.colors});
 
   final List<double> fractions;
   final List<Color> colors;
@@ -320,7 +322,7 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) =>
+  bool shouldRepaint(SpendingRingPainter old) =>
       old.fractions != fractions || old.colors != colors;
 }
 

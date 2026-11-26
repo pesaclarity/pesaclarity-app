@@ -1,12 +1,15 @@
 // The model's licence, shown in the licences page of test builds only.
 
-/// SmolLM2-360M-Instruct, by Hugging Face (HuggingFaceTB), Apache-2.0.
-const slmModelName = 'SmolLM2-360M-Instruct';
+/// SmolLM2-__SIZE__-Instruct, by Hugging Face (HuggingFaceTB), Apache-2.0,
+/// fine-tuned by Pesa Clarity.
+const slmModelName = 'SmolLM2-__SIZE__-Instruct, fine-tuned';
 
 const slmModelAttribution =
-    'SmolLM2-360M-Instruct, by Hugging Face (huggingface.co/HuggingFaceTB/'
-    'SmolLM2-360M-Instruct), licensed under the Apache License 2.0. '
-    'Converted to 4-bit weights for rayo; no other changes.';
+    'Based on SmolLM2-__SIZE__-Instruct, by Hugging Face (huggingface.co/'
+    'HuggingFaceTB/SmolLM2-__SIZE__-Instruct), licensed under the Apache '
+    'License 2.0. Modified by Pesa Clarity: fine-tuned on made-up data to '
+    'pick a chart and explain the facts (pesaclarity-ml, docs/SLM.md), and '
+    'converted to 4-bit weights for rayo.';
 
 const slmModelLicence = r'''
 
