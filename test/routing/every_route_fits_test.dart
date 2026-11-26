@@ -4,10 +4,10 @@
 // it cannot be scrolled into view. On iPhone each pushed screen must also
 // close with the swipe in from the left edge.
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/routing/app_router.dart';
 import 'package:pesaclarity/src/routing/app_routes.dart';
 
