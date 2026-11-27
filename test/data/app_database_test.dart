@@ -932,9 +932,44 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 48);
+      expect(db.schemaVersion, 49);
       expect((await columns(db, 'transactions'))['lent_loan_id'], isFalse);
       await db.customStatement('PRAGMA user_version = 45');
+      await db.close();
+      final again = AppDatabase(NativeDatabase(file));
+      addTearDown(again.close);
+      expect(await userVersion(again), again.schemaVersion);
+    });
+
+    test('migrates a version 48 database: subcategories, every category '
+        'staying top-level, and is safe to run twice', () async {
+      final old = AppDatabase(NativeDatabase(file));
+      final before = await old.select(old.categories).get();
+      expect(before, isNotEmpty);
+      // SQLite cannot drop a column with a foreign key, so the version 48
+      // table is built again without it.
+      await old.customStatement('PRAGMA foreign_keys = OFF');
+      await old.customStatement(
+        'CREATE TABLE categories_48 AS SELECT id, key, name, type, '
+        'is_daily_spending, share_uid FROM categories',
+      );
+      await old.customStatement('DROP TABLE categories');
+      await old.customStatement(
+        'ALTER TABLE categories_48 RENAME TO categories',
+      );
+      await old.customStatement('PRAGMA user_version = 48');
+      await old.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      expect(await userVersion(db), db.schemaVersion);
+      expect(db.schemaVersion, 49);
+      expect((await columns(db, 'categories'))['parent_id'], isFalse);
+      final after = await db.select(db.categories).get();
+      expect(after.map((c) => (c.id, c.name)), [
+        for (final c in before) (c.id, c.name),
+      ]);
+      expect(after.every((c) => c.parentId == null), isTrue);
+      await db.customStatement('PRAGMA user_version = 48');
       await db.close();
       final again = AppDatabase(NativeDatabase(file));
       addTearDown(again.close);
@@ -971,7 +1006,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 48);
+      expect(db.schemaVersion, 49);
       expect((await columns(db, 'accounts'))['family_of'], isFalse);
       expect(
         (await columns(db, 'transactions'))['other_balance_minor'],
@@ -999,7 +1034,7 @@ void main() {
       await old.close();
       final db = AppDatabase(NativeDatabase(file));
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 48);
+      expect(db.schemaVersion, 49);
       expect(await columns(db, 'transactions'), contains('linked_receipt_no'));
       await db.customStatement('PRAGMA user_version = 43');
       await db.close();
@@ -1052,7 +1087,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 48);
+      expect(db.schemaVersion, 49);
       expect(
         (await columns(db, 'accounts')).keys,
         containsAll(['linked_space_id', 'linked_account_id']),
@@ -1232,7 +1267,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
       expect(await userVersion(db), db.schemaVersion);
-      expect(db.schemaVersion, 48);
+      expect(db.schemaVersion, 49);
       expect((await columns(db, 'accounts'))['product'], isFalse);
       expect((await columns(db, 'goals'))['saved_in_pocket_id'], isFalse);
       expect(

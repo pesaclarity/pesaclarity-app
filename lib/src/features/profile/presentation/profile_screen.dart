@@ -103,6 +103,14 @@ class ProfileScreen extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go(AppRoutes.payees),
     );
+    final categories = ListTile(
+      key: const Key('profile-categories'),
+      leading: const RowIcon(Icons.category_outlined),
+      title: const Text('Categories'),
+      subtitle: const Text('Names and subcategories'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go(AppRoutes.categories),
+    );
     final sources = ref.watch(incomeSourcesProvider).value;
     final income = ListTile(
       key: const Key('profile-income'),
@@ -320,6 +328,7 @@ class ProfileScreen extends ConsumerWidget {
       income,
       if (ref.watch(activeSpaceProvider).id == personalSpaceId) aboutYou,
       payees,
+      categories,
       currency,
       timezone,
       weekStarts,

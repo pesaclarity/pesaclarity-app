@@ -115,6 +115,12 @@ class Categories extends Table {
   /// Its stable id in a shared space (decision 0031): a UUID, the same on
   /// every member's phone. Given to every row, shared or not.
   TextColumn get shareUid => text().nullable()();
+
+  /// The category this is a subcategory of, such as Transport for Uber.
+  /// One level only: a parent never has a parent of its own. A
+  /// subcategory takes its parent's type and day-to-day setting, and its
+  /// money adds up into the parent everywhere totals are shown.
+  IntColumn get parentId => integer().nullable().references(Categories, #id)();
 }
 
 class Tags extends Table {

@@ -1853,7 +1853,9 @@ class AskEngine {
         if (e.currency == BaseCurrency.code &&
             period.contains(e.date) &&
             _flows(e, flow) &&
-            (category == null || _isKey(category, 'c', e.categoryId)) &&
+            (category == null ||
+                _isKey(category, 'c', e.categoryId) ||
+                _isKey(category, 'c', e.subcategoryId)) &&
             (payee == null || _isPayee(e, payee)) &&
             (account == null || _isKey(account, 'a', e.accountId)))
           e,

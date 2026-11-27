@@ -77,6 +77,7 @@ class SpendingChartsSection extends ConsumerWidget {
     final period = ref.watch(chartPeriodProvider);
     final chart = ref.watch(spendingChartProvider).value;
     final names = ref.watch(categoryNamesProvider).value ?? const {};
+    final subcategories = ref.watch(subcategoriesProvider).value ?? const {};
     final today = CalendarDate.local(ref.watch(clockProvider)());
     void open(ActivityFilter filter) =>
         context.go(AppRoutes.activityWith(filter));
@@ -108,7 +109,14 @@ class SpendingChartsSection extends ConsumerWidget {
             chart: chart,
             names: names,
             period: period,
-            onOpen: (key) => open(sliceFilter(key, chart.window, today)),
+            onOpen: (key) => switch (key) {
+              // A category with subcategories opens its breakdown; the
+              // ring keeps it as one slice.
+              CategorySlice(:final categoryId)
+                  when subcategories.containsKey(categoryId) =>
+                context.go(AppRoutes.categoryBreakdown(categoryId)),
+              _ => open(sliceFilter(key, chart.window, today)),
+            },
           ),
           const SizedBox(height: 12),
           _SoFarCard(chart: chart, period: period),

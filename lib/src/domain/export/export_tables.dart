@@ -227,6 +227,9 @@ ExportTable payeesTable(Iterable<ExportPayee> payees) => ExportTable(
 /// A category as the categories sheet shows it.
 typedef ExportCategory = ({
   String name,
+
+  /// The category this is a subcategory of; null for a top-level one.
+  String? parent,
   CategoryType type,
   bool isDailySpending,
   bool isOwn,
@@ -234,11 +237,18 @@ typedef ExportCategory = ({
 
 ExportTable categoriesTable(Iterable<ExportCategory> categories) => ExportTable(
   title: 'Categories',
-  columns: const ['Category', 'Type', 'Day-to-day spending', 'Added by you'],
+  columns: const [
+    'Category',
+    'Parent',
+    'Type',
+    'Day-to-day spending',
+    'Added by you',
+  ],
   rows: [
     for (final c in categories)
       [
         c.name,
+        c.parent ?? '',
         categoryTypeLabel(c.type),
         c.isDailySpending ? 'Yes' : 'No',
         c.isOwn ? 'Yes' : 'No',

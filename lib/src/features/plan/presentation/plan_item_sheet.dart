@@ -158,6 +158,9 @@ class _PlanItemFormState extends ConsumerState<PlanItemForm> {
             selectedId: categories.any((c) => c.id == _categoryId)
                 ? _categoryId
                 : null,
+            // Budgets stay on top-level categories, which take in their
+            // subcategories' spending.
+            topLevelOnly: true,
             onChanged: (v) => setState(() => _categoryId = v),
           ),
           const SizedBox(height: 16),

@@ -1050,7 +1050,11 @@ LedgerEntry _toLedgerEntry(
       : held
       ? waiting.categoryId
       : applied.categoryId;
-  final category = categoryId == null ? null : categories[categoryId];
+  final own = categoryId == null ? null : categories[categoryId];
+  // A subcategory adds up into its parent, and takes its type and
+  // day-to-day setting.
+  final parent = own?.parentId == null ? null : categories[own!.parentId];
+  final category = parent ?? own;
   return LedgerEntry(
     id: record.id,
     accountId: record.accountId,
@@ -1061,7 +1065,8 @@ LedgerEntry _toLedgerEntry(
     currency: converted ? converter!.base : record.currency,
     feeMinor: inBase(record.feeMinor)!,
     payeeId: record.payeeId,
-    categoryId: categoryId,
+    categoryId: parent?.id ?? categoryId,
+    subcategoryId: parent == null ? null : own!.id,
     categoryType: held ? CategoryType.transfer : category?.type,
     isDailySpending: !held && (category?.isDailySpending ?? false),
     categoryIsAuto: !saved && !held && applied.isCategoryAuto,

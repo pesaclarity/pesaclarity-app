@@ -94,7 +94,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 48;
+  int get schemaVersion => 49;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -438,6 +438,11 @@ class AppDatabase extends _$AppDatabase {
           }
         }
         await createShareTriggers(this);
+      }
+      // Subcategories: a category can sit under another, such as Uber
+      // under Transport. Every existing category stays top-level.
+      if (from < 49) {
+        await _addColumnIfMissing(m, categories, categories.parentId);
       }
       // Plain English names: the seeded giving category, unless renamed.
       if (from < 17) {

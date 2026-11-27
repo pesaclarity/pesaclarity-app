@@ -221,6 +221,39 @@ void main() {
     expect(checkTemplate(a.template, a.facts.keys.toSet()), isTrue);
   });
 
+  test(
+    'transport takes in its subcategories; Uber answers from its own',
+    () async {
+      final uber = LedgerEntry(
+        id: _id++,
+        accountId: 1,
+        occurredAt: eat(2026, 10, 12),
+        amountMinor: kes(345),
+        direction: TransactionDirection.outflow,
+        kind: TransactionKind.till,
+        categoryId: 2,
+        subcategoryId: 5,
+        categoryType: CategoryType.expense,
+      );
+      final engine = AskEngine(
+        source: _WithUber([...source.all, uber]),
+        reader: RuleQuestionReader(today: () => today),
+      );
+      final transport = (await engine.ask(
+        'How much did I spend on transport last month?',
+        context: AskContext.empty,
+        now: now,
+      )).answer;
+      expect(transport.figureMinor, kes(945));
+      final only = (await engine.ask(
+        'How much did I spend on uber last month?',
+        context: AskContext.empty,
+        now: now,
+      )).answer;
+      expect(only.figureMinor, kes(345));
+    },
+  );
+
   test('a follow-up keeps food and October and adds Naivas', () async {
     final first = await engine.ask(
       'How much did I spend on food last month?',
@@ -839,4 +872,14 @@ void main() {
     expect(a.kind, ReplyKind.hi);
     expect(a.suggestions, isNotEmpty);
   });
+}
+
+class _WithUber extends _Source {
+  _WithUber(super.all);
+
+  @override
+  Future<List<AskEntity>> entities() async => [
+    ...await super.entities(),
+    const AskEntity(SlotKind.category, 'c:5', 'Uber'),
+  ];
 }

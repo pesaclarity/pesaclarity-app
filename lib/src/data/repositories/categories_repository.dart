@@ -13,11 +13,28 @@ abstract interface class CategoriesRepository {
   /// Creates a category, or returns the id of one with the same name
   /// (ignoring case and spacing). Throws [ArgumentError] for an empty or
   /// over-long name.
+  ///
+  /// With [parentId], creates a subcategory of that top-level category,
+  /// which takes its type and day-to-day setting whatever is passed.
+  /// Throws [ArgumentError] when the parent is itself a subcategory or is
+  /// missing, and [CategoryNameTaken] when the name is used elsewhere. A
+  /// top-level category of the same name and type, with no subcategories
+  /// or budgets, moves under the parent instead.
   Future<int> create({
     required String name,
     required CategoryType type,
     bool isDailySpending = false,
+    int? parentId,
   });
+
+  /// Renames a category. Throws [ArgumentError] for an empty or over-long
+  /// name and [CategoryNameTaken] for one another category has.
+  Future<void> rename(int id, String name);
+
+  /// Deletes subcategory [id]. Its transactions, payees and budgets move to
+  /// its parent, so nothing drops out of the parent's totals. Throws
+  /// [ArgumentError] for a top-level category.
+  Future<void> deleteSubcategory(int id);
 
   /// Creates a category from a transaction, as [create], and sets it as
   /// that transaction's override. Returns the category id.
@@ -42,6 +59,18 @@ abstract interface class CategoriesRepository {
   Stream<Map<int, int>> watchUsage();
 }
 
+/// A category name another category already has. Names are unique
+/// across the whole list, subcategories included.
+class CategoryNameTaken implements Exception {
+  const CategoryNameTaken(this.name);
+
+  /// The name as the other category has it.
+  final String name;
+
+  @override
+  String toString() => 'There is already a category called $name';
+}
+
 class DriftCategoriesRepository implements CategoriesRepository {
   DriftCategoriesRepository(this._db);
 
@@ -57,24 +86,118 @@ class DriftCategoriesRepository implements CategoriesRepository {
     required String name,
     required CategoryType type,
     bool isDailySpending = false,
+    int? parentId,
   }) => _db.transaction(() async {
     final clean = cleanCategoryName(name);
     if (clean == null) {
       throw ArgumentError.value(name, 'name', 'must be 1 to 60 characters');
     }
+    final all = await _db.select(_db.categories).get();
+    Category? parent;
+    if (parentId != null) {
+      parent = all.where((c) => c.id == parentId).firstOrNull;
+      if (parent == null || parent.parentId != null) {
+        throw ArgumentError.value(
+          parentId,
+          'parentId',
+          'must be a top-level category',
+        );
+      }
+    }
     final wanted = categoryNameKey(clean);
-    for (final c in await _db.select(_db.categories).get()) {
-      if (categoryNameKey(c.name) == wanted) return c.id;
+    for (final c in all) {
+      if (categoryNameKey(c.name) != wanted) continue;
+      if (c.parentId == parentId) return c.id;
+      // A top-level category of the same kind, such as the seeded Fuel,
+      // moves under the parent: its money then adds up there too. Not one
+      // with subcategories of its own, or with budgets, which stay on
+      // top-level categories.
+      if (parent != null &&
+          c.parentId == null &&
+          c.id != parent.id &&
+          c.type == parent.type &&
+          !all.any((o) => o.parentId == c.id) &&
+          !await _hasBudget(c.id)) {
+        await (_db.update(
+          _db.categories,
+        )..where((r) => r.id.equals(c.id))).write(
+          CategoriesCompanion(
+            parentId: Value(parent.id),
+            isDailySpending: Value(parent.isDailySpending),
+          ),
+        );
+        return c.id;
+      }
+      throw CategoryNameTaken(c.name);
     }
     return _db
         .into(_db.categories)
         .insert(
           CategoriesCompanion.insert(
             name: clean,
-            type: type,
-            isDailySpending: Value(isDailySpending),
+            type: parent?.type ?? type,
+            isDailySpending: Value(parent?.isDailySpending ?? isDailySpending),
+            parentId: Value(parentId),
           ),
         );
+  });
+
+  Future<bool> _hasBudget(int categoryId) async =>
+      await (_db.select(_db.budgetItems)
+            ..where((b) => b.categoryId.equals(categoryId))
+            ..limit(1))
+          .getSingleOrNull() !=
+      null;
+
+  @override
+  Future<void> rename(int id, String name) => _db.transaction(() async {
+    final clean = cleanCategoryName(name);
+    if (clean == null) {
+      throw ArgumentError.value(name, 'name', 'must be 1 to 60 characters');
+    }
+    final wanted = categoryNameKey(clean);
+    for (final c in await _db.select(_db.categories).get()) {
+      if (c.id != id && categoryNameKey(c.name) == wanted) {
+        throw CategoryNameTaken(c.name);
+      }
+    }
+    await (_db.update(_db.categories)..where((c) => c.id.equals(id))).write(
+      CategoriesCompanion(name: Value(clean)),
+    );
+  });
+
+  @override
+  Future<void> deleteSubcategory(int id) => _db.transaction(() async {
+    final sub = await (_db.select(
+      _db.categories,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    final parentId = sub?.parentId;
+    if (sub == null || parentId == null) {
+      throw ArgumentError.value(id, 'id', 'not a subcategory');
+    }
+    for (final sql in [
+      'UPDATE transactions SET category_override_id = ? '
+          'WHERE category_override_id = ?',
+      'UPDATE transactions SET auto_category_id = ? '
+          'WHERE auto_category_id = ?',
+      'UPDATE payees SET default_category_id = ? '
+          'WHERE default_category_id = ?',
+      'UPDATE budget_items SET category_id = ? WHERE category_id = ?',
+      'UPDATE recurring SET category_id = ? WHERE category_id = ?',
+      // What the categoriser learnt about it now points at the parent.
+      'UPDATE OR IGNORE category_corrections SET category_id = ? '
+          'WHERE category_id = ?',
+      'UPDATE OR IGNORE category_confirmations SET category_id = ? '
+          'WHERE category_id = ?',
+    ]) {
+      await _db.customStatement(sql, [parentId, id]);
+    }
+    // Month-end results are kept per top-level category already.
+    await _db.customStatement(
+      'DELETE FROM budget_snapshots WHERE category_id = ?',
+      [id],
+    );
+    await (_db.delete(_db.categories)..where((c) => c.id.equals(id))).go();
   });
 
   @override

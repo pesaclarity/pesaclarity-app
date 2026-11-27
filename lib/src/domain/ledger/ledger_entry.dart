@@ -16,6 +16,7 @@ class LedgerEntry {
     this.feeMinor = 0,
     this.payeeId,
     this.categoryId,
+    this.subcategoryId,
     this.categoryType,
     this.isDailySpending = false,
     this.categoryIsAuto = false,
@@ -74,7 +75,19 @@ class LedgerEntry {
   final int? payeeId;
 
   /// The category override, or else the payee's default category.
+  ///
+  /// Always a top-level category: a subcategory's money adds up into its
+  /// parent here, and [subcategoryId] says which subcategory it was.
   final int? categoryId;
+
+  /// The subcategory of [categoryId] the transaction is in, such as Uber
+  /// under Transport; null for the parent itself.
+  final int? subcategoryId;
+
+  /// The category the person sees on the transaction: the subcategory when
+  /// there is one.
+  int? get ownCategoryId => subcategoryId ?? categoryId;
+
   final CategoryType? categoryType;
 
   /// Whether [categoryId] counts towards the day-to-day budget.
@@ -194,6 +207,7 @@ class LedgerEntry {
     feeMinor: feeMinor,
     payeeId: payeeId,
     categoryId: categoryId,
+    subcategoryId: subcategoryId,
     categoryType: categoryType,
     isDailySpending: isDailySpending,
     categoryIsAuto: categoryIsAuto,
