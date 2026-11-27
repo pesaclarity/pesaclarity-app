@@ -18,6 +18,7 @@ import '../../activity/presentation/add_transaction_sheet.dart';
 import '../../balances/presentation/balance_text.dart';
 import '../../balances/presentation/balance_warning.dart';
 import '../../plan/presentation/budget_alert_cards.dart';
+import '../../review/presentation/review_spike_card.dart';
 import '../../settings/application/week_start_provider.dart';
 import '../../support/presentation/support_card.dart';
 import '../application/home_period_providers.dart';
@@ -79,6 +80,7 @@ class PersonalHome extends ConsumerWidget {
         // Real problems, each on its own.
         const CashBelowZeroCard(),
         const WhatWasThisCard(),
+        const ReviewSpikeCard(),
         for (final alert in over)
           BudgetAlertCard(
             alert,
