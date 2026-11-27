@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
+import '../../../data/database/app_database.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/journal_repository.dart';
 import '../../../data/repositories/tags_repository.dart';
 import '../../../data/repositories/transactions_repository.dart';
+import '../../../domain/insights/category_breakdown.dart';
 import '../../../domain/insights/findings.dart';
 import '../../../domain/insights/first_insight.dart';
 import '../../../domain/insights/insights_summary.dart';
@@ -126,3 +128,47 @@ final findingsProvider = FutureProvider<List<Finding>>((ref) async {
       );
   return findingsFor(entries, today: today, journal: await readJournal(ref));
 });
+
+/// Subcategories by their parent's id, in name order.
+final subcategoriesProvider = StreamProvider<Map<int, List<Category>>>(
+  (ref) => ref.watch(categoriesRepositoryProvider).watchAll().map((all) {
+    final out = <int, List<Category>>{};
+    for (final c in all) {
+      if (c.parentId case final parent?) (out[parent] ??= []).add(c);
+    }
+    return out;
+  }),
+);
+
+/// A top-level category's spending in the [ChartPeriod] holding today,
+/// split by subcategory. Updates as the ledger changes.
+final categoryBreakdownProvider =
+    FutureProvider.family<CategoryBreakdown, (int, ChartPeriod)>((
+      ref,
+      key,
+    ) async {
+      final (categoryId, period) = key;
+      ref.watch(ledgerChangesProvider);
+      final today = CalendarDate.local(ref.watch(clockProvider)());
+      final window = ChartWindow.of(
+        period,
+        today,
+        weekStartsOn: ref.watch(weekStartsOnProvider),
+      );
+      final previous = window.previous(period);
+      // A month before the previous window lets Fuliza repayments find
+      // their draws.
+      final entries = await ref
+          .watch(transactionsRepositoryProvider)
+          .ledgerEntries(
+            from: previous.start.yearMonth.previous.startInstant,
+            to: window.end.startInstant,
+          );
+      return CategoryBreakdown.of(
+        entries,
+        categoryId: categoryId,
+        window: window,
+        previous: previous,
+        journal: await readJournal(ref),
+      );
+    });

@@ -125,6 +125,17 @@ abstract final class AppRoutes {
   /// What the business may owe in tax, as an estimate.
   static const tax = '/insights/tax';
 
+  /// Insights › a category's spending by subcategory.
+  static String categoryBreakdown(int categoryId) =>
+      '/insights/category/$categoryId';
+
+  /// Profile › Categories.
+  static const categories = '/home/profile/categories';
+
+  /// Profile › Categories › one category and its subcategories.
+  static String category(int categoryId) =>
+      '/home/profile/categories/$categoryId';
+
   /// A business's cash book.
   static const money = '/money';
 

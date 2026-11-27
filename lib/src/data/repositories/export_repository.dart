@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/categories/subcategories.dart';
 import '../../domain/export/export_tables.dart';
 import '../../domain/payees/payee_identifier.dart';
 import '../database/app_database.dart';
@@ -26,7 +27,7 @@ abstract interface class ExportRepository {
 
   Future<List<ExportAccount>> accounts();
 
-  /// Category names by id.
+  /// Category names by id; subcategories as "Transport › Uber".
   Future<Map<int, String>> categoryNames();
 
   /// Tag names by id.
@@ -148,17 +149,22 @@ class DriftExportRepository implements ExportRepository {
   }
 
   @override
-  Future<List<ExportCategory>> categories() async => [
-    for (final c in await (_db.select(
+  Future<List<ExportCategory>> categories() async {
+    final all = await (_db.select(
       _db.categories,
-    )..orderBy([(c) => OrderingTerm.asc(c.name)])).get())
-      (
-        name: c.name,
-        type: c.type,
-        isDailySpending: c.isDailySpending,
-        isOwn: c.key == null,
-      ),
-  ];
+    )..orderBy([(c) => OrderingTerm.asc(c.name)])).get();
+    final names = {for (final c in all) c.id: c.name};
+    return [
+      for (final c in all)
+        (
+          name: c.name,
+          parent: c.parentId == null ? null : names[c.parentId],
+          type: c.type,
+          isDailySpending: c.isDailySpending,
+          isOwn: c.key == null,
+        ),
+    ];
+  }
 
   @override
   Future<List<({String name, int count})>> tags() async {
@@ -192,9 +198,10 @@ class DriftExportRepository implements ExportRepository {
   ];
 
   @override
-  Future<Map<int, String>> categoryNames() async => {
-    for (final c in await _db.select(_db.categories).get()) c.id: c.name,
-  };
+  Future<Map<int, String>> categoryNames() async => categoryPaths([
+    for (final c in await _db.select(_db.categories).get())
+      (id: c.id, name: c.name, parentId: c.parentId),
+  ]);
 
   @override
   Future<Map<int, String>> tagNames() async => {

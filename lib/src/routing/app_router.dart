@@ -35,6 +35,7 @@ import '../features/home/presentation/things_to_sort_screen.dart';
 import '../features/hours/presentation/hours_screen.dart';
 import '../features/income/presentation/income_sources_screen.dart';
 import '../features/income/presentation/week_by_week_screen.dart';
+import '../features/insights/presentation/category_breakdown_screen.dart';
 import '../features/invoices/presentation/invoices_screen.dart';
 import '../features/invoices/presentation/make_invoice_screen.dart';
 import '../features/lending/presentation/lending_screen.dart';
@@ -43,6 +44,7 @@ import '../features/onboarding/presentation/about_you_screen.dart';
 import '../features/onboarding/presentation/first_insight_screen.dart';
 import '../features/onboarding/presentation/my_accounts_screen.dart';
 import '../features/onboarding/presentation/welcome_screen.dart';
+import '../features/payees/presentation/categories_screen.dart';
 import '../features/payees/presentation/payees_screen.dart';
 import '../features/people/presentation/people_screen.dart';
 import '../features/people/presentation/reminder_messages_screen.dart';
@@ -329,6 +331,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         builder: (context, state) => const PayeesScreen(),
                       ),
                       AppRoute(
+                        path: 'categories',
+                        builder: (context, state) => const CategoriesScreen(),
+                        routes: [
+                          AppRoute(
+                            path: ':id',
+                            builder: (context, state) => CategoryScreen(
+                              categoryId: int.parse(
+                                state.pathParameters['id']!,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      AppRoute(
                         path: 'currency',
                         builder: (context, state) => const BaseCurrencyScreen(),
                         routes: [
@@ -508,6 +524,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   AppRoute(
                     path: 'tax',
                     builder: (context, state) => const TaxScreen(),
+                  ),
+                  AppRoute(
+                    path: 'category/:id',
+                    builder: (context, state) => CategoryBreakdownScreen(
+                      categoryId: int.parse(state.pathParameters['id']!),
+                    ),
                   ),
                 ],
               ),

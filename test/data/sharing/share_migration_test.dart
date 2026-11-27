@@ -76,7 +76,7 @@ void main() {
       await old.close();
 
       var db = AppDatabase(NativeDatabase(file));
-      expect(await _version(db), 48);
+      expect(await _version(db), 49);
       final first = await db.select(db.transactions).getSingle();
       final cash = await db.select(db.accounts).getSingle();
       expect(first.shareUid, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4')));
@@ -94,7 +94,7 @@ void main() {
 
       db = AppDatabase(NativeDatabase(file));
       addTearDown(db.close);
-      expect(await _version(db), 48);
+      expect(await _version(db), 49);
       expect(
         (await db.select(db.transactions).getSingle()).shareUid,
         first.shareUid,
