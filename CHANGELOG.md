@@ -2,6 +2,14 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
+## [0.5.11](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.10...v0.5.11) (2026-11-27)
+
+
+### Features
+
+* **ask:** fine-tuned Light money model ([6537d19](https://github.com/pesaclarity/pesaclarity-app/commit/6537d199f46b508cd47a719fa032142a1dbb9c4f))
+* **ask:** the fine-tuned Light money model in the catalogue ([3d1c286](https://github.com/pesaclarity/pesaclarity-app/commit/3d1c286d4356b11aa859c8c62be670ddb769c418))
+
 ## [0.5.10](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.9...v0.5.10) (2026-11-26)
 
 
