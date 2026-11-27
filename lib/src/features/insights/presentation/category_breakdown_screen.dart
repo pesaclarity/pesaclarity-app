@@ -9,6 +9,7 @@ import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/time/calendar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/widgets/amounts_hidden.dart';
+import '../../../shared/widgets/beside_or_under.dart';
 import '../../../shared/widgets/sections.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../theme/layout.dart';
@@ -170,28 +171,27 @@ class CategoryBreakdownScreen extends ConsumerWidget {
                         ),
                       ),
                       minLeadingWidth: 8,
-                      title: Text(rowName(row)),
+                      // The amount moves under the name where it would
+                      // otherwise break a word.
+                      title: BesideOrUnder(
+                        lead: Text(rowName(row)),
+                        end: Text(
+                          shownMoney(
+                            context,
+                            row.amountMinor,
+                            withCurrency: true,
+                          ),
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
                       subtitle: Text(
                         '${_count(row.count)} · '
                         '${breakdown.percentOf(row)}%',
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            shownMoney(
-                              context,
-                              row.amountMinor,
-                              withCurrency: true,
-                            ),
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: colors.textMuted,
-                          ),
-                        ],
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: colors.textMuted,
                       ),
                       onTap: () => open(row),
                     ),
