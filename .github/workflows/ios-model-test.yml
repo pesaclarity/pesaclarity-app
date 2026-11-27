@@ -107,13 +107,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SHA256: ${{ needs.slm-model.outputs.sha256 }}
+          ASSET: ${{ needs.slm-model.outputs.asset }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/slm"
-          gh release download slm-models -p smollm2-360m-instruct-q4.weights -D "$RUNNER_TEMP/slm" --clobber
-          model="$RUNNER_TEMP/slm/smollm2-360m-instruct-q4.weights"
+          gh release download slm-models -p "$ASSET" -D "$RUNNER_TEMP/slm" --clobber
+          model="$RUNNER_TEMP/slm/$ASSET"
           echo "$SHA256  $model" | shasum -a 256 -c -
           flutter test integration_test/ask_model_test.dart -d "$SIMULATOR" \
             --dart-define=RAYO_ONLY=true \
             --dart-define=SLM_MODEL_PATH="$model" 2>&1 | tee "$RUNNER_TEMP/slm.log"
-          grep "SLM stats" "$RUNNER_TEMP/slm.log" >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E "SLM (stats|choice|answer|check)" "$RUNNER_TEMP/slm.log" >> "$GITHUB_STEP_SUMMARY" || true
