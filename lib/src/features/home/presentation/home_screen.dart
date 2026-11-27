@@ -26,6 +26,7 @@ import '../../business_insights/application/business_report_providers.dart';
 import '../../hours/application/hours_providers.dart';
 import '../../hours/presentation/log_hours_sheet.dart';
 import '../../income/application/income_providers.dart';
+import '../../review/presentation/review_spike_card.dart';
 import '../../sales/application/sales_providers.dart';
 import '../../sales/presentation/pay_sheet.dart';
 import '../../sales/presentation/records_sheets.dart';
@@ -135,6 +136,7 @@ class HomeScreen extends ConsumerWidget {
                       const BusinessSetupCard(),
                     const SharedLineCard(),
                     const CashBelowZeroCard(),
+                    const ReviewSpikeCard(),
                     const NotYetSortedCard(),
                     const WhatWasThisCard(),
                     if (sources.irregular) const WeekByWeekCard(),
