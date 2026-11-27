@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -354,7 +355,9 @@ class AskModelController extends Notifier<AskModelState> {
     );
     final client = ref.read(askModelHttpClientProvider)();
     try {
-      final file = await files.download(
+      // A phone drops long downloads now and then (the screen locks, the
+      // network changes); carry on from the part file a few times first.
+      Future<File> fetch() => files.download(
         model,
         client: client,
         cancel: cancel,
@@ -376,6 +379,18 @@ class AskModelController extends Notifier<AskModelState> {
           );
         },
       );
+      File? file;
+      for (var attempt = 1; file == null; attempt++) {
+        try {
+          file = await fetch();
+        } on AskModelDownloadFailure catch (e) {
+          debugPrint('Ask model download, try $attempt: ${e.reason}');
+          if (cancel.cancelled || attempt >= _downloadTries || !_retryable(e)) {
+            rethrow;
+          }
+          await Future<void>.delayed(Duration(seconds: 2 * attempt));
+        }
+      }
       await _device.excludeFromBackup(file.path);
       state = state.copyWith(phase: AskModelPhase.checking);
       if (!await ref.read(askModelWarmUpProvider)(file.path)) {
@@ -450,3 +465,11 @@ final askModelGeneratorProvider = Provider<SlmGenerator?>((ref) {
   ref.onDispose(generator.close);
   return generator;
 });
+
+const _downloadTries = 4;
+
+bool _retryable(AskModelDownloadFailure e) => !const {
+  'the file did not match',
+  'larger than expected',
+  'cancelled',
+}.contains(e.reason);
