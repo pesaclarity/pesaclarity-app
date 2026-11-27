@@ -22,7 +22,7 @@ void main() {
   )..where((c) => c.key.equals(key))).getSingle()).id;
 
   test(
-    'confirming sets the category, remembers the payee and logs it',
+    'confirming sets the category for that transaction only and logs it',
     () async {
       final account = await db
           .into(db.accounts)
@@ -78,10 +78,8 @@ void main() {
         db.transactions,
       )..where((t) => t.id.equals(id))).getSingle();
       expect(stored.categoryOverrideId, eatingOut);
-      expect(await repo.watchCorrections().first, {
-        'id:till:000111': eatingOut,
-        'name:tamu tamu hotel': eatingOut,
-      });
+      // Nothing is remembered for the payee until asked.
+      expect(await repo.watchCorrections().first, isEmpty);
 
       final log = await db.select(db.categoryConfirmations).getSingle();
       expect(log.accepted, isFalse);
@@ -97,9 +95,70 @@ void main() {
         encodeFeatures(categoriserInput(entry).features),
       );
 
-      // A later choice for the same payee replaces the earlier one.
-      await repo.confirm(entry, categoryId: groceries, at: at);
+      // "Use for all" remembers it; a later one replaces it.
+      await repo.useForPayee(entry, categoryId: eatingOut, at: at);
+      expect(await repo.watchCorrections().first, {
+        'id:till:000111': eatingOut,
+        'name:tamu tamu hotel': eatingOut,
+      });
+      await repo.useForPayee(entry, categoryId: groceries, at: at);
       expect((await repo.watchCorrections().first).values.toSet(), {groceries});
     },
   );
+
+  test('one payee transaction changes alone until "Use for all"', () async {
+    final account = await db
+        .into(db.accounts)
+        .insert(
+          AccountsCompanion.insert(
+            name: 'M-Pesa',
+            type: AccountType.mpesa,
+            openingDate: DateTime.utc(2026, 9),
+          ),
+        );
+    final payee = await db
+        .into(db.payees)
+        .insert(PayeesCompanion.insert(displayName: 'Mama Pima Stores'));
+    final at = DateTime.utc(2026, 10, 27, 6);
+    Future<int> add() => db
+        .into(db.transactions)
+        .insert(
+          TransactionsCompanion.insert(
+            accountId: account,
+            occurredAt: at,
+            amountMinor: 30000,
+            direction: TransactionDirection.outflow,
+            source: TransactionSource.sms,
+            payeeId: Value(payee),
+          ),
+        );
+    final first = await add();
+    final second = await add();
+    final entry = LedgerEntry(
+      id: first,
+      accountId: account,
+      occurredAt: at,
+      amountMinor: 30000,
+      direction: TransactionDirection.outflow,
+      kind: TransactionKind.till,
+      payeeId: payee,
+      payeeName: 'Mama Pima Stores',
+    );
+    final groceries = await category('groceries');
+    Future<TransactionRecord> read(int id) =>
+        (db.select(db.transactions)..where((t) => t.id.equals(id))).getSingle();
+    Future<Payee> stored() =>
+        (db.select(db.payees)..where((p) => p.id.equals(payee))).getSingle();
+
+    await repo.confirm(entry, categoryId: groceries, at: at);
+    expect((await read(first)).categoryOverrideId, groceries);
+    final other = await read(second);
+    expect(other.categoryOverrideId, isNull);
+    expect(other.autoCategoryId, isNull);
+    expect((await stored()).defaultCategoryId, isNull);
+
+    await repo.useForPayee(entry, categoryId: groceries, at: at);
+    expect((await stored()).defaultCategoryId, groceries);
+    expect((await read(second)).autoCategoryId, groceries);
+  });
 }

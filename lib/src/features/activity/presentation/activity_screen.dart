@@ -337,7 +337,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           loanLabel: loanLabel,
           categories: categories,
           suggest: (e) => suggester?.suggest(e),
-          onAccept: (e, s) => confirmCategory(ref, e, s.categoryId, s),
+          onAccept: (e, s) => confirmCategory(context, e, s.categoryId, s),
           base: base,
           code: code,
           fulizaAuto: fulizaAuto,
