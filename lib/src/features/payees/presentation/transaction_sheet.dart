@@ -1,8 +1,10 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/documents_repository.dart';
+import '../../../data/repositories/payees_repository.dart';
 import '../../../data/repositories/purpose_repository.dart';
 import '../../../data/repositories/space_move_repository.dart';
 import '../../../data/repositories/tax_repository.dart';
@@ -20,6 +22,8 @@ import '../../../shared/widgets/states.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/pesa_colors.dart';
 import '../../balances/presentation/own_transfer_sheets.dart';
+import '../../categoriser/application/categoriser_providers.dart';
+import '../../categoriser/presentation/category_suggestion_sheet.dart';
 import '../../currency/presentation/payment_rate_card.dart';
 import '../../documents/presentation/receipt_sheet.dart';
 import '../../income/presentation/what_was_this_sheet.dart';
@@ -147,11 +151,32 @@ class _Body extends ConsumerWidget {
             payee != null &&
             id == payee.defaultCategoryId &&
             !detail.needsPurpose;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final payees = ref.read(payeesRepositoryProvider);
+        final categories = ref.read(categoryListProvider).value ?? const [];
         await repo.setOverride(detail.record.id, followsPayee ? null : id);
         if (id != null) {
           await ref
               .read(purposeRepositoryProvider)
               .noteChoice(detail.record.id, id);
+        }
+        // Only this transaction changes; the payee's others on a tap.
+        final name = categories.where((c) => c.id == id).firstOrNull?.name;
+        if (payee != null &&
+            id != null &&
+            name != null &&
+            !followsPayee &&
+            !detail.needsPurpose &&
+            messenger != null) {
+          offerUseForPayee(
+            messenger,
+            category: name,
+            payee: payee.displayName,
+            onUse: () async {
+              await payees.update(payee.id, defaultCategoryId: Value(id));
+              await repo.setOverride(detail.record.id, null);
+            },
+          );
         }
     }
   }
