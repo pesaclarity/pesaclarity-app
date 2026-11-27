@@ -71,7 +71,7 @@ jobs:
     steps:
       - id: check
         env:
-          ENABLED: ${{ vars.PLAY_UPLOADS_ENABLED }}
+          ENABLED: ${{ vars.PLAY_UPLOADS_ENABLED || secrets.PLAY_UPLOADS_ENABLED }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$GITHUB_EVENT_NAME" = pull_request ] ||
             [ "$ENABLED" = true ]; then
