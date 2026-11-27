@@ -380,6 +380,7 @@ Future<void> confirmReminder(
   final share = await showAdaptiveDialog<bool>(
     context: context,
     builder: (context) => AlertDialog.adaptive(
+      scrollable: true,
       title: Text('Reminder for $person'),
       content: Text(message),
       actions: [

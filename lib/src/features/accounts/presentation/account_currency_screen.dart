@@ -108,6 +108,7 @@ class _ChangeCurrencyDialog extends StatelessWidget {
         ? 'The 1 you added before stays in $from.'
         : 'The $count you added before stay in $from.';
     return AlertDialog.adaptive(
+      scrollable: true,
       key: const Key('account-currency-change'),
       title: Text('Count ${account.name} in $to?'),
       content: Column(

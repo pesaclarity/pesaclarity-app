@@ -481,6 +481,7 @@ class _NameDialogState extends State<_NameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
+    scrollable: true,
     title: const Text('Save this report'),
     content: LabeledField(
       label: 'Name',

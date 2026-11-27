@@ -2,6 +2,22 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
+## [0.5.10](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.9...v0.5.10) (2026-11-26)
+
+
+### Features
+
+* **ask:** local money model for better answers on capable phones ([#431](https://github.com/pesaclarity/pesaclarity-app/issues/431)) ([15ec566](https://github.com/pesaclarity/pesaclarity-app/commit/15ec5667f6750b700135939791c17c02574618fc))
+* **categoriser:** transport, salary and money from people ([f6caf25](https://github.com/pesaclarity/pesaclarity-app/commit/f6caf2556a03564721400e7fb153d24015c54063))
+* **categoriser:** transport, salary and money from people ([8493fc6](https://github.com/pesaclarity/pesaclarity-app/commit/8493fc68181772b5d3647b7a7fdaea862637efe9))
+* on-phone language model experiment (test builds only) ([78e809e](https://github.com/pesaclarity/pesaclarity-app/commit/78e809ee6d9580a0aab96f9da6facec4475276aa))
+* on-phone language model experiment for test builds ([d3567e4](https://github.com/pesaclarity/pesaclarity-app/commit/d3567e44a0b8ff07426954ca984a32de098eb7a5))
+
+
+### Fixes
+
+* **play:** update only through Google Play ([#433](https://github.com/pesaclarity/pesaclarity-app/issues/433)) ([4e0b134](https://github.com/pesaclarity/pesaclarity-app/commit/4e0b134d40e7975822fbd8aefc7f9dbfacd7e7cb))
+
 ## [0.5.9](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.8...v0.5.9) (2026-11-25)
 
 

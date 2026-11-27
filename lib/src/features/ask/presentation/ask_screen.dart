@@ -632,6 +632,7 @@ Future<String?> _askTitle(BuildContext context, String current) {
   return showDialog<String>(
     context: context,
     builder: (dialog) => AlertDialog(
+      scrollable: true,
       title: const Text(AskStrings.renameTitle),
       content: TextField(
         key: const Key('ask-rename-field'),

@@ -585,6 +585,7 @@ class _LineSheetState extends ConsumerState<LineSheet> {
       final yes = await showAdaptiveDialog<bool>(
         context: context,
         builder: (context) => AlertDialog.adaptive(
+          scrollable: true,
           title: const Text(LinesText.mergeQuestion),
           content: Text(
             LinesText.mergeBody(

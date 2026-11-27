@@ -79,7 +79,7 @@ jobs:
   play:
     name: Upload to Google Play
     needs: release-please
-    if: needs.release-please.outputs.released == 'true' && vars.PLAY_PACKAGE_NAME != ''
+    if: needs.release-please.outputs.released == 'true'
     permissions:
       contents: read
       pull-requests: read

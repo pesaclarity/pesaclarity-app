@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesaclarity/src/config/flavor.dart';
 import 'package:pesaclarity/src/features/sms/data/sms_source.dart';
 
 import '../helpers/fake_sms_source.dart';
@@ -96,6 +97,25 @@ void main() {
     sms.current = SmsAccess.granted;
     await tapText(tester, 'I have allowed it');
     expect(find.text('Found 1 transaction'), findsOneWidget);
+  });
+
+  testAppWidgets('the Play build never points to Obtainium', (tester) async {
+    final sms = FakeSmsSource(
+      inbox: [mpesaSent()],
+      dialogAnswer: SmsAccess.blocked,
+    );
+    addTearDown(sms.close);
+    await pumpApp(
+      tester,
+      db: openTestDatabase(),
+      sms: sms,
+      flavor: AppFlavor.play,
+    );
+    await toScan(tester);
+
+    await tapText(tester, 'Allow access to messages');
+    expect(find.text('Allow messages in Settings'), findsOneWidget);
+    expect(find.textContaining('Obtainium'), findsNothing);
   });
 
   testAppWidgets('Do this later skips the scan', (tester) async {

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/links.dart';
 import '../../../routing/app_routes.dart';
 import '../../../shared/semantic_ids.dart';
@@ -20,6 +21,9 @@ class SmsScanScreen extends ConsumerWidget {
     final state = ref.watch(smsScanControllerProvider);
     final controller = ref.read(smsScanControllerProvider.notifier);
     void finish() => finishSetup(context, ref);
+    // The Play build installs and updates only through Google Play, so it
+    // never sends people to Obtainium.
+    final fromPlay = ref.watch(appFlavorProvider) == AppFlavor.play;
     final busy =
         state.stage == SmsScanStage.asking ||
         state.stage == SmsScanStage.scanning;
@@ -120,22 +124,24 @@ class SmsScanScreen extends ConsumerWidget {
               const ExplainBody(
                 'On some phones the ⋮ menu is at the bottom of App info.',
               ),
-              const SizedBox(height: 16),
-              const ExplainHeading('Xiaomi, Redmi or POCO?'),
-              const SizedBox(height: 8),
-              const ExplainBody(
-                'If SMS says App was denied access and ⋮ has no Allow '
-                'restricted settings, install Pesa Clarity through Obtainium, '
-                'a free app store. Apps it installs can read SMS.',
-              ),
-              TextButton(
-                key: const Key('sms-install-guide'),
-                onPressed: () => launchUrl(
-                  Uri.parse(installGuideUrl),
-                  mode: LaunchMode.externalApplication,
+              if (!fromPlay) ...[
+                const SizedBox(height: 16),
+                const ExplainHeading('Xiaomi, Redmi or POCO?'),
+                const SizedBox(height: 8),
+                const ExplainBody(
+                  'If SMS says App was denied access and ⋮ has no Allow '
+                  'restricted settings, install Pesa Clarity through '
+                  'Obtainium, a free app store. Apps it installs can read SMS.',
                 ),
-                child: const Text('How to install with Obtainium'),
-              ),
+                TextButton(
+                  key: const Key('sms-install-guide'),
+                  onPressed: () => launchUrl(
+                    Uri.parse(installGuideUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: const Text('How to install with Obtainium'),
+                ),
+              ],
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: controller.openSettings,
