@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ujumbe/ujumbe.dart' show SmsMessage;
 
 import '../../../core/ml/rayo_retry.dart';
 import '../../../data/database/app_database.dart';
@@ -17,6 +18,7 @@ import '../../../domain/reader/reading_template.dart';
 import '../../accounts/application/mpesa_lines_providers.dart';
 import '../../accounts/domain/institution.dart';
 import '../../ask/data/ask_model_store.dart' show AssetReader;
+import '../../sms/application/sms_capture_providers.dart';
 import '../data/rayo_reader_runtime.dart';
 import '../data/reader_store.dart';
 import 'review_draft.dart';
@@ -119,15 +121,17 @@ class ReviewController {
 
   /// Adds [draft] for [item] and clears the message text. With [sameWay],
   /// keeps the layout so later messages like it are read without asking;
-  /// only fields the person left as suggested become part of it.
-  Future<void> confirm(
+  /// only fields the person left as suggested become part of it, and the
+  /// other messages waiting here from the same sender are read again with
+  /// it at once. Returns how many of those it read; the rest stay.
+  Future<int> confirm(
     ReviewItem item,
     ReviewDraft draft, {
     required MessageReading reading,
     required bool sameWay,
   }) async {
     final institution = _institution(item.institutionId);
-    if (institution == null || !draft.isComplete) return;
+    if (institution == null || !draft.isComplete) return 0;
     final when = draft.occurredAt(item.receivedAt);
     final currency = draft.currency ?? institution.pack.currency;
     final accountId = await _ref
@@ -149,15 +153,50 @@ class ReviewController {
       ),
     ]);
     final body = item.body;
+    var learned = false;
     if (sameWay && body != null) {
       final template = learnTemplate(body, reading, draft);
       if (template != null) {
         await _ref
             .read(readerTemplatesRepositoryProvider)
             .add(item.institutionId, template);
+        learned = true;
       }
     }
     await _ref.read(reviewInboxRepositoryProvider).resolve(item.id);
+    return learned ? readWaitingAgain(institution) : 0;
+  }
+
+  /// Reads the messages from [institution] still waiting here again, the
+  /// way a newly arrived message is read, so those that fit a saved layout
+  /// are added and leave. One already stored adds nothing. Returns how many
+  /// left.
+  Future<int> readWaitingAgain(Institution institution) async {
+    final inbox = _ref.read(reviewInboxRepositoryProvider);
+    final waiting = [
+      for (final i in await inbox.pending())
+        if (i.institutionId == institution.id &&
+            i.body != null &&
+            i.reason != whichLineReason &&
+            i.reason != pochiAskReason)
+          i,
+    ];
+    if (waiting.isEmpty) return 0;
+    await _ref
+        .read(smsIngestorProvider)
+        .ingest(
+          [
+            for (final i in waiting)
+              SmsMessage(
+                sender: i.sender,
+                body: i.body!,
+                receivedAt: i.receivedAt,
+              ),
+          ],
+          [institution],
+        );
+    final still = {for (final i in await inbox.pending()) i.id};
+    return waiting.where((i) => !still.contains(i.id)).length;
   }
 
   /// The account [item]'s messages feed, made the first time it is needed.

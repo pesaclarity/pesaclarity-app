@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' show sha256;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pesaclarity/src/data/database/app_database.dart';
@@ -291,5 +292,73 @@ void main() {
       await tester.runAsync(() => db.select(db.transactions).get()),
       isEmpty,
     );
+  });
+
+  testAppWidgets('adding one message reads the others waiting in its layout', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    final other = SmsMessage(
+      sender: 'MPESA',
+      body:
+          'Notice: wallet top up of KES 300.00 queued for MAPLE STORES, '
+          'code ZX98CV76BN, check back later.',
+      receivedAt: DateTime.utc(2026, 10, 31, 8),
+    );
+    final sms = FakeSmsSource(
+      inbox: [
+        _newWording(),
+        _newWording(amount: '80.00', payee: 'SUNRISE BAKERY', day: 30),
+        other,
+      ],
+    );
+    addTearDown(sms.close);
+    await pumpApp(
+      tester,
+      db: db,
+      sms: sms,
+      overrides: [
+        messageReaderProvider.overrideWith(
+          (ref) async => const RuleMessageReader(),
+        ),
+      ],
+    );
+    await finishOnboarding(tester);
+    await openThingsToSort(tester);
+    await tester.tap(find.byKey(const Key('home-review')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('EXAMPLE GROCERS'));
+    await tester.pumpAndSettle();
+    await tapText(tester, 'Add a transaction');
+    expect(
+      find.text(
+        'Added to Activity. Also read 1 more message with this layout.',
+      ),
+      findsOneWidget,
+    );
+
+    Future<List<TransactionRecord>> rows() async =>
+        (await tester.runAsync(() => db.select(db.transactions).get()))!;
+    expect(
+      (await rows()).map((r) => r.amountMinor),
+      unorderedEquals([125000, 8000]),
+    );
+    final waiting = (await tester.runAsync(
+      () => (db.select(
+        db.reviewItems,
+      )..where((r) => r.resolvedAt.isNull())).get(),
+    ))!;
+    expect(waiting.single.body, other.body);
+
+    // Reading again adds nothing twice.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold).first),
+    );
+    final mpesa = institutionCatalogue.singleWhere((i) => i.id == 'mpesa');
+    final again = await tester.runAsync(
+      () => container.read(reviewControllerProvider).readWaitingAgain(mpesa),
+    );
+    expect(again, 0);
+    expect(await rows(), hasLength(2));
   });
 }

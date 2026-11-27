@@ -63,6 +63,14 @@ Color fieldColor(BuildContext context, ReaderField field) {
   };
 }
 
+/// What the person is told once a message is added, with [more] other
+/// waiting messages read the same way.
+String addedMessage(int more) => switch (more) {
+  0 => 'Added to Activity.',
+  1 => 'Added to Activity. Also read 1 more message with this layout.',
+  _ => 'Added to Activity. Also read $more more messages with this layout.',
+};
+
 /// One message: the text with its fields marked, the suggested values to
 /// confirm or change, and the choice to read the same layout without
 /// asking next time.
@@ -92,15 +100,19 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
   int? _otherAccountId;
   int? _feeMinor;
 
-  Future<void> _finish(Future<void> Function() action, String done) async {
+  Future<void> _finish(
+    Future<Object?> Function() action,
+    String done, {
+    String Function(Object? result)? doneWith,
+  }) async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
-      await action();
+      final result = await action();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(done)));
+        ..showSnackBar(SnackBar(content: Text(doneWith?.call(result) ?? done)));
       navigator.pop();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -262,6 +274,7 @@ class _ReviewMessageScreenState extends ConsumerState<ReviewMessageScreen> {
                               sameWay: _sameWay,
                             ),
                         'Added to Activity.',
+                        doneWith: (more) => addedMessage(more as int? ?? 0),
                       ),
                 child: const Text('Add a transaction'),
               ),
