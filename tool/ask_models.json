@@ -1,13 +1,13 @@
 [
   {
-    "tier": "full",
-    "file": "smollm2-360m-instruct-q4.weights",
-    "url": "https://github.com/pesaclarity/pesaclarity-app/releases/download/slm-models/smollm2-360m-instruct-q4.weights",
-    "size": 208232000,
-    "sha256": "c61f077175dad85fed4a9e3b5463e9a5469cb12a00a9d2f45bce2db71a6c0ff7",
-    "min_ram_mb": 4096,
-    "parameters": "360M",
+    "tier": "light",
+    "file": "pesaclarity-smollm2-135m-trim-int8.weights",
+    "url": "https://github.com/pesaclarity/pesaclarity-app/releases/download/slm-models/pesaclarity-smollm2-135m-trim-int8.weights",
+    "size": 110371968,
+    "sha256": "656ec8e42e5bbc0ce4f1686664f201b810a30bcdd4ba797ef4998c372b2031cc",
+    "min_ram_mb": 3072,
+    "parameters": "135M",
     "licence": "Apache-2.0",
-    "credit": "SmolLM2 by Hugging Face"
+    "credit": "SmolLM2 by Hugging Face, fine-tuned for Pesa Clarity"
   }
 ]

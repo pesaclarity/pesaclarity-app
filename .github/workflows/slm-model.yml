@@ -1,8 +1,8 @@
 name: Ask money models
 
 # Ask's money models, which people download on their phone when they ask
-# for them (Ask settings; tool/ask_models.json): Light (SmolLM2-135M) and
-# Full (SmolLM2-360M), fine-tuned on synthetic data only to pick a chart and
+# for them (Ask settings; tool/ask_models.json): Light (SmolLM2-135M),
+# fine-tuned on synthetic data only to pick a chart and
 # explain the app's facts (pesaclarity-ml, docs/SLM.md and
 # .github/workflows/slm-fine-tune.yml and slm-lean.yml, which train them from
 # Hugging Face's files checked against pinned revisions, convert them with
@@ -29,16 +29,17 @@ permissions:
   contents: write
 
 env:
-  LIGHT: __LIGHT_FILE__
-  LIGHT_SHA256: __LIGHT_SHA__
-  FULL: __FULL_FILE__
-  FULL_SHA256: __FULL_SHA__
+  # Light: SmolLM2-135M-Instruct fine-tuned, vocabulary trimmed, int8
+  # (pesaclarity-ml docs/SLM-EVAL.md). The 360M model missed the score bars,
+  # so there is no Full model yet.
+  LIGHT: pesaclarity-smollm2-135m-trim-int8.weights
+  LIGHT_SHA256: 656ec8e42e5bbc0ce4f1686664f201b810a30bcdd4ba797ef4998c372b2031cc
   TAG: slm-models
   ML_REPO: pesaclarity/pesaclarity-ml
 
 jobs:
   model:
-    name: Light and Full for rayo
+    name: Light for rayo
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
@@ -52,7 +53,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           sums="$(gh release download "$TAG" -p SHA256SUMS -O - 2>/dev/null || true)"
-          if echo "$sums" | grep -qxF "$LIGHT_SHA256  $LIGHT" && echo "$sums" | grep -qxF "$FULL_SHA256  $FULL"; then
+          if echo "$sums" | grep -qxF "$LIGHT_SHA256  $LIGHT"; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
@@ -65,10 +66,10 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
-          gh release download "$TAG" -R "$ML_REPO" -p "$LIGHT" -p "$FULL" -p SHA256SUMS \
+          gh release download "$TAG" -R "$ML_REPO" -p "$LIGHT" -p SHA256SUMS \
             -p MODEL-LICENCE.txt -p 'SLM-*.md' --clobber
           mv SHA256SUMS ML-SHA256SUMS
-          printf '%s  %s\n%s  %s\n' "$LIGHT_SHA256" "$LIGHT" "$FULL_SHA256" "$FULL" > SHA256SUMS
+          printf '%s  %s\n' "$LIGHT_SHA256" "$LIGHT" > SHA256SUMS
           sha256sum -c SHA256SUMS
           # The sources they were trained from, as pesaclarity-ml lists them.
           grep '  source-' ML-SHA256SUMS >> SHA256SUMS || true
@@ -84,8 +85,8 @@ jobs:
           cd "$RUNNER_TEMP"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease \
             --title "Ask money models" \
-            --notes "Ask's downloadable money models (Light and Full). See tool/ask_models.json."
-          gh release upload "$TAG" "$LIGHT" "$FULL" SHA256SUMS MODEL-LICENCE.txt SLM-*.md --clobber
+            --notes "Ask's downloadable money models. See tool/ask_models.json."
+          gh release upload "$TAG" "$LIGHT" SHA256SUMS MODEL-LICENCE.txt SLM-*.md --clobber
 
       - id: done
         name: The release's checksum
@@ -95,6 +96,5 @@ jobs:
         run: |
           sums="$(gh release download "$TAG" -p SHA256SUMS -O -)"
           echo "$sums" | grep -qxF "$LIGHT_SHA256  $LIGHT"
-          echo "$sums" | grep -qxF "$FULL_SHA256  $FULL"
           echo "sha256=$LIGHT_SHA256" >> "$GITHUB_OUTPUT"
           echo "asset=$LIGHT" >> "$GITHUB_OUTPUT"
