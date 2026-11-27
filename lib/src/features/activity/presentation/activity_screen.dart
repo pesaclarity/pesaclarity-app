@@ -11,6 +11,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/app_settings_repository.dart';
 import '../../../data/repositories/fuliza_tracking.dart';
 import '../../../domain/accounts/mpesa_family.dart';
+import '../../../domain/categories/subcategories.dart';
 import '../../../domain/categoriser/suggester.dart';
 import '../../../domain/ledger/activity_feed.dart';
 import '../../../domain/ledger/activity_lines.dart';
@@ -175,8 +176,18 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     // With more than one currency, every amount shows its code.
     final code = others.isEmpty ? null : base;
 
-    String? categoryName(LedgerEntry e) =>
-        e.categoryId == null ? null : categories[e.categoryId]?.name;
+    // A subcategory shows with its parent: "Transport › Uber".
+    String? categoryName(LedgerEntry e) {
+      final own = categories[e.ownCategoryId];
+      if (own == null) return null;
+      return categoryPath(
+        own.name,
+        parentName: own.parentId == null
+            ? null
+            : categories[own.parentId]?.name,
+      );
+    }
+
     // A loan in Lent and borrowed reads as one: "Lent to Grace".
     final loans = ref.watch(loanLinksProvider).value ?? const {};
     String? loanLabel(LedgerEntry e) => switch (loans[e.id]) {
@@ -326,7 +337,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
           loanLabel: loanLabel,
           categories: categories,
           suggest: (e) => suggester?.suggest(e),
-          onAccept: (e, s) => confirmCategory(ref, e, s.categoryId, s),
+          onAccept: (e, s) => confirmCategory(context, e, s.categoryId, s),
           base: base,
           code: code,
           fulizaAuto: fulizaAuto,

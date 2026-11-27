@@ -5,6 +5,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/repositories/categories_repository.dart';
 import '../../../data/repositories/fuliza_tracking.dart';
 import '../../../domain/categories/default_categories.dart';
+import '../../../domain/categories/subcategories.dart';
 import '../../../domain/export/export_tables.dart';
 import '../../../domain/lending/loan_link.dart';
 import '../../../shared/adaptive/adaptive.dart';
@@ -55,6 +56,7 @@ Future<CategoryChoice?> pickCategory(
   bool Function(CategoryType type)? allowType,
   List<LoanLink> loanLinks = const [],
   LoanLink? selectedLink,
+  bool topLevelOnly = false,
 }) => showAppSheet<CategoryChoice>(
   context: context,
   // Stays above the keyboard while the search box is in use.
@@ -72,6 +74,7 @@ Future<CategoryChoice?> pickCategory(
         allowType: allowType,
         loanLinks: loanLinks,
         selectedLink: selectedLink,
+        topLevelOnly: topLevelOnly,
       ),
     ),
   ),
@@ -113,8 +116,12 @@ class CategoryPicker extends ConsumerStatefulWidget {
     this.allowType,
     this.loanLinks = const [],
     this.selectedLink,
+    this.topLevelOnly = false,
     super.key,
   });
+
+  /// Offers top-level categories only, as budgets take.
+  final bool topLevelOnly;
 
   final ScrollController? controller;
   final int? selectedId;
@@ -146,6 +153,14 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
   bool _creating = false;
   bool _showAll = false;
 
+  /// Parents open to show their subcategories.
+  final _open = <int>{};
+
+  /// The parent whose "New subcategory" field is showing, if any.
+  int? _addingUnder;
+  final _subName = TextEditingController();
+  bool _openedSelected = false;
+
   @override
   void initState() {
     super.initState();
@@ -155,16 +170,28 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
   @override
   void dispose() {
     _query.dispose();
+    _subName.dispose();
     super.dispose();
   }
 
-  Future<void> _create(String name) async {
+  Future<void> _create(String name, {Category? parent}) async {
     setState(() => _creating = true);
     final navigator = Navigator.of(context);
-    final id = await ref
-        .read(categoriesRepositoryProvider)
-        .create(name: name, type: _newType);
-    if (mounted) navigator.pop(ChosenCategory(id));
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      final id = await ref
+          .read(categoriesRepositoryProvider)
+          .create(
+            name: name,
+            type: parent?.type ?? _newType,
+            parentId: parent?.id,
+          );
+      if (mounted) navigator.pop(ChosenCategory(id));
+    } on CategoryNameTaken catch (e) {
+      if (!mounted) return;
+      setState(() => _creating = false);
+      messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   @override
@@ -176,17 +203,65 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
     final all = [
       for (final c in ref.watch(categoriesProvider).value ?? const <Category>[])
         if ((widget.allowType?.call(c.type) ?? true) &&
+            (!widget.topLevelOnly || c.parentId == null) &&
             (fuliza ||
                 c.key != fulizaRepaymentCategoryKey ||
                 c.id == widget.selectedId))
           c,
     ];
-    final usage = ref.watch(categoryUsageProvider).value ?? const {};
+    final rawUsage = ref.watch(categoryUsageProvider).value ?? const {};
     final query = _query.text.trim();
     final key = categoryNameKey(query);
+    final byId = {for (final c in all) c.id: c};
+    // Subcategories sit under their parent; one whose parent is not
+    // offered here stands on its own.
+    final children = <int, List<Category>>{};
+    for (final c in all) {
+      if (c.parentId case final p? when byId.containsKey(p)) {
+        (children[p] ??= []).add(c);
+      }
+    }
+    bool isTop(Category c) =>
+        c.parentId == null || !byId.containsKey(c.parentId);
+    String path(Category c) => categoryPath(
+      c.name,
+      parentName: isTop(c) ? null : byId[c.parentId]!.name,
+    );
+    final tops = [
+      for (final c in all)
+        if (isTop(c)) c,
+    ];
+    // Subcategories in the order they were made.
+    for (final list in children.values) {
+      list.sort((a, b) => a.id.compareTo(b.id));
+    }
+    // A parent's use counts its subcategories'.
+    final usage = <int, int>{};
+    for (final MapEntry(key: id, value: n) in rawUsage.entries) {
+      final c = byId[id];
+      if (c == null) continue;
+      final top = isTop(c) ? id : c.parentId!;
+      usage[top] = (usage[top] ?? 0) + n;
+    }
+    final selected = byId[widget.selectedId];
+    final selectedTop = selected == null
+        ? null
+        : isTop(selected)
+        ? selected.id
+        : selected.parentId;
+    if (!_openedSelected && selectedTop != null) {
+      _openedSelected = true;
+      if (children.containsKey(selectedTop)) _open.add(selectedTop);
+    }
+    // Searching lists every match flat, a subcategory by its full name:
+    // "Uber" finds "Transport › Uber".
     final shown = [
       for (final c in all)
-        if (key.isEmpty || categoryNameKey(c.name).contains(key)) c,
+        if (key.isEmpty
+            ? isTop(c)
+            : categoryNameKey(c.name).contains(key) ||
+                  categoryNameKey(path(c)).contains(key))
+          c,
     ];
     final clean = cleanCategoryName(query);
     final canCreate =
@@ -201,18 +276,100 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
       (groups[c.type] ??= []).add(c);
     }
 
-    final mostUsed = key.isEmpty && !_showAll && all.length > shortListLimit
-        ? mostUsedCategories(all, usage, selectedId: widget.selectedId)
+    final mostUsed = key.isEmpty && !_showAll && tops.length > shortListLimit
+        ? mostUsedCategories(tops, usage, selectedId: selectedTop)
         : null;
 
     final linked = widget.selectedLink;
-    Widget tile(Category c) => ListTile(
-      title: Text(c.name),
-      trailing: linked == null && c.id == widget.selectedId
-          ? const Icon(Icons.check)
-          : null,
-      onTap: () => Navigator.of(context).pop(ChosenCategory(c.id)),
-    );
+    final accent = theme.colorScheme.primary;
+    // The chosen one reads in the accent colour with a tick, no fill.
+    Widget choice(
+      Category c, {
+      required String title,
+      String? subtitle,
+      double indent = 0,
+    }) {
+      final on = linked == null && c.id == widget.selectedId;
+      return ListTile(
+        key: Key(
+          'category-${c.id}${indent > 0 && c.parentId == null ? '-only' : ''}',
+        ),
+        contentPadding: EdgeInsetsDirectional.only(start: 16 + indent, end: 16),
+        title: Text(
+          title,
+          style: on
+              ? TextStyle(color: accent, fontWeight: FontWeight.w600)
+              : null,
+        ),
+        subtitle: subtitle == null ? null : Text(subtitle),
+        trailing: on ? Icon(Icons.check, color: accent) : null,
+        onTap: () => Navigator.of(context).pop(ChosenCategory(c.id)),
+      );
+    }
+
+    List<Widget> tile(Category c) {
+      final subs = children[c.id];
+      if (key.isNotEmpty) return [choice(c, title: path(c))];
+      if (subs == null) return [choice(c, title: c.name)];
+      final open = _open.contains(c.id);
+      return [
+        ListTile(
+          key: Key('category-parent-${c.id}'),
+          title: Text(c.name),
+          subtitle: open
+              ? Text('Pick one below, or keep it as ${c.name}')
+              : null,
+          trailing: Icon(open ? Icons.expand_less : Icons.expand_more),
+          onTap: () =>
+              setState(() => open ? _open.remove(c.id) : _open.add(c.id)),
+        ),
+        if (open) ...[
+          choice(
+            c,
+            title: '${c.name} only',
+            subtitle: 'No subcategory',
+            indent: 32,
+          ),
+          for (final sub in subs) choice(sub, title: sub.name, indent: 32),
+          if (_addingUnder == c.id)
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(48, 0, 16, 8),
+              child: TextField(
+                key: const Key('new-subcategory-name'),
+                controller: _subName,
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'New subcategory of ${c.name}',
+                ),
+                onSubmitted: (v) {
+                  final name = cleanCategoryName(v);
+                  if (name != null && !_creating) _create(name, parent: c);
+                },
+              ),
+            )
+          else
+            ListTile(
+              key: Key('new-subcategory-${c.id}'),
+              contentPadding: const EdgeInsetsDirectional.only(
+                start: 48,
+                end: 16,
+              ),
+              leading: const Icon(Icons.add),
+              minLeadingWidth: 0,
+              title: Text(
+                'New subcategory of ${c.name}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () => setState(() {
+                _subName.clear();
+                _addingUnder = c.id;
+              }),
+            ),
+        ],
+      ];
+    }
+
     final loans = [
       for (final link in widget.loanLinks)
         if (key.isEmpty || categoryNameKey(link.label).contains(key)) link,
@@ -309,19 +466,19 @@ class _CategoryPickerState extends ConsumerState<CategoryPicker> {
         ],
         if (mostUsed != null) ...[
           const SectionLabel('Most used'),
-          for (final c in mostUsed) tile(c),
+          for (final c in mostUsed) ...tile(c),
           const SizedBox(height: 8),
           TextButton.icon(
             key: const Key('category-show-all'),
             onPressed: () => setState(() => _showAll = true),
             icon: const Icon(Icons.expand_more),
-            label: Text('Show all ${all.length} categories'),
+            label: Text('Show all ${tops.length} categories'),
           ),
         ] else
           for (final type in CategoryType.values)
             if (groups[type] case final list?) ...[
               SectionLabel(categoryTypeLabel(type)),
-              for (final c in list) tile(c),
+              for (final c in list) ...tile(c),
             ],
       ],
     );
@@ -337,8 +494,12 @@ class CategorySelectorField extends ConsumerWidget {
     this.label = 'Category',
     this.noneLabel = 'Choose later',
     this.allowType,
+    this.topLevelOnly = false,
     super.key,
   });
+
+  /// See [CategoryPicker.topLevelOnly].
+  final bool topLevelOnly;
 
   final int? selectedId;
   final ValueChanged<int?> onChanged;
@@ -350,9 +511,14 @@ class CategorySelectorField extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(categoriesProvider).value ?? const <Category>[];
     final chosen = all.where((c) => c.id == selectedId).firstOrNull;
+    final parent = chosen?.parentId == null
+        ? null
+        : all.where((c) => c.id == chosen!.parentId).firstOrNull;
     return SelectorField(
       label: label,
-      value: chosen?.name ?? noneLabel,
+      value: chosen == null
+          ? noneLabel
+          : categoryPath(chosen.name, parentName: parent?.name),
       detail: chosen != null && chosen.isDailySpending
           ? 'Counts toward safe to spend'
           : null,
@@ -361,6 +527,7 @@ class CategorySelectorField extends ConsumerWidget {
           context,
           selectedId: selectedId,
           allowType: allowType,
+          topLevelOnly: topLevelOnly,
         );
         if (choice case ChosenCategory(:final id)) onChanged(id);
       },

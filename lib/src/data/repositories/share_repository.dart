@@ -430,8 +430,12 @@ class ShareRepository {
             'opening_balance_minor AS opening, opening_date AS since '
             "FROM accounts WHERE id = ? AND type <> 'heldForSpace'",
       ShareEntity.category =>
-        'SELECT share_uid AS uid, name, type, key, '
-            'is_daily_spending AS daily FROM categories WHERE id = ?',
+        // A subcategory carries its parent's id, which is the same on
+        // every phone.
+        'SELECT c.share_uid AS uid, c.name, c.type, c.key, '
+            'c.is_daily_spending AS daily, p.share_uid AS parent '
+            'FROM categories c LEFT JOIN categories p ON p.id = c.parent_id '
+            'WHERE c.id = ?',
       ShareEntity.budget =>
         'SELECT b.share_uid AS uid, b.month, b.name, c.share_uid AS category, '
             'b.amount_minor AS amount, b.kind, b.is_paid AS paid '
@@ -1245,7 +1249,16 @@ class ShareRepository {
           ShareEntity.byName(t.split('|').first)!,
           t.substring(t.indexOf('|') + 1),
         ),
-    ]..sort((a, b) => _order(a.$1).compareTo(_order(b.$1)));
+    ];
+    // Parents before their subcategories, so a subcategory finds the
+    // parent that came with it.
+    int rank((ShareEntity, String) item) =>
+        _order(item.$1) * 2 +
+        (item.$1 == ShareEntity.category &&
+                log.fields(item.$1, item.$2)?['parent'] != null
+            ? 1
+            : 0);
+    items.sort((a, b) => rank(a).compareTo(rank(b)));
     final members = log.members;
     for (final (entity, uid) in items) {
       if (entity.logOnly) continue;
@@ -1282,15 +1295,28 @@ class ShareRepository {
     if (id == null) return;
     try {
       if (entity == ShareEntity.category) {
+        // A subcategory's transactions go back to its parent; a parent's
+        // subcategories become top-level ones.
+        final parent = await _db
+            .customSelect(
+              'SELECT parent_id FROM categories WHERE id = ?',
+              variables: [Variable.withInt(id)],
+            )
+            .getSingleOrNull();
+        final to = parent?.read<int?>('parent_id');
         for (final sql in [
-          'UPDATE transactions SET category_override_id = NULL '
+          'UPDATE transactions SET category_override_id = ? '
               'WHERE category_override_id = ?',
-          'UPDATE budget_items SET category_id = NULL WHERE category_id = ?',
-          'UPDATE payees SET default_category_id = NULL '
+          'UPDATE budget_items SET category_id = ? WHERE category_id = ?',
+          'UPDATE payees SET default_category_id = ? '
               'WHERE default_category_id = ?',
         ]) {
-          await _db.customStatement(sql, [id]);
+          await _db.customStatement(sql, [to, id]);
         }
+        await _db.customStatement(
+          'UPDATE categories SET parent_id = NULL WHERE parent_id = ?',
+          [id],
+        );
       }
       await _db.customStatement('DELETE FROM $table WHERE id = ?', [id]);
     } on Object {
@@ -1364,17 +1390,43 @@ class ShareRepository {
             );
           }
         }
-        final values = [f['name'], f['type'], f['key'], f['daily']];
+        // The parent was written first when it came along; one missing
+        // here, or one that is itself a subcategory, leaves this one
+        // top-level rather than lost.
+        var parentId = await _idOf('categories', f['parent']);
+        if (parentId != null) {
+          final parent = await _db
+              .customSelect(
+                'SELECT parent_id FROM categories WHERE id = ?',
+                variables: [Variable.withInt(parentId)],
+              )
+              .getSingle();
+          final hasOwn =
+              id != null &&
+              await _db
+                      .customSelect(
+                        'SELECT 1 FROM categories WHERE parent_id = ? LIMIT 1',
+                        variables: [Variable.withInt(id)],
+                      )
+                      .getSingleOrNull() !=
+                  null;
+          if (parent.read<int?>('parent_id') != null ||
+              parentId == id ||
+              hasOwn) {
+            parentId = null;
+          }
+        }
+        final values = [f['name'], f['type'], f['key'], f['daily'], parentId];
         if (id == null) {
           await _db.customStatement(
             'INSERT INTO categories (name, type, key, is_daily_spending, '
-            'share_uid) VALUES (?, ?, ?, ?, ?)',
+            'parent_id, share_uid) VALUES (?, ?, ?, ?, ?, ?)',
             [...values, uid],
           );
         } else {
           await _db.customStatement(
             'UPDATE categories SET name = ?, type = ?, key = ?, '
-            'is_daily_spending = ? WHERE id = ?',
+            'is_daily_spending = ?, parent_id = ? WHERE id = ?',
             [...values, id],
           );
         }

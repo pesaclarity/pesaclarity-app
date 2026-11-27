@@ -135,7 +135,12 @@ class ActivityFilter {
   bool matches(LedgerEntry entry, {Iterable<String?> labels = const []}) {
     if (accountId != null && entry.accountId != accountId) return false;
     if (!type.matches(entry)) return false;
-    if (categoryId != null && entry.categoryId != categoryId) return false;
+    // A parent takes in its subcategories; a subcategory only itself.
+    if (categoryId != null &&
+        entry.categoryId != categoryId &&
+        entry.subcategoryId != categoryId) {
+      return false;
+    }
     if (categoryId == null &&
         uncategorised &&
         (entry.categoryId != null || roleOf(entry) != LedgerRole.spending)) {

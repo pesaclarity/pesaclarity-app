@@ -9,6 +9,9 @@ abstract interface class ReviewInboxRepository {
   /// Items still waiting for review, oldest first.
   Stream<List<ReviewItem>> watchPending();
 
+  /// Items still waiting for review now, oldest first.
+  Future<List<ReviewItem>> pending();
+
   /// Stores a message for review unless one with the same [messageHash] was
   /// stored before, even if since resolved. Returns whether it was added.
   Future<bool> addIfNew({
@@ -32,11 +35,15 @@ class DriftReviewInboxRepository implements ReviewInboxRepository {
   final DateTime Function() _clock;
 
   @override
-  Stream<List<ReviewItem>> watchPending() =>
-      (_db.select(_db.reviewItems)
-            ..where((r) => r.resolvedAt.isNull())
-            ..orderBy([(r) => OrderingTerm.asc(r.receivedAt)]))
-          .watch();
+  Stream<List<ReviewItem>> watchPending() => _pending().watch();
+
+  @override
+  Future<List<ReviewItem>> pending() => _pending().get();
+
+  SimpleSelectStatement<$ReviewItemsTable, ReviewItem> _pending() =>
+      _db.select(_db.reviewItems)
+        ..where((r) => r.resolvedAt.isNull())
+        ..orderBy([(r) => OrderingTerm.asc(r.receivedAt)]);
 
   @override
   Future<bool> addIfNew({

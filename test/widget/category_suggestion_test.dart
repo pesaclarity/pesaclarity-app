@@ -91,37 +91,28 @@ void main() {
     expect(log!.single.accepted, isTrue);
   });
 
-  testAppWidgets('a chosen category wins for that payee from then on', (
-    tester,
-  ) async {
-    final db = openTestDatabase();
-    await tester.runAsync(() => _seed(db));
-    await _pump(tester, db);
+  testAppWidgets(
+    'a chosen category is for that transaction until Use for all',
+    (tester) async {
+      final db = openTestDatabase();
+      await tester.runAsync(() => _seed(db));
+      await _pump(tester, db);
 
-    expect(find.text('Uncategorised · Tap to choose'), findsNWidgets(2));
-    await tester.tap(find.text('Uncategorised · Tap to choose').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a category'), findsOneWidget);
-    await tester.tap(find.text('Eating out'));
-    await _settle(tester);
+      expect(find.text('Uncategorised · Tap to choose'), findsNWidgets(2));
+      await tester.tap(find.text('Uncategorised · Tap to choose').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Choose a category'), findsOneWidget);
+      await tester.tap(find.text('Eating out'));
+      await _settle(tester);
 
-    expect(findDetailLine('Eating out · M-Pesa'), findsOneWidget);
-    expect(find.text('Eating out? 100%'), findsOneWidget);
-
-    // The sheet shows the suggestion with its source; Change picks another.
-    await tester.tap(find.text('Eating out? 100%'));
-    await tester.pumpAndSettle();
-    expect(find.text('SUGGESTED CATEGORY'), findsOneWidget);
-    expect(
-      find.text('100% sure · Your earlier choice for this payee'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Change'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Groceries and household'));
-    await _settle(tester);
-
-    expect(findDetailLine('Groceries and household · M-Pesa'), findsOneWidget);
-    expect(findDetailLine('Eating out · M-Pesa'), findsOneWidget);
-  });
+      expect(findDetailLine('Eating out · M-Pesa'), findsOneWidget);
+      // The other one from the same payee is left alone; the note offers it.
+      expect(find.text('Uncategorised · Tap to choose'), findsOneWidget);
+      expect(find.textContaining('Use Eating out for all'), findsOneWidget);
+      await tester.tap(find.text('Use for all'));
+      await _settle(tester);
+      // Now the payee's other one takes it too.
+      expect(find.text('Uncategorised · Tap to choose'), findsNothing);
+    },
+  );
 }

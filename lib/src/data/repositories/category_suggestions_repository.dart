@@ -14,13 +14,22 @@ abstract interface class CategorySuggestionsRepository {
   /// Category ids by payee key (see `payeeKeys`).
   Stream<Map<String, int>> watchCorrections();
 
-  /// Sets [entry]'s category to [categoryId], remembers it for the payee
+  /// Sets [entry]'s category to [categoryId], for that transaction only,
   /// and logs whether it matched [suggestion].
   Future<void> confirm(
     LedgerEntry entry, {
     required int categoryId,
     required DateTime at,
     CategorySuggestion? suggestion,
+  });
+
+  /// "Use it for all": [categoryId] becomes [entry]'s payee's category, so
+  /// their other transactions not set by hand take it, and it is
+  /// remembered for later ones from them.
+  Future<void> useForPayee(
+    LedgerEntry entry, {
+    required int categoryId,
+    required DateTime at,
   });
 
   /// Confirmations whose category has a categoriser key, oldest first.
@@ -55,31 +64,6 @@ class DriftCategorySuggestionsRepository
     if (updated == 0) {
       throw ArgumentError.value(entry.id, 'entry', 'transaction not found');
     }
-    for (final key in payeeKeys(entry)) {
-      await _db
-          .into(_db.categoryCorrections)
-          .insertOnConflictUpdate(
-            CategoryCorrectionsCompanion.insert(
-              payeeKey: key,
-              categoryId: categoryId,
-              updatedAt: at,
-            ),
-          );
-    }
-    if (entry.payeeId != null) {
-      await (_db.update(_db.transactions)..where(
-            (t) =>
-                t.payeeId.equals(entry.payeeId!) &
-                t.categoryOverrideId.isNull(),
-          ))
-          .write(
-            TransactionsCompanion(
-              autoCategoryId: Value(categoryId),
-              autoCategorySource: const Value(SuggestionSource.correction),
-              autoCategoryConfidence: const Value(1.0),
-            ),
-          );
-    }
     await _db
         .into(_db.categoryConfirmations)
         .insert(
@@ -96,6 +80,52 @@ class DriftCategorySuggestionsRepository
             confirmedAt: at,
           ),
         );
+  });
+
+  @override
+  Future<void> useForPayee(
+    LedgerEntry entry, {
+    required int categoryId,
+    required DateTime at,
+  }) => _db.transaction(() async {
+    for (final key in payeeKeys(entry)) {
+      await _db
+          .into(_db.categoryCorrections)
+          .insertOnConflictUpdate(
+            CategoryCorrectionsCompanion.insert(
+              payeeKey: key,
+              categoryId: categoryId,
+              updatedAt: at,
+            ),
+          );
+    }
+    final t = _db.transactions;
+    final kind = entry.counterpartyKind;
+    final value = entry.counterpartyValue;
+    final payeeId = entry.payeeId;
+    final same = payeeId != null
+        ? t.payeeId.equals(payeeId)
+        : kind != null && value != null
+        ? t.payeeId.isNull() &
+              t.counterpartyKind.equalsValue(kind) &
+              t.counterpartyValue.equals(value)
+        : null;
+    if (same != null) {
+      await (_db.update(
+        t,
+      )..where((t) => same & t.categoryOverrideId.isNull())).write(
+        TransactionsCompanion(
+          autoCategoryId: Value(categoryId),
+          autoCategorySource: const Value(SuggestionSource.correction),
+          autoCategoryConfidence: const Value(1.0),
+        ),
+      );
+    }
+    if (payeeId != null) {
+      await (_db.update(_db.payees)..where((p) => p.id.equals(payeeId))).write(
+        PayeesCompanion(defaultCategoryId: Value(categoryId)),
+      );
+    }
   });
 
   @override
