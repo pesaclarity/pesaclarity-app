@@ -2,6 +2,20 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
+## [0.5.12](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.11...v0.5.12) (2026-11-27)
+
+
+### Features
+
+* **categories:** subcategories ([#443](https://github.com/pesaclarity/pesaclarity-app/issues/443)) ([d09cd37](https://github.com/pesaclarity/pesaclarity-app/commit/d09cd372ad06844be5817a8654fc5aa0217774d1))
+
+
+### Fixes
+
+* **ask:** carry on a dropped model download by itself ([#442](https://github.com/pesaclarity/pesaclarity-app/issues/442)) ([4e12ddd](https://github.com/pesaclarity/pesaclarity-app/commit/4e12dddb208e1678cdec39b31448d6631160cbd8))
+* **categories:** change one transaction's category, offer the rest ([#444](https://github.com/pesaclarity/pesaclarity-app/issues/444)) ([0b27c8f](https://github.com/pesaclarity/pesaclarity-app/commit/0b27c8f03fe9d0fb859ab29876ece5cc42d648ea))
+* **review:** read waiting messages again once a layout is saved ([#445](https://github.com/pesaclarity/pesaclarity-app/issues/445)) ([3fe0d9f](https://github.com/pesaclarity/pesaclarity-app/commit/3fe0d9fa80be638e555e2dafe7d58c0c4ab9197b))
+
 ## [0.5.11](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.10...v0.5.11) (2026-11-27)
 
 
