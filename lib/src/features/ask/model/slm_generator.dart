@@ -207,6 +207,9 @@ class RayoSlmGenerator implements SlmGenerator {
         repetitionPenalty: 1,
         maxTokens: 200,
         context: 2048,
+        // A float32 key/value cache: an int8 one costs the fine-tuned models
+        // their chart line (pesaclarity-ml, SLM-QUANT on the release).
+        int8Cache: false,
       );
     } on Object catch (e) {
       generator?.close();

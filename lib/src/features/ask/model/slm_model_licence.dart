@@ -7,10 +7,12 @@ import 'package:flutter/foundation.dart';
 const slmModelName = 'SmolLM2 (Ask money model)';
 
 const slmModelAttribution =
-    'SmolLM2-135M-Instruct and SmolLM2-360M-Instruct, by Hugging Face '
-    '(huggingface.co/HuggingFaceTB), licensed under the Apache License 2.0. '
-    'Converted to 4-bit weights for rayo, and, where the catalogue says so, '
-    'fine-tuned by Pesa Clarity on made-up data.';
+    'Light is based on SmolLM2-135M-Instruct, by Hugging Face '
+    '(huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct), licensed under '
+    'the Apache License 2.0. Modified by Pesa Clarity: fine-tuned on made-up '
+    'data only to pick a chart and explain the app\'s facts, its vocabulary '
+    'trimmed, and converted to int8 weights for rayo (pesaclarity-ml, '
+    'docs/SLM.md).';
 
 /// Puts the models' licence on the licences page.
 void registerSlmLicence() => LicenseRegistry.addLicense(
