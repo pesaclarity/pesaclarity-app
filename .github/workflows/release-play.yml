@@ -177,11 +177,12 @@ jobs:
           printf 'storeFile=%s\nstorePassword=throwaway\nkeyAlias=upload\nkeyPassword=throwaway\n' \
             "$RUNNER_TEMP/upload.jks" > android/key.properties
 
-      # Play needs a higher version code on every upload. The run number keeps
-      # rising; the offset leaves room for builds uploaded by hand.
+      # Play needs a higher version code on every upload. The minutes since
+      # the start of 2026 keep rising however the build was started; the run
+      # number does not, because a release and a run by hand count separately.
+      # The offset leaves room for builds uploaded by hand.
       - name: Build App Bundle
         env:
-          BUILD_NUMBER: ${{ github.run_number }}
           API_URL: ${{ secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL }}
           VAULT_URL: ${{ secrets.PESACLARITY_VAULT_URL || vars.PESACLARITY_VAULT_URL || secrets.PESACLARITY_API_URL || vars.PESACLARITY_API_URL }}
           GOOGLE_CLIENT_ID: ${{ vars.PESACLARITY_GOOGLE_SERVER_CLIENT_ID }}
@@ -195,7 +196,8 @@ jobs:
           # Pull requests only check the build, so they need no offset.
           offset="$VERSION_CODE_OFFSET"
           [ "$GITHUB_EVENT_NAME" = pull_request ] && offset=0
-          build_number=$((BUILD_NUMBER + offset))
+          build_number=$(( ($(date -u +%s) - 1767225600) / 60 + offset ))
+          echo "Version code: $build_number"
           # Repository variables replace tool/rates.env's service.
           . tool/rates.env
           RATES_URL="${RATES_URL:-$PESACLARITY_RATES_URL}"
