@@ -2,6 +2,13 @@
 
 All notable changes to the app. Versions follow [semantic versioning](https://semver.org): until 1.0, a `feat` bumps the minor version and a `fix` the patch. Entries from 0.2.0 on are written by release-please from commit titles (pull request titles until pull requests into `dev` were rebase-merged).
 
+## [0.5.13](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.12...v0.5.13) (2026-11-28)
+
+
+### Features
+
+* **review:** tell once when an institution's messages change format ([#447](https://github.com/pesaclarity/pesaclarity-app/issues/447)) ([1629e54](https://github.com/pesaclarity/pesaclarity-app/commit/1629e54d22daeeff69125c42fb47cba5086ecb44))
+
 ## [0.5.12](https://github.com/pesaclarity/pesaclarity-app/compare/v0.5.11...v0.5.12) (2026-11-27)
 
 
