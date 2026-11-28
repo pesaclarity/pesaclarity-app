@@ -72,12 +72,16 @@ jobs:
       - id: check
         env:
           ENABLED: ${{ vars.PLAY_UPLOADS_ENABLED || secrets.PLAY_UPLOADS_ENABLED }}
+        # The output is 1 or 0, never the switch's own word: when the switch
+        # is saved as a secret, GitHub drops any job output that holds its
+        # value, and the upload job was skipped as if uploads were paused.
         run: |
+          switch=$(printf '%s' "$ENABLED" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$GITHUB_EVENT_NAME" = pull_request ] ||
-            [ "$ENABLED" = true ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            [ "$switch" = true ]; then
+            echo "enabled=1" >> "$GITHUB_OUTPUT"
           else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "enabled=0" >> "$GITHUB_OUTPUT"
             echo "::notice::Google Play uploads are paused; set the PLAY_UPLOADS_ENABLED variable to true to turn them on (README, Releasing to Google Play)."
             echo "Google Play uploads are paused until the \`PLAY_UPLOADS_ENABLED\` variable is \`true\`; run this workflow by hand to upload." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -85,7 +89,7 @@ jobs:
   release:
     name: Build and upload
     needs: uploads
-    if: needs.uploads.outputs.enabled == 'true'
+    if: needs.uploads.outputs.enabled == '1'
     runs-on: ubuntu-24.04
     environment: ${{ github.event_name != 'pull_request' && 'play-store' || '' }}
     # Job-level, so the play-store environment's variables are seen.
